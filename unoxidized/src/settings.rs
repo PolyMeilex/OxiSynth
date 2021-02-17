@@ -12,6 +12,7 @@ pub struct Range<T> {
     pub max: T,
 }
 
+#[derive(Debug)]
 pub enum Setting {
     Int(IntSetting),
     Str(StrSetting),
@@ -19,33 +20,39 @@ pub enum Setting {
     Set(HashMap<String, Setting>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct StrSetting {
     value: String,
     def: String,
     hints: i32,
+    #[derivative(Debug = "ignore")]
     update: StrUpdateFn,
     data: *mut libc::c_void,
 }
 pub type StrUpdateFn = Option<unsafe fn(_: *mut libc::c_void, _: &str, _: String) -> i32>;
-#[derive(Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct IntSetting {
     value: i32,
     def: i32,
     min: i32,
     max: i32,
     hints: i32,
+    #[derivative(Debug = "ignore")]
     update: IntUpdateFn,
     data: *mut libc::c_void,
 }
 pub type IntUpdateFn = Option<unsafe fn(_: *mut libc::c_void, _: &str, _: i32) -> i32>;
-#[derive(Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct NumSetting {
     value: f64,
     def: f64,
     min: f64,
     max: f64,
     hints: i32,
+    #[derivative(Debug = "ignore")]
     update: NumUpdateFn,
     data: *mut libc::c_void,
 }
@@ -106,6 +113,7 @@ unsafe fn new_fluid_int_setting(
     };
 }
 
+#[derive(Debug)]
 pub struct Settings {
     table: HashMap<String, Setting>,
 }

@@ -2,6 +2,9 @@
 extern crate lazy_static;
 
 #[macro_use]
+extern crate derivative;
+
+#[macro_use]
 mod macros {
     macro_rules! gerr {
         ($err:expr, $fmt_string:expr, $( $arg:expr ),*) => {
