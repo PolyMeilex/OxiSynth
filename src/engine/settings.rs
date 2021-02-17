@@ -466,10 +466,10 @@ impl Settings {
         unsafe {
             let tokens: Vec<String> = name.split(".").map(|x| x.to_string()).collect();
             return match self.get(&tokens) {
-                Some(Setting::Num(_)) => FLUID_SET_TYPE,
+                Some(Setting::Num(_)) => FLUID_NUM_TYPE,
                 Some(Setting::Str(_)) => FLUID_STR_TYPE,
                 Some(Setting::Int(_)) => FLUID_INT_TYPE,
-                Some(Setting::Set(_)) => FLUID_NUM_TYPE,
+                Some(Setting::Set(_)) => FLUID_SET_TYPE,
                 _ => FLUID_NO_TYPE,
             };
         }
