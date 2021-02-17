@@ -1,10 +1,10 @@
 [package]
-name = "oxidized-fluid"
+name = "unoxidized"
 version = "0.1.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+libc = "0.2.81"
 bitflags = "^1.2"
-
-unoxidized={path="./unoxidized"}
+lazy_static = "1.4.0"

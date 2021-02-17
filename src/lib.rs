@@ -1,8 +1,6 @@
-#[macro_use]
-extern crate lazy_static;
+pub(crate) use unoxidized as engine;
 
-pub(crate) mod engine;
-mod fileapi;
+pub(crate) use unoxidized::fileapi;
 mod font;
 mod loader;
 mod private;

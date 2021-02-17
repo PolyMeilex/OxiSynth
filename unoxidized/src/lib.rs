@@ -1,4 +1,7 @@
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 mod redoxsynth_macros {
     macro_rules! fluid_log {
         ($log_level:expr, $fmt_string:expr, $( $arg:expr ),*) => {
@@ -13,16 +16,18 @@ mod redoxsynth_macros {
     }
 }
 
-pub(crate) mod channel;
-pub(crate) mod chorus;
-pub(crate) mod conv;
-pub(crate) mod dsp_float;
-pub(crate) mod gen;
-pub(crate) mod modulator;
-pub(crate) mod reverb;
-pub(crate) mod settings;
-pub(crate) mod sfloader;
-pub(crate) mod soundfont;
-pub(crate) mod synth;
-pub(crate) mod tuning;
-pub(crate) mod voice;
+pub mod channel;
+pub mod chorus;
+pub mod conv;
+pub mod dsp_float;
+pub mod gen;
+pub mod modulator;
+pub mod reverb;
+pub mod settings;
+pub mod sfloader;
+pub mod soundfont;
+pub mod synth;
+pub mod tuning;
+pub mod voice;
+
+pub mod fileapi;
