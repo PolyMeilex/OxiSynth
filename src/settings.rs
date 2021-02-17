@@ -262,8 +262,8 @@ impl<'a> Setting<'a, str> {
     Returns `true` if the value has been set, `false` otherwise
      */
     pub fn set<S: Into<String>>(&self, value: S) -> bool {
-        let mut value = value.into();
-        value.push('\0');
+        let value = value.into();
+        // value.push('\0');
         0 < unsafe { engine::settings::Settings::setstr(&mut *self.handle, &self.name, &value) }
     }
 
