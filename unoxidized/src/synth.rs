@@ -1088,7 +1088,6 @@ impl Synth {
         return 0 as i32;
     }
 
-
     pub unsafe fn write_s16(
         &mut self,
         len: i32,
