@@ -261,10 +261,10 @@ impl<'a> Setting<'a, str> {
 
     Returns `true` if the value has been set, `false` otherwise
      */
-    pub fn set<S: Into<String>>(&self, value: S) -> bool {
-        let value = value.into();
-        // value.push('\0');
-        0 < unsafe { engine::settings::Settings::setstr(&mut *self.handle, &self.name, &value) }
+    pub fn set<S: AsRef<str>>(&self, value: S) -> bool {
+        0 < unsafe {
+            engine::settings::Settings::setstr(&mut *self.handle, &self.name, value.as_ref())
+        }
     }
 
     /**
