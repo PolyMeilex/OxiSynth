@@ -174,50 +174,37 @@ impl Chorus {
         let mut i: i32;
         let mut modulation_depth_samples: i32;
         if self.new_number_blocks < 0 as i32 {
-            fluid_log!(
-                FLUID_WARN,
-                "chorus: number blocks must be >=0! Setting value to 0.",
-            );
+            log::warn!("chorus: number blocks must be >=0! Setting value to 0.");
             self.new_number_blocks = 0 as i32
         } else if self.new_number_blocks > 99 as i32 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "chorus: number blocks larger than max. allowed! Setting value to {}.",
                 99
             );
             self.new_number_blocks = 99 as i32
         }
         if (self.new_speed_hz as f64) < 0.29f64 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "chorus: speed is too low (min {})! Setting value to min.",
                 0.29f64
             );
             self.new_speed_hz = 0.29f32
         } else if self.new_speed_hz > 5 as i32 as f32 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "chorus: speed must be below {} Hz! Setting value to max.",
                 5
             );
             self.new_speed_hz = 5 as i32 as f32
         }
         if (self.new_depth_ms as f64) < 0.0f64 {
-            fluid_log!(
-                FLUID_WARN,
-                "chorus: depth must be positive! Setting value to 0.",
-            );
+            log::warn!("chorus: depth must be positive! Setting value to 0.",);
             self.new_depth_ms = 0.0f32
         }
         if (self.new_level as f64) < 0.0f64 {
-            fluid_log!(
-                FLUID_WARN,
-                "chorus: level must be positive! Setting value to 0.",
-            );
+            log::warn!("chorus: level must be positive! Setting value to 0.",);
             self.new_level = 0.0f32
         } else if self.new_level > 10 as i32 as f32 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "chorus: level must be < 10. A reasonable level is << 1! Setting it to 0.1.",
             );
             self.new_level = 0.1f32
@@ -226,8 +213,7 @@ impl Chorus {
         modulation_depth_samples =
             (self.new_depth_ms as f64 / 1000.0f64 * self.sample_rate as f64) as i32;
         if modulation_depth_samples > (1 as i32) << 12 as i32 - 1 as i32 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "chorus: Too high depth. Setting it to max ({}).",
                 (1) << 12 - 1
             );
@@ -246,10 +232,7 @@ impl Chorus {
                 modulation_depth_samples,
             );
         } else {
-            fluid_log!(
-                FLUID_WARN,
-                "chorus: Unknown modulation type. Using sinewave.",
-            );
+            log::warn!("chorus: Unknown modulation type. Using sinewave.",);
             self.type_0 = ChorusMode::Sine;
             modulate_sine(
                 self.lookup_tab,

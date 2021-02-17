@@ -193,7 +193,7 @@ pub unsafe fn new_fluid_voice(output_rate: f32) -> *mut Voice {
     let voice: *mut Voice;
     voice = libc::malloc(::std::mem::size_of::<Voice>() as libc::size_t) as *mut Voice;
     if voice.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut Voice;
     }
     (*voice).status = FLUID_VOICE_CLEAN as i32 as u8;
@@ -1507,8 +1507,7 @@ pub unsafe fn fluid_voice_add_mod(mut voice: *mut Voice, mod_0: &Mod, mode: i32)
             && mod_0.src1 as i32 != 14 as i32
             && mod_0.src1 as i32 != 16 as i32)
     {
-        fluid_log!(
-            FLUID_WARN,
+        log::warn!(
             "Ignoring invalid controller, using non-CC source {}.",
             mod_0.src1 as i32
         );

@@ -185,7 +185,7 @@ impl Settings {
                 return 1 as i32;
             }
             _ => {
-                fluid_log!(FLUID_WARN, "Type mismatch on setting \'{}\'", name);
+                log::warn!("Type mismatch on setting '{}'", name);
                 return 1 as i32;
             }
         }
@@ -220,7 +220,7 @@ impl Settings {
                     return 1 as i32;
                 }
                 _ => {
-                    fluid_log!(FLUID_WARN, "Type mismatch on setting \'{}\'", name);
+                    log::warn!("Type mismatch on setting '{}'", name);
                     return 0 as i32;
                 }
             };

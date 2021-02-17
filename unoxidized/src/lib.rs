@@ -2,13 +2,7 @@
 extern crate lazy_static;
 
 #[macro_use]
-mod redoxsynth_macros {
-    macro_rules! fluid_log {
-        ($log_level:expr, $fmt_string:expr, $( $arg:expr ),*) => {
-            println!($fmt_string, $( $arg ),*);
-        }
-    }
-
+mod macros {
     macro_rules! gerr {
         ($err:expr, $fmt_string:expr, $( $arg:expr ),*) => {
             { println!($fmt_string, $( $arg ),*); 0 }

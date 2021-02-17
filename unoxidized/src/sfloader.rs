@@ -365,7 +365,7 @@ pub unsafe fn fluid_defsfont_sfont_get_preset(
             }
             preset = libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
             if preset.is_null() {
-                fluid_log!(FLUID_ERR, "Out of memory",);
+                log::error!("Out of memory",);
                 return 0 as *mut Preset;
             }
             (*preset).sfont = sfont;
@@ -501,7 +501,7 @@ unsafe fn fluid_defsfont_load(
     (*sfont).filename = file.to_vec();
     sfdata = sfload_file(file, fapi);
     if sfdata.is_null() {
-        fluid_log!(FLUID_ERR, "Couldn't load soundfont file",);
+        log::error!("Couldn't load soundfont file",);
         return FLUID_FAILED;
     }
     (*sfont).samplepos = (*sfdata).samplepos;
@@ -598,26 +598,26 @@ pub unsafe fn fluid_defsfont_load_sampledata(
             .unwrap(),
     )) {
         None => {
-            fluid_log!(FLUID_ERR, "Can't open soundfont file",);
+            log::error!("Can't open soundfont file",);
             return FLUID_FAILED as i32;
         }
         Some(file) => file,
     };
     if !fd.seek(SeekFrom::Start((*sfont).samplepos as _)) {
         libc::perror(b"error\x00" as *const u8 as *const i8);
-        fluid_log!(FLUID_ERR, "Failed to seek position in data file",);
+        log::error!("Failed to seek position in data file",);
         return FLUID_FAILED as i32;
     }
     (*sfont).sampledata = libc::malloc((*sfont).samplesize as libc::size_t) as *mut i16;
     if (*sfont).sampledata.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return FLUID_FAILED as i32;
     }
     if !fd.read(from_raw_parts_mut(
         (*sfont).sampledata as _,
         (*sfont).samplesize as _,
     )) {
-        fluid_log!(FLUID_ERR, "Failed to read sample data",);
+        log::error!("Failed to read sample data",);
         return FLUID_FAILED as i32;
     }
     endian = 0x100 as i32 as u16;
@@ -690,7 +690,7 @@ pub unsafe fn new_fluid_defpreset(sfont: *mut DefaultSoundFont) -> *mut DefaultP
     let mut preset: *mut DefaultPreset =
         libc::malloc(::std::mem::size_of::<DefaultPreset>() as libc::size_t) as *mut DefaultPreset;
     if preset.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut DefaultPreset;
     }
     (*preset).next = 0 as *mut DefaultPreset;
@@ -1018,7 +1018,7 @@ pub unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
     let mut zone: *mut PresetZone;
     zone = libc::malloc(::std::mem::size_of::<PresetZone>() as libc::size_t) as *mut PresetZone;
     if zone.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut PresetZone;
     }
     libc::memset(zone as _, 0, std::mem::size_of::<PresetZone>() as _);
@@ -1077,7 +1077,7 @@ pub unsafe fn fluid_preset_zone_import_sfont(
     if !(*sfzone).instsamp.is_none() && !(*sfzone).instsamp.unwrap_inst().is_null() {
         (*zone).inst = new_fluid_inst();
         if (*zone).inst.is_null() {
-            fluid_log!(FLUID_ERR, "Out of memory",);
+            log::error!("Out of memory",);
             return FLUID_FAILED as i32;
         }
         if fluid_inst_import_sfont(
@@ -1191,7 +1191,7 @@ pub unsafe fn new_fluid_inst() -> *mut Instrument {
     let mut inst: *mut Instrument =
         libc::malloc(::std::mem::size_of::<Instrument>() as libc::size_t) as *mut Instrument;
     if inst.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut Instrument;
     }
     (*inst).name = [0; 21];
@@ -1300,7 +1300,7 @@ pub unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
         as *mut InstrumentZone;
     libc::memset(zone as _, 0, std::mem::size_of::<InstrumentZone>() as _);
     if zone.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut InstrumentZone;
     }
     (*zone).next = 0 as *mut InstrumentZone;
@@ -1360,7 +1360,7 @@ pub unsafe fn fluid_inst_zone_import_sfont(
         (*zone).sample =
             fluid_defsfont_get_sample(sfont, &(*((*sfzone).instsamp.unwrap_sample())).name);
         if (*zone).sample.is_null() {
-            fluid_log!(FLUID_ERR, "Couldn't find sample name",);
+            log::error!("Couldn't find sample name",);
             return FLUID_FAILED as i32;
         }
     }
@@ -1467,7 +1467,7 @@ pub unsafe fn new_fluid_sample() -> *mut Sample {
     let mut sample: *mut Sample;
     sample = libc::malloc(::std::mem::size_of::<Sample>() as libc::size_t) as *mut Sample;
     if sample.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as *mut Sample;
     }
     libc::memset(
@@ -1512,16 +1512,14 @@ pub unsafe fn fluid_sample_import_sfont(
     }
     if (*sample).sampletype & 0x8000 as i32 != 0 {
         (*sample).valid = 0 as i32;
-        fluid_log!(
-            FLUID_WARN,
+        log::warn!(
             "Ignoring sample: can\'t use ROM samples",
             //(*sample).name
         );
     }
     if (*sample).end.wrapping_sub((*sample).start) < 8 as i32 as u32 {
         (*sample).valid = 0 as i32;
-        fluid_log!(
-            FLUID_WARN,
+        log::warn!(
             "Ignoring sample: too few sample data points",
             //(*sample).name
         );
@@ -1558,8 +1556,7 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFDat
         CStr::from_bytes_with_nul(fname).unwrap().to_str().unwrap(),
     )) {
         None => {
-            fluid_log!(
-                FLUID_ERR,
+            log::error!(
                 "Unable to open file \"{}\"",
                 CStr::from_ptr(fname.as_ptr() as *const i8)
                     .to_str()
@@ -1572,7 +1569,7 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFDat
 
     sf = libc::malloc(::std::mem::size_of::<SFData>() as libc::size_t) as *mut SFData;
     if sf.is_null() {
-        fluid_log!(FLUID_ERR, "Out of memory",);
+        log::error!("Out of memory",);
         return 0 as _;
     }
     libc::memset(
@@ -1582,7 +1579,7 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFDat
     );
     (*sf).fname = fname.to_vec();
     if !fd.seek(SeekFrom::End(0)) {
-        fluid_log!(FLUID_ERR, "Seek to end of file failed",);
+        log::error!("Seek to end of file failed",);
         sfont_close(sf);
         return 0 as _;
     }
@@ -1591,7 +1588,7 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFDat
             fsize = pos as _;
         }
         None => {
-            fluid_log!(FLUID_ERR, "Get end of file position failed",);
+            log::error!("Get end of file position failed",);
             sfont_close(sf);
             return 0 as _;
         }
@@ -1610,14 +1607,14 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
         return 0;
     }
     if chunkid(chunk.id) != RIFF_ID as i32 {
-        fluid_log!(FLUID_ERR, "Not a RIFF file",);
+        log::error!("Not a RIFF file",);
         return 0 as i32;
     }
     if !read_unsafe(fd, &mut chunk.id) {
         return 0;
     }
     if chunkid(chunk.id) != SFBK_ID as i32 {
-        fluid_log!(FLUID_ERR, "Not a sound font file",);
+        log::error!("Not a sound font file",);
         return 0 as i32;
     }
     if chunk.size + 8 != size {
@@ -1705,8 +1702,7 @@ unsafe fn process_info(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32
                 return 0;
             }
             if ((*sf).version.major as i32) < 2 as i32 {
-                fluid_log!(
-                    FLUID_ERR,
+                log::error!(
                     "Sound font version is {}.{} which is not supported, convert to version 2.0x",
                     (*sf).version.major,
                     (*sf).version.minor
@@ -1714,7 +1710,7 @@ unsafe fn process_info(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32
                 return 0 as i32;
             }
             if (*sf).version.major as i32 > 2 as i32 {
-                fluid_log!(FLUID_WARN,
+                log::warn!(
                           "Sound font version is {}.{} which is newer than what this version of FLUID Synth was designed for (v2.0x)",
                           (*sf).version.major,
                           (*sf).version.minor);
@@ -1964,7 +1960,7 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     i = size / 38 as i32 - 1 as i32;
     if i == 0 as i32 {
-        fluid_log!(FLUID_WARN, "File contains no presets",);
+        log::warn!("File contains no presets",);
         if !fd.seek(SeekFrom::Current(38)) {
             return 0;
         }
@@ -2000,11 +1996,7 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
                 (*pr).zone.insert(0, 0 as _);
             }
         } else if zndx as i32 > 0 as i32 {
-            fluid_log!(
-                FLUID_WARN,
-                "{} preset zones not referenced, discarding",
-                zndx
-            );
+            log::warn!("{} preset zones not referenced, discarding", zndx);
         }
         pr = p;
         pzndx = zndx;
@@ -2091,10 +2083,10 @@ unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     read_unsafe(fd, &mut modndx);
     if pz.is_null() {
         if genndx as i32 > 0 as i32 {
-            fluid_log!(FLUID_WARN, "No preset generators and terminal index not 0",);
+            log::warn!("No preset generators and terminal index not 0",);
         }
         if modndx as i32 > 0 as i32 {
-            fluid_log!(FLUID_WARN, "No preset modulators and terminal index not 0",);
+            log::warn!("No preset modulators and terminal index not 0",);
         }
         return 1 as i32;
     }
@@ -2247,8 +2239,7 @@ unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
                     continue;
                 }
             } else {
-                fluid_log!(
-                    FLUID_WARN,
+                log::warn!(
                     "Preset \"{}\": Discarding invalid global zone",
                     CStr::from_ptr((**preset).name.as_ptr() as *const i8)
                         .to_str()
@@ -2272,8 +2263,7 @@ unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
             }
         }
         if discarded != 0 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "Preset \"{}\": Some invalid generators were discarded",
                 CStr::from_ptr((**preset).name.as_ptr() as *const i8)
                     .to_str()
@@ -2305,7 +2295,7 @@ unsafe fn load_ihdr(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     size = size / 22 as i32 - 1 as i32;
     if size == 0 as i32 {
-        fluid_log!(FLUID_WARN, "File contains no instruments",);
+        log::warn!("File contains no instruments",);
         if !fd.seek(SeekFrom::Current(22)) {
             return 0 as i32;
         }
@@ -2335,11 +2325,7 @@ unsafe fn load_ihdr(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
                 (*pr).zone.insert(0, 0 as _)
             }
         } else if zndx as i32 > 0 as i32 {
-            fluid_log!(
-                FLUID_WARN,
-                "{} instrument zones not referenced, discarding",
-                zndx
-            );
+            log::warn!("{} instrument zones not referenced, discarding", zndx);
         }
         pzndx = zndx;
         pr = p;
@@ -2423,16 +2409,10 @@ unsafe fn load_ibag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     read_unsafe(fd, &mut modndx);
     if pz.is_null() {
         if genndx as i32 > 0 as i32 {
-            fluid_log!(
-                FLUID_WARN,
-                "No instrument generators and terminal index not 0",
-            );
+            log::warn!("No instrument generators and terminal index not 0",);
         }
         if modndx as i32 > 0 as i32 {
-            fluid_log!(
-                FLUID_WARN,
-                "No instrument modulators and terminal index not 0",
-            );
+            log::warn!("No instrument modulators and terminal index not 0",);
         }
         return 1 as i32;
     }
@@ -2584,8 +2564,7 @@ unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
             } else if gzone == 0 {
                 gzone = (0 as i32 == 0) as i32;
                 if hz != i {
-                    fluid_log!(
-                        FLUID_WARN,
+                    log::warn!(
                         "Instrument \"{}\": Global zone is not first zone",
                         CStr::from_ptr((**inst).name.as_ptr() as *const i8)
                             .to_str()
@@ -2595,8 +2574,7 @@ unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
                     continue;
                 }
             } else {
-                fluid_log!(
-                    FLUID_WARN,
+                log::warn!(
                     "Instrument \"{}\": Discarding invalid global zone",
                     CStr::from_ptr((**inst).name.as_ptr() as *const i8)
                         .to_str()
@@ -2621,8 +2599,7 @@ unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
             }
         }
         if discarded != 0 {
-            fluid_log!(
-                FLUID_WARN,
+            log::warn!(
                 "Instrument \"{}\": Some invalid generators were discarded",
                 CStr::from_ptr((**inst).name.as_ptr() as *const i8)
                     .to_str()
@@ -2652,7 +2629,7 @@ unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
         .wrapping_div(46 as i32 as u32)
         .wrapping_sub(1 as i32 as u32);
     if size == 0 as i32 as u32 {
-        fluid_log!(FLUID_WARN, "File contains no samples",);
+        log::warn!("File contains no samples",);
         if !fd.seek(SeekFrom::Current(46)) {
             return 0 as i32;
         }
@@ -2739,7 +2716,7 @@ unsafe fn fixup_sample(sf: *mut SFData) -> i32 {
         if (**sam).sampletype as i32 & 0x8000 as i32 == 0 && (**sam).end > SDTACHUNK_SIZE
             || (**sam).start > (**sam).end.wrapping_sub(4 as i32 as u32)
         {
-            fluid_log!(FLUID_WARN,
+            log::warn!(
                       "Sample \'{}\' start/end file positions are invalid, disabling and will not be saved", 
                       CStr::from_ptr(
                           (**sam).name.as_ptr() as *const i8
