@@ -1,24 +1,58 @@
 use oxidized_fluid as fluid;
+use std::{fs::File, io::Write, slice::from_raw_parts};
 
 fn main() {
-    let mut settings = fluid::Settings::default();
-    // let gain = settings.num("synth.gain").unwrap();
+    use env_logger::Env;
+    env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
+    synth_sf2();
+}
 
-    // let rate = settings.pick::<_, f64>("synth.sample-rate").unwrap();
+fn synth_sf2() {
+    let mut pcm = File::create("Boomwhacker.sf2.pcm").unwrap();
 
-    // let g = rate.get().unwrap();
-    // println!("{}", g);
+    let settings = fluid::Settings::default();
 
-    // rate.set(0.0);
+    let mut synth = fluid::Synth::new(settings).unwrap();
 
-    // let g = rate.get().unwrap();
-    // println!("{}", g);
+    synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
 
-    // assert_eq!(gain.default(), 0.2f32 as f64);
-    // //assert_eq!(gain.range().min, Some(0.0));
-    // //assert_eq!(gain.range().max, Some(10.0));
+    let mut samples = [0f32; 44100 * 2];
 
-    // assert_eq!(gain.get(), Some(0.2f32 as f64));
-    // assert!(gain.set(0.5));
-    // assert_eq!(gain.get(), Some(0.5));
+    {
+        synth.note_on(0, 60, 127).unwrap();
+
+        synth.write(samples.as_mut()).unwrap();
+        pcm.write(unsafe {
+            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
+        })
+        .unwrap();
+
+        synth.note_off(0, 60).unwrap();
+
+        synth.write(samples.as_mut()).unwrap();
+        pcm.write(unsafe {
+            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
+        })
+        .unwrap();
+    }
+
+    {
+        synth.note_on(0, 60, 127).unwrap();
+
+        synth.write(samples.as_mut()).unwrap();
+        pcm.write(unsafe {
+            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
+        })
+        .unwrap();
+
+        synth.note_off(0, 60).unwrap();
+
+        synth.write(samples.as_mut()).unwrap();
+        pcm.write(unsafe {
+            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
+        })
+        .unwrap();
+    }
+
+    drop(synth);
 }

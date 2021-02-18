@@ -4,7 +4,7 @@ use super::chorus::Chorus;
 use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
-use super::settings::{self, Settings};
+use super::settings::Settings;
 use super::sfloader::new_fluid_defsfloader;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
@@ -194,17 +194,6 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
 };
 
 pub struct Synth {
-    // polyphony: i32,
-    // with_reverb: bool,
-    // with_chorus: bool,
-    // verbose: bool,
-    // dump: bool,
-    // sample_rate: f64,
-    // midi_channels: i32,
-    audio_channels: i32,
-    audio_groups: i32,
-    effects_channels: i32,
-
     state: u32,
     ticks: u32,
     loaders: Vec<*mut SoundFontLoader>,
@@ -251,66 +240,40 @@ impl Synth {
                 settings.synth.midi_channels = midi_channels;
             }
 
-            let audio_channels = {
-                let audio_channels = settings.synth.audio_channels;
-                if audio_channels < 1 {
-                    log::warn!("Requested number of audio channels is smaller than 1. Changing this setting to 1.");
-                    1
-                } else if audio_channels > 128 {
-                    log::warn!("Requested number of audio channels is too big ({}). Limiting this setting to 128.", audio_channels);
-                    128
-                } else {
-                    audio_channels
-                }
-            };
+            if settings.synth.audio_channels < 1 {
+                log::warn!("Requested number of audio channels is smaller than 1. Changing this setting to 1.");
+                settings.synth.audio_channels = 1;
+            } else if settings.synth.audio_channels > 128 {
+                log::warn!("Requested number of audio channels is too big ({}). Limiting this setting to 128.", settings.synth.audio_channels);
+                settings.synth.audio_channels = 128;
+            }
 
-            let audio_groups = {
-                let audio_groups = settings.synth.audio_groups;
-                if audio_groups < 1 as i32 {
-                    log::warn!("Requested number of audio groups is smaller than 1. Changing this setting to 1.");
-                    1
-                } else if audio_groups > 128 as i32 {
-                    log::warn!("Requested number of audio groups is too big ({}). Limiting this setting to 128.", audio_groups);
-                    128
-                } else {
-                    audio_groups
-                }
-            };
+            if settings.synth.audio_groups < 1 {
+                log::warn!("Requested number of audio groups is smaller than 1. Changing this setting to 1.");
+                settings.synth.audio_groups = 1;
+            } else if settings.synth.audio_groups > 128 {
+                log::warn!("Requested number of audio groups is too big ({}). Limiting this setting to 128.", settings.synth.audio_groups);
+                settings.synth.audio_groups = 128;
+            }
 
-            let effects_channels = {
-                let effects_channels = settings.synth.effects_channels;
-                if effects_channels != 2 as i32 {
-                    log::warn!(
-                        "Invalid number of effects channels ({}).Setting effects channels to 2.",
-                        effects_channels
-                    );
-                    2
-                } else {
-                    effects_channels
-                }
-            };
+            if settings.synth.effects_channels != 2 {
+                log::warn!(
+                    "Invalid number of effects channels ({}).Setting effects channels to 2.",
+                    settings.synth.effects_channels
+                );
+                settings.synth.effects_channels = 2;
+            }
 
             let nbuf = {
-                let nbuf = audio_channels;
-                if audio_groups > nbuf {
-                    audio_groups
+                let nbuf = settings.synth.audio_channels;
+                if settings.synth.audio_groups > nbuf {
+                    settings.synth.audio_groups
                 } else {
                     nbuf
                 }
             };
 
             let mut synth = Self {
-                // polyphony: settings.synth.polyphony,
-                // with_reverb: settings.synth.reverb_active,
-                // with_chorus: settings.synth.chorus_active,
-                // verbose: settings.synth.verbose,
-                // dump: settings.synth.dump,
-                // sample_rate,
-                // midi_channels,
-                audio_channels,
-                audio_groups,
-                effects_channels,
-
                 state: FLUID_SYNTH_PLAYING,
                 ticks: 0,
                 loaders: Vec::new(),
@@ -390,10 +353,10 @@ impl Synth {
             synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
             synth
                 .fx_left_buf
-                .resize(synth.effects_channels as usize, [0f32; 64]);
+                .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
             synth
                 .fx_right_buf
-                .resize(synth.effects_channels as usize, [0f32; 64]);
+                .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
             synth.cur = 64 as i32;
             synth.dither_index = 0 as i32;
             synth.reverb = ReverbModel::new();
@@ -419,7 +382,7 @@ impl Synth {
 
     pub unsafe fn noteon(&mut self, chan: i32, key: i32, vel: i32) -> i32 {
         if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
+            log::warn!("Channel out of range");
             return FLUID_FAILED as i32;
         }
         if vel == 0 as i32 {
@@ -1176,7 +1139,7 @@ impl Synth {
             i += 1
         }
         i = 0 as i32;
-        while i < self.effects_channels {
+        while i < self.settings.synth.effects_channels {
             libc::memset(
                 self.fx_left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
                 0 as i32,
@@ -1206,7 +1169,7 @@ impl Synth {
                 || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 auchan = fluid_voice_get_channel(voice).as_ref().unwrap().get_num();
-                auchan %= self.audio_groups;
+                auchan %= self.settings.synth.audio_groups;
                 left_buf = self.left_buf[auchan as usize].as_mut_ptr();
                 right_buf = self.right_buf[auchan as usize].as_mut_ptr();
                 fluid_voice_write(voice, &*self, left_buf, right_buf, reverb_buf, chorus_buf);
@@ -1640,15 +1603,15 @@ impl Synth {
     }
 
     pub fn count_audio_channels(&self) -> i32 {
-        return self.audio_channels;
+        return self.settings.synth.audio_channels;
     }
 
     pub fn count_audio_groups(&self) -> i32 {
-        return self.audio_groups;
+        return self.settings.synth.audio_groups;
     }
 
     pub fn count_effects_channels(&self) -> i32 {
-        return self.effects_channels;
+        return self.settings.synth.effects_channels;
     }
     fn get_tuning(&self, bank: i32, prog: i32) -> Option<&Tuning> {
         if bank < 0 as i32 || bank >= 128 as i32 {
