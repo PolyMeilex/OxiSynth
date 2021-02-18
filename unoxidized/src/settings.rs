@@ -131,26 +131,29 @@ impl Settings {
         Synth::register_settings(self);
     }
 
-    unsafe fn get<'a>(&'a self, name: &[String]) -> Option<&'a Setting> {
+    unsafe fn get<'a>(&'a self, setting_path: &[String]) -> Option<&'a Setting> {
         let mut table = &self.table;
-        for n in 0..name.len() - 1 {
-            match table.get(&name[n]) {
+
+        for n in 0..setting_path.len() - 1 {
+            let s = &setting_path[n];
+            match table.get(s) {
                 Some(Setting::Set(t)) => table = t,
                 _ => return None,
             }
         }
-        return table.get(&name[name.len() - 1]);
+
+        table.get(&setting_path[setting_path.len() - 1])
     }
 
-    unsafe fn get_mut<'a>(&'a mut self, name: &[String]) -> Option<&'a mut Setting> {
+    unsafe fn get_mut<'a>(&'a mut self, setting_path: &[String]) -> Option<&'a mut Setting> {
         let mut table = &mut self.table;
-        for n in 0..name.len() - 1 {
-            match table.get_mut(&name[n]) {
+        for n in 0..setting_path.len() - 1 {
+            match table.get_mut(&setting_path[n]) {
                 Some(Setting::Set(t)) => table = t,
                 _ => return None,
             }
         }
-        return table.get_mut(&name[name.len() - 1]);
+        table.get_mut(&setting_path[setting_path.len() - 1])
     }
 
     unsafe fn set(&mut self, name: &[String], value: Setting) -> i32 {
@@ -481,5 +484,83 @@ impl Settings {
                 _ => FLUID_NO_TYPE,
             };
         }
+    }
+}
+
+pub mod new {
+    pub struct SynthSettingsManager {
+        verbose: bool,
+        dump: bool,
+
+        reverb_active: bool,
+        chorus_active: bool,
+        ladspa_active: bool,
+        drums_channel_active: bool,
+
+        /// Def: 256
+        /// Min: 16
+        /// Max: 4096
+        polyphony: i32,
+        /// Def: 16
+        /// Min: 16
+        /// Max: 256
+        midi_channels: i32,
+        /// Def: 0.2
+        /// Min: 0.0
+        /// Max: 10.0
+        gain: f32,
+        /// Def: 1
+        /// Min: 1
+        /// Max: 256
+        audio_channels: i32,
+        /// Def: 1
+        /// Min: 1
+        /// Max: 256
+        audio_groups: i32,
+        /// Def: 2
+        /// Min: 2
+        /// Max: 2
+        effects_channels: i32,
+        /// Def: 44100.0
+        /// Min: 22050.0
+        /// Max: 96000.0
+        sample_rate: f32,
+        /// Def: 10
+        /// Min: 0
+        /// Max: 65535
+        min_note_length: i32,
+    }
+
+    impl Default for SynthSettingsManager {
+        fn default() -> Self {
+            Self {
+                verbose: false,
+                dump: false,
+
+                reverb_active: true,
+                chorus_active: true,
+                ladspa_active: false,
+                drums_channel_active: true,
+
+                polyphony: 256,
+                midi_channels: 16,
+                gain: 0.2,
+                audio_channels: 1,
+                audio_groups: 1,
+                effects_channels: 2,
+                sample_rate: 44100.0,
+                min_note_length: 10,
+            }
+        }
+    }
+
+    #[derive(Default)]
+    pub struct MidiSettingsManager {
+        pub portname: String,
+    }
+
+    pub struct SettingsManager {
+        pub synth: SynthSettingsManager,
+        pub midi: MidiSettingsManager,
     }
 }
