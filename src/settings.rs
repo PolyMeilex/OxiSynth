@@ -5,7 +5,7 @@
 //     ops::{Bound, RangeBounds},
 // };
 
-pub use crate::engine::settings::new::Settings;
+pub use crate::engine::settings::Settings;
 
 #[cfg(test)]
 mod test {

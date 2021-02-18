@@ -13,7 +13,7 @@ mod write;
 pub use self::tuning::TuningIter;
 pub use self::write::IsSamples;
 
-use crate::{engine, Error, Result};
+use crate::{engine, Error, Result, Settings};
 
 /**
 The synth object
@@ -42,7 +42,7 @@ impl Synth {
 
     As soon as the synthesizer is created, it will start playing.
      */
-    pub fn new(settings: engine::settings::new::Settings) -> Result<Self> {
+    pub fn new(settings: Settings) -> Result<Self> {
         match engine::synth::Synth::new(settings) {
             Ok(handle) => return Ok(Synth { handle }),
             Err(_) => return Err(Error::Alloc),
@@ -68,7 +68,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use super::{engine::settings::new::Settings, Synth};
+    use super::{Settings, Synth};
     use std::{fs::File, io::Write, slice::from_raw_parts};
 
     #[test]

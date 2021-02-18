@@ -120,7 +120,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{engine::settings::new::Settings, IsFont, IsPreset, Synth};
+    use crate::{IsFont, IsPreset, Settings, Synth};
 
     #[test]
     fn font_and_preset() {

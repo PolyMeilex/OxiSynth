@@ -4,7 +4,7 @@ use super::chorus::Chorus;
 use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
-use super::settings::{self, new::Settings};
+use super::settings::{self, Settings};
 use super::sfloader::new_fluid_defsfloader;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
@@ -200,7 +200,7 @@ pub struct Synth {
     // verbose: bool,
     // dump: bool,
     // sample_rate: f64,
-    midi_channels: i32,
+    // midi_channels: i32,
     audio_channels: i32,
     audio_groups: i32,
     effects_channels: i32,
@@ -234,7 +234,7 @@ pub struct Synth {
 }
 
 impl Synth {
-    pub fn new(mut settings: settings::new::Settings) -> Result<Self, &'static str> {
+    pub fn new(mut settings: Settings) -> Result<Self, &'static str> {
         unsafe {
             if FLUID_SYNTH_INITIALIZED == 0 as i32 {
                 Synth::init();
@@ -244,18 +244,12 @@ impl Synth {
                 * settings.synth.sample_rate
                 / 1000.0) as u32;
 
-            let midi_channels = {
-                let midi_channels = settings.synth.midi_channels;
-                if midi_channels % 16 != 0 {
-                    log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
-                    let n = midi_channels / 16;
-                    let midi_channels = (n + 1) * 16;
-                    settings.synth.midi_channels = midi_channels;
-                    midi_channels
-                } else {
-                    midi_channels
-                }
-            };
+            if settings.synth.midi_channels % 16 != 0 {
+                log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
+                let n = settings.synth.midi_channels / 16;
+                let midi_channels = (n + 1) * 16;
+                settings.synth.midi_channels = midi_channels;
+            }
 
             let audio_channels = {
                 let audio_channels = settings.synth.audio_channels;
@@ -312,7 +306,7 @@ impl Synth {
                 // verbose: settings.synth.verbose,
                 // dump: settings.synth.dump,
                 // sample_rate,
-                midi_channels,
+                // midi_channels,
                 audio_channels,
                 audio_groups,
                 effects_channels,
@@ -381,7 +375,7 @@ impl Synth {
                 synth.add_sfloader(loader);
             }
 
-            for i in 0..synth.midi_channels {
+            for i in 0..synth.settings.synth.midi_channels {
                 synth.channel.push(Channel::new(&synth, i));
             }
 
@@ -424,7 +418,7 @@ impl Synth {
     }
 
     pub unsafe fn noteon(&mut self, chan: i32, key: i32, vel: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -521,7 +515,7 @@ impl Synth {
     }
 
     pub unsafe fn cc(&mut self, chan: i32, num: i32, val: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -547,7 +541,7 @@ impl Synth {
     }
 
     pub unsafe fn get_cc(&self, chan: i32, num: i32, pval: *mut i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -607,7 +601,7 @@ impl Synth {
             i += 1
         }
         i = 0 as i32;
-        while i < self.midi_channels {
+        while i < self.settings.synth.midi_channels {
             // TODO: double borrow
             let synth_ptr = self as *mut Synth;
             synth_ptr.as_mut().unwrap().channel[i as usize].reset(synth_ptr.as_mut().unwrap());
@@ -647,7 +641,7 @@ impl Synth {
     }
 
     pub unsafe fn channel_pressure(&mut self, chan: i32, val: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -690,7 +684,7 @@ impl Synth {
     }
 
     pub unsafe fn pitch_bend(&mut self, chan: i32, val: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -705,7 +699,7 @@ impl Synth {
     }
 
     pub unsafe fn get_pitch_bend(&self, chan: i32, ppitch_bend: *mut i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -714,7 +708,7 @@ impl Synth {
     }
 
     pub unsafe fn pitch_wheel_sens(&mut self, chan: i32, val: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -729,7 +723,7 @@ impl Synth {
     }
 
     pub unsafe fn get_pitch_wheel_sens(&self, chan: i32, pval: *mut i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -783,7 +777,7 @@ impl Synth {
         if prognum < 0 as i32
             || prognum >= 128 as i32
             || chan < 0 as i32
-            || chan >= self.midi_channels
+            || chan >= self.settings.synth.midi_channels
         {
             log::error!("Index out of range (chan={}, prog={})", chan, prognum);
             return FLUID_FAILED as i32;
@@ -832,7 +826,7 @@ impl Synth {
     }
 
     pub fn bank_select(&mut self, chan: i32, bank: u32) -> i32 {
-        if chan >= 0 as i32 && chan < self.midi_channels {
+        if chan >= 0 as i32 && chan < self.settings.synth.midi_channels {
             self.channel[chan as usize].set_banknum(bank);
             return FLUID_OK as i32;
         }
@@ -840,7 +834,7 @@ impl Synth {
     }
 
     pub unsafe fn sfont_select(&mut self, chan: i32, sfont_id: u32) -> i32 {
-        if chan >= 0 as i32 && chan < self.midi_channels {
+        if chan >= 0 as i32 && chan < self.settings.synth.midi_channels {
             self.channel[chan as usize].set_sfontnum(sfont_id);
             return FLUID_OK as i32;
         }
@@ -855,7 +849,7 @@ impl Synth {
         preset_num: *mut u32,
     ) -> i32 {
         let channel;
-        if chan >= 0 as i32 && chan < self.midi_channels {
+        if chan >= 0 as i32 && chan < self.settings.synth.midi_channels {
             channel = &self.channel[chan as usize];
             *sfont_id = channel.get_sfontnum();
             *bank_num = channel.get_banknum();
@@ -874,7 +868,7 @@ impl Synth {
     ) -> i32 {
         let preset;
         let channel;
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::error!("Channel number out of range (chan={})", chan);
             return FLUID_FAILED as i32;
         }
@@ -899,7 +893,7 @@ impl Synth {
     pub unsafe fn update_presets(&mut self) {
         let mut chan;
         chan = 0 as i32;
-        while chan < self.midi_channels {
+        while chan < self.settings.synth.midi_channels {
             let sfontnum = self.channel[chan as usize].get_sfontnum();
             let banknum = self.channel[chan as usize].get_banknum();
             let prognum = self.channel[chan as usize].get_prognum() as u32;
@@ -975,7 +969,7 @@ impl Synth {
     pub unsafe fn program_reset(&mut self) -> i32 {
         let mut i;
         i = 0 as i32;
-        while i < self.midi_channels {
+        while i < self.settings.synth.midi_channels {
             self.program_change(i, self.channel[i as usize].get_prognum());
             i += 1
         }
@@ -1561,7 +1555,7 @@ impl Synth {
     }
 
     pub unsafe fn get_channel_preset(&self, chan: i32) -> *mut Preset {
-        if chan >= 0 as i32 && chan < self.midi_channels {
+        if chan >= 0 as i32 && chan < self.settings.synth.midi_channels {
             return self.channel[chan as usize].get_preset();
         }
         return 0 as *mut Preset;
@@ -1632,7 +1626,7 @@ impl Synth {
     pub unsafe fn set_interp_method(&mut self, chan: i32, interp_method: InterpMethod) -> i32 {
         let mut i;
         i = 0 as i32;
-        while i < self.midi_channels {
+        while i < self.settings.synth.midi_channels {
             if chan < 0 as i32 || self.channel[chan as usize].get_num() == chan {
                 self.channel[chan as usize].set_interp_method(interp_method);
             }
@@ -1642,7 +1636,7 @@ impl Synth {
     }
 
     pub fn count_midi_channels(&self) -> i32 {
-        return self.midi_channels;
+        return self.settings.synth.midi_channels;
     }
 
     pub fn count_audio_channels(&self) -> i32 {
@@ -1787,7 +1781,7 @@ impl Synth {
         if tuning.is_none() {
             return FLUID_FAILED as i32;
         }
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -1800,7 +1794,7 @@ impl Synth {
     }
 
     pub unsafe fn reset_tuning(&mut self, chan: i32) -> i32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -1882,7 +1876,7 @@ impl Synth {
     pub unsafe fn set_gen(&mut self, chan: i32, param: i16, value: f32) -> i32 {
         let mut i;
         let mut voice;
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
@@ -1900,7 +1894,7 @@ impl Synth {
     }
 
     pub unsafe fn get_gen(&self, chan: i32, param: i32) -> f32 {
-        if chan < 0 as i32 || chan >= self.midi_channels {
+        if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return 0.0f32;
         }
@@ -1921,7 +1915,7 @@ impl Synth {
         vel: i32,
     ) -> i32 {
         let r;
-        if midi_chan < 0 as i32 || midi_chan >= self.midi_channels {
+        if midi_chan < 0 as i32 || midi_chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
