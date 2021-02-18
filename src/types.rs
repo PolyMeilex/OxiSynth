@@ -61,13 +61,13 @@ impl Display for Error {
     }
 }
 
-pub(crate) fn result_from_ptr<T>(ptr: *mut T) -> Result<*mut T> {
-    if ptr.is_null() {
-        Err(Error::Alloc)
-    } else {
-        Ok(ptr)
-    }
-}
+// pub(crate) fn result_from_ptr<T>(ptr: *mut T) -> Result<*mut T> {
+//     if ptr.is_null() {
+//         Err(Error::Alloc)
+//     } else {
+//         Ok(ptr)
+//     }
+// }
 
 pub(crate) fn option_from_ptr<T>(ptr: *mut T) -> Option<*mut T> {
     if ptr.is_null() {

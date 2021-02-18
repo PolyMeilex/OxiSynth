@@ -696,12 +696,7 @@ impl Synth {
         sfont = self.get_sfont_by_id(sfontnum);
         if !sfont.is_null() {
             offset = self.get_bank_offset(sfontnum as i32);
-            preset = Some((*sfont).get_preset.expect("non-null function pointer"))
-                .expect("non-null function pointer")(
-                sfont,
-                banknum.wrapping_sub(offset as u32),
-                prognum,
-            );
+            preset = (*sfont).get_preset(banknum.wrapping_sub(offset as u32), prognum);
             if !preset.is_null() {
                 return preset;
             }
@@ -712,12 +707,7 @@ impl Synth {
     pub unsafe fn find_preset(&self, banknum: u32, prognum: u32) -> *mut Preset {
         for sfont in self.sfont.iter() {
             let offset = self.get_bank_offset(sfont.id as i32);
-            let preset = Some(sfont.get_preset.expect("non-null function pointer"))
-                .expect("non-null function pointer")(
-                sfont,
-                banknum.wrapping_sub(offset as u32),
-                prognum,
-            );
+            let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
             if !preset.is_null() {
                 (*preset).sfont = sfont;
                 return preset;
@@ -1431,23 +1421,23 @@ impl Synth {
         } else {
             self.update_presets();
         }
-        if (if !sfont.is_null() && (*sfont).free.is_some() {
-            Some((*sfont).free.expect("non-null function pointer"))
-                .expect("non-null function pointer")(sfont)
-        } else {
-            0 as i32
-        }) != 0 as i32
-        {
-            let r: i32 = if !sfont.is_null() && (*sfont).free.is_some() {
-                Some((*sfont).free.expect("non-null function pointer"))
-                    .expect("non-null function pointer")(sfont)
-            } else {
-                0 as i32
-            };
-            if r == 0 as i32 {
-                log::debug!("Unloaded SoundFont",);
-            }
-        }
+        // if (if !sfont.is_null() && (*sfont).free.is_some() {
+        //     Some((*sfont).free.expect("non-null function pointer"))
+        //         .expect("non-null function pointer")(sfont)
+        // } else {
+        //     0 as i32
+        // }) != 0 as i32
+        // {
+        //     let r: i32 = if !sfont.is_null() && (*sfont).free.is_some() {
+        //         Some((*sfont).free.expect("non-null function pointer"))
+        //             .expect("non-null function pointer")(sfont)
+        //     } else {
+        //         0 as i32
+        //     };
+        //     if r == 0 as i32 {
+        //         log::debug!("Unloaded SoundFont",);
+        //     }
+        // }
         return FLUID_OK as i32;
     }
 
@@ -1460,12 +1450,12 @@ impl Synth {
             .position(|x| x.id == id)
             .expect("SoundFont with ID");
         sfont = &self.sfont[index];
-        let filename = sfont.get_name.expect("non-null function pointer")(sfont);
+        let filename = sfont.get_name();
         if self.sfunload(id, 0 as i32) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
         for loader in self.loaders.iter_mut() {
-            match loader.load(&filename.clone().expect("filename")) {
+            match loader.load(&filename.clone()) {
                 Some(mut sfont) => {
                     sfont.id = id;
                     self.sfont.insert(index, sfont);
@@ -1477,7 +1467,7 @@ impl Synth {
         }
         log::error!(
             "Failed to load SoundFont {:?}",
-            CStr::from_ptr(filename.unwrap_or(b"(null)\x00".to_vec()).as_ptr() as *const i8)
+            CStr::from_ptr(filename.as_ptr() as *const i8)
                 .to_str()
                 .unwrap()
         );

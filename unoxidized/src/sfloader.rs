@@ -1,4 +1,4 @@
-use crate::fileapi::{make_default_fs, File, FileSystem};
+use crate::fileapi::{DefaultFile, DefaultFileSystem};
 
 use super::gen::fluid_gen_set_default_values;
 use super::gen::Gen;
@@ -84,7 +84,7 @@ pub struct SFData {
     samplepos: u32,
     samplesize: u32,
     fname: Vec<u8>,
-    sffd: Option<Box<dyn File>>,
+    sffd: Option<DefaultFile>,
     info: Vec<Vec<u8>>,
     preset: Vec<*mut SFPreset>,
     inst: Vec<*mut SFInst>,
@@ -281,7 +281,7 @@ pub type ModFlags = u32;
 pub type GenType = u32;
 pub type GenFlags = u32;
 
-unsafe fn read_unsafe<T>(fd: &mut dyn File, t: &mut T) -> bool {
+unsafe fn read_unsafe<T>(fd: &mut DefaultFile, t: &mut T) -> bool {
     return fd.read(from_raw_parts_mut(
         t as *mut T as _,
         std::mem::size_of::<T>(),
@@ -291,62 +291,34 @@ unsafe fn read_unsafe<T>(fd: &mut dyn File, t: &mut T) -> bool {
 impl SoundFontLoader {
     pub fn new_fluid_defsfloader() -> Self {
         Self {
-            data: 0 as _,
-            filesystem: make_default_fs(),
+            // data: 0 as _,
+            filesystem: DefaultFileSystem {},
         }
     }
+
     pub unsafe fn load(&mut self, filename: &[u8]) -> Option<SoundFont> {
-        let defsfont = new_fluid_defsfont();
-        let mut sfont = SoundFont {
-            data: Box::new(defsfont),
-            id: 0 as _,
-            free: Some(fluid_defsfont_sfont_delete as _),
-            get_name: Some(fluid_defsfont_sfont_get_name as _),
-            get_preset: Some(fluid_defsfont_sfont_get_preset as _),
-            iteration_start: Some(fluid_defsfont_sfont_iteration_start as _),
-            iteration_next: Some(fluid_defsfont_sfont_iteration_next as _),
-        };
-        if fluid_defsfont_load(
-            sfont.data.downcast_mut::<DefaultSoundFont>().unwrap(),
-            filename,
-            self.filesystem.as_mut(),
-        ) == FLUID_FAILED as i32
-        {
-            delete_fluid_defsfont(sfont.data.downcast_mut::<DefaultSoundFont>().unwrap());
-            return None;
-        }
-
-        Some(sfont)
-    }
-}
-
-pub unsafe fn fluid_defsfont_sfont_delete(sfont: *mut SoundFont) -> i32 {
-    match (*sfont).data.downcast_mut::<DefaultSoundFont>() {
-        Some(defsfont) => {
-            if delete_fluid_defsfont(defsfont) != 0 as i32 {
-                return -(1 as i32);
+        let mut defsfont = new_fluid_defsfont();
+        defsfont.load(filename, &mut self.filesystem).ok().map(|_| {
+            SoundFont {
+                data: defsfont,
+                id: 0 as _,
+                // free: Some(fluid_defsfont_sfont_delete as _),
+                // get_name: Some(fluid_defsfont_sfont_get_name as _),
+                // get_preset: Some(fluid_defsfont_sfont_get_preset as _),
+                iteration_start: Some(fluid_defsfont_sfont_iteration_start as _),
+                iteration_next: Some(fluid_defsfont_sfont_iteration_next as _),
             }
-            libc::free(sfont as *mut libc::c_void);
-        }
-        None => {}
+        })
     }
-    return 0;
 }
 
-pub unsafe fn fluid_defsfont_sfont_get_name(sfont: *const SoundFont) -> Option<Vec<u8>> {
-    return (*sfont)
-        .data
-        .downcast_ref::<DefaultSoundFont>()
-        .map(|defsfont| fluid_defsfont_get_name(defsfont));
-}
-
-pub unsafe fn fluid_defsfont_sfont_get_preset(
-    sfont: *const SoundFont,
-    bank: u32,
-    prenum: u32,
-) -> *mut Preset {
-    match (*sfont).data.downcast_ref::<DefaultSoundFont>() {
-        Some(defsfont) => {
+impl SoundFont {
+    pub fn get_name(&self) -> Vec<u8> {
+        unsafe { fluid_defsfont_get_name(&self.data) }
+    }
+    pub fn get_preset(&self, bank: u32, prenum: u32) -> *mut Preset {
+        unsafe {
+            let defsfont = &self.data;
             let mut preset: *mut Preset;
             let defpreset: *mut DefaultPreset;
             defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
@@ -358,7 +330,7 @@ pub unsafe fn fluid_defsfont_sfont_get_preset(
                 log::error!("Out of memory",);
                 return 0 as *mut Preset;
             }
-            (*preset).sfont = sfont;
+            (*preset).sfont = self;
             (*preset).data = defpreset as *mut libc::c_void;
             (*preset).free =
                 Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
@@ -372,21 +344,59 @@ pub unsafe fn fluid_defsfont_sfont_get_preset(
                 fluid_defpreset_preset_noteon
                     as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
             );
+
             return preset;
-        }
-        None => {
-            return 0 as _;
         }
     }
 }
 
-pub unsafe fn fluid_defsfont_sfont_iteration_start(sfont: *mut SoundFont) {
-    match (*sfont).data.downcast_mut::<DefaultSoundFont>() {
-        Some(defsfont) => {
-            fluid_defsfont_iteration_start(defsfont);
+impl Drop for SoundFont {
+    fn drop(&mut self) {
+        unsafe {
+            delete_fluid_defsfont(&mut (*self).data);
         }
-        None => {}
     }
+}
+
+// pub unsafe fn fluid_defsfont_sfont_get_name(sfont: *const SoundFont) -> Vec<u8> {
+//     fluid_defsfont_get_name(&(*sfont).data)
+// }
+
+// pub unsafe fn fluid_defsfont_sfont_get_preset(
+//     sfont: *const SoundFont,
+//     bank: u32,
+//     prenum: u32,
+// ) -> *mut Preset {
+//     let defsfont = &(*sfont).data;
+//     let mut preset: *mut Preset;
+//     let defpreset: *mut DefaultPreset;
+//     defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
+//     if defpreset.is_null() {
+//         return 0 as *mut Preset;
+//     }
+//     preset = libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
+//     if preset.is_null() {
+//         log::error!("Out of memory",);
+//         return 0 as *mut Preset;
+//     }
+//     (*preset).sfont = sfont;
+//     (*preset).data = defpreset as *mut libc::c_void;
+//     (*preset).free = Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
+//     (*preset).get_name =
+//         Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
+//     (*preset).get_banknum =
+//         Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
+//     (*preset).get_num = Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
+//     (*preset).noteon = Some(
+//         fluid_defpreset_preset_noteon
+//             as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
+//     );
+//     return preset;
+// }
+
+pub unsafe fn fluid_defsfont_sfont_iteration_start(sfont: *mut SoundFont) {
+    let defsfont = &mut (*sfont).data;
+    fluid_defsfont_iteration_start(defsfont);
 }
 
 pub unsafe fn fluid_defsfont_sfont_iteration_next(
@@ -403,14 +413,8 @@ pub unsafe fn fluid_defsfont_sfont_iteration_next(
         fluid_defpreset_preset_noteon
             as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
     );
-    match (*sfont).data.downcast_mut::<DefaultSoundFont>() {
-        Some(defsfont) => {
-            return fluid_defsfont_iteration_next(defsfont, preset);
-        }
-        None => {
-            return 0;
-        }
-    }
+    let defsfont = &mut (*sfont).data;
+    return fluid_defsfont_iteration_next(defsfont, preset);
 }
 
 pub unsafe fn fluid_defpreset_preset_delete(preset: *mut Preset) -> i32 {
@@ -480,61 +484,115 @@ pub unsafe fn fluid_defsfont_get_name(sfont: *const DefaultSoundFont) -> Vec<u8>
 
 pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &[u8]) -> ()> = None;
 
-unsafe fn fluid_defsfont_load(
-    mut sfont: *mut DefaultSoundFont,
-    file: &[u8],
-    fapi: &mut dyn FileSystem,
-) -> i32 {
-    let sfdata: *mut SFData;
-    let mut sample: *mut Sample;
-    let mut preset: *mut DefaultPreset;
-    (*sfont).filename = file.to_vec();
-    sfdata = sfload_file(file, fapi);
-    if sfdata.is_null() {
-        log::error!("Couldn't load soundfont file",);
-        return FLUID_FAILED;
-    }
-    (*sfont).samplepos = (*sfdata).samplepos;
-    (*sfont).samplesize = (*sfdata).samplesize;
-    if fluid_defsfont_load_sampledata(sfont, fapi) != FLUID_OK {
+impl DefaultSoundFont {
+    unsafe fn load(&mut self, file: &[u8], fapi: &mut DefaultFileSystem) -> Result<(), ()> {
+        let sfdata: *mut SFData;
+        let mut sample: *mut Sample;
+        let mut preset: *mut DefaultPreset;
+        self.filename = file.to_vec();
+        sfdata = sfload_file(file, fapi);
+        if sfdata.is_null() {
+            log::error!("Couldn't load soundfont file",);
+            return Err(());
+        }
+        self.samplepos = (*sfdata).samplepos;
+        self.samplesize = (*sfdata).samplesize;
+        if fluid_defsfont_load_sampledata(self, fapi) != FLUID_OK {
+            sfont_close(sfdata);
+            return Err(());
+        }
+        for sfsample in (*sfdata).sample.iter() {
+            sample = new_fluid_sample();
+            if sample.is_null() {
+                sfont_close(sfdata);
+                return Err(());
+            }
+            if fluid_sample_import_sfont(sample, *sfsample, self) != FLUID_OK {
+                sfont_close(sfdata);
+                return Err(());
+            }
+            fluid_defsfont_add_sample(self, sample);
+            fluid_voice_optimize_sample(sample);
+        }
+        for sfpreset in (*sfdata).preset.iter() {
+            preset = new_fluid_defpreset(self);
+            if preset.is_null() {
+                sfont_close(sfdata);
+                return Err(());
+            }
+            if fluid_defpreset_import_sfont(preset, *sfpreset, self) != FLUID_OK {
+                sfont_close(sfdata);
+                return Err(());
+            }
+            fluid_defsfont_add_preset(self, preset);
+            if PRESET_CALLBACK.is_some() {
+                PRESET_CALLBACK.expect("non-null function pointer")(
+                    (*preset).bank,
+                    (*preset).num,
+                    &(*preset).name,
+                );
+            }
+        }
         sfont_close(sfdata);
-        return FLUID_FAILED;
+        return Ok(());
     }
-    for sfsample in (*sfdata).sample.iter() {
-        sample = new_fluid_sample();
-        if sample.is_null() {
-            sfont_close(sfdata);
-            return FLUID_FAILED;
-        }
-        if fluid_sample_import_sfont(sample, *sfsample, sfont) != FLUID_OK {
-            sfont_close(sfdata);
-            return FLUID_FAILED;
-        }
-        fluid_defsfont_add_sample(sfont, sample);
-        fluid_voice_optimize_sample(sample);
-    }
-    for sfpreset in (*sfdata).preset.iter() {
-        preset = new_fluid_defpreset(sfont);
-        if preset.is_null() {
-            sfont_close(sfdata);
-            return FLUID_FAILED;
-        }
-        if fluid_defpreset_import_sfont(preset, *sfpreset, sfont) != FLUID_OK {
-            sfont_close(sfdata);
-            return FLUID_FAILED;
-        }
-        fluid_defsfont_add_preset(sfont, preset);
-        if PRESET_CALLBACK.is_some() {
-            PRESET_CALLBACK.expect("non-null function pointer")(
-                (*preset).bank,
-                (*preset).num,
-                &(*preset).name,
-            );
-        }
-    }
-    sfont_close(sfdata);
-    return FLUID_OK;
 }
+
+// unsafe fn fluid_defsfont_load(
+//     mut sfont: *mut DefaultSoundFont,
+//     file: &[u8],
+//     fapi: &mut DefaultFileSystem,
+// ) -> i32 {
+//     let sfdata: *mut SFData;
+//     let mut sample: *mut Sample;
+//     let mut preset: *mut DefaultPreset;
+//     (*sfont).filename = file.to_vec();
+//     sfdata = sfload_file(file, fapi);
+//     if sfdata.is_null() {
+//         log::error!("Couldn't load soundfont file",);
+//         return FLUID_FAILED;
+//     }
+//     (*sfont).samplepos = (*sfdata).samplepos;
+//     (*sfont).samplesize = (*sfdata).samplesize;
+//     if fluid_defsfont_load_sampledata(sfont, fapi) != FLUID_OK {
+//         sfont_close(sfdata);
+//         return FLUID_FAILED;
+//     }
+//     for sfsample in (*sfdata).sample.iter() {
+//         sample = new_fluid_sample();
+//         if sample.is_null() {
+//             sfont_close(sfdata);
+//             return FLUID_FAILED;
+//         }
+//         if fluid_sample_import_sfont(sample, *sfsample, sfont) != FLUID_OK {
+//             sfont_close(sfdata);
+//             return FLUID_FAILED;
+//         }
+//         fluid_defsfont_add_sample(sfont, sample);
+//         fluid_voice_optimize_sample(sample);
+//     }
+//     for sfpreset in (*sfdata).preset.iter() {
+//         preset = new_fluid_defpreset(sfont);
+//         if preset.is_null() {
+//             sfont_close(sfdata);
+//             return FLUID_FAILED;
+//         }
+//         if fluid_defpreset_import_sfont(preset, *sfpreset, sfont) != FLUID_OK {
+//             sfont_close(sfdata);
+//             return FLUID_FAILED;
+//         }
+//         fluid_defsfont_add_preset(sfont, preset);
+//         if PRESET_CALLBACK.is_some() {
+//             PRESET_CALLBACK.expect("non-null function pointer")(
+//                 (*preset).bank,
+//                 (*preset).num,
+//                 &(*preset).name,
+//             );
+//         }
+//     }
+//     sfont_close(sfdata);
+//     return FLUID_OK;
+// }
 
 pub unsafe fn fluid_defsfont_add_sample(sfont: *mut DefaultSoundFont, sample: *mut Sample) -> i32 {
     (*sfont).sample.push(sample);
@@ -577,7 +635,7 @@ pub unsafe fn fluid_defsfont_add_preset(
 
 pub unsafe fn fluid_defsfont_load_sampledata(
     mut sfont: *mut DefaultSoundFont,
-    fapi: &mut dyn FileSystem,
+    fapi: &mut DefaultFileSystem,
 ) -> i32 {
     let mut fd;
     let mut endian: u16;
@@ -1538,7 +1596,7 @@ unsafe fn chunkid(id: u32) -> i32 {
     return UNKN_ID as i32;
 }
 
-pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFData {
+pub unsafe fn sfload_file(fname: &[u8], fapi: &mut DefaultFileSystem) -> *mut SFData {
     let mut sf: *mut SFData;
     let mut fd;
     let fsize: i32;
@@ -1584,14 +1642,14 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut dyn FileSystem) -> *mut SFDat
         }
     };
     fd.seek(SeekFrom::Start(0));
-    if load_body(fsize as u32, sf, fd.as_mut()) == 0 {
+    if load_body(fsize as u32, sf, &mut fd) == 0 {
         sfont_close(sf);
         return 0 as _;
     }
     (*sf).sffd = Some(fd);
     return sf;
 }
-unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut chunk: SFChunk = SFChunk { id: 0, size: 0 };
     if !read_unsafe(fd, &mut chunk) {
         return 0;
@@ -1659,7 +1717,7 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     });
     return 1 as i32;
 }
-unsafe fn read_listchunk(mut chunk: *mut SFChunk, fd: &mut dyn File) -> i32 {
+unsafe fn read_listchunk(mut chunk: *mut SFChunk, fd: &mut DefaultFile) -> i32 {
     if !fd.read(from_raw_parts_mut(chunk as _, 8)) {
         return 0;
     }
@@ -1673,7 +1731,7 @@ unsafe fn read_listchunk(mut chunk: *mut SFChunk, fd: &mut dyn File) -> i32 {
     (*chunk).size = (*chunk).size.wrapping_sub(4 as i32 as u32);
     return 1 as i32;
 }
-unsafe fn process_info(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn process_info(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut chunk: SFChunk = SFChunk { id: 0, size: 0 };
     let mut id: u8;
     while size > 0 as i32 {
@@ -1749,7 +1807,7 @@ unsafe fn process_info(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32
     }
     return 1 as i32;
 }
-unsafe fn process_sdta(mut size: i32, mut sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn process_sdta(mut size: i32, mut sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut chunk: SFChunk = SFChunk { id: 0, size: 0 };
     if size == 0 {
         return 1;
@@ -1777,7 +1835,7 @@ unsafe fn pdtahelper(
     reclen: u32,
     chunk: *mut SFChunk,
     size: *mut i32,
-    fd: &mut dyn File,
+    fd: &mut DefaultFile,
 ) -> i32 {
     let id: u32;
     let expstr: *mut i8;
@@ -1817,7 +1875,7 @@ unsafe fn pdtahelper(
     }
     return 1 as i32;
 }
-unsafe fn process_pdta(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn process_pdta(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut chunk: SFChunk = SFChunk { id: 0, size: 0 };
     if pdtahelper(
         PHDR_ID as i32 as u32,
@@ -1938,7 +1996,7 @@ unsafe fn process_pdta(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32
     }
     return 1 as i32;
 }
-unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut i: i32;
     let mut i2: i32;
     let mut p: *mut SFPreset;
@@ -2013,7 +2071,7 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut pz: *mut SFZone = 0 as _;
     let mut genndx: u16 = 0;
     let mut modndx: u16 = 0;
@@ -2106,7 +2164,7 @@ unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_pmod(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_pmod(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     for preset in (*sf).preset.iter() {
         for z in (**preset).zone.iter() {
             for m in (**z).mod_0.iter_mut() {
@@ -2135,7 +2193,7 @@ unsafe fn load_pmod(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut p3;
     let mut dup;
     let hz: usize = 0;
@@ -2273,7 +2331,7 @@ unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_ihdr(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_ihdr(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut i: i32;
     let mut i2: i32;
     let mut p: *mut SFInst;
@@ -2339,7 +2397,7 @@ unsafe fn load_ihdr(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_ibag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_ibag(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut pz: *mut SFZone = 0 as _;
     let mut genndx: u16 = 0;
     let mut modndx: u16 = 0;
@@ -2432,7 +2490,7 @@ unsafe fn load_ibag(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_imod(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_imod(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     for inst in (*sf).inst.iter() {
         for zone in (**inst).zone.iter() {
             for m in (**zone).mod_0.iter_mut() {
@@ -2461,7 +2519,7 @@ unsafe fn load_imod(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut p3;
     let mut dup;
     let mut hz: usize;
@@ -2609,7 +2667,7 @@ unsafe fn load_igen(mut size: i32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
     }
     return 1 as i32;
 }
-unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut dyn File) -> i32 {
+unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     let mut i: u32;
     let mut p: *mut SFSample;
     if size.wrapping_rem(46 as i32 as u32) != 0 || size == 0 as i32 as u32 {

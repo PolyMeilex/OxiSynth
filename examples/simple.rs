@@ -16,28 +16,10 @@ fn synth_sf2() {
 
     synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
 
-    let mut samples = [0f32; 44100 * 2];
+    let mut samples = [0f32; 44100 / 4];
 
-    {
-        synth.note_on(0, 60, 127).unwrap();
-
-        synth.write(samples.as_mut()).unwrap();
-        pcm.write(unsafe {
-            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        })
-        .unwrap();
-
-        synth.note_off(0, 60).unwrap();
-
-        synth.write(samples.as_mut()).unwrap();
-        pcm.write(unsafe {
-            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        })
-        .unwrap();
-    }
-
-    {
-        synth.note_on(0, 60, 127).unwrap();
+    for n in 60..70 {
+        synth.note_on(0, n, 127).unwrap();
 
         synth.write(samples.as_mut()).unwrap();
         pcm.write(unsafe {
@@ -45,7 +27,7 @@ fn synth_sf2() {
         })
         .unwrap();
 
-        synth.note_off(0, 60).unwrap();
+        synth.note_off(0, n).unwrap();
 
         synth.write(samples.as_mut()).unwrap();
         pcm.write(unsafe {

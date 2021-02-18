@@ -1,6 +1,5 @@
 pub(crate) use unoxidized as engine;
 
-pub(crate) use unoxidized::fileapi;
 mod font;
 mod loader;
 mod private;

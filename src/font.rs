@@ -78,16 +78,14 @@ mod private {
         fn get_name(&self) -> Option<String> {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
-            let get_name = font_c.get_name?;
-            let name = unsafe { (get_name)(handle) };
-            name.and_then(|x| String::from_utf8(x).ok())
+            let name = font_c.get_name();
+            String::from_utf8(name).ok()
         }
 
         fn get_preset(&self, bank: Bank, num: PresetId) -> Option<PresetRef<'_>> {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
-            let get_preset = font_c.get_preset?;
-            option_from_ptr(unsafe { (get_preset)(handle, bank, num) }).map(PresetRef::from_ptr)
+            option_from_ptr(font_c.get_preset(bank, num)).map(PresetRef::from_ptr)
         }
     }
 

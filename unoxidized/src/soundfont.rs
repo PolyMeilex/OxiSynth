@@ -1,14 +1,13 @@
-use std::any::Any;
-
-use crate::fileapi::FileSystem;
+use crate::fileapi::DefaultFileSystem;
+use crate::sfloader::DefaultSoundFont;
 
 use super::synth::Synth;
 
 pub struct SoundFontLoader {
-    pub data: *mut libc::c_void,
+    // pub data: *mut libc::c_void,
     // pub free: Option<unsafe fn(_: *mut SoundFontLoader) -> i32>,
     // pub load: Option<unsafe fn(_: *mut SoundFontLoader, _: &[u8]) -> Option<SoundFont>>,
-    pub filesystem: Box<dyn FileSystem>,
+    pub filesystem: DefaultFileSystem,
 }
 
 #[derive(Copy, Clone)]
@@ -23,11 +22,11 @@ pub struct Preset {
 }
 
 pub struct SoundFont {
-    pub data: Box<dyn Any>,
+    pub data: DefaultSoundFont,
     pub id: u32,
-    pub free: Option<unsafe fn(_: *mut SoundFont) -> i32>,
-    pub get_name: Option<unsafe fn(_: *const SoundFont) -> Option<Vec<u8>>>,
-    pub get_preset: Option<unsafe fn(_: *const SoundFont, _: u32, _: u32) -> *mut Preset>,
+    // pub free: Option<unsafe fn(_: *mut SoundFont) -> i32>,
+    // pub get_name: Option<unsafe fn(_: *const SoundFont) -> Vec<u8>>,
+    // pub get_preset: Option<unsafe fn(_: *const SoundFont, _: u32, _: u32) -> *mut Preset>,
     pub iteration_start: Option<unsafe fn(_: *mut SoundFont) -> ()>,
     pub iteration_next: Option<unsafe fn(_: *mut SoundFont, _: *mut Preset) -> i32>,
 }
