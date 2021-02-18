@@ -291,24 +291,19 @@ unsafe fn read_unsafe<T>(fd: &mut DefaultFile, t: &mut T) -> bool {
 impl SoundFontLoader {
     pub fn new_fluid_defsfloader() -> Self {
         Self {
-            // data: 0 as _,
             filesystem: DefaultFileSystem {},
         }
     }
 
     pub unsafe fn load(&mut self, filename: &[u8]) -> Option<SoundFont> {
         let mut defsfont = new_fluid_defsfont();
-        defsfont.load(filename, &mut self.filesystem).ok().map(|_| {
-            SoundFont {
+        defsfont
+            .load(filename, &mut self.filesystem)
+            .ok()
+            .map(|_| SoundFont {
                 data: defsfont,
                 id: 0 as _,
-                // free: Some(fluid_defsfont_sfont_delete as _),
-                // get_name: Some(fluid_defsfont_sfont_get_name as _),
-                // get_preset: Some(fluid_defsfont_sfont_get_preset as _),
-                iteration_start: Some(fluid_defsfont_sfont_iteration_start as _),
-                iteration_next: Some(fluid_defsfont_sfont_iteration_next as _),
-            }
-        })
+            })
     }
 }
 
@@ -316,6 +311,7 @@ impl SoundFont {
     pub fn get_name(&self) -> Vec<u8> {
         unsafe { fluid_defsfont_get_name(&self.data) }
     }
+
     pub fn get_preset(&self, bank: u32, prenum: u32) -> *mut Preset {
         unsafe {
             let defsfont = &self.data;
@@ -348,6 +344,31 @@ impl SoundFont {
             return preset;
         }
     }
+
+    pub fn iteration_start(&mut self) {
+        unsafe {
+            fluid_defsfont_iteration_start(&mut self.data);
+        }
+    }
+
+    pub fn iteration_next(&mut self, mut preset: *mut Preset) -> i32 {
+        unsafe {
+            (*preset).free =
+                Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
+            (*preset).get_name =
+                Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
+            (*preset).get_banknum =
+                Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
+            (*preset).get_num =
+                Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
+            (*preset).noteon = Some(
+                fluid_defpreset_preset_noteon
+                    as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
+            );
+            let defsfont = &mut self.data;
+            return fluid_defsfont_iteration_next(defsfont, preset);
+        }
+    }
 }
 
 impl Drop for SoundFont {
@@ -356,65 +377,6 @@ impl Drop for SoundFont {
             delete_fluid_defsfont(&mut (*self).data);
         }
     }
-}
-
-// pub unsafe fn fluid_defsfont_sfont_get_name(sfont: *const SoundFont) -> Vec<u8> {
-//     fluid_defsfont_get_name(&(*sfont).data)
-// }
-
-// pub unsafe fn fluid_defsfont_sfont_get_preset(
-//     sfont: *const SoundFont,
-//     bank: u32,
-//     prenum: u32,
-// ) -> *mut Preset {
-//     let defsfont = &(*sfont).data;
-//     let mut preset: *mut Preset;
-//     let defpreset: *mut DefaultPreset;
-//     defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
-//     if defpreset.is_null() {
-//         return 0 as *mut Preset;
-//     }
-//     preset = libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
-//     if preset.is_null() {
-//         log::error!("Out of memory",);
-//         return 0 as *mut Preset;
-//     }
-//     (*preset).sfont = sfont;
-//     (*preset).data = defpreset as *mut libc::c_void;
-//     (*preset).free = Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
-//     (*preset).get_name =
-//         Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
-//     (*preset).get_banknum =
-//         Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
-//     (*preset).get_num = Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
-//     (*preset).noteon = Some(
-//         fluid_defpreset_preset_noteon
-//             as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
-//     );
-//     return preset;
-// }
-
-pub unsafe fn fluid_defsfont_sfont_iteration_start(sfont: *mut SoundFont) {
-    let defsfont = &mut (*sfont).data;
-    fluid_defsfont_iteration_start(defsfont);
-}
-
-pub unsafe fn fluid_defsfont_sfont_iteration_next(
-    sfont: *mut SoundFont,
-    mut preset: *mut Preset,
-) -> i32 {
-    (*preset).free = Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
-    (*preset).get_name =
-        Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
-    (*preset).get_banknum =
-        Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
-    (*preset).get_num = Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
-    (*preset).noteon = Some(
-        fluid_defpreset_preset_noteon
-            as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
-    );
-    let defsfont = &mut (*sfont).data;
-    return fluid_defsfont_iteration_next(defsfont, preset);
 }
 
 pub unsafe fn fluid_defpreset_preset_delete(preset: *mut Preset) -> i32 {

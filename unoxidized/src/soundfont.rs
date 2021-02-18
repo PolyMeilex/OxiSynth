@@ -27,8 +27,8 @@ pub struct SoundFont {
     // pub free: Option<unsafe fn(_: *mut SoundFont) -> i32>,
     // pub get_name: Option<unsafe fn(_: *const SoundFont) -> Vec<u8>>,
     // pub get_preset: Option<unsafe fn(_: *const SoundFont, _: u32, _: u32) -> *mut Preset>,
-    pub iteration_start: Option<unsafe fn(_: *mut SoundFont) -> ()>,
-    pub iteration_next: Option<unsafe fn(_: *mut SoundFont, _: *mut Preset) -> i32>,
+    // pub iteration_start: Option<unsafe fn(_: *mut SoundFont) -> ()>,
+    // pub iteration_next: Option<unsafe fn(_: *mut SoundFont, _: *mut Preset) -> i32>,
 }
 
 #[derive(Copy, Clone)]
