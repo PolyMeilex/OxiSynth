@@ -312,36 +312,34 @@ impl SoundFont {
         unsafe { fluid_defsfont_get_name(&self.data) }
     }
 
-    pub fn get_preset(&self, bank: u32, prenum: u32) -> *mut Preset {
+    pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
         unsafe {
             let defsfont = &self.data;
-            let mut preset: *mut Preset;
-            let defpreset: *mut DefaultPreset;
-            defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
+            let defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
             if defpreset.is_null() {
-                return 0 as *mut Preset;
+                return None;
             }
-            preset = libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
-            if preset.is_null() {
-                log::error!("Out of memory",);
-                return 0 as *mut Preset;
-            }
-            (*preset).sfont = self;
-            (*preset).data = defpreset as *mut libc::c_void;
-            (*preset).free =
-                Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
-            (*preset).get_name =
-                Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
-            (*preset).get_banknum =
-                Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
-            (*preset).get_num =
-                Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
-            (*preset).noteon = Some(
-                fluid_defpreset_preset_noteon
-                    as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
-            );
+            // let mut preset =
+            //     libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
 
-            return preset;
+            let mut preset = Preset {
+                sfont: self,
+                data: defpreset as *mut libc::c_void,
+                free: Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32),
+                get_name: Some(
+                    fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>,
+                ),
+                get_banknum: Some(
+                    fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32,
+                ),
+                get_num: Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32),
+                noteon: Some(
+                    fluid_defpreset_preset_noteon
+                        as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
+                ),
+            };
+
+            return Some(preset);
         }
     }
 

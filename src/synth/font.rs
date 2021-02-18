@@ -94,13 +94,13 @@ impl Synth {
     }
      */
 
-    /**
-    Get the preset of a channel
-     */
-    pub fn get_channel_preset(&self, chan: Chan) -> Option<PresetRef<'_>> {
-        option_from_ptr(unsafe { self.handle.get_channel_preset(chan as _) })
-            .map(PresetRef::from_ptr)
-    }
+    // /**
+    // Get the preset of a channel
+    //  */
+    // pub fn get_channel_preset(&self, chan: Chan) -> Option<PresetRef<'_>> {
+    //     option_from_ptr(unsafe { self.handle.get_channel_preset(chan as _) })
+    //         .map(PresetRef::from_ptr)
+    // }
 
     /**
     Offset the bank numbers in a SoundFont.

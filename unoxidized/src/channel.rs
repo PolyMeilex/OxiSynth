@@ -37,7 +37,7 @@ pub struct Channel {
     sfontnum: u32,
     banknum: u32,
     prognum: u32,
-    pub(crate) preset: *mut Preset,
+    pub(crate) preset: Option<Preset>,
     pub(crate) key_pressure: [i8; 128],
     pub(crate) channel_pressure: i16,
     pub(crate) pitch_bend: i16,
@@ -86,7 +86,7 @@ impl Channel {
             sfontnum: 0 as _,
             banknum: 0 as _,
             prognum: 0 as _,
-            preset: 0 as _,
+            preset: None,
             key_pressure: [0; 128],
             channel_pressure: 0 as _,
             pitch_bend: 0 as _,
@@ -109,15 +109,15 @@ impl Channel {
         self.prognum = 0 as i32 as u32;
         self.banknum = 0 as i32 as u32;
         self.sfontnum = 0 as i32 as u32;
-        match unsafe { self.preset.as_ref() } {
-            Some(preset) => match preset.free {
-                Some(free) => unsafe {
-                    free(self.preset);
-                },
-                _ => {}
-            },
-            _ => {}
-        }
+        // match unsafe { self.preset.as_ref() } {
+        //     Some(preset) => match preset.free {
+        //         Some(free) => unsafe {
+        //             free(self.preset);
+        //         },
+        //         _ => {}
+        //     },
+        //     _ => {}
+        // }
         self.preset = unsafe { synth.find_preset(self.banknum, self.prognum) };
         self.interp_method = Default::default();
         self.tuning = None;
@@ -189,21 +189,21 @@ impl Channel {
         self.init_ctrl(0 as i32);
     }
 
-    pub fn set_preset(&mut self, preset: *mut Preset) -> i32 {
-        unsafe {
-            if !self.preset.is_null() {
-                if !self.preset.is_null() && (*self.preset).free.is_some() {
-                    Some((*self.preset).free.expect("non-null function pointer"))
-                        .expect("non-null function pointer")(self.preset);
-                }
-            }
-        }
+    pub fn set_preset(&mut self, preset: Option<Preset>) -> i32 {
+        // unsafe {
+        //     if !self.preset.is_null() {
+        //         if !self.preset.is_null() && (*self.preset).free.is_some() {
+        //             Some((*self.preset).free.expect("non-null function pointer"))
+        //                 .expect("non-null function pointer")(self.preset);
+        //         }
+        //     }
+        // }
         self.preset = preset;
         return FLUID_OK as i32;
     }
 
-    pub fn get_preset(&self) -> *mut Preset {
-        return self.preset;
+    pub fn get_preset(&mut self) -> Option<&mut Preset> {
+        self.preset.as_mut()
     }
 
     pub fn get_banknum(&self) -> u32 {
@@ -379,14 +379,14 @@ impl Channel {
 
 impl Drop for Channel {
     fn drop(&mut self) {
-        match unsafe { self.preset.as_ref() } {
-            Some(preset) => match preset.free {
-                Some(free) => unsafe {
-                    free(self.preset);
-                },
-                _ => {}
-            },
-            _ => {}
-        }
+        // match unsafe { self.preset.as_ref() } {
+        //     Some(preset) => match preset.free {
+        //         Some(free) => unsafe {
+        //             free(self.preset);
+        //         },
+        //         _ => {}
+        //     },
+        //     _ => {}
+        // }
     }
 }

@@ -7,7 +7,7 @@ The SoundFont interface
 pub trait IsFont {
     fn get_id(&self) -> FontId;
     fn get_name(&self) -> Option<String>;
-    fn get_preset(&self, bank: Bank, num: PresetId) -> Option<PresetRef<'_>>;
+    // fn get_preset(&self, bank: Bank, num: PresetId) -> Option<PresetRef<'_>>;
 }
 
 /**
@@ -82,11 +82,11 @@ mod private {
             String::from_utf8(name).ok()
         }
 
-        fn get_preset(&self, bank: Bank, num: PresetId) -> Option<PresetRef<'_>> {
-            let handle = self.get_handle();
-            let font_c = unsafe { &*handle };
-            option_from_ptr(font_c.get_preset(bank, num)).map(PresetRef::from_ptr)
-        }
+        // fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset> {
+        //     let handle = self.get_handle();
+        //     let font_c = unsafe { &*handle };
+        //     font_c.get_preset(bank, num)
+        // }
     }
 
     impl<'a> HasHandle for FontRef<'a> {

@@ -383,7 +383,7 @@ impl Synth {
         if vel == 0 as i32 {
             return self.noteoff(chan, key);
         }
-        if self.channel[chan as usize].preset.is_null() {
+        if self.channel[chan as usize].preset.is_none() {
             if self.settings.synth.verbose {
                 log::info!(
                     "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
@@ -402,14 +402,9 @@ impl Synth {
         self.release_voice_on_same_note(chan, key);
         let fresh7 = self.noteid;
         self.noteid = self.noteid.wrapping_add(1);
-        return self.start(
-            fresh7,
-            self.channel[chan as usize].preset,
-            0 as i32,
-            chan,
-            key,
-            vel,
-        );
+
+        let preset_ptr = self.channel[chan as usize].preset.as_mut().unwrap() as *mut _;
+        return self.start(fresh7, preset_ptr, 0, chan, key, vel);
     }
 
     pub unsafe fn noteoff(&mut self, chan: i32, key: i32) -> i32 {
@@ -689,7 +684,12 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn get_preset(&mut self, sfontnum: u32, banknum: u32, prognum: u32) -> *mut Preset {
+    pub unsafe fn get_preset(
+        &mut self,
+        sfontnum: u32,
+        banknum: u32,
+        prognum: u32,
+    ) -> Option<Preset> {
         let preset;
         let sfont;
         let offset;
@@ -697,23 +697,22 @@ impl Synth {
         if !sfont.is_null() {
             offset = self.get_bank_offset(sfontnum as i32);
             preset = (*sfont).get_preset(banknum.wrapping_sub(offset as u32), prognum);
-            if !preset.is_null() {
-                return preset;
-            }
+            preset
+        } else {
+            None
         }
-        return 0 as *mut Preset;
     }
 
-    pub unsafe fn find_preset(&self, banknum: u32, prognum: u32) -> *mut Preset {
+    pub unsafe fn find_preset(&self, banknum: u32, prognum: u32) -> Option<Preset> {
         for sfont in self.sfont.iter() {
             let offset = self.get_bank_offset(sfont.id as i32);
             let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
-            if !preset.is_null() {
-                (*preset).sfont = sfont;
-                return preset;
+            if let Some(mut preset) = preset {
+                preset.sfont = sfont;
+                return Some(preset);
             }
         }
-        return 0 as *mut Preset;
+        return None;
     }
 
     pub unsafe fn program_change(&mut self, chan: i32, prognum: i32) -> i32 {
@@ -735,6 +734,7 @@ impl Synth {
         if self.settings.synth.verbose {
             log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
         }
+
         if self.channel[chan as usize].channum == 9 as i32
             && self.settings.synth.drums_channel_active
         {
@@ -742,13 +742,14 @@ impl Synth {
         } else {
             preset = self.find_preset(banknum, prognum as u32)
         }
-        if preset.is_null() {
+
+        if preset.is_none() {
             subst_bank = banknum as i32;
             subst_prog = prognum;
             if banknum != 128 as i32 as u32 {
                 subst_bank = 0 as i32;
                 preset = self.find_preset(0 as i32 as u32, prognum as u32);
-                if preset.is_null() && prognum != 0 as i32 {
+                if preset.is_none() && prognum != 0 as i32 {
                     preset = self.find_preset(0 as i32 as u32, 0 as i32 as u32);
                     subst_prog = 0 as i32
                 }
@@ -756,17 +757,17 @@ impl Synth {
                 preset = self.find_preset(128 as i32 as u32, 0 as i32 as u32);
                 subst_prog = 0 as i32
             }
-            if !preset.is_null() {
+            if preset.is_none() {
                 log::warn!(
                         "Instrument not found on channel {} [bank={} prog={}], substituted [bank={} prog={}]",
                         chan, banknum, prognum,
                         subst_bank, subst_prog);
             }
         }
-        sfont_id = if !preset.is_null() {
-            (*(*preset).sfont).id
+        sfont_id = if let Some(preset) = &preset {
+            (*preset.sfont).id
         } else {
-            0 as i32 as u32
+            0
         };
         self.channel[chan as usize].set_sfontnum(sfont_id);
         self.channel[chan as usize].set_preset(preset);
@@ -821,7 +822,7 @@ impl Synth {
             return FLUID_FAILED as i32;
         }
         preset = self.get_preset(sfont_id, bank_num, preset_num);
-        if preset.is_null() {
+        if preset.is_none() {
             log::error!(
                 "There is no preset with bank number {} and preset number {} in SoundFont {}",
                 bank_num,
@@ -1499,11 +1500,11 @@ impl Synth {
         };
     }
 
-    pub unsafe fn get_channel_preset(&self, chan: i32) -> *mut Preset {
+    pub unsafe fn get_channel_preset(&mut self, chan: i32) -> Option<&mut Preset> {
         if chan >= 0 as i32 && chan < self.settings.synth.midi_channels {
             return self.channel[chan as usize].get_preset();
         }
-        return 0 as *mut Preset;
+        return None;
     }
 
     pub fn set_reverb_on(&mut self, on: bool) {
