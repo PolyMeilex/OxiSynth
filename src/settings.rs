@@ -32,14 +32,14 @@ impl Settings {
     }
 }
 
-impl<'a> SettingsRef<'a> {
-    pub(crate) fn from_ptr(handle: *mut engine::settings::Settings) -> Self {
-        Self {
-            handle,
-            phantom: PhantomData,
-        }
-    }
-}
+// impl<'a> SettingsRef<'a> {
+//     pub(crate) fn from_ptr(handle: *mut engine::settings::Settings) -> Self {
+//         Self {
+//             handle,
+//             phantom: PhantomData,
+//         }
+//     }
+// }
 
 /**
 The settings interface

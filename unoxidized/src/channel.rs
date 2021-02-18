@@ -234,24 +234,14 @@ impl Channel {
                     }
                 }
                 0 => {
-                    if self.channum == 9 as i32
-                        && synth
-                            .settings
-                            .str_equal("synth.drums-channel.active", "yes")
-                            != false
-                    {
+                    if self.channum == 9 as i32 && synth.settings.synth.drums_channel_active {
                         return FLUID_OK as i32;
                     }
                     self.bank_msb = (value & 0x7f as i32) as u8;
                     self.set_banknum((value & 0x7f as i32) as u32);
                 }
                 32 => {
-                    if self.channum == 9 as i32
-                        && synth
-                            .settings
-                            .str_equal("synth.drums-channel.active", "yes")
-                            != false
-                    {
+                    if self.channum == 9 as i32 && synth.settings.synth.drums_channel_active {
                         return FLUID_OK as i32;
                     }
                     self.set_banknum(

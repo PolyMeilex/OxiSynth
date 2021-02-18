@@ -120,11 +120,11 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{IsFont, IsPreset, Settings, Synth};
+    use crate::{engine::settings::new::Settings, IsFont, IsPreset, Synth};
 
     #[test]
     fn font_and_preset() {
-        let mut synth = Synth::new(Settings::new().unwrap()).unwrap();
+        let mut synth = Synth::new(Settings::default()).unwrap();
 
         assert_eq!(synth.sfcount(), 0);
 

@@ -13,7 +13,7 @@ mod write;
 pub use self::tuning::TuningIter;
 pub use self::write::IsSamples;
 
-use crate::{engine, Error, Result, Settings, SettingsRef};
+use crate::{engine, Error, Result};
 
 /**
 The synth object
@@ -42,8 +42,8 @@ impl Synth {
 
     As soon as the synthesizer is created, it will start playing.
      */
-    pub fn new(settings: Settings) -> Result<Self> {
-        match engine::synth::Synth::new(settings.handle) {
+    pub fn new(settings: engine::settings::new::Settings) -> Result<Self> {
+        match engine::synth::Synth::new(settings) {
             Ok(handle) => return Ok(Synth { handle }),
             Err(_) => return Err(Error::Alloc),
         }
@@ -58,24 +58,24 @@ impl Synth {
         }
     }
 
-    /**
-    Get a reference to the settings of the synthesizer.
-     */
-    pub fn get_settings(&mut self) -> SettingsRef<'_> {
-        SettingsRef::from_ptr(&mut self.handle.settings)
-    }
+    // /**
+    // Get a reference to the settings of the synthesizer.
+    //  */
+    // pub fn get_settings(&mut self) -> SettingsRef<'_> {
+    //     SettingsRef::from_ptr(&mut self.handle.old_settings)
+    // }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{Settings, Synth};
+    use super::{engine::settings::new::Settings, Synth};
     use std::{fs::File, io::Write, slice::from_raw_parts};
 
     #[test]
     fn synth_sf2() {
         let mut pcm = File::create("Boomwhacker.sf2.pcm").unwrap();
 
-        let settings = Settings::new().unwrap();
+        let settings = Settings::default();
 
         let mut synth = Synth::new(settings).unwrap();
 

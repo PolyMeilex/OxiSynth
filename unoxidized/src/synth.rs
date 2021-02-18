@@ -4,7 +4,7 @@ use super::chorus::Chorus;
 use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
-use super::settings::Settings;
+use super::settings::{self, Settings};
 use super::sfloader::new_fluid_defsfloader;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
@@ -36,7 +36,6 @@ use super::{
 static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub struct Synth {
-    pub settings: Settings,
     polyphony: i32,
     with_reverb: i8,
     with_chorus: i8,
@@ -71,6 +70,8 @@ pub struct Synth {
     tuning: Vec<Vec<Option<Tuning>>>,
     cur_tuning: Option<Tuning>,
     pub(crate) min_note_length_ticks: u32,
+
+    pub settings: settings::new::Settings,
 }
 
 pub const FLUID_OK: C2RustUnnamed = 0;
@@ -232,40 +233,102 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
 };
 
 impl Synth {
-    pub fn new(mut settings: Settings) -> Result<Self, &'static str> {
+    pub fn new(mut settings: settings::new::Settings) -> Result<Self, &'static str> {
         unsafe {
-            let i: i32;
-            let loader;
-
             if FLUID_SYNTH_INITIALIZED == 0 as i32 {
                 Synth::init();
             }
 
+            let sample_rate = settings.synth.sample_rate;
+
+            let min_note_length_ticks =
+                (settings.synth.min_note_length as f64 * sample_rate / 1000.0) as u32;
+
+            let midi_channels = {
+                let midi_channels = settings.synth.midi_channels;
+                if midi_channels % 16 != 0 {
+                    log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
+                    let n = midi_channels / 16;
+                    let midi_channels = (n + 1) * 16;
+                    settings.synth.midi_channels = midi_channels;
+                    midi_channels
+                } else {
+                    midi_channels
+                }
+            };
+
+            let audio_channels = {
+                let audio_channels = settings.synth.audio_channels;
+                if audio_channels < 1 {
+                    log::warn!("Requested number of audio channels is smaller than 1. Changing this setting to 1.");
+                    1
+                } else if audio_channels > 128 {
+                    log::warn!("Requested number of audio channels is too big ({}). Limiting this setting to 128.", audio_channels);
+                    128
+                } else {
+                    audio_channels
+                }
+            };
+
+            let audio_groups = {
+                let audio_groups = settings.synth.audio_groups;
+                if audio_groups < 1 as i32 {
+                    log::warn!("Requested number of audio groups is smaller than 1. Changing this setting to 1.");
+                    1
+                } else if audio_groups > 128 as i32 {
+                    log::warn!("Requested number of audio groups is too big ({}). Limiting this setting to 128.", audio_groups);
+                    128
+                } else {
+                    audio_groups
+                }
+            };
+
+            let effects_channels = {
+                let effects_channels = settings.synth.effects_channels;
+                if effects_channels != 2 as i32 {
+                    log::warn!(
+                        "Invalid number of effects channels ({}).Setting effects channels to 2.",
+                        effects_channels
+                    );
+                    2
+                } else {
+                    effects_channels
+                }
+            };
+
+            let nbuf = {
+                let nbuf = audio_channels;
+                if audio_groups > nbuf {
+                    audio_groups
+                } else {
+                    nbuf
+                }
+            };
+
             let mut synth = Self {
-                settings: Settings::new(),
-                polyphony: 0 as _,
-                with_reverb: 0 as _,
-                with_chorus: 0 as _,
-                verbose: 0 as _,
-                dump: 0 as _,
-                sample_rate: 0 as _,
-                midi_channels: 0 as _,
-                audio_channels: 0 as _,
-                audio_groups: 0 as _,
-                effects_channels: 0 as _,
-                state: 0 as _,
-                ticks: 0 as _,
+                polyphony: settings.synth.polyphony,
+                with_reverb: settings.synth.reverb_active as i8,
+                with_chorus: settings.synth.chorus_active as i8,
+                verbose: settings.synth.verbose as i8,
+                dump: settings.synth.dump as i8,
+                sample_rate,
+                midi_channels,
+                audio_channels,
+                audio_groups,
+                effects_channels,
+                state: FLUID_SYNTH_PLAYING,
+                ticks: 0,
                 loaders: Vec::new(),
                 sfont: Vec::new(),
                 sfont_id: 0 as _,
                 bank_offsets: Vec::new(),
-                gain: 0 as _,
+                gain: settings.synth.gain,
                 channel: Vec::new(),
                 nvoice: 0 as _,
                 voice: Vec::new(),
-                noteid: 0 as _,
+                noteid: 0,
                 storeid: 0 as _,
-                nbuf: 0 as _,
+                nbuf,
                 left_buf: Vec::new(),
                 right_buf: Vec::new(),
                 fx_left_buf: Vec::new(),
@@ -274,112 +337,58 @@ impl Synth {
                 chorus: Chorus::new(44100f32),
                 cur: 0 as _,
                 dither_index: 0 as _,
-                tuning: vec![vec![None; 128]; 128],
+                tuning: Vec::new(),
                 cur_tuning: None,
-                min_note_length_ticks: 0 as _,
+                min_note_length_ticks,
+
+                settings,
             };
 
-            synth.with_reverb = settings.str_equal("synth.reverb.active", "yes") as i8;
-            synth.with_chorus = settings.str_equal("synth.chorus.active", "yes") as i8;
-            synth.verbose = settings.str_equal("synth.verbose", "yes") as i8;
-            synth.dump = settings.str_equal("synth.dump", "yes") as i8;
-            synth.polyphony = settings.getint("synth.polyphony").unwrap();
-            synth.sample_rate = settings.getnum("synth.sample-rate").unwrap();
-            synth.midi_channels = settings.getint("synth.midi-channels").unwrap();
-            synth.audio_channels = settings.getint("synth.audio-channels").unwrap();
-            synth.audio_groups = settings.getint("synth.audio-groups").unwrap();
-            synth.effects_channels = settings.getint("synth.effects-channels").unwrap();
-            synth.gain = settings.getnum("synth.gain").unwrap();
-            i = settings.getint("synth.min-note-length").unwrap();
-            synth.min_note_length_ticks = (i as f64 * synth.sample_rate / 1000.0f32 as f64) as u32;
-            settings.register_num(
-                "synth.gain",
-                0.2f32 as f64,
-                0.0f32 as f64,
-                10.0f32 as f64,
-                0 as i32,
-                ::std::mem::transmute::<
-                    Option<unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32>,
-                    NumUpdateFn,
-                >(Some(
-                    Synth::update_gain as unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32,
-                )),
-                &mut synth as *mut Self as *mut libc::c_void,
-            );
-            settings.register_int(
-                "synth.polyphony",
-                synth.polyphony,
-                16 as i32,
-                4096 as i32,
-                0 as i32,
-                ::std::mem::transmute::<
-                    Option<unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32>,
-                    IntUpdateFn,
-                >(Some(
-                    Synth::update_polyphony as unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32,
-                )),
-                &mut synth as *mut Self as *mut libc::c_void,
-            );
-            if synth.midi_channels % 16 as i32 != 0 as i32 {
-                let n: i32 = synth.midi_channels / 16 as i32;
-                synth.midi_channels = (n + 1 as i32) * 16 as i32;
-                settings.setint("synth.midi-channels", synth.midi_channels);
-                log::warn!(
-                        "Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.",
-                        );
-            }
-            if synth.audio_channels < 1 as i32 {
-                log::warn!(
-                    "Requested number of audio channels is smaller than 1. Changing this setting to 1.",
-                );
-                synth.audio_channels = 1 as i32
-            } else if synth.audio_channels > 128 as i32 {
-                log::warn!(
-                    "Requested number of audio channels is too big ({}). Limiting this setting to 128.",
-                    synth.audio_channels
-                );
-                synth.audio_channels = 128 as i32
-            }
-            if synth.audio_groups < 1 as i32 {
-                log::warn!(
-                    "Requested number of audio groups is smaller than 1. Changing this setting to 1.",
-                );
-                synth.audio_groups = 1 as i32
-            } else if synth.audio_groups > 128 as i32 {
-                log::warn!(
-                    "Requested number of audio groups is too big ({}). Limiting this setting to 128.",
-                    synth.audio_groups
-                );
-                synth.audio_groups = 128 as i32
-            }
-            if synth.effects_channels != 2 as i32 {
-                log::warn!(
-                    "Invalid number of effects channels ({}).Setting effects channels to 2.",
-                    synth.effects_channels
-                );
-                synth.effects_channels = 2 as i32
-            }
-            synth.nbuf = synth.audio_channels;
-            if synth.audio_groups > synth.nbuf {
-                synth.nbuf = synth.audio_groups
-            }
-            synth.state = FLUID_SYNTH_PLAYING as i32 as u32;
-            synth.noteid = 0 as i32 as u32;
-            synth.ticks = 0 as i32 as u32;
-            synth.tuning.clear();
-            loader = new_fluid_defsfloader();
+            // settings.register_num(
+            //     "synth.gain",
+            //     0.2f32 as f64,
+            //     0.0f32 as f64,
+            //     10.0f32 as f64,
+            //     0 as i32,
+            //     ::std::mem::transmute::<
+            //         Option<unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32>,
+            //         NumUpdateFn,
+            //     >(Some(
+            //         Synth::update_gain as unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32,
+            //     )),
+            //     &mut synth as *mut Self as *mut libc::c_void,
+            // );
+            // settings.register_int(
+            //     "synth.polyphony",
+            //     synth.polyphony,
+            //     16 as i32,
+            //     4096 as i32,
+            //     0 as i32,
+            //     ::std::mem::transmute::<
+            //         Option<unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32>,
+            //         IntUpdateFn,
+            //     >(Some(
+            //         Synth::update_polyphony as unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32,
+            //     )),
+            //     &mut synth as *mut Self as *mut libc::c_void,
+            // );
+
+            let loader = new_fluid_defsfloader();
             if loader.is_null() {
                 log::warn!("Failed to create the default SoundFont loader",);
             } else {
                 synth.add_sfloader(loader);
             }
+
             for i in 0..synth.midi_channels {
                 synth.channel.push(Channel::new(&synth, i));
             }
+
             synth.nvoice = synth.polyphony;
             for _ in 0..synth.nvoice {
                 synth.voice.push(new_fluid_voice(synth.sample_rate as f32));
             }
+
             synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
             synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
             synth
@@ -393,10 +402,10 @@ impl Synth {
             synth.reverb = ReverbModel::new();
             synth.set_reverb_params(0.2f32 as f64, 0.0f32 as f64, 0.5f32 as f64, 0.9f32 as f64);
             synth.chorus = Chorus::new(synth.sample_rate as f32);
-            if settings.str_equal("synth.drums-channel.active", "yes") != false {
+            if synth.settings.synth.drums_channel_active {
                 synth.bank_select(9 as i32, 128 as i32 as u32);
             }
-            synth.settings = settings;
+
             return Ok(synth);
         }
     }
@@ -782,7 +791,7 @@ impl Synth {
             log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
         }
         if self.channel[chan as usize].channum == 9 as i32
-            && self.settings.str_equal("synth.drums-channel.active", "yes") != false
+            && self.settings.synth.drums_channel_active
         {
             preset = self.find_preset(128 as i32 as u32, prognum as u32)
         } else {

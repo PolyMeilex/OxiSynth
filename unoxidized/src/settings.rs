@@ -488,50 +488,50 @@ impl Settings {
 }
 
 pub mod new {
-    pub struct SynthSettingsManager {
-        verbose: bool,
-        dump: bool,
+    pub struct SynthSettings {
+        pub verbose: bool,
+        pub dump: bool,
 
-        reverb_active: bool,
-        chorus_active: bool,
-        ladspa_active: bool,
-        drums_channel_active: bool,
+        pub reverb_active: bool,
+        pub chorus_active: bool,
+        pub ladspa_active: bool,
+        pub drums_channel_active: bool,
 
         /// Def: 256
         /// Min: 16
         /// Max: 4096
-        polyphony: i32,
+        pub polyphony: i32,
         /// Def: 16
         /// Min: 16
         /// Max: 256
-        midi_channels: i32,
+        pub midi_channels: i32,
         /// Def: 0.2
         /// Min: 0.0
         /// Max: 10.0
-        gain: f32,
+        pub gain: f64,
         /// Def: 1
         /// Min: 1
         /// Max: 256
-        audio_channels: i32,
+        pub audio_channels: i32,
         /// Def: 1
         /// Min: 1
         /// Max: 256
-        audio_groups: i32,
+        pub audio_groups: i32,
         /// Def: 2
         /// Min: 2
         /// Max: 2
-        effects_channels: i32,
+        pub effects_channels: i32,
         /// Def: 44100.0
         /// Min: 22050.0
         /// Max: 96000.0
-        sample_rate: f32,
+        pub sample_rate: f64,
         /// Def: 10
         /// Min: 0
         /// Max: 65535
-        min_note_length: i32,
+        pub min_note_length: i32,
     }
 
-    impl Default for SynthSettingsManager {
+    impl Default for SynthSettings {
         fn default() -> Self {
             Self {
                 verbose: false,
@@ -555,12 +555,13 @@ pub mod new {
     }
 
     #[derive(Default)]
-    pub struct MidiSettingsManager {
+    pub struct MidiSettings {
         pub portname: String,
     }
 
-    pub struct SettingsManager {
-        pub synth: SynthSettingsManager,
-        pub midi: MidiSettingsManager,
+    #[derive(Default)]
+    pub struct Settings {
+        pub synth: SynthSettings,
+        pub midi: MidiSettings,
     }
 }
