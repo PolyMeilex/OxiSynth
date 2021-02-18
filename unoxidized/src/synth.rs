@@ -199,7 +199,7 @@ pub struct Synth {
     loaders: Vec<*mut SoundFontLoader>,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
-    bank_offsets: Vec<*mut BankOffset>,
+    bank_offsets: Vec<BankOffset>,
     gain: f64,
     channel: Vec<Channel>,
     nvoice: i32,
@@ -1900,8 +1900,8 @@ impl Synth {
         return self
             .bank_offsets
             .iter()
-            .find(|x| (*(*(*x))).sfont_id == sfont_id)
-            .map(|x| *x as *const BankOffset)
+            .find(|x| x.sfont_id == sfont_id)
+            .map(|x| x as *const BankOffset)
             .unwrap_or(0 as _);
     }
 
@@ -1909,8 +1909,8 @@ impl Synth {
         return self
             .bank_offsets
             .iter_mut()
-            .find(|x| (*(*(*x))).sfont_id == sfont_id)
-            .map(|x| *x as *mut BankOffset)
+            .find(|x| x.sfont_id == sfont_id)
+            .map(|x| x as *mut BankOffset)
             .unwrap_or(0 as _);
     }
 
@@ -1918,13 +1918,16 @@ impl Synth {
         let mut bank_offset;
         bank_offset = self.get_mut_bank_offset0(sfont_id);
         if bank_offset.is_null() {
-            bank_offset = libc::malloc(::std::mem::size_of::<BankOffset>() as libc::size_t)
-                as *mut BankOffset;
-            if bank_offset.is_null() {
-                return -(1 as i32);
-            }
-            (*bank_offset).sfont_id = sfont_id;
-            (*bank_offset).offset = offset;
+            // bank_offset = libc::malloc(::std::mem::size_of::<BankOffset>() as libc::size_t)
+            //     as *mut BankOffset;
+
+            let bank_offset = BankOffset { sfont_id, offset };
+
+            // if bank_offset.is_null() {
+            //     return -(1 as i32);
+            // }
+            // (*bank_offset).sfont_id = sfont_id;
+            // (*bank_offset).offset = offset;
             self.bank_offsets.insert(0, bank_offset);
         } else {
             (*bank_offset).offset = offset
@@ -1943,7 +1946,7 @@ impl Synth {
     }
 
     pub unsafe fn remove_bank_offset(&mut self, sfont_id: i32) {
-        self.bank_offsets.retain(|x| (*(*x)).sfont_id != sfont_id);
+        self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
     }
 
     // pub(crate) unsafe fn register_settings(settings: &mut Settings) {
@@ -2183,9 +2186,6 @@ impl Drop for Synth {
             self.state = FLUID_SYNTH_STOPPED as i32 as u32;
             for voice in self.voice.iter() {
                 fluid_voice_off(*voice);
-            }
-            for bank_offset in self.bank_offsets.iter() {
-                libc::free(*bank_offset as *mut libc::c_void);
             }
             self.bank_offsets.clear();
             for loader in self.loaders.iter() {
