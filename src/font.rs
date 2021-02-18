@@ -14,7 +14,7 @@ pub trait IsFont {
 The SoundFont preset interface
  */
 pub trait IsPreset {
-    fn get_name(&self) -> Option<String>;
+    fn get_name(&self) -> String;
     fn get_banknum(&self) -> Bank;
     fn get_num(&self) -> PresetId;
 }
@@ -104,11 +104,11 @@ mod private {
     where
         X: HasHandle<Handle = engine::soundfont::Preset>,
     {
-        fn get_name(&self) -> Option<String> {
+        fn get_name(&self) -> String {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
             let name = font_c.get_name();
-            String::from_utf8(name).ok()
+            name
         }
 
         fn get_banknum(&self) -> Bank {

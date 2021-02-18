@@ -33,12 +33,13 @@ pub struct DefaultSoundFont {
     preset: *mut DefaultPreset,
     iter_cur: *mut DefaultPreset,
 }
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[repr(C)]
 pub struct DefaultPreset {
     next: *mut DefaultPreset,
     sfont: *mut DefaultSoundFont,
-    name: [u8; 21],
+    // [u8;21]
+    name: String,
     bank: u32,
     num: u32,
     global_zone: *mut PresetZone,
@@ -151,7 +152,8 @@ pub struct SFZone {
 #[derive(Clone)]
 #[repr(C)]
 pub struct SFPreset {
-    name: [u8; 21],
+    /// [u8;21]
+    name: String,
     prenum: u16,
     bank: u16,
     libr: u32,
@@ -408,8 +410,8 @@ impl Drop for SoundFont {
 }
 
 impl Preset {
-    pub fn get_name(&self) -> Vec<u8> {
-        unsafe { (*self.data).name.to_vec() }
+    pub fn get_name(&self) -> String {
+        unsafe { (*self.data).name.clone() }
     }
 
     pub fn get_banknum(&self) -> u32 {
@@ -607,7 +609,7 @@ impl Preset {
     }
 }
 
-pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &[u8]) -> ()> = None;
+pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = None;
 
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: String, fapi: &mut DefaultFileSystem) -> Result<(), ()> {
@@ -719,7 +721,7 @@ impl DefaultSoundFont {
             }
             (*preset).next = 0 as *mut DefaultPreset;
             (*preset).sfont = sfont;
-            (*preset).name = [0; 21];
+            (*preset).name = String::new();
             (*preset).bank = 0 as i32 as u32;
             (*preset).num = 0 as i32 as u32;
             (*preset).global_zone = 0 as *mut PresetZone;
@@ -825,20 +827,10 @@ pub unsafe fn fluid_defpreset_import_sfont(
     let mut zone: *mut PresetZone;
     let mut count: i32;
     let mut zone_name: [u8; 256] = [0; 256];
-    if (*sfpreset).name[0] != 0 {
-        (*preset).name = (*sfpreset).name;
+    if (*sfpreset).name.len() != 0 {
+        (*preset).name = (*sfpreset).name.clone();
     } else {
-        libc::strcpy(
-            (*preset).name.as_mut_ptr() as _,
-            CString::new(format!(
-                "Bank{},Preset{}",
-                (*sfpreset).bank,
-                (*sfpreset).prenum
-            ))
-            .unwrap()
-            .as_c_str()
-            .as_ptr(),
-        );
+        (*preset).name = format!("Bank:{},Preset{}", (*sfpreset).bank, (*sfpreset).prenum);
     }
     (*preset).bank = (*sfpreset).bank as u32;
     (*preset).num = (*sfpreset).prenum as u32;
@@ -846,16 +838,10 @@ pub unsafe fn fluid_defpreset_import_sfont(
     for sfzone in (*sfpreset).zone.iter() {
         libc::strcpy(
             zone_name.as_mut_ptr() as _,
-            CString::new(format!(
-                "{}/{}",
-                CStr::from_ptr((*preset).name.as_ptr() as _)
-                    .to_str()
-                    .unwrap(),
-                count,
-            ))
-            .unwrap()
-            .as_c_str()
-            .as_ptr(),
+            CString::new(format!("{}/{}", (*preset).name, count,))
+                .unwrap()
+                .as_c_str()
+                .as_ptr(),
         );
         zone = new_fluid_preset_zone(&zone_name);
         if zone.is_null() {
@@ -1855,10 +1841,16 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         libc::memset(p as _, 0, std::mem::size_of::<SFPreset>() as libc::size_t);
         (*sf).preset.push(p);
         ({
-            if !fd.read(from_raw_parts_mut(&mut (*p).name as *mut [u8; 21] as _, 20)) {
+            let mut name: [u8; 21] = [0; 21];
+
+            if !fd.read(from_raw_parts_mut(&mut name as *mut [u8; 21] as _, 20)) {
                 return 0;
             }
-            (*p).name[20] = 0;
+            name[20] = 0;
+
+            let name_cstr = CStr::from_ptr(name.as_ptr() as _).to_owned();
+            let name_str = name_cstr.to_str().unwrap();
+            (*p).name = name_str.to_owned();
         });
         read_unsafe(fd, &mut (*p).prenum);
         read_unsafe(fd, &mut (*p).bank);

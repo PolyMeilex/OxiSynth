@@ -132,10 +132,7 @@ mod test {
 
         let preset = font.get_preset(0, 0).unwrap();
 
-        assert_eq!(
-            String::from_utf8(preset.get_name()).unwrap(),
-            "Boomwhacker\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}"
-        );
+        assert_eq!(preset.get_name(), "Boomwhacker");
         assert_eq!(preset.get_banknum(), 0);
         assert_eq!(preset.get_num(), 0);
     }
