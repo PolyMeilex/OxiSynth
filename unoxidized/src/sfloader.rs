@@ -288,46 +288,36 @@ unsafe fn read_unsafe<T>(fd: &mut dyn File, t: &mut T) -> bool {
     ));
 }
 
-pub fn new_fluid_defsfloader() -> *mut SoundFontLoader {
-    Box::into_raw(Box::new(SoundFontLoader {
-        data: 0 as _,
-        free: Some(delete_fluid_defsfloader as _),
-        load: Some(fluid_defsfloader_load as _),
-        filesystem: make_default_fs(),
-    }))
-}
-
-pub unsafe fn delete_fluid_defsfloader(loader: *mut SoundFontLoader) -> i32 {
-    if !loader.is_null() {
-        std::mem::drop(Box::from_raw(loader));
+impl SoundFontLoader {
+    pub fn new_fluid_defsfloader() -> Self {
+        Self {
+            data: 0 as _,
+            filesystem: make_default_fs(),
+        }
     }
-    return FLUID_OK as i32;
-}
+    pub unsafe fn load(&mut self, filename: &[u8]) -> Option<SoundFont> {
+        let defsfont = new_fluid_defsfont();
+        let mut sfont = SoundFont {
+            data: Box::new(defsfont),
+            id: 0 as _,
+            free: Some(fluid_defsfont_sfont_delete as _),
+            get_name: Some(fluid_defsfont_sfont_get_name as _),
+            get_preset: Some(fluid_defsfont_sfont_get_preset as _),
+            iteration_start: Some(fluid_defsfont_sfont_iteration_start as _),
+            iteration_next: Some(fluid_defsfont_sfont_iteration_next as _),
+        };
+        if fluid_defsfont_load(
+            sfont.data.downcast_mut::<DefaultSoundFont>().unwrap(),
+            filename,
+            self.filesystem.as_mut(),
+        ) == FLUID_FAILED as i32
+        {
+            delete_fluid_defsfont(sfont.data.downcast_mut::<DefaultSoundFont>().unwrap());
+            return None;
+        }
 
-pub unsafe fn fluid_defsfloader_load(
-    loader: *mut SoundFontLoader,
-    filename: &[u8],
-) -> Option<SoundFont> {
-    let defsfont = new_fluid_defsfont();
-    let mut sfont = SoundFont {
-        data: Box::new(defsfont),
-        id: 0 as _,
-        free: Some(fluid_defsfont_sfont_delete as _),
-        get_name: Some(fluid_defsfont_sfont_get_name as _),
-        get_preset: Some(fluid_defsfont_sfont_get_preset as _),
-        iteration_start: Some(fluid_defsfont_sfont_iteration_start as _),
-        iteration_next: Some(fluid_defsfont_sfont_iteration_next as _),
-    };
-    if fluid_defsfont_load(
-        sfont.data.downcast_mut::<DefaultSoundFont>().unwrap(),
-        filename,
-        (*loader).filesystem.as_mut(),
-    ) == FLUID_FAILED as i32
-    {
-        delete_fluid_defsfont(sfont.data.downcast_mut::<DefaultSoundFont>().unwrap());
-        return None;
+        Some(sfont)
     }
-    return Some(sfont);
 }
 
 pub unsafe fn fluid_defsfont_sfont_delete(sfont: *mut SoundFont) -> i32 {

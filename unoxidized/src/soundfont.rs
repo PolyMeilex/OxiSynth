@@ -6,8 +6,8 @@ use super::synth::Synth;
 
 pub struct SoundFontLoader {
     pub data: *mut libc::c_void,
-    pub free: Option<unsafe fn(_: *mut SoundFontLoader) -> i32>,
-    pub load: Option<unsafe fn(_: *mut SoundFontLoader, _: &[u8]) -> Option<SoundFont>>,
+    // pub free: Option<unsafe fn(_: *mut SoundFontLoader) -> i32>,
+    // pub load: Option<unsafe fn(_: *mut SoundFontLoader, _: &[u8]) -> Option<SoundFont>>,
     pub filesystem: Box<dyn FileSystem>,
 }
 

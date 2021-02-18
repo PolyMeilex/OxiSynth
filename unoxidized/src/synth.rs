@@ -5,7 +5,6 @@ use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
 use super::settings::Settings;
-use super::sfloader::new_fluid_defsfloader;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
@@ -196,7 +195,7 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
 pub struct Synth {
     state: u32,
     ticks: u32,
-    loaders: Vec<*mut SoundFontLoader>,
+    loaders: Vec<SoundFontLoader>,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
@@ -331,12 +330,8 @@ impl Synth {
             //     &mut synth as *mut Self as *mut libc::c_void,
             // );
 
-            let loader = new_fluid_defsfloader();
-            if loader.is_null() {
-                log::warn!("Failed to create the default SoundFont loader",);
-            } else {
-                synth.add_sfloader(loader);
-            }
+            let loader = SoundFontLoader::new_fluid_defsfloader();
+            synth.add_sfloader(loader);
 
             for i in 0..synth.settings.synth.midi_channels {
                 synth.channel.push(Channel::new(&synth, i));
@@ -1392,14 +1387,14 @@ impl Synth {
         fluid_voice_start(voice);
     }
 
-    pub fn add_sfloader(&mut self, loader: *mut SoundFontLoader) {
+    pub fn add_sfloader(&mut self, loader: SoundFontLoader) {
         self.loaders.insert(0, loader);
     }
 
     pub unsafe fn sfload(&mut self, filename: &[u8], reset_presets: i32) -> i32 {
-        for loader in self.loaders.iter() {
-            let sfont = Some((*(*loader)).load.expect("non-null function pointer"))
-                .expect("non-null function pointer")(*loader, filename);
+        for loader in self.loaders.iter_mut() {
+            // let loader_ptr = loader as *mut _;
+            let sfont = loader.load(filename);
             match sfont {
                 Some(mut sfont) => {
                     self.sfont_id = self.sfont_id.wrapping_add(1);
@@ -1469,11 +1464,8 @@ impl Synth {
         if self.sfunload(id, 0 as i32) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
-        for loader in self.loaders.iter() {
-            match Some((*(*loader)).load.expect("non-null function pointer"))
-                .expect("non-null function pointer")(
-                *loader, &filename.clone().expect("filename")
-            ) {
+        for loader in self.loaders.iter_mut() {
+            match loader.load(&filename.clone().expect("filename")) {
                 Some(mut sfont) => {
                     sfont.id = id;
                     self.sfont.insert(index, sfont);
@@ -2188,14 +2180,6 @@ impl Drop for Synth {
                 fluid_voice_off(*voice);
             }
             self.bank_offsets.clear();
-            for loader in self.loaders.iter() {
-                if !(*loader).is_null() {
-                    if (*(*loader)).free.is_some() {
-                        Some((*(*loader)).free.expect("non-null function pointer"))
-                            .expect("non-null function pointer")(*loader);
-                    }
-                }
-            }
             self.loaders.clear();
             for voice in self.voice.iter_mut() {
                 delete_fluid_voice(*voice);
