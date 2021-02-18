@@ -6,7 +6,7 @@ The SoundFont interface
  */
 pub trait IsFont {
     fn get_id(&self) -> FontId;
-    fn get_name(&self) -> Option<String>;
+    fn get_name(&self) -> String;
     fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset>;
 }
 
@@ -74,11 +74,11 @@ mod private {
             font_c.id
         }
 
-        fn get_name(&self) -> Option<String> {
+        fn get_name(&self) -> String {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
             let name = font_c.get_name();
-            String::from_utf8(name).ok()
+            name
         }
 
         fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset> {

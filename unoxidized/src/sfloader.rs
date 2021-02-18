@@ -25,7 +25,7 @@ pub const FLUID_FAILED: i32 = -1;
 #[derive(Clone)]
 #[repr(C)]
 pub struct DefaultSoundFont {
-    filename: Vec<u8>,
+    filename: String,
     samplepos: u32,
     samplesize: u32,
     sampledata: *mut i16,
@@ -295,8 +295,17 @@ impl SoundFontLoader {
         }
     }
 
-    pub unsafe fn load(&mut self, filename: &[u8]) -> Option<SoundFont> {
-        let mut defsfont = new_fluid_defsfont();
+    pub unsafe fn load(&mut self, filename: String) -> Option<SoundFont> {
+        let mut defsfont = DefaultSoundFont {
+            filename: String::new(),
+            samplepos: 0 as _,
+            samplesize: 0 as _,
+            sample: Vec::new(),
+            sampledata: 0 as _,
+            preset: 0 as _,
+            iter_cur: 0 as _,
+        };
+
         defsfont
             .load(filename, &mut self.filesystem)
             .ok()
@@ -308,41 +317,33 @@ impl SoundFontLoader {
 }
 
 impl SoundFont {
-    pub fn get_name(&self) -> Vec<u8> {
-        pub unsafe fn fluid_defsfont_get_name(sfont: *const DefaultSoundFont) -> Vec<u8> {
-            return (*sfont).filename.to_vec();
-        }
-        unsafe { fluid_defsfont_get_name(&self.data) }
+    pub fn get_name(&self) -> String {
+        self.data.filename.clone()
     }
 
     pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
-        pub unsafe fn fluid_defsfont_get_preset(
-            sfont: *const DefaultSoundFont,
-            bank: u32,
-            num: u32,
-        ) -> *mut DefaultPreset {
-            let mut preset: *mut DefaultPreset = (*sfont).preset;
-            while !preset.is_null() {
-                if (*preset).bank == bank && (*preset).num == num {
-                    return preset;
-                }
-                preset = (*preset).next
-            }
-            return 0 as *mut DefaultPreset;
-        }
         unsafe {
-            let defsfont = &self.data;
-            let defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
-            if defpreset.is_null() {
-                return None;
+            let defpreset = (|| {
+                let mut preset: *mut DefaultPreset = self.data.preset;
+                while !preset.is_null() {
+                    if (*preset).bank == bank && (*preset).num == prenum {
+                        return Some(preset);
+                    }
+                    preset = (*preset).next
+                }
+                None
+            })();
+
+            if let Some(defpreset) = defpreset {
+                let preset = Preset {
+                    sfont: self,
+                    data: defpreset as *mut _,
+                };
+
+                Some(preset)
+            } else {
+                None
             }
-
-            let preset = Preset {
-                sfont: self,
-                data: defpreset as *mut _,
-            };
-
-            return Some(preset);
         }
     }
 
@@ -606,22 +607,10 @@ impl Preset {
     }
 }
 
-pub unsafe fn new_fluid_defsfont() -> DefaultSoundFont {
-    return DefaultSoundFont {
-        filename: Vec::new(),
-        samplepos: 0 as _,
-        samplesize: 0 as _,
-        sample: Vec::new(),
-        sampledata: 0 as _,
-        preset: 0 as _,
-        iter_cur: 0 as _,
-    };
-}
-
 pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &[u8]) -> ()> = None;
 
 impl DefaultSoundFont {
-    unsafe fn load(&mut self, file: &[u8], fapi: &mut DefaultFileSystem) -> Result<(), ()> {
+    unsafe fn load(&mut self, file: String, fapi: &mut DefaultFileSystem) -> Result<(), ()> {
         unsafe fn fluid_defsfont_add_sample(
             sfont: *mut DefaultSoundFont,
             sample: *mut Sample,
@@ -670,12 +659,7 @@ impl DefaultSoundFont {
         ) -> i32 {
             let mut fd;
             let mut endian: u16;
-            fd = match fapi.open(Path::new(
-                CStr::from_bytes_with_nul(&(*sfont).filename)
-                    .unwrap()
-                    .to_str()
-                    .unwrap(),
-            )) {
+            fd = match fapi.open(Path::new(&(*sfont).filename)) {
                 None => {
                     log::error!("Can't open soundfont file",);
                     return FLUID_FAILED as i32;
@@ -746,7 +730,7 @@ impl DefaultSoundFont {
         let sfdata: *mut SFData;
         let mut sample: *mut Sample;
         let mut preset: *mut DefaultPreset;
-        self.filename = file.to_vec();
+        self.filename = file.clone();
         sfdata = sfload_file(file, fapi);
         if sfdata.is_null() {
             log::error!("Couldn't load soundfont file",);
@@ -1450,13 +1434,11 @@ unsafe fn chunkid(id: u32) -> i32 {
     return UNKN_ID as i32;
 }
 
-pub unsafe fn sfload_file(fname: &[u8], fapi: &mut DefaultFileSystem) -> *mut SFData {
+pub unsafe fn sfload_file(fname: String, fapi: &mut DefaultFileSystem) -> *mut SFData {
     let mut sf: *mut SFData;
     let mut fd;
     let fsize: i32;
-    fd = match fapi.open(Path::new(
-        CStr::from_bytes_with_nul(fname).unwrap().to_str().unwrap(),
-    )) {
+    fd = match fapi.open(Path::new(&fname)) {
         None => {
             log::error!(
                 "Unable to open file \"{}\"",
@@ -1479,7 +1461,7 @@ pub unsafe fn sfload_file(fname: &[u8], fapi: &mut DefaultFileSystem) -> *mut SF
         0 as i32,
         ::std::mem::size_of::<SFData>() as libc::size_t,
     );
-    (*sf).fname = fname.to_vec();
+    (*sf).fname = fname.as_bytes().to_vec();
     if !fd.seek(SeekFrom::End(0)) {
         log::error!("Seek to end of file failed",);
         sfont_close(sf);

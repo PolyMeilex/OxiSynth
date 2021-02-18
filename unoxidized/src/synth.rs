@@ -1382,7 +1382,7 @@ impl Synth {
         self.loaders.insert(0, loader);
     }
 
-    pub unsafe fn sfload(&mut self, filename: &[u8], reset_presets: i32) -> i32 {
+    pub unsafe fn sfload(&mut self, filename: String, reset_presets: i32) -> i32 {
         for loader in self.loaders.iter_mut() {
             // let loader_ptr = loader as *mut _;
             let sfont = loader.load(filename);
@@ -1456,7 +1456,7 @@ impl Synth {
             return FLUID_FAILED as i32;
         }
         for loader in self.loaders.iter_mut() {
-            match loader.load(&filename.clone()) {
+            match loader.load(filename.clone()) {
                 Some(mut sfont) => {
                     sfont.id = id;
                     self.sfont.insert(index, sfont);

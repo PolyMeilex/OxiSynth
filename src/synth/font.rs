@@ -1,5 +1,5 @@
 use crate::{engine, option_from_ptr, Error, FontId, FontRef, Result, Status, Synth};
-use std::{ffi::CString, marker::PhantomData, path::Path};
+use std::{marker::PhantomData, path::Path};
 
 /**
 SoundFont management
@@ -14,15 +14,10 @@ impl Synth {
      */
     pub fn sfload<P: AsRef<Path>>(&mut self, filename: P, reset_presets: bool) -> Result<FontId> {
         let filename = filename.as_ref().to_str().ok_or_else(|| Error::Path)?;
-        let filename = CString::new(filename).map_err(|_| Error::Path)?;
+        // let filename = CString::new(filename).map_err(|_| Error::Path)?;
 
-        Synth::neg_err(unsafe {
-            self.handle.sfload(
-                CString::from(filename).as_bytes_with_nul(),
-                reset_presets as _,
-            )
-        })
-        .map(|id| id as _)
+        Synth::neg_err(unsafe { self.handle.sfload(filename.to_string(), reset_presets as _) })
+            .map(|id| id as _)
     }
 
     /**
@@ -133,7 +128,7 @@ mod test {
         let font = synth.get_sfont(0).unwrap();
 
         assert_eq!(font.get_id(), 1);
-        assert_eq!(font.get_name().unwrap(), "./testdata/Boomwhacker.sf2\u{0}");
+        assert_eq!(font.get_name(), "./testdata/Boomwhacker.sf2");
 
         let preset = font.get_preset(0, 0).unwrap();
 
