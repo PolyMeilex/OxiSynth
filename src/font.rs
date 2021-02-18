@@ -7,7 +7,7 @@ The SoundFont interface
 pub trait IsFont {
     fn get_id(&self) -> FontId;
     fn get_name(&self) -> Option<String>;
-    // fn get_preset(&self, bank: Bank, num: PresetId) -> Option<PresetRef<'_>>;
+    fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset>;
 }
 
 /**
@@ -15,8 +15,8 @@ The SoundFont preset interface
  */
 pub trait IsPreset {
     fn get_name(&self) -> Option<String>;
-    fn get_banknum(&self) -> Option<Bank>;
-    fn get_num(&self) -> Option<PresetId>;
+    fn get_banknum(&self) -> Bank;
+    fn get_num(&self) -> PresetId;
 }
 
 /**
@@ -50,19 +50,18 @@ pub struct PresetRef<'a> {
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> PresetRef<'a> {
-    pub(crate) fn from_ptr(handle: *mut engine::soundfont::Preset) -> Self {
-        Self {
-            handle,
-            phantom: PhantomData,
-        }
-    }
-}
+// impl<'a> PresetRef<'a> {
+//     pub(crate) fn from_ptr(handle: *mut engine::soundfont::Preset) -> Self {
+//         Self {
+//             handle,
+//             phantom: PhantomData,
+//         }
+//     }
+// }
 
 mod private {
     use crate::{
-        engine, option_from_ptr, private::HasHandle, Bank, FontId, FontRef, IsFont, IsPreset,
-        PresetId, PresetRef,
+        engine, private::HasHandle, Bank, FontId, FontRef, IsFont, IsPreset, PresetId, PresetRef,
     };
 
     impl<X> IsFont for X
@@ -82,11 +81,11 @@ mod private {
             String::from_utf8(name).ok()
         }
 
-        // fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset> {
-        //     let handle = self.get_handle();
-        //     let font_c = unsafe { &*handle };
-        //     font_c.get_preset(bank, num)
-        // }
+        fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset> {
+            let handle = self.get_handle();
+            let font_c = unsafe { &*handle };
+            font_c.get_preset(bank, num)
+        }
     }
 
     impl<'a> HasHandle for FontRef<'a> {
@@ -108,33 +107,23 @@ mod private {
         fn get_name(&self) -> Option<String> {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
-            let get_name = font_c.get_name?;
-            let name = unsafe { (get_name)(handle) };
+            let name = font_c.get_name();
             String::from_utf8(name).ok()
         }
 
-        fn get_banknum(&self) -> Option<Bank> {
+        fn get_banknum(&self) -> Bank {
             let handle = self.get_handle();
             let preset_c = unsafe { &*handle };
-            let get_banknum = preset_c.get_banknum?;
-            let num = unsafe { (get_banknum)(handle) };
-            if num < 0 {
-                None
-            } else {
-                Some(num as _)
-            }
+            let num = preset_c.get_banknum();
+
+            num as _
         }
 
-        fn get_num(&self) -> Option<PresetId> {
+        fn get_num(&self) -> PresetId {
             let handle = self.get_handle();
             let preset_c = unsafe { &*handle };
-            let get_num = preset_c.get_num?;
-            let num = unsafe { (get_num)(handle) };
-            if num < 0 {
-                None
-            } else {
-                Some(num as _)
-            }
+            let num = preset_c.get_num();
+            num as _
         }
     }
 

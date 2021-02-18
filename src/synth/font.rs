@@ -1,6 +1,4 @@
-use crate::{
-    engine, option_from_ptr, Chan, Error, FontId, FontRef, PresetRef, Result, Status, Synth,
-};
+use crate::{engine, option_from_ptr, Error, FontId, FontRef, Result, Status, Synth};
 use std::{ffi::CString, marker::PhantomData, path::Path};
 
 /**
@@ -120,7 +118,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{IsFont, IsPreset, Settings, Synth};
+    use crate::{IsFont, Settings, Synth};
 
     #[test]
     fn font_and_preset() {
@@ -140,11 +138,11 @@ mod test {
         let preset = font.get_preset(0, 0).unwrap();
 
         assert_eq!(
-            preset.get_name().unwrap(),
+            String::from_utf8(preset.get_name()).unwrap(),
             "Boomwhacker\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}"
         );
-        assert_eq!(preset.get_banknum().unwrap(), 0);
-        assert_eq!(preset.get_num().unwrap(), 0);
+        assert_eq!(preset.get_banknum(), 0);
+        assert_eq!(preset.get_num(), 0);
     }
 }
 

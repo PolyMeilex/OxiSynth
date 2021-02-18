@@ -1874,8 +1874,7 @@ impl Synth {
             return FLUID_FAILED as i32;
         }
         self.storeid = id;
-        r = Some((*preset).noteon.expect("non-null function pointer"))
-            .expect("non-null function pointer")(preset, self, midi_chan, key, vel);
+        r = (*preset).noteon(self, midi_chan, key, vel);
         return r;
     }
 

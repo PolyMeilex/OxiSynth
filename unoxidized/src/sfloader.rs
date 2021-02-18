@@ -309,34 +309,37 @@ impl SoundFontLoader {
 
 impl SoundFont {
     pub fn get_name(&self) -> Vec<u8> {
+        pub unsafe fn fluid_defsfont_get_name(sfont: *const DefaultSoundFont) -> Vec<u8> {
+            return (*sfont).filename.to_vec();
+        }
         unsafe { fluid_defsfont_get_name(&self.data) }
     }
 
     pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
+        pub unsafe fn fluid_defsfont_get_preset(
+            sfont: *const DefaultSoundFont,
+            bank: u32,
+            num: u32,
+        ) -> *mut DefaultPreset {
+            let mut preset: *mut DefaultPreset = (*sfont).preset;
+            while !preset.is_null() {
+                if (*preset).bank == bank && (*preset).num == num {
+                    return preset;
+                }
+                preset = (*preset).next
+            }
+            return 0 as *mut DefaultPreset;
+        }
         unsafe {
             let defsfont = &self.data;
             let defpreset = fluid_defsfont_get_preset(defsfont, bank, prenum);
             if defpreset.is_null() {
                 return None;
             }
-            // let mut preset =
-            //     libc::malloc(::std::mem::size_of::<Preset>() as libc::size_t) as *mut Preset;
 
-            let mut preset = Preset {
+            let preset = Preset {
                 sfont: self,
-                data: defpreset as *mut libc::c_void,
-                free: Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32),
-                get_name: Some(
-                    fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>,
-                ),
-                get_banknum: Some(
-                    fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32,
-                ),
-                get_num: Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32),
-                noteon: Some(
-                    fluid_defpreset_preset_noteon
-                        as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
-                ),
+                data: defpreset as *mut _,
             };
 
             return Some(preset);
@@ -344,64 +347,263 @@ impl SoundFont {
     }
 
     pub fn iteration_start(&mut self) {
+        pub unsafe fn fluid_defsfont_iteration_start(mut sfont: *mut DefaultSoundFont) {
+            (*sfont).iter_cur = (*sfont).preset;
+        }
         unsafe {
             fluid_defsfont_iteration_start(&mut self.data);
         }
     }
 
-    pub fn iteration_next(&mut self, mut preset: *mut Preset) -> i32 {
+    pub fn iteration_next(&mut self, preset: *mut Preset) -> i32 {
+        pub unsafe fn fluid_defpreset_next(preset: *mut DefaultPreset) -> *mut DefaultPreset {
+            return (*preset).next;
+        }
+
+        pub unsafe fn fluid_defsfont_iteration_next(
+            mut sfont: *mut DefaultSoundFont,
+            mut preset: *mut Preset,
+        ) -> i32 {
+            if (*sfont).iter_cur.is_null() {
+                return 0 as i32;
+            }
+            (*preset).data = (*sfont).iter_cur as *mut _;
+            (*sfont).iter_cur = fluid_defpreset_next((*sfont).iter_cur);
+            return 1 as i32;
+        }
         unsafe {
-            (*preset).free =
-                Some(fluid_defpreset_preset_delete as unsafe fn(_: *mut Preset) -> i32);
-            (*preset).get_name =
-                Some(fluid_defpreset_preset_get_name as unsafe fn(_: *const Preset) -> Vec<u8>);
-            (*preset).get_banknum =
-                Some(fluid_defpreset_preset_get_banknum as unsafe fn(_: *const Preset) -> i32);
-            (*preset).get_num =
-                Some(fluid_defpreset_preset_get_num as unsafe fn(_: *const Preset) -> i32);
-            (*preset).noteon = Some(
-                fluid_defpreset_preset_noteon
-                    as unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32,
-            );
-            let defsfont = &mut self.data;
-            return fluid_defsfont_iteration_next(defsfont, preset);
+            return fluid_defsfont_iteration_next(&mut self.data, preset);
         }
     }
 }
 
 impl Drop for SoundFont {
     fn drop(&mut self) {
+        pub unsafe fn delete_fluid_defsfont(mut sfont: *mut DefaultSoundFont) -> i32 {
+            let mut preset: *mut DefaultPreset;
+            for sample in (*sfont).sample.iter() {
+                if (**sample).refcount != 0 as i32 as u32 {
+                    return -(1 as i32);
+                }
+            }
+            for sample in (*sfont).sample.iter() {
+                delete_fluid_sample(*sample);
+            }
+            if !(*sfont).sampledata.is_null() {
+                libc::free((*sfont).sampledata as *mut libc::c_void);
+            }
+            preset = (*sfont).preset;
+            while !preset.is_null() {
+                (*sfont).preset = (*preset).next;
+                delete_fluid_defpreset(preset);
+                preset = (*sfont).preset
+            }
+            return FLUID_OK as i32;
+        }
         unsafe {
             delete_fluid_defsfont(&mut (*self).data);
         }
     }
 }
 
-pub unsafe fn fluid_defpreset_preset_delete(preset: *mut Preset) -> i32 {
-    libc::free(preset as *mut libc::c_void);
-    return 0 as i32;
-}
+impl Preset {
+    pub fn get_name(&self) -> Vec<u8> {
+        unsafe { (*self.data).name.to_vec() }
+    }
 
-pub unsafe fn fluid_defpreset_preset_get_name(preset: *const Preset) -> Vec<u8> {
-    return fluid_defpreset_get_name((*preset).data as *mut DefaultPreset);
-}
+    pub fn get_banknum(&self) -> u32 {
+        unsafe { (*self.data).bank }
+    }
 
-pub unsafe fn fluid_defpreset_preset_get_banknum(preset: *const Preset) -> i32 {
-    return fluid_defpreset_get_banknum((*preset).data as *mut DefaultPreset);
-}
+    pub fn get_num(&self) -> u32 {
+        unsafe { (*self.data).num }
+    }
 
-pub unsafe fn fluid_defpreset_preset_get_num(preset: *const Preset) -> i32 {
-    return fluid_defpreset_get_num((*preset).data as *mut DefaultPreset);
-}
+    pub fn noteon(&mut self, synth: &mut Synth, chan: i32, key: i32, vel: i32) -> i32 {
+        pub unsafe fn fluid_defpreset_noteon(
+            preset: *mut DefaultPreset,
+            synth: &mut Synth,
+            chan: i32,
+            key: i32,
+            vel: i32,
+        ) -> i32 {
+            let mut preset_zone: *mut PresetZone;
+            let global_preset_zone: *mut PresetZone;
+            let mut inst: *mut Instrument;
+            let mut inst_zone: *mut InstrumentZone;
+            let mut global_inst_zone: *mut InstrumentZone;
+            let mut sample: *mut Sample;
+            let mut voice: *mut Voice;
+            let mut mod_0: *mut Mod;
+            let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64];
+            let mut mod_list_count: i32;
+            let mut i: i32;
+            global_preset_zone = fluid_defpreset_get_global_zone(preset);
+            preset_zone = fluid_defpreset_get_zone(preset);
+            while !preset_zone.is_null() {
+                if fluid_preset_zone_inside_range(preset_zone, key, vel) != 0 {
+                    inst = fluid_preset_zone_get_inst(preset_zone);
+                    global_inst_zone = fluid_inst_get_global_zone(inst);
+                    inst_zone = fluid_inst_get_zone(inst);
+                    while !inst_zone.is_null() {
+                        sample = fluid_inst_zone_get_sample(inst_zone);
+                        if fluid_sample_in_rom(sample) != 0 || sample.is_null() {
+                            inst_zone = fluid_inst_zone_next(inst_zone)
+                        } else {
+                            if fluid_inst_zone_inside_range(inst_zone, key, vel) != 0
+                                && !sample.is_null()
+                            {
+                                voice = synth.alloc_voice(sample, chan, key, vel);
+                                if voice.is_null() {
+                                    return FLUID_FAILED as i32;
+                                }
+                                i = 0 as i32;
+                                while i < GEN_LAST as i32 {
+                                    if (*inst_zone).gen[i as usize].flags != 0 {
+                                        fluid_voice_gen_set(
+                                            voice,
+                                            i,
+                                            (*inst_zone).gen[i as usize].val as f32,
+                                        );
+                                    } else if !global_inst_zone.is_null()
+                                        && (*global_inst_zone).gen[i as usize].flags as i32 != 0
+                                    {
+                                        fluid_voice_gen_set(
+                                            voice,
+                                            i,
+                                            (*global_inst_zone).gen[i as usize].val as f32,
+                                        );
+                                    }
+                                    i += 1
+                                }
+                                mod_list_count = 0 as i32;
+                                if !global_inst_zone.is_null() {
+                                    mod_0 = (*global_inst_zone).mod_0;
+                                    while !mod_0.is_null() {
+                                        let fresh2 = mod_list_count;
+                                        mod_list_count = mod_list_count + 1;
+                                        mod_list[fresh2 as usize] = mod_0;
+                                        mod_0 = (*mod_0).next
+                                    }
+                                }
+                                mod_0 = (*inst_zone).mod_0;
+                                while !mod_0.is_null() {
+                                    i = 0 as i32;
+                                    while i < mod_list_count {
+                                        if !mod_list[i as usize].is_null()
+                                            && mod_0.as_ref().unwrap().test_identity(
+                                                mod_list[i as usize].as_ref().unwrap(),
+                                            ) != 0
+                                        {
+                                            mod_list[i as usize] = 0 as *mut Mod
+                                        }
+                                        i += 1
+                                    }
+                                    let fresh3 = mod_list_count;
+                                    mod_list_count = mod_list_count + 1;
+                                    mod_list[fresh3 as usize] = mod_0;
+                                    mod_0 = (*mod_0).next
+                                }
+                                i = 0 as i32;
+                                while i < mod_list_count {
+                                    mod_0 = mod_list[i as usize];
+                                    if !mod_0.is_null() {
+                                        fluid_voice_add_mod(
+                                            voice,
+                                            mod_0.as_ref().unwrap(),
+                                            FLUID_VOICE_OVERWRITE as i32,
+                                        );
+                                    }
+                                    i += 1
+                                }
+                                i = 0 as i32;
+                                while i < GEN_LAST as i32 {
+                                    if i != GEN_STARTADDROFS as i32
+                                        && i != GEN_ENDADDROFS as i32
+                                        && i != GEN_STARTLOOPADDROFS as i32
+                                        && i != GEN_ENDLOOPADDROFS as i32
+                                        && i != GEN_STARTADDRCOARSEOFS as i32
+                                        && i != GEN_ENDADDRCOARSEOFS as i32
+                                        && i != GEN_STARTLOOPADDRCOARSEOFS as i32
+                                        && i != GEN_KEYNUM as i32
+                                        && i != GEN_VELOCITY as i32
+                                        && i != GEN_ENDLOOPADDRCOARSEOFS as i32
+                                        && i != GEN_SAMPLEMODE as i32
+                                        && i != GEN_EXCLUSIVECLASS as i32
+                                        && i != GEN_OVERRIDEROOTKEY as i32
+                                    {
+                                        if (*preset_zone).gen[i as usize].flags != 0 {
+                                            fluid_voice_gen_incr(
+                                                voice,
+                                                i,
+                                                (*preset_zone).gen[i as usize].val as f32,
+                                            );
+                                        } else if !global_preset_zone.is_null()
+                                            && (*global_preset_zone).gen[i as usize].flags as i32
+                                                != 0
+                                        {
+                                            fluid_voice_gen_incr(
+                                                voice,
+                                                i,
+                                                (*global_preset_zone).gen[i as usize].val as f32,
+                                            );
+                                        }
+                                    }
+                                    i += 1
+                                }
+                                mod_list_count = 0 as i32;
+                                if !global_preset_zone.is_null() {
+                                    mod_0 = (*global_preset_zone).mod_0;
+                                    while !mod_0.is_null() {
+                                        let fresh4 = mod_list_count;
+                                        mod_list_count = mod_list_count + 1;
+                                        mod_list[fresh4 as usize] = mod_0;
+                                        mod_0 = (*mod_0).next
+                                    }
+                                }
+                                mod_0 = (*preset_zone).mod_0;
+                                while !mod_0.is_null() {
+                                    i = 0 as i32;
+                                    while i < mod_list_count {
+                                        if !mod_list[i as usize].is_null()
+                                            && mod_0.as_ref().unwrap().test_identity(
+                                                mod_list[i as usize].as_ref().unwrap(),
+                                            ) != 0
+                                        {
+                                            mod_list[i as usize] = 0 as *mut Mod
+                                        }
+                                        i += 1
+                                    }
+                                    let fresh5 = mod_list_count;
+                                    mod_list_count = mod_list_count + 1;
+                                    mod_list[fresh5 as usize] = mod_0;
+                                    mod_0 = (*mod_0).next
+                                }
+                                i = 0 as i32;
+                                while i < mod_list_count {
+                                    mod_0 = mod_list[i as usize];
+                                    if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
+                                        fluid_voice_add_mod(
+                                            voice,
+                                            mod_0.as_ref().unwrap(),
+                                            FLUID_VOICE_ADD as i32,
+                                        );
+                                    }
+                                    i += 1
+                                }
+                                synth.start_voice(voice);
+                            }
+                            inst_zone = fluid_inst_zone_next(inst_zone)
+                        }
+                    }
+                }
+                preset_zone = fluid_preset_zone_next(preset_zone)
+            }
+            return FLUID_OK as i32;
+        }
 
-pub unsafe fn fluid_defpreset_preset_noteon(
-    preset: *mut Preset,
-    synth: &mut Synth,
-    chan: i32,
-    key: i32,
-    vel: i32,
-) -> i32 {
-    return fluid_defpreset_noteon((*preset).data as *mut DefaultPreset, synth, chan, key, vel);
+        unsafe { fluid_defpreset_noteon(self.data, synth, chan, key, vel) }
+    }
 }
 
 pub unsafe fn new_fluid_defsfont() -> DefaultSoundFont {
@@ -416,36 +618,131 @@ pub unsafe fn new_fluid_defsfont() -> DefaultSoundFont {
     };
 }
 
-pub unsafe fn delete_fluid_defsfont(mut sfont: *mut DefaultSoundFont) -> i32 {
-    let mut preset: *mut DefaultPreset;
-    for sample in (*sfont).sample.iter() {
-        if (**sample).refcount != 0 as i32 as u32 {
-            return -(1 as i32);
-        }
-    }
-    for sample in (*sfont).sample.iter() {
-        delete_fluid_sample(*sample);
-    }
-    if !(*sfont).sampledata.is_null() {
-        libc::free((*sfont).sampledata as *mut libc::c_void);
-    }
-    preset = (*sfont).preset;
-    while !preset.is_null() {
-        (*sfont).preset = (*preset).next;
-        delete_fluid_defpreset(preset);
-        preset = (*sfont).preset
-    }
-    return FLUID_OK as i32;
-}
-
-pub unsafe fn fluid_defsfont_get_name(sfont: *const DefaultSoundFont) -> Vec<u8> {
-    return (*sfont).filename.to_vec();
-}
-
 pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &[u8]) -> ()> = None;
 
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: &[u8], fapi: &mut DefaultFileSystem) -> Result<(), ()> {
+        unsafe fn fluid_defsfont_add_sample(
+            sfont: *mut DefaultSoundFont,
+            sample: *mut Sample,
+        ) -> i32 {
+            (*sfont).sample.push(sample);
+            return FLUID_OK as i32;
+        }
+
+        unsafe fn fluid_defsfont_add_preset(
+            mut sfont: *mut DefaultSoundFont,
+            mut preset: *mut DefaultPreset,
+        ) -> i32 {
+            let mut cur: *mut DefaultPreset;
+            let mut prev: *mut DefaultPreset;
+            if (*sfont).preset.is_null() {
+                (*preset).next = 0 as *mut DefaultPreset;
+                (*sfont).preset = preset
+            } else {
+                cur = (*sfont).preset;
+                prev = 0 as *mut DefaultPreset;
+                while !cur.is_null() {
+                    if (*preset).bank < (*cur).bank
+                        || (*preset).bank == (*cur).bank && (*preset).num < (*cur).num
+                    {
+                        if prev.is_null() {
+                            (*preset).next = cur;
+                            (*sfont).preset = preset
+                        } else {
+                            (*preset).next = cur;
+                            (*prev).next = preset
+                        }
+                        return FLUID_OK as i32;
+                    }
+                    prev = cur;
+                    cur = (*cur).next
+                }
+                (*preset).next = 0 as *mut DefaultPreset;
+                (*prev).next = preset
+            }
+            return FLUID_OK as i32;
+        }
+
+        unsafe fn fluid_defsfont_load_sampledata(
+            mut sfont: *mut DefaultSoundFont,
+            fapi: &mut DefaultFileSystem,
+        ) -> i32 {
+            let mut fd;
+            let mut endian: u16;
+            fd = match fapi.open(Path::new(
+                CStr::from_bytes_with_nul(&(*sfont).filename)
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+            )) {
+                None => {
+                    log::error!("Can't open soundfont file",);
+                    return FLUID_FAILED as i32;
+                }
+                Some(file) => file,
+            };
+            if !fd.seek(SeekFrom::Start((*sfont).samplepos as _)) {
+                libc::perror(b"error\x00" as *const u8 as *const i8);
+                log::error!("Failed to seek position in data file",);
+                return FLUID_FAILED as i32;
+            }
+            (*sfont).sampledata = libc::malloc((*sfont).samplesize as libc::size_t) as *mut i16;
+            if (*sfont).sampledata.is_null() {
+                log::error!("Out of memory",);
+                return FLUID_FAILED as i32;
+            }
+            if !fd.read(from_raw_parts_mut(
+                (*sfont).sampledata as _,
+                (*sfont).samplesize as _,
+            )) {
+                log::error!("Failed to read sample data",);
+                return FLUID_FAILED as i32;
+            }
+            endian = 0x100 as i32 as u16;
+            if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
+                let cbuf: *mut u8;
+                let mut hi: u8;
+                let mut lo: u8;
+                let mut i: u32;
+                let mut j: u32;
+                let mut s: i16;
+                cbuf = (*sfont).sampledata as *mut u8;
+                i = 0 as i32 as u32;
+                j = 0 as i32 as u32;
+                while j < (*sfont).samplesize {
+                    let fresh0 = j;
+                    j = j.wrapping_add(1);
+                    lo = *cbuf.offset(fresh0 as isize);
+                    let fresh1 = j;
+                    j = j.wrapping_add(1);
+                    hi = *cbuf.offset(fresh1 as isize);
+                    s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
+                    *(*sfont).sampledata.offset(i as isize) = s;
+                    i = i.wrapping_add(1)
+                }
+            }
+            return FLUID_OK as i32;
+        }
+
+        unsafe fn new_fluid_defpreset(sfont: *mut DefaultSoundFont) -> *mut DefaultPreset {
+            let mut preset: *mut DefaultPreset =
+                libc::malloc(::std::mem::size_of::<DefaultPreset>() as libc::size_t)
+                    as *mut DefaultPreset;
+            if preset.is_null() {
+                log::error!("Out of memory",);
+                return 0 as *mut DefaultPreset;
+            }
+            (*preset).next = 0 as *mut DefaultPreset;
+            (*preset).sfont = sfont;
+            (*preset).name = [0; 21];
+            (*preset).bank = 0 as i32 as u32;
+            (*preset).num = 0 as i32 as u32;
+            (*preset).global_zone = 0 as *mut PresetZone;
+            (*preset).zone = 0 as *mut PresetZone;
+            return preset;
+        }
+
         let sfdata: *mut SFData;
         let mut sample: *mut Sample;
         let mut preset: *mut DefaultPreset;
@@ -498,162 +795,6 @@ impl DefaultSoundFont {
     }
 }
 
-// unsafe fn fluid_defsfont_load(
-//     mut sfont: *mut DefaultSoundFont,
-//     file: &[u8],
-//     fapi: &mut DefaultFileSystem,
-// ) -> i32 {
-//     let sfdata: *mut SFData;
-//     let mut sample: *mut Sample;
-//     let mut preset: *mut DefaultPreset;
-//     (*sfont).filename = file.to_vec();
-//     sfdata = sfload_file(file, fapi);
-//     if sfdata.is_null() {
-//         log::error!("Couldn't load soundfont file",);
-//         return FLUID_FAILED;
-//     }
-//     (*sfont).samplepos = (*sfdata).samplepos;
-//     (*sfont).samplesize = (*sfdata).samplesize;
-//     if fluid_defsfont_load_sampledata(sfont, fapi) != FLUID_OK {
-//         sfont_close(sfdata);
-//         return FLUID_FAILED;
-//     }
-//     for sfsample in (*sfdata).sample.iter() {
-//         sample = new_fluid_sample();
-//         if sample.is_null() {
-//             sfont_close(sfdata);
-//             return FLUID_FAILED;
-//         }
-//         if fluid_sample_import_sfont(sample, *sfsample, sfont) != FLUID_OK {
-//             sfont_close(sfdata);
-//             return FLUID_FAILED;
-//         }
-//         fluid_defsfont_add_sample(sfont, sample);
-//         fluid_voice_optimize_sample(sample);
-//     }
-//     for sfpreset in (*sfdata).preset.iter() {
-//         preset = new_fluid_defpreset(sfont);
-//         if preset.is_null() {
-//             sfont_close(sfdata);
-//             return FLUID_FAILED;
-//         }
-//         if fluid_defpreset_import_sfont(preset, *sfpreset, sfont) != FLUID_OK {
-//             sfont_close(sfdata);
-//             return FLUID_FAILED;
-//         }
-//         fluid_defsfont_add_preset(sfont, preset);
-//         if PRESET_CALLBACK.is_some() {
-//             PRESET_CALLBACK.expect("non-null function pointer")(
-//                 (*preset).bank,
-//                 (*preset).num,
-//                 &(*preset).name,
-//             );
-//         }
-//     }
-//     sfont_close(sfdata);
-//     return FLUID_OK;
-// }
-
-pub unsafe fn fluid_defsfont_add_sample(sfont: *mut DefaultSoundFont, sample: *mut Sample) -> i32 {
-    (*sfont).sample.push(sample);
-    return FLUID_OK as i32;
-}
-
-pub unsafe fn fluid_defsfont_add_preset(
-    mut sfont: *mut DefaultSoundFont,
-    mut preset: *mut DefaultPreset,
-) -> i32 {
-    let mut cur: *mut DefaultPreset;
-    let mut prev: *mut DefaultPreset;
-    if (*sfont).preset.is_null() {
-        (*preset).next = 0 as *mut DefaultPreset;
-        (*sfont).preset = preset
-    } else {
-        cur = (*sfont).preset;
-        prev = 0 as *mut DefaultPreset;
-        while !cur.is_null() {
-            if (*preset).bank < (*cur).bank
-                || (*preset).bank == (*cur).bank && (*preset).num < (*cur).num
-            {
-                if prev.is_null() {
-                    (*preset).next = cur;
-                    (*sfont).preset = preset
-                } else {
-                    (*preset).next = cur;
-                    (*prev).next = preset
-                }
-                return FLUID_OK as i32;
-            }
-            prev = cur;
-            cur = (*cur).next
-        }
-        (*preset).next = 0 as *mut DefaultPreset;
-        (*prev).next = preset
-    }
-    return FLUID_OK as i32;
-}
-
-pub unsafe fn fluid_defsfont_load_sampledata(
-    mut sfont: *mut DefaultSoundFont,
-    fapi: &mut DefaultFileSystem,
-) -> i32 {
-    let mut fd;
-    let mut endian: u16;
-    fd = match fapi.open(Path::new(
-        CStr::from_bytes_with_nul(&(*sfont).filename)
-            .unwrap()
-            .to_str()
-            .unwrap(),
-    )) {
-        None => {
-            log::error!("Can't open soundfont file",);
-            return FLUID_FAILED as i32;
-        }
-        Some(file) => file,
-    };
-    if !fd.seek(SeekFrom::Start((*sfont).samplepos as _)) {
-        libc::perror(b"error\x00" as *const u8 as *const i8);
-        log::error!("Failed to seek position in data file",);
-        return FLUID_FAILED as i32;
-    }
-    (*sfont).sampledata = libc::malloc((*sfont).samplesize as libc::size_t) as *mut i16;
-    if (*sfont).sampledata.is_null() {
-        log::error!("Out of memory",);
-        return FLUID_FAILED as i32;
-    }
-    if !fd.read(from_raw_parts_mut(
-        (*sfont).sampledata as _,
-        (*sfont).samplesize as _,
-    )) {
-        log::error!("Failed to read sample data",);
-        return FLUID_FAILED as i32;
-    }
-    endian = 0x100 as i32 as u16;
-    if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
-        let cbuf: *mut u8;
-        let mut hi: u8;
-        let mut lo: u8;
-        let mut i: u32;
-        let mut j: u32;
-        let mut s: i16;
-        cbuf = (*sfont).sampledata as *mut u8;
-        i = 0 as i32 as u32;
-        j = 0 as i32 as u32;
-        while j < (*sfont).samplesize {
-            let fresh0 = j;
-            j = j.wrapping_add(1);
-            lo = *cbuf.offset(fresh0 as isize);
-            let fresh1 = j;
-            j = j.wrapping_add(1);
-            hi = *cbuf.offset(fresh1 as isize);
-            s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
-            *(*sfont).sampledata.offset(i as isize) = s;
-            i = i.wrapping_add(1)
-        }
-    }
-    return FLUID_OK as i32;
-}
-
 pub unsafe fn fluid_defsfont_get_sample(sfont: *mut DefaultSoundFont, s: &[u8]) -> *mut Sample {
     for sample in (*sfont).sample.iter() {
         if libc::strcmp((**sample).name.as_ptr() as _, s.as_ptr() as _) == 0 as i32 {
@@ -661,54 +802,6 @@ pub unsafe fn fluid_defsfont_get_sample(sfont: *mut DefaultSoundFont, s: &[u8]) 
         }
     }
     return 0 as *mut Sample;
-}
-
-pub unsafe fn fluid_defsfont_get_preset(
-    sfont: *const DefaultSoundFont,
-    bank: u32,
-    num: u32,
-) -> *mut DefaultPreset {
-    let mut preset: *mut DefaultPreset = (*sfont).preset;
-    while !preset.is_null() {
-        if (*preset).bank == bank && (*preset).num == num {
-            return preset;
-        }
-        preset = (*preset).next
-    }
-    return 0 as *mut DefaultPreset;
-}
-
-pub unsafe fn fluid_defsfont_iteration_start(mut sfont: *mut DefaultSoundFont) {
-    (*sfont).iter_cur = (*sfont).preset;
-}
-
-pub unsafe fn fluid_defsfont_iteration_next(
-    mut sfont: *mut DefaultSoundFont,
-    mut preset: *mut Preset,
-) -> i32 {
-    if (*sfont).iter_cur.is_null() {
-        return 0 as i32;
-    }
-    (*preset).data = (*sfont).iter_cur as *mut libc::c_void;
-    (*sfont).iter_cur = fluid_defpreset_next((*sfont).iter_cur);
-    return 1 as i32;
-}
-
-pub unsafe fn new_fluid_defpreset(sfont: *mut DefaultSoundFont) -> *mut DefaultPreset {
-    let mut preset: *mut DefaultPreset =
-        libc::malloc(::std::mem::size_of::<DefaultPreset>() as libc::size_t) as *mut DefaultPreset;
-    if preset.is_null() {
-        log::error!("Out of memory",);
-        return 0 as *mut DefaultPreset;
-    }
-    (*preset).next = 0 as *mut DefaultPreset;
-    (*preset).sfont = sfont;
-    (*preset).name = [0; 21];
-    (*preset).bank = 0 as i32 as u32;
-    (*preset).num = 0 as i32 as u32;
-    (*preset).global_zone = 0 as *mut PresetZone;
-    (*preset).zone = 0 as *mut PresetZone;
-    return preset;
 }
 
 pub unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
@@ -730,205 +823,6 @@ pub unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
     }
     libc::free(preset as *mut libc::c_void);
     return err;
-}
-
-pub unsafe fn fluid_defpreset_get_banknum(preset: *mut DefaultPreset) -> i32 {
-    return (*preset).bank as i32;
-}
-
-pub unsafe fn fluid_defpreset_get_num(preset: *mut DefaultPreset) -> i32 {
-    return (*preset).num as i32;
-}
-
-pub unsafe fn fluid_defpreset_get_name(preset: *mut DefaultPreset) -> Vec<u8> {
-    return (*preset).name.to_vec();
-}
-
-pub unsafe fn fluid_defpreset_next(preset: *mut DefaultPreset) -> *mut DefaultPreset {
-    return (*preset).next;
-}
-
-pub unsafe fn fluid_defpreset_noteon(
-    preset: *mut DefaultPreset,
-    synth: &mut Synth,
-    chan: i32,
-    key: i32,
-    vel: i32,
-) -> i32 {
-    let mut preset_zone: *mut PresetZone;
-    let global_preset_zone: *mut PresetZone;
-    let mut inst: *mut Instrument;
-    let mut inst_zone: *mut InstrumentZone;
-    let mut global_inst_zone: *mut InstrumentZone;
-    let mut sample: *mut Sample;
-    let mut voice: *mut Voice;
-    let mut mod_0: *mut Mod;
-    let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64];
-    let mut mod_list_count: i32;
-    let mut i: i32;
-    global_preset_zone = fluid_defpreset_get_global_zone(preset);
-    preset_zone = fluid_defpreset_get_zone(preset);
-    while !preset_zone.is_null() {
-        if fluid_preset_zone_inside_range(preset_zone, key, vel) != 0 {
-            inst = fluid_preset_zone_get_inst(preset_zone);
-            global_inst_zone = fluid_inst_get_global_zone(inst);
-            inst_zone = fluid_inst_get_zone(inst);
-            while !inst_zone.is_null() {
-                sample = fluid_inst_zone_get_sample(inst_zone);
-                if fluid_sample_in_rom(sample) != 0 || sample.is_null() {
-                    inst_zone = fluid_inst_zone_next(inst_zone)
-                } else {
-                    if fluid_inst_zone_inside_range(inst_zone, key, vel) != 0 && !sample.is_null() {
-                        voice = synth.alloc_voice(sample, chan, key, vel);
-                        if voice.is_null() {
-                            return FLUID_FAILED as i32;
-                        }
-                        i = 0 as i32;
-                        while i < GEN_LAST as i32 {
-                            if (*inst_zone).gen[i as usize].flags != 0 {
-                                fluid_voice_gen_set(
-                                    voice,
-                                    i,
-                                    (*inst_zone).gen[i as usize].val as f32,
-                                );
-                            } else if !global_inst_zone.is_null()
-                                && (*global_inst_zone).gen[i as usize].flags as i32 != 0
-                            {
-                                fluid_voice_gen_set(
-                                    voice,
-                                    i,
-                                    (*global_inst_zone).gen[i as usize].val as f32,
-                                );
-                            }
-                            i += 1
-                        }
-                        mod_list_count = 0 as i32;
-                        if !global_inst_zone.is_null() {
-                            mod_0 = (*global_inst_zone).mod_0;
-                            while !mod_0.is_null() {
-                                let fresh2 = mod_list_count;
-                                mod_list_count = mod_list_count + 1;
-                                mod_list[fresh2 as usize] = mod_0;
-                                mod_0 = (*mod_0).next
-                            }
-                        }
-                        mod_0 = (*inst_zone).mod_0;
-                        while !mod_0.is_null() {
-                            i = 0 as i32;
-                            while i < mod_list_count {
-                                if !mod_list[i as usize].is_null()
-                                    && mod_0
-                                        .as_ref()
-                                        .unwrap()
-                                        .test_identity(mod_list[i as usize].as_ref().unwrap())
-                                        != 0
-                                {
-                                    mod_list[i as usize] = 0 as *mut Mod
-                                }
-                                i += 1
-                            }
-                            let fresh3 = mod_list_count;
-                            mod_list_count = mod_list_count + 1;
-                            mod_list[fresh3 as usize] = mod_0;
-                            mod_0 = (*mod_0).next
-                        }
-                        i = 0 as i32;
-                        while i < mod_list_count {
-                            mod_0 = mod_list[i as usize];
-                            if !mod_0.is_null() {
-                                fluid_voice_add_mod(
-                                    voice,
-                                    mod_0.as_ref().unwrap(),
-                                    FLUID_VOICE_OVERWRITE as i32,
-                                );
-                            }
-                            i += 1
-                        }
-                        i = 0 as i32;
-                        while i < GEN_LAST as i32 {
-                            if i != GEN_STARTADDROFS as i32
-                                && i != GEN_ENDADDROFS as i32
-                                && i != GEN_STARTLOOPADDROFS as i32
-                                && i != GEN_ENDLOOPADDROFS as i32
-                                && i != GEN_STARTADDRCOARSEOFS as i32
-                                && i != GEN_ENDADDRCOARSEOFS as i32
-                                && i != GEN_STARTLOOPADDRCOARSEOFS as i32
-                                && i != GEN_KEYNUM as i32
-                                && i != GEN_VELOCITY as i32
-                                && i != GEN_ENDLOOPADDRCOARSEOFS as i32
-                                && i != GEN_SAMPLEMODE as i32
-                                && i != GEN_EXCLUSIVECLASS as i32
-                                && i != GEN_OVERRIDEROOTKEY as i32
-                            {
-                                if (*preset_zone).gen[i as usize].flags != 0 {
-                                    fluid_voice_gen_incr(
-                                        voice,
-                                        i,
-                                        (*preset_zone).gen[i as usize].val as f32,
-                                    );
-                                } else if !global_preset_zone.is_null()
-                                    && (*global_preset_zone).gen[i as usize].flags as i32 != 0
-                                {
-                                    fluid_voice_gen_incr(
-                                        voice,
-                                        i,
-                                        (*global_preset_zone).gen[i as usize].val as f32,
-                                    );
-                                }
-                            }
-                            i += 1
-                        }
-                        mod_list_count = 0 as i32;
-                        if !global_preset_zone.is_null() {
-                            mod_0 = (*global_preset_zone).mod_0;
-                            while !mod_0.is_null() {
-                                let fresh4 = mod_list_count;
-                                mod_list_count = mod_list_count + 1;
-                                mod_list[fresh4 as usize] = mod_0;
-                                mod_0 = (*mod_0).next
-                            }
-                        }
-                        mod_0 = (*preset_zone).mod_0;
-                        while !mod_0.is_null() {
-                            i = 0 as i32;
-                            while i < mod_list_count {
-                                if !mod_list[i as usize].is_null()
-                                    && mod_0
-                                        .as_ref()
-                                        .unwrap()
-                                        .test_identity(mod_list[i as usize].as_ref().unwrap())
-                                        != 0
-                                {
-                                    mod_list[i as usize] = 0 as *mut Mod
-                                }
-                                i += 1
-                            }
-                            let fresh5 = mod_list_count;
-                            mod_list_count = mod_list_count + 1;
-                            mod_list[fresh5 as usize] = mod_0;
-                            mod_0 = (*mod_0).next
-                        }
-                        i = 0 as i32;
-                        while i < mod_list_count {
-                            mod_0 = mod_list[i as usize];
-                            if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
-                                fluid_voice_add_mod(
-                                    voice,
-                                    mod_0.as_ref().unwrap(),
-                                    FLUID_VOICE_ADD as i32,
-                                );
-                            }
-                            i += 1
-                        }
-                        synth.start_voice(voice);
-                    }
-                    inst_zone = fluid_inst_zone_next(inst_zone)
-                }
-            }
-        }
-        preset_zone = fluid_preset_zone_next(preset_zone)
-    }
-    return FLUID_OK as i32;
 }
 
 pub unsafe fn fluid_defpreset_set_global_zone(

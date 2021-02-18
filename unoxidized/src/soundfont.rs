@@ -1,4 +1,5 @@
 use crate::fileapi::DefaultFileSystem;
+use crate::sfloader::DefaultPreset;
 use crate::sfloader::DefaultSoundFont;
 
 use super::synth::Synth;
@@ -12,13 +13,12 @@ pub struct SoundFontLoader {
 
 #[derive(Copy, Clone)]
 pub struct Preset {
-    pub data: *mut libc::c_void,
+    pub data: *mut DefaultPreset,
     pub sfont: *const SoundFont,
-    pub free: Option<unsafe fn(_: *mut Preset) -> i32>,
-    pub get_name: Option<unsafe fn(_: *const Preset) -> Vec<u8>>,
-    pub get_banknum: Option<unsafe fn(_: *const Preset) -> i32>,
-    pub get_num: Option<unsafe fn(_: *const Preset) -> i32>,
-    pub noteon: Option<unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32>,
+    // pub get_name: Option<unsafe fn(_: *const Preset) -> Vec<u8>>,
+    // pub get_banknum: Option<unsafe fn(_: *const Preset) -> i32>,
+    // pub get_num: Option<unsafe fn(_: *const Preset) -> i32>,
+    // pub noteon: Option<unsafe fn(_: *mut Preset, _: &mut Synth, _: i32, _: i32, _: i32) -> i32>,
 }
 
 pub struct SoundFont {
