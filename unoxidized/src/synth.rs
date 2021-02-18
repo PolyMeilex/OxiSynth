@@ -37,7 +37,7 @@ static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub struct Synth {
     // polyphony: i32,
-    with_reverb: bool,
+    // with_reverb: bool,
     with_chorus: bool,
     verbose: bool,
     dump: bool,
@@ -307,7 +307,7 @@ impl Synth {
 
             let mut synth = Self {
                 // polyphony: settings.synth.polyphony,
-                with_reverb: settings.synth.reverb_active,
+                // with_reverb: settings.synth.reverb_active,
                 with_chorus: settings.synth.chorus_active,
                 verbose: settings.synth.verbose,
                 dump: settings.synth.dump,
@@ -1192,7 +1192,7 @@ impl Synth {
             );
             i += 1
         }
-        reverb_buf = if self.with_reverb {
+        reverb_buf = if self.settings.synth.reverb_active {
             self.fx_left_buf[0].as_mut_ptr()
         } else {
             0 as *mut f32
@@ -1565,7 +1565,7 @@ impl Synth {
     }
 
     pub fn set_reverb_on(&mut self, on: bool) {
-        self.with_reverb = on;
+        self.settings.synth.reverb_active = on;
     }
 
     pub fn set_chorus_on(&mut self, on: bool) {
