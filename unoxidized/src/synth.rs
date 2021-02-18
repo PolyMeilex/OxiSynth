@@ -35,45 +35,6 @@ use super::{
 
 static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
-pub struct Synth {
-    // polyphony: i32,
-    // with_reverb: bool,
-    with_chorus: bool,
-    verbose: bool,
-    dump: bool,
-    sample_rate: f64,
-    midi_channels: i32,
-    audio_channels: i32,
-    audio_groups: i32,
-    effects_channels: i32,
-    state: u32,
-    ticks: u32,
-    loaders: Vec<*mut SoundFontLoader>,
-    sfont: Vec<SoundFont>,
-    sfont_id: u32,
-    bank_offsets: Vec<*mut BankOffset>,
-    gain: f64,
-    channel: Vec<Channel>,
-    nvoice: i32,
-    voice: Vec<*mut Voice>,
-    noteid: u32,
-    storeid: u32,
-    nbuf: i32,
-    left_buf: Vec<[f32; 64]>,
-    right_buf: Vec<[f32; 64]>,
-    fx_left_buf: Vec<[f32; 64]>,
-    fx_right_buf: Vec<[f32; 64]>,
-    reverb: ReverbModel,
-    chorus: Chorus,
-    cur: i32,
-    dither_index: i32,
-    tuning: Vec<Vec<Option<Tuning>>>,
-    cur_tuning: Option<Tuning>,
-    pub(crate) min_note_length_ticks: u32,
-
-    pub settings: settings::new::Settings,
-}
-
 pub const FLUID_OK: C2RustUnnamed = 0;
 #[derive(Copy, Clone)]
 pub struct BankOffset {
@@ -232,6 +193,46 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
+pub struct Synth {
+    // polyphony: i32,
+    // with_reverb: bool,
+    // with_chorus: bool,
+    // verbose: bool,
+    // dump: bool,
+    // sample_rate: f64,
+    midi_channels: i32,
+    audio_channels: i32,
+    audio_groups: i32,
+    effects_channels: i32,
+
+    state: u32,
+    ticks: u32,
+    loaders: Vec<*mut SoundFontLoader>,
+    sfont: Vec<SoundFont>,
+    sfont_id: u32,
+    bank_offsets: Vec<*mut BankOffset>,
+    gain: f64,
+    channel: Vec<Channel>,
+    nvoice: i32,
+    voice: Vec<*mut Voice>,
+    noteid: u32,
+    storeid: u32,
+    nbuf: i32,
+    left_buf: Vec<[f32; 64]>,
+    right_buf: Vec<[f32; 64]>,
+    fx_left_buf: Vec<[f32; 64]>,
+    fx_right_buf: Vec<[f32; 64]>,
+    reverb: ReverbModel,
+    chorus: Chorus,
+    cur: i32,
+    dither_index: i32,
+    tuning: Vec<Vec<Option<Tuning>>>,
+    cur_tuning: Option<Tuning>,
+    pub(crate) min_note_length_ticks: u32,
+
+    pub settings: settings::new::Settings,
+}
+
 impl Synth {
     pub fn new(mut settings: settings::new::Settings) -> Result<Self, &'static str> {
         unsafe {
@@ -239,10 +240,9 @@ impl Synth {
                 Synth::init();
             }
 
-            let sample_rate = settings.synth.sample_rate;
-
-            let min_note_length_ticks =
-                (settings.synth.min_note_length as f64 * sample_rate / 1000.0) as u32;
+            let min_note_length_ticks = (settings.synth.min_note_length as f64
+                * settings.synth.sample_rate
+                / 1000.0) as u32;
 
             let midi_channels = {
                 let midi_channels = settings.synth.midi_channels;
@@ -308,14 +308,15 @@ impl Synth {
             let mut synth = Self {
                 // polyphony: settings.synth.polyphony,
                 // with_reverb: settings.synth.reverb_active,
-                with_chorus: settings.synth.chorus_active,
-                verbose: settings.synth.verbose,
-                dump: settings.synth.dump,
-                sample_rate,
+                // with_chorus: settings.synth.chorus_active,
+                // verbose: settings.synth.verbose,
+                // dump: settings.synth.dump,
+                // sample_rate,
                 midi_channels,
                 audio_channels,
                 audio_groups,
                 effects_channels,
+
                 state: FLUID_SYNTH_PLAYING,
                 ticks: 0,
                 loaders: Vec::new(),
@@ -386,7 +387,9 @@ impl Synth {
 
             synth.nvoice = synth.settings.synth.polyphony;
             for _ in 0..synth.nvoice {
-                synth.voice.push(new_fluid_voice(synth.sample_rate as f32));
+                synth
+                    .voice
+                    .push(new_fluid_voice(synth.settings.synth.sample_rate as f32));
             }
 
             synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
@@ -401,7 +404,7 @@ impl Synth {
             synth.dither_index = 0 as i32;
             synth.reverb = ReverbModel::new();
             synth.set_reverb_params(0.2f32 as f64, 0.0f32 as f64, 0.5f32 as f64, 0.9f32 as f64);
-            synth.chorus = Chorus::new(synth.sample_rate as f32);
+            synth.chorus = Chorus::new(synth.settings.synth.sample_rate as f32);
             if synth.settings.synth.drums_channel_active {
                 synth.bank_select(9 as i32, 128 as i32 as u32);
             }
@@ -411,13 +414,13 @@ impl Synth {
     }
 
     pub unsafe fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.sample_rate = sample_rate as f64;
+        self.settings.synth.sample_rate = sample_rate as f64;
         for i in 0..self.nvoice {
             delete_fluid_voice(self.voice[i as usize]);
-            self.voice[i as usize] = new_fluid_voice(self.sample_rate as f32);
+            self.voice[i as usize] = new_fluid_voice(self.settings.synth.sample_rate as f32);
         }
         self.chorus.delete();
-        self.chorus = Chorus::new(self.sample_rate as f32);
+        self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
     }
 
     pub unsafe fn noteon(&mut self, chan: i32, key: i32, vel: i32) -> i32 {
@@ -429,7 +432,7 @@ impl Synth {
             return self.noteoff(chan, key);
         }
         if self.channel[chan as usize].preset.is_null() {
-            if self.verbose {
+            if self.settings.synth.verbose {
                 log::info!(
                     "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
                     chan,
@@ -469,7 +472,7 @@ impl Synth {
                 && (*voice).chan as i32 == chan
                 && (*voice).key as i32 == key
             {
-                if self.verbose {
+                if self.settings.synth.verbose {
                     let mut used_voices: i32 = 0 as i32;
                     let mut k;
                     k = 0 as i32;
@@ -530,7 +533,7 @@ impl Synth {
             log::warn!("Value out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("cc\t{}\t{}\t{}", chan, num, val);
         }
         // TODO: double borrow
@@ -648,7 +651,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("channelpressure\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -666,7 +669,7 @@ impl Synth {
         if val < 0 as i32 || val > 127 as i32 {
             return FLUID_FAILED as i32;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
         }
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
@@ -691,7 +694,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("pitchb\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -715,7 +718,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("pitchsens\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -787,7 +790,7 @@ impl Synth {
         }
         banknum = self.channel[chan as usize].get_banknum();
         self.channel[chan as usize].set_prognum(prognum);
-        if self.verbose {
+        if self.settings.synth.verbose {
             log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
         }
         if self.channel[chan as usize].channum == 9 as i32
@@ -1197,7 +1200,7 @@ impl Synth {
         } else {
             0 as *mut f32
         };
-        chorus_buf = if self.with_chorus {
+        chorus_buf = if self.settings.synth.chorus_active {
             self.fx_left_buf[1].as_mut_ptr()
         } else {
             0 as *mut f32
@@ -1324,7 +1327,7 @@ impl Synth {
             );
             return 0 as *mut Voice;
         }
-        if self.verbose {
+        if self.settings.synth.verbose {
             k = 0 as i32;
             i = 0 as i32;
             while i < self.settings.synth.polyphony {
@@ -1569,7 +1572,7 @@ impl Synth {
     }
 
     pub fn set_chorus_on(&mut self, on: bool) {
-        self.with_chorus = on;
+        self.settings.synth.chorus_active = on;
     }
 
     pub fn get_chorus_nr(&self) -> i32 {
