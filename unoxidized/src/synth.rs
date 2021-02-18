@@ -4,7 +4,7 @@ use super::chorus::Chorus;
 use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
-use super::settings::{self, Settings};
+use super::settings::{self, new::Settings};
 use super::sfloader::new_fluid_defsfloader;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
@@ -230,7 +230,7 @@ pub struct Synth {
     cur_tuning: Option<Tuning>,
     pub(crate) min_note_length_ticks: u32,
 
-    pub settings: settings::new::Settings,
+    pub settings: Settings,
 }
 
 impl Synth {
@@ -1989,117 +1989,117 @@ impl Synth {
         self.bank_offsets.retain(|x| (*(*x)).sfont_id != sfont_id);
     }
 
-    pub(crate) unsafe fn register_settings(settings: &mut Settings) {
-        settings.register_str(
-            "synth.verbose",
-            "no",
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_str("synth.dump", "no", 0 as i32, None, 0 as *mut libc::c_void);
-        settings.register_str(
-            "synth.reverb.active",
-            "yes",
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_str(
-            "synth.chorus.active",
-            "yes",
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_str(
-            "synth.ladspa.active",
-            "no",
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_str("midi.portname", "", 0 as i32, None, 0 as *mut libc::c_void);
-        settings.register_str(
-            "synth.drums-channel.active",
-            "yes",
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.polyphony",
-            256 as i32,
-            16 as i32,
-            4096 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.midi-channels",
-            16 as i32,
-            16 as i32,
-            256 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_num(
-            "synth.gain",
-            0.2f32 as f64,
-            0.0f32 as f64,
-            10.0f32 as f64,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.audio-channels",
-            1 as i32,
-            1 as i32,
-            256 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.audio-groups",
-            1 as i32,
-            1 as i32,
-            256 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.effects-channels",
-            2 as i32,
-            2 as i32,
-            2 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_num(
-            "synth.sample-rate",
-            44100.0f32 as f64,
-            22050.0f32 as f64,
-            96000.0f32 as f64,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-        settings.register_int(
-            "synth.min-note-length",
-            10 as i32,
-            0 as i32,
-            65535 as i32,
-            0 as i32,
-            None,
-            0 as *mut libc::c_void,
-        );
-    }
+    // pub(crate) unsafe fn register_settings(settings: &mut Settings) {
+    //     settings.register_str(
+    //         "synth.verbose",
+    //         "no",
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_str("synth.dump", "no", 0 as i32, None, 0 as *mut libc::c_void);
+    //     settings.register_str(
+    //         "synth.reverb.active",
+    //         "yes",
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_str(
+    //         "synth.chorus.active",
+    //         "yes",
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_str(
+    //         "synth.ladspa.active",
+    //         "no",
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_str("midi.portname", "", 0 as i32, None, 0 as *mut libc::c_void);
+    //     settings.register_str(
+    //         "synth.drums-channel.active",
+    //         "yes",
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.polyphony",
+    //         256 as i32,
+    //         16 as i32,
+    //         4096 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.midi-channels",
+    //         16 as i32,
+    //         16 as i32,
+    //         256 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_num(
+    //         "synth.gain",
+    //         0.2f32 as f64,
+    //         0.0f32 as f64,
+    //         10.0f32 as f64,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.audio-channels",
+    //         1 as i32,
+    //         1 as i32,
+    //         256 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.audio-groups",
+    //         1 as i32,
+    //         1 as i32,
+    //         256 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.effects-channels",
+    //         2 as i32,
+    //         2 as i32,
+    //         2 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_num(
+    //         "synth.sample-rate",
+    //         44100.0f32 as f64,
+    //         22050.0f32 as f64,
+    //         96000.0f32 as f64,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    //     settings.register_int(
+    //         "synth.min-note-length",
+    //         10 as i32,
+    //         0 as i32,
+    //         65535 as i32,
+    //         0 as i32,
+    //         None,
+    //         0 as *mut libc::c_void,
+    //     );
+    // }
 
     unsafe fn init() {
         FLUID_SYNTH_INITIALIZED += 1;
