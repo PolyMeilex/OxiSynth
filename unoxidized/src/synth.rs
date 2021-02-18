@@ -37,10 +37,10 @@ static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub struct Synth {
     polyphony: i32,
-    with_reverb: i8,
-    with_chorus: i8,
-    verbose: i8,
-    dump: i8,
+    with_reverb: bool,
+    with_chorus: bool,
+    verbose: bool,
+    dump: bool,
     sample_rate: f64,
     midi_channels: i32,
     audio_channels: i32,
@@ -307,10 +307,10 @@ impl Synth {
 
             let mut synth = Self {
                 polyphony: settings.synth.polyphony,
-                with_reverb: settings.synth.reverb_active as i8,
-                with_chorus: settings.synth.chorus_active as i8,
-                verbose: settings.synth.verbose as i8,
-                dump: settings.synth.dump as i8,
+                with_reverb: settings.synth.reverb_active,
+                with_chorus: settings.synth.chorus_active,
+                verbose: settings.synth.verbose,
+                dump: settings.synth.dump,
                 sample_rate,
                 midi_channels,
                 audio_channels,
@@ -429,7 +429,7 @@ impl Synth {
             return self.noteoff(chan, key);
         }
         if self.channel[chan as usize].preset.is_null() {
-            if self.verbose != 0 {
+            if self.verbose {
                 log::info!(
                     "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
                     chan,
@@ -469,7 +469,7 @@ impl Synth {
                 && (*voice).chan as i32 == chan
                 && (*voice).key as i32 == key
             {
-                if self.verbose != 0 {
+                if self.verbose {
                     let mut used_voices: i32 = 0 as i32;
                     let mut k;
                     k = 0 as i32;
@@ -530,7 +530,7 @@ impl Synth {
             log::warn!("Value out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("cc\t{}\t{}\t{}", chan, num, val);
         }
         // TODO: double borrow
@@ -648,7 +648,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("channelpressure\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -666,7 +666,7 @@ impl Synth {
         if val < 0 as i32 || val > 127 as i32 {
             return FLUID_FAILED as i32;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
         }
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
@@ -691,7 +691,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("pitchb\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -715,7 +715,7 @@ impl Synth {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("pitchsens\t{}\t{}", chan, val);
         }
         // TODO: double borrow
@@ -787,7 +787,7 @@ impl Synth {
         }
         banknum = self.channel[chan as usize].get_banknum();
         self.channel[chan as usize].set_prognum(prognum);
-        if self.verbose != 0 {
+        if self.verbose {
             log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
         }
         if self.channel[chan as usize].channum == 9 as i32
@@ -1192,12 +1192,12 @@ impl Synth {
             );
             i += 1
         }
-        reverb_buf = if self.with_reverb as i32 != 0 {
+        reverb_buf = if self.with_reverb {
             self.fx_left_buf[0].as_mut_ptr()
         } else {
             0 as *mut f32
         };
-        chorus_buf = if self.with_chorus as i32 != 0 {
+        chorus_buf = if self.with_chorus {
             self.fx_left_buf[1].as_mut_ptr()
         } else {
             0 as *mut f32
@@ -1324,7 +1324,7 @@ impl Synth {
             );
             return 0 as *mut Voice;
         }
-        if self.verbose != 0 {
+        if self.verbose {
             k = 0 as i32;
             i = 0 as i32;
             while i < self.polyphony {
@@ -1564,12 +1564,12 @@ impl Synth {
         return 0 as *mut Preset;
     }
 
-    pub fn set_reverb_on(&mut self, on: i32) {
-        self.with_reverb = on as i8;
+    pub fn set_reverb_on(&mut self, on: bool) {
+        self.with_reverb = on;
     }
 
-    pub fn set_chorus_on(&mut self, on: i32) {
-        self.with_chorus = on as i8;
+    pub fn set_chorus_on(&mut self, on: bool) {
+        self.with_chorus = on;
     }
 
     pub fn get_chorus_nr(&self) -> i32 {
