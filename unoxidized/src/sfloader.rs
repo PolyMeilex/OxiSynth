@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use std::{io::SeekFrom, slice::from_raw_parts_mut};
-pub const FLUID_OK: i32 = 0;
-pub const FLUID_FAILED: i32 = -1;
+const FLUID_OK: i32 = 0;
+const FLUID_FAILED: i32 = -1;
 #[derive(Clone)]
 #[repr(C)]
 pub struct DefaultSoundFont {
@@ -47,7 +47,7 @@ pub struct DefaultPreset {
 }
 #[derive(Clone)]
 #[repr(C)]
-pub struct PresetZone {
+struct PresetZone {
     next: *mut PresetZone,
     name: Vec<u8>,
     inst: *mut Instrument,
@@ -60,14 +60,14 @@ pub struct PresetZone {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct Instrument {
+struct Instrument {
     name: [u8; 21],
     global_zone: *mut InstrumentZone,
     zone: *mut InstrumentZone,
 }
 #[derive(Clone)]
 #[repr(C)]
-pub struct InstrumentZone {
+struct InstrumentZone {
     next: *mut InstrumentZone,
     name: Vec<u8>,
     sample: *mut Sample,
@@ -79,7 +79,7 @@ pub struct InstrumentZone {
     mod_0: *mut Mod,
 }
 #[repr(C)]
-pub struct SFData {
+struct SFData {
     version: SFVersion,
     romver: SFVersion,
     samplepos: u32,
@@ -93,13 +93,13 @@ pub struct SFData {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFVersion {
+struct SFVersion {
     major: u16,
     minor: u16,
 }
 #[derive(Clone)]
 #[repr(C)]
-pub struct SFInst {
+struct SFInst {
     name: [u8; 21],
     zone: Vec<*mut SFZone>,
 }
@@ -113,28 +113,28 @@ enum InstSamp {
 }
 
 impl InstSamp {
-    pub fn is_none(&self) -> bool {
+    fn is_none(&self) -> bool {
         match self {
             InstSamp::None => true,
             _ => false,
         }
     }
 
-    pub fn unwrap_sample(&self) -> *mut SFSample {
+    fn unwrap_sample(&self) -> *mut SFSample {
         match self {
             InstSamp::Sample(ptr) => *ptr,
             _ => panic!("mismatch"),
         }
     }
 
-    pub fn unwrap_inst(&self) -> *mut SFInst {
+    fn unwrap_inst(&self) -> *mut SFInst {
         match self {
             InstSamp::Inst(ptr) => *ptr,
             _ => panic!("mismatch"),
         }
     }
 
-    pub fn unwrap_int(&self) -> i32 {
+    fn unwrap_int(&self) -> i32 {
         match self {
             InstSamp::Int(val) => *val,
             _ => panic!("mismatch"),
@@ -144,14 +144,14 @@ impl InstSamp {
 
 #[derive(Clone)]
 #[repr(C)]
-pub struct SFZone {
+struct SFZone {
     instsamp: InstSamp,
     gen: Vec<*mut SFGen>,
     mod_0: Vec<*mut SFMod>,
 }
 #[derive(Clone)]
 #[repr(C)]
-pub struct SFPreset {
+struct SFPreset {
     /// [u8;21]
     name: String,
     prenum: u16,
@@ -163,26 +163,26 @@ pub struct SFPreset {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFMod {
+struct SFMod {
     src: u16,
     dest: u16,
     amount: i16,
     amtsrc: u16,
     trans: u16,
 }
-pub const FLUID_MOD_SWITCH: ModFlags = 12;
-pub const FLUID_MOD_CONVEX: ModFlags = 8;
-pub const FLUID_MOD_CONCAVE: ModFlags = 4;
-pub const FLUID_MOD_LINEAR: ModFlags = 0;
-pub const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-pub const FLUID_MOD_BIPOLAR: ModFlags = 2;
-pub const FLUID_MOD_POSITIVE: ModFlags = 0;
-pub const FLUID_MOD_NEGATIVE: ModFlags = 1;
-pub const FLUID_MOD_GC: ModFlags = 0;
-pub const FLUID_MOD_CC: ModFlags = 16;
+const FLUID_MOD_SWITCH: ModFlags = 12;
+const FLUID_MOD_CONVEX: ModFlags = 8;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const FLUID_MOD_LINEAR: ModFlags = 0;
+const FLUID_MOD_UNIPOLAR: ModFlags = 0;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+const FLUID_MOD_POSITIVE: ModFlags = 0;
+const FLUID_MOD_NEGATIVE: ModFlags = 1;
+const FLUID_MOD_GC: ModFlags = 0;
+const FLUID_MOD_CC: ModFlags = 16;
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFSample {
+struct SFSample {
     name: [u8; 21],
     samfile: u8,
     start: u32,
@@ -194,94 +194,94 @@ pub struct SFSample {
     pitchadj: libc::c_schar,
     sampletype: u16,
 }
-pub const GEN_SET: GenFlags = 1;
+const GEN_SET: GenFlags = 1;
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFGen {
+struct SFGen {
     id: u16,
     amount: SFGenAmount,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub union SFGenAmount {
+union SFGenAmount {
     sword: i16,
     uword: u16,
     range: SFGenAmountRange,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFGenAmountRange {
+struct SFGenAmountRange {
     lo: u8,
     hi: u8,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct SFChunk {
+struct SFChunk {
     id: u32,
     size: u32,
 }
-pub const SHDR_ID: u32 = 28;
-pub const UNKN_ID: u32 = 0;
-pub const GEN_RESERVED3: u32 = 55;
-pub const GEN_RESERVED2: u32 = 49;
-pub const GEN_RESERVED1: u32 = 42;
-pub const GEN_UNUSED4: u32 = 20;
-pub const GEN_UNUSED3: u32 = 19;
-pub const GEN_UNUSED2: u32 = 18;
-pub const GEN_UNUSED1: u32 = 14;
-pub const GEN_DUMMY: u32 = 59;
-pub const GEN_SAMPLE_ID: u32 = 53;
-pub const GEN_VEL_RANGE: u32 = 44;
-pub const GEN_KEY_RANGE: u32 = 43;
-pub const IGEN_ID: u32 = 27;
-pub const IMOD_ID: u32 = 26;
-pub const IBAG_ID: u32 = 25;
-pub const IHDR_ID: u32 = 24;
-pub const GEN_OVERRIDE_ROOT_KEY: u32 = 58;
-pub const GEN_EXCLUSIVE_CLASS: u32 = 57;
-pub const GEN_SAMPLE_MODES: u32 = 54;
-pub const GEN_END_LOOP_ADDR_COARSE_OFS: u32 = 50;
-pub const GEN_VELOCITY: u32 = 47;
-pub const GEN_KEYNUM: u32 = 46;
-pub const GEN_START_LOOP_ADDR_COARSE_OFS: u32 = 45;
-pub const GEN_END_ADDR_COARSE_OFS: u32 = 12;
-pub const GEN_START_ADDR_COARSE_OFS: u32 = 4;
-pub const GEN_END_LOOP_ADDR_OFS: u32 = 3;
-pub const GEN_START_LOOP_ADDR_OFS: u32 = 2;
-pub const GEN_END_ADDR_OFS: u32 = 1;
-pub const GEN_START_ADDR_OFS: u32 = 0;
-pub const GEN_INSTRUMENT: u32 = 41;
-pub const PGEN_ID: u32 = 23;
-pub const PMOD_ID: u32 = 22;
-pub const PBAG_ID: u32 = 21;
-pub const PHDR_ID: u32 = 20;
-pub const PDTA_ID: u32 = 6;
-pub const LIST_ID: u32 = 2;
-pub const SMPL_ID: u32 = 19;
-pub const SDTA_ID: u32 = 5;
-pub const ICMT_ID: u32 = 16;
-pub const IVER_ID: u32 = 11;
-pub const IFIL_ID: u32 = 7;
-pub const INFO_ID: u32 = 4;
-pub const SFBK_ID: u32 = 3;
-pub const RIFF_ID: u32 = 1;
-pub const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
-pub const GEN_OVERRIDEROOTKEY: GenType = 58;
-pub const GEN_EXCLUSIVECLASS: GenType = 57;
-pub const GEN_SAMPLEMODE: GenType = 54;
-pub const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
-pub const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
-pub const GEN_ENDADDRCOARSEOFS: GenType = 12;
-pub const GEN_STARTADDRCOARSEOFS: GenType = 4;
-pub const GEN_ENDLOOPADDROFS: GenType = 3;
-pub const GEN_STARTLOOPADDROFS: GenType = 2;
-pub const GEN_ENDADDROFS: GenType = 1;
-pub const GEN_STARTADDROFS: GenType = 0;
-pub const GEN_LAST: GenType = 60;
-pub const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
-pub type ModFlags = u32;
-pub type GenType = u32;
-pub type GenFlags = u32;
+const SHDR_ID: u32 = 28;
+const UNKN_ID: u32 = 0;
+const GEN_RESERVED3: u32 = 55;
+const GEN_RESERVED2: u32 = 49;
+const GEN_RESERVED1: u32 = 42;
+const GEN_UNUSED4: u32 = 20;
+const GEN_UNUSED3: u32 = 19;
+const GEN_UNUSED2: u32 = 18;
+const GEN_UNUSED1: u32 = 14;
+const GEN_DUMMY: u32 = 59;
+const GEN_SAMPLE_ID: u32 = 53;
+const GEN_VEL_RANGE: u32 = 44;
+const GEN_KEY_RANGE: u32 = 43;
+const IGEN_ID: u32 = 27;
+const IMOD_ID: u32 = 26;
+const IBAG_ID: u32 = 25;
+const IHDR_ID: u32 = 24;
+const GEN_OVERRIDE_ROOT_KEY: u32 = 58;
+const GEN_EXCLUSIVE_CLASS: u32 = 57;
+const GEN_SAMPLE_MODES: u32 = 54;
+const GEN_END_LOOP_ADDR_COARSE_OFS: u32 = 50;
+const GEN_VELOCITY: u32 = 47;
+const GEN_KEYNUM: u32 = 46;
+const GEN_START_LOOP_ADDR_COARSE_OFS: u32 = 45;
+const GEN_END_ADDR_COARSE_OFS: u32 = 12;
+const GEN_START_ADDR_COARSE_OFS: u32 = 4;
+const GEN_END_LOOP_ADDR_OFS: u32 = 3;
+const GEN_START_LOOP_ADDR_OFS: u32 = 2;
+const GEN_END_ADDR_OFS: u32 = 1;
+const GEN_START_ADDR_OFS: u32 = 0;
+const GEN_INSTRUMENT: u32 = 41;
+const PGEN_ID: u32 = 23;
+const PMOD_ID: u32 = 22;
+const PBAG_ID: u32 = 21;
+const PHDR_ID: u32 = 20;
+const PDTA_ID: u32 = 6;
+const LIST_ID: u32 = 2;
+const SMPL_ID: u32 = 19;
+const SDTA_ID: u32 = 5;
+const ICMT_ID: u32 = 16;
+const IVER_ID: u32 = 11;
+const IFIL_ID: u32 = 7;
+const INFO_ID: u32 = 4;
+const SFBK_ID: u32 = 3;
+const RIFF_ID: u32 = 1;
+const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
+const GEN_OVERRIDEROOTKEY: GenType = 58;
+const GEN_EXCLUSIVECLASS: GenType = 57;
+const GEN_SAMPLEMODE: GenType = 54;
+const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
+const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
+const GEN_ENDADDRCOARSEOFS: GenType = 12;
+const GEN_STARTADDRCOARSEOFS: GenType = 4;
+const GEN_ENDLOOPADDROFS: GenType = 3;
+const GEN_STARTLOOPADDROFS: GenType = 2;
+const GEN_ENDADDROFS: GenType = 1;
+const GEN_STARTADDROFS: GenType = 0;
+const GEN_LAST: GenType = 60;
+const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
+type ModFlags = u32;
+type GenType = u32;
+type GenFlags = u32;
 
 unsafe fn read_unsafe<T>(fd: &mut DefaultFile, t: &mut T) -> bool {
     return fd.read(from_raw_parts_mut(
@@ -349,8 +349,8 @@ impl SoundFont {
         }
     }
 
-    pub fn iteration_start(&mut self) {
-        pub unsafe fn fluid_defsfont_iteration_start(mut sfont: *mut DefaultSoundFont) {
+    fn iteration_start(&mut self) {
+        unsafe fn fluid_defsfont_iteration_start(mut sfont: *mut DefaultSoundFont) {
             (*sfont).iter_cur = (*sfont).preset;
         }
         unsafe {
@@ -358,12 +358,12 @@ impl SoundFont {
         }
     }
 
-    pub fn iteration_next(&mut self, preset: *mut Preset) -> i32 {
-        pub unsafe fn fluid_defpreset_next(preset: *mut DefaultPreset) -> *mut DefaultPreset {
+    fn iteration_next(&mut self, preset: *mut Preset) -> i32 {
+        unsafe fn fluid_defpreset_next(preset: *mut DefaultPreset) -> *mut DefaultPreset {
             return (*preset).next;
         }
 
-        pub unsafe fn fluid_defsfont_iteration_next(
+        unsafe fn fluid_defsfont_iteration_next(
             mut sfont: *mut DefaultSoundFont,
             mut preset: *mut Preset,
         ) -> i32 {
@@ -382,7 +382,7 @@ impl SoundFont {
 
 impl Drop for SoundFont {
     fn drop(&mut self) {
-        pub unsafe fn delete_fluid_defsfont(mut sfont: *mut DefaultSoundFont) -> i32 {
+        unsafe fn delete_fluid_defsfont(mut sfont: *mut DefaultSoundFont) -> i32 {
             let mut preset: *mut DefaultPreset;
             for sample in (*sfont).sample.iter() {
                 if (**sample).refcount != 0 as i32 as u32 {
@@ -423,7 +423,7 @@ impl Preset {
     }
 
     pub fn noteon(&mut self, synth: &mut Synth, chan: i32, key: i32, vel: i32) -> i32 {
-        pub unsafe fn fluid_defpreset_noteon(
+        unsafe fn fluid_defpreset_noteon(
             preset: *mut DefaultPreset,
             synth: &mut Synth,
             chan: i32,
@@ -609,7 +609,7 @@ impl Preset {
     }
 }
 
-pub static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = None;
+static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = None;
 
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: String, fapi: &mut DefaultFileSystem) -> Result<(), ()> {
@@ -781,7 +781,7 @@ impl DefaultSoundFont {
     }
 }
 
-pub unsafe fn fluid_defsfont_get_sample(sfont: *mut DefaultSoundFont, s: &[u8]) -> *mut Sample {
+unsafe fn fluid_defsfont_get_sample(sfont: *mut DefaultSoundFont, s: &[u8]) -> *mut Sample {
     for sample in (*sfont).sample.iter() {
         if libc::strcmp((**sample).name.as_ptr() as _, s.as_ptr() as _) == 0 as i32 {
             return *sample;
@@ -790,7 +790,7 @@ pub unsafe fn fluid_defsfont_get_sample(sfont: *mut DefaultSoundFont, s: &[u8]) 
     return 0 as *mut Sample;
 }
 
-pub unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
+unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
     let mut err: i32 = FLUID_OK as i32;
     let mut zone: *mut PresetZone;
     if !(*preset).global_zone.is_null() {
@@ -811,7 +811,7 @@ pub unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
     return err;
 }
 
-pub unsafe fn fluid_defpreset_set_global_zone(
+unsafe fn fluid_defpreset_set_global_zone(
     mut preset: *mut DefaultPreset,
     zone: *mut PresetZone,
 ) -> i32 {
@@ -819,7 +819,7 @@ pub unsafe fn fluid_defpreset_set_global_zone(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_defpreset_import_sfont(
+unsafe fn fluid_defpreset_import_sfont(
     mut preset: *mut DefaultPreset,
     sfpreset: *mut SFPreset,
     sfont: *mut DefaultSoundFont,
@@ -860,7 +860,7 @@ pub unsafe fn fluid_defpreset_import_sfont(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_defpreset_add_zone(
+unsafe fn fluid_defpreset_add_zone(
     mut preset: *mut DefaultPreset,
     mut zone: *mut PresetZone,
 ) -> i32 {
@@ -874,19 +874,19 @@ pub unsafe fn fluid_defpreset_add_zone(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_defpreset_get_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
+unsafe fn fluid_defpreset_get_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
     return (*preset).zone;
 }
 
-pub unsafe fn fluid_defpreset_get_global_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
+unsafe fn fluid_defpreset_get_global_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
     return (*preset).global_zone;
 }
 
-pub unsafe fn fluid_preset_zone_next(preset: *mut PresetZone) -> *mut PresetZone {
+unsafe fn fluid_preset_zone_next(preset: *mut PresetZone) -> *mut PresetZone {
     return (*preset).next;
 }
 
-pub unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
+unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
     let mut zone: *mut PresetZone;
     zone = libc::malloc(::std::mem::size_of::<PresetZone>() as libc::size_t) as *mut PresetZone;
     if zone.is_null() {
@@ -906,7 +906,7 @@ pub unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
     return zone;
 }
 
-pub unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
+unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
     let mut mod_0: *mut Mod;
     let mut tmp: *mut Mod;
     mod_0 = (*zone).mod_0;
@@ -922,7 +922,7 @@ pub unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_preset_zone_import_sfont(
+unsafe fn fluid_preset_zone_import_sfont(
     mut zone: *mut PresetZone,
     sfzone: *mut SFZone,
     sfont: *mut DefaultSoundFont,
@@ -1048,18 +1048,18 @@ pub unsafe fn fluid_preset_zone_import_sfont(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_preset_zone_get_inst(zone: *mut PresetZone) -> *mut Instrument {
+unsafe fn fluid_preset_zone_get_inst(zone: *mut PresetZone) -> *mut Instrument {
     return (*zone).inst;
 }
 
-pub unsafe fn fluid_preset_zone_inside_range(zone: *mut PresetZone, key: i32, vel: i32) -> i32 {
+unsafe fn fluid_preset_zone_inside_range(zone: *mut PresetZone, key: i32, vel: i32) -> i32 {
     return ((*zone).keylo <= key
         && (*zone).keyhi >= key
         && (*zone).vello <= vel
         && (*zone).velhi >= vel) as i32;
 }
 
-pub unsafe fn new_fluid_inst() -> *mut Instrument {
+unsafe fn new_fluid_inst() -> *mut Instrument {
     let mut inst: *mut Instrument =
         libc::malloc(::std::mem::size_of::<Instrument>() as libc::size_t) as *mut Instrument;
     if inst.is_null() {
@@ -1072,7 +1072,7 @@ pub unsafe fn new_fluid_inst() -> *mut Instrument {
     return inst;
 }
 
-pub unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
+unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
     let mut zone: *mut InstrumentZone;
     let mut err: i32 = FLUID_OK as i32;
     if !(*inst).global_zone.is_null() {
@@ -1093,15 +1093,12 @@ pub unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
     return err;
 }
 
-pub unsafe fn fluid_inst_set_global_zone(
-    mut inst: *mut Instrument,
-    zone: *mut InstrumentZone,
-) -> i32 {
+unsafe fn fluid_inst_set_global_zone(mut inst: *mut Instrument, zone: *mut InstrumentZone) -> i32 {
     (*inst).global_zone = zone;
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_inst_import_sfont(
+unsafe fn fluid_inst_import_sfont(
     inst: *mut Instrument,
     sfinst: *mut SFInst,
     sfont: *mut DefaultSoundFont,
@@ -1147,7 +1144,7 @@ pub unsafe fn fluid_inst_import_sfont(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_inst_add_zone(mut inst: *mut Instrument, mut zone: *mut InstrumentZone) -> i32 {
+unsafe fn fluid_inst_add_zone(mut inst: *mut Instrument, mut zone: *mut InstrumentZone) -> i32 {
     if (*inst).zone.is_null() {
         (*zone).next = 0 as *mut InstrumentZone;
         (*inst).zone = zone
@@ -1158,15 +1155,15 @@ pub unsafe fn fluid_inst_add_zone(mut inst: *mut Instrument, mut zone: *mut Inst
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_inst_get_zone(inst: *mut Instrument) -> *mut InstrumentZone {
+unsafe fn fluid_inst_get_zone(inst: *mut Instrument) -> *mut InstrumentZone {
     return (*inst).zone;
 }
 
-pub unsafe fn fluid_inst_get_global_zone(inst: *mut Instrument) -> *mut InstrumentZone {
+unsafe fn fluid_inst_get_global_zone(inst: *mut Instrument) -> *mut InstrumentZone {
     return (*inst).global_zone;
 }
 
-pub unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
+unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
     let mut zone: *mut InstrumentZone;
     zone = libc::malloc(::std::mem::size_of::<InstrumentZone>() as libc::size_t)
         as *mut InstrumentZone;
@@ -1187,7 +1184,7 @@ pub unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
     return zone;
 }
 
-pub unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
+unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
     let mut mod_0: *mut Mod;
     let mut tmp: *mut Mod;
     mod_0 = (*zone).mod_0;
@@ -1200,11 +1197,11 @@ pub unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_inst_zone_next(zone: *mut InstrumentZone) -> *mut InstrumentZone {
+unsafe fn fluid_inst_zone_next(zone: *mut InstrumentZone) -> *mut InstrumentZone {
     return (*zone).next;
 }
 
-pub unsafe fn fluid_inst_zone_import_sfont(
+unsafe fn fluid_inst_zone_import_sfont(
     mut zone: *mut InstrumentZone,
     sfzone: *mut SFZone,
     sfont: *mut DefaultSoundFont,
@@ -1324,18 +1321,18 @@ pub unsafe fn fluid_inst_zone_import_sfont(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_inst_zone_get_sample(zone: *mut InstrumentZone) -> *mut Sample {
+unsafe fn fluid_inst_zone_get_sample(zone: *mut InstrumentZone) -> *mut Sample {
     return (*zone).sample;
 }
 
-pub unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: i32, vel: i32) -> i32 {
+unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: i32, vel: i32) -> i32 {
     return ((*zone).keylo <= key
         && (*zone).keyhi >= key
         && (*zone).vello <= vel
         && (*zone).velhi >= vel) as i32;
 }
 
-pub unsafe fn new_fluid_sample() -> *mut Sample {
+unsafe fn new_fluid_sample() -> *mut Sample {
     let mut sample: *mut Sample;
     sample = libc::malloc(::std::mem::size_of::<Sample>() as libc::size_t) as *mut Sample;
     if sample.is_null() {
@@ -1351,16 +1348,16 @@ pub unsafe fn new_fluid_sample() -> *mut Sample {
     return sample;
 }
 
-pub unsafe fn delete_fluid_sample(sample: *mut Sample) -> i32 {
+unsafe fn delete_fluid_sample(sample: *mut Sample) -> i32 {
     libc::free(sample as *mut libc::c_void);
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_sample_in_rom(sample: *mut Sample) -> i32 {
+unsafe fn fluid_sample_in_rom(sample: *mut Sample) -> i32 {
     return (*sample).sampletype & 0x8000 as i32;
 }
 
-pub unsafe fn fluid_sample_import_sfont(
+unsafe fn fluid_sample_import_sfont(
     mut sample: *mut Sample,
     sfsample: *mut SFSample,
     sfont: *mut DefaultSoundFont,
@@ -1399,7 +1396,7 @@ pub unsafe fn fluid_sample_import_sfont(
     return FLUID_OK as i32;
 }
 
-pub static IDLIST: &[u8; 113] =
+static IDLIST: &[u8; 113] =
     b"RIFFLISTsfbkINFOsdtapdtaifilisngINAMiromiverICRDIENGIPRDICOPICMTISFTsnamsmplphdrpbagpmodpgeninstibagimodigenshdr\x00";
 static mut SDTACHUNK_SIZE: u32 = 0;
 unsafe fn chunkid(id: u32) -> i32 {
@@ -1420,7 +1417,7 @@ unsafe fn chunkid(id: u32) -> i32 {
     return UNKN_ID as i32;
 }
 
-pub unsafe fn sfload_file(fname: String, fapi: &mut DefaultFileSystem) -> *mut SFData {
+unsafe fn sfload_file(fname: String, fapi: &mut DefaultFileSystem) -> *mut SFData {
     let mut sf: *mut SFData;
     let mut fd;
     let fsize: i32;
@@ -2629,7 +2626,7 @@ unsafe fn fixup_sample(sf: *mut SFData) -> i32 {
     return 1 as i32;
 }
 
-pub static mut BADGEN: [u16; 8] = [
+static mut BADGEN: [u16; 8] = [
     GEN_UNUSED1 as i32 as u16,
     GEN_UNUSED2 as i32 as u16,
     GEN_UNUSED3 as i32 as u16,
@@ -2640,7 +2637,7 @@ pub static mut BADGEN: [u16; 8] = [
     0 as i32 as u16,
 ];
 
-pub static mut BADPGEN: [u16; 14] = [
+static mut BADPGEN: [u16; 14] = [
     GEN_START_ADDR_OFS as i32 as u16,
     GEN_END_ADDR_OFS as i32 as u16,
     GEN_START_LOOP_ADDR_OFS as i32 as u16,
@@ -2657,7 +2654,7 @@ pub static mut BADPGEN: [u16; 14] = [
     0 as i32 as u16,
 ];
 
-pub unsafe fn sfont_close(sf: *mut SFData) {
+unsafe fn sfont_close(sf: *mut SFData) {
     (*sf).sffd = None;
 
     for preset in (*sf).preset.iter() {
@@ -2681,7 +2678,7 @@ pub unsafe fn sfont_close(sf: *mut SFData) {
     (*sf).sample.clear();
 }
 
-pub unsafe fn sfont_free_zone(zone: *mut SFZone) {
+unsafe fn sfont_free_zone(zone: *mut SFZone) {
     if zone.is_null() {
         return;
     }
@@ -2698,7 +2695,7 @@ pub unsafe fn sfont_free_zone(zone: *mut SFZone) {
     libc::free(zone as *mut libc::c_void);
 }
 
-pub unsafe fn sfont_preset_compare_func(a: *mut libc::c_void, b: *mut libc::c_void) -> i32 {
+unsafe fn sfont_preset_compare_func(a: *mut libc::c_void, b: *mut libc::c_void) -> i32 {
     let aval: i32;
     let bval: i32;
     aval =
@@ -2708,7 +2705,7 @@ pub unsafe fn sfont_preset_compare_func(a: *mut libc::c_void, b: *mut libc::c_vo
     return aval - bval;
 }
 
-pub unsafe fn gen_valid(gen: i32) -> i32 {
+unsafe fn gen_valid(gen: i32) -> i32 {
     let mut i: i32 = 0 as i32;
     if gen > GEN_DUMMY as i32 - 1 as i32 {
         return 0 as i32;
@@ -2719,7 +2716,7 @@ pub unsafe fn gen_valid(gen: i32) -> i32 {
     return (BADGEN[i as usize] as i32 == 0 as i32) as i32;
 }
 
-pub unsafe fn gen_validp(gen: i32) -> i32 {
+unsafe fn gen_validp(gen: i32) -> i32 {
     let mut i: i32 = 0 as i32;
     if gen_valid(gen) == 0 {
         return 0 as i32;
