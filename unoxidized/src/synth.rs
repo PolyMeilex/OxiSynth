@@ -330,7 +330,7 @@ impl Synth {
             //     &mut synth as *mut Self as *mut libc::c_void,
             // );
 
-            let loader = SoundFontLoader::new_fluid_defsfloader();
+            let loader = SoundFontLoader::new();
             synth.add_sfloader(loader);
 
             for i in 0..synth.settings.synth.midi_channels {

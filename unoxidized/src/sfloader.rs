@@ -291,7 +291,7 @@ unsafe fn read_unsafe<T>(fd: &mut DefaultFile, t: &mut T) -> bool {
 }
 
 impl SoundFontLoader {
-    pub fn new_fluid_defsfloader() -> Self {
+    pub fn new() -> Self {
         Self {
             filesystem: DefaultFileSystem {},
         }
