@@ -7,5 +7,9 @@ edition = "2018"
 [dependencies]
 bitflags = "^1.2"
 env_logger = "0.8.3"
+riff = "1.0.1"
 
 unoxidized={path="./unoxidized"}
+
+[[examples]]
+name="riff_sf2"
