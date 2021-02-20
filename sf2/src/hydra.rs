@@ -10,6 +10,9 @@ use bag::SFBag;
 mod preset;
 pub use preset::SFPresetHeader;
 
+mod instrument;
+pub use instrument::SFInstrumentHeader;
+
 use riff::Chunk;
 
 #[derive(Debug)]
@@ -19,6 +22,7 @@ pub struct SFHydra {
     preset_modulators: Vec<SFModulator>,
     preset_generators: Vec<SFGenerator>,
 
+    instrument_headers: Vec<SFInstrumentHeader>,
     instrument_bags: Vec<SFBag>,
     instrument_modulators: Vec<SFModulator>,
     instrument_generators: Vec<SFGenerator>,
@@ -36,6 +40,7 @@ impl SFHydra {
         let mut preset_modulators = None;
         let mut preset_generators = None;
 
+        let mut instrument_headers = None;
         let mut instrument_bags = None;
         let mut instrument_modulators = None;
         let mut instrument_generators = None;
@@ -53,7 +58,7 @@ impl SFHydra {
                 // The Preset Generator list
                 "pgen" => preset_generators = Some(SFGenerator::read_all(ch, file)),
                 // The Instrument Names and Indices
-                "inst" => {}
+                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(ch, file)),
                 // The Instrument Index list
                 "ibag" => instrument_bags = Some(SFBag::read_all(ch, file)),
                 // The Instrument Modulator list
@@ -74,6 +79,7 @@ impl SFHydra {
             preset_modulators: preset_modulators.unwrap(),
             preset_generators: preset_generators.unwrap(),
 
+            instrument_headers: instrument_headers.unwrap(),
             instrument_bags: instrument_bags.unwrap(),
             instrument_modulators: instrument_modulators.unwrap(),
             instrument_generators: instrument_generators.unwrap(),
