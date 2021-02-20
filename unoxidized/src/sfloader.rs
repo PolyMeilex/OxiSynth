@@ -2047,6 +2047,7 @@ unsafe fn load_pgen(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
                     return gerr!(ErrCorr, "Preset generator chunk size mismatch",);
                 }
                 read_unsafe(fd, &mut genid);
+                println!("{}", genid);
                 if genid as i32 == GEN_KEY_RANGE as i32 {
                     if level == 0 as i32 {
                         level = 1 as i32;

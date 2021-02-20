@@ -14,5 +14,5 @@ unoxidized={path="./unoxidized"}
 sf2={path="./sf2"}
 
 [[examples]]
-name="riff_sf2"
+name="sf2"
 

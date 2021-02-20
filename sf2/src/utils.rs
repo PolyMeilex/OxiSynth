@@ -45,7 +45,7 @@ impl Reader {
         self.curr = end;
 
         let out: [u8; 2] = self.data[start..end].try_into().unwrap();
-        u16::from_be_bytes(out)
+        u16::from_le_bytes(out)
     }
 
     pub fn read_u32(&mut self) -> u32 {
@@ -54,7 +54,7 @@ impl Reader {
         self.curr = end;
 
         let out: [u8; 4] = self.data[start..end].try_into().unwrap();
-        u32::from_be_bytes(out)
+        u32::from_le_bytes(out)
     }
 
     pub fn read_i16(&mut self) -> i16 {
@@ -63,6 +63,6 @@ impl Reader {
         self.curr = end;
 
         let out: [u8; 2] = self.data[start..end].try_into().unwrap();
-        i16::from_be_bytes(out)
+        i16::from_le_bytes(out)
     }
 }
