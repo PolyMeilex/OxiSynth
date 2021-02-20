@@ -199,7 +199,7 @@ struct SFPresetHeader {
     name: String,
     preset: u16,
     bank: u16,
-    bag_index: u16,
+    bag_id: u16,
     library: u32,
     genre: u32,
     morphology: u32,
@@ -210,7 +210,7 @@ impl SFPresetHeader {
         let name: String = reader.read_string(20);
         let preset: u16 = reader.read_u16();
         let bank: u16 = reader.read_u16();
-        let bag_index: u16 = reader.read_u16();
+        let bag_id: u16 = reader.read_u16();
 
         let library: u32 = reader.read_u32();
         let genre: u32 = reader.read_u32();
@@ -220,7 +220,7 @@ impl SFPresetHeader {
             name,
             preset,
             bank,
-            bag_index,
+            bag_id,
             library,
             genre,
             morphology,
@@ -246,18 +246,18 @@ impl SFPresetHeader {
 
 #[derive(Debug)]
 struct SFPresetBag {
-    generator_index: u16,
-    modulator_index: u16,
+    generator_id: u16,
+    modulator_id: u16,
 }
 
 impl SFPresetBag {
     fn read(reader: &mut Reader) -> Self {
-        let generator_index: u16 = reader.read_u16();
-        let modulator_index: u16 = reader.read_u16();
+        let generator_id: u16 = reader.read_u16();
+        let modulator_id: u16 = reader.read_u16();
 
         Self {
-            generator_index,
-            modulator_index,
+            generator_id,
+            modulator_id,
         }
     }
 
@@ -279,16 +279,117 @@ impl SFPresetBag {
 }
 
 #[derive(Debug)]
+struct SFModulator {
+    src: u16,
+    dest: u16,
+    amount: i16,
+    amt_src: u16,
+    transform: u16,
+}
+
+impl SFModulator {
+    fn read(reader: &mut Reader) -> Self {
+        let src: u16 = reader.read_u16();
+        let dest: u16 = reader.read_u16();
+        let amount: i16 = reader.read_i16();
+        let amt_src: u16 = reader.read_u16();
+        let transform: u16 = reader.read_u16();
+
+        Self {
+            src,
+            dest,
+            amount,
+            amt_src,
+            transform,
+        }
+    }
+
+    fn read_all(pmod: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+        assert_eq!(pmod.id().as_str(), "pmod");
+
+        let size = pmod.len();
+        if size % 10 != 0 || size == 0 {
+            panic!("Preset modulator chunk size mismatch");
+        }
+
+        let amount = size / 10;
+
+        let data = pmod.read_contents(file).unwrap();
+        let mut reader = Reader::new(data);
+
+        (0..amount).map(|_| Self::read(&mut reader)).collect()
+    }
+}
+
+// #[derive(Debug)]
+union SFGeneratorAmount {
+    sword: i16,
+    uword: u16,
+    range: SFGeneratorAmountRange,
+}
+impl std::fmt::Debug for SFGeneratorAmount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "...")
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SFGeneratorAmountRange {
+    low: u8,
+    high: u8,
+}
+
+#[derive(Debug)]
+struct SFGenerator {
+    id: u16,
+    amount: SFGeneratorAmount,
+}
+
+impl SFGenerator {
+    fn read(reader: &mut Reader) -> Self {
+        let id: u16 = reader.read_u16();
+
+        let amount = SFGeneratorAmount {
+            sword: reader.read_i16(),
+            // uword: reader.read_u16(),
+            // range: SFGeneratorAmountRange {
+            //     low: reader.read_u8(),
+            //     high: reader.read_u8(),
+            // },
+        };
+
+        Self { id, amount }
+    }
+
+    fn read_all(pmod: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+        assert_eq!(pmod.id().as_str(), "pgen");
+
+        let size = pmod.len();
+        if size % 4 != 0 || size == 0 {
+            panic!("Preset generator chunk size mismatch");
+        }
+
+        let amount = size / 4;
+
+        let data = pmod.read_contents(file).unwrap();
+        let mut reader = Reader::new(data);
+
+        (0..amount).map(|_| Self::read(&mut reader)).collect()
+    }
+}
+
+#[derive(Debug)]
 struct SFHydra {
     preset_headers: Vec<SFPresetHeader>,
     preset_bags: Vec<SFPresetBag>,
+    modulators: Vec<SFModulator>,
 }
 
 impl SFHydra {
     fn read(pdta: &Chunk, file: &mut std::fs::File) -> Self {
         // fn phdr(phdr: &Chunk, file: &mut std::fs::File) {}
         // fn pbag(pbag: &Chunk, file: &mut std::fs::File) {}
-        fn pmod(pmod: &Chunk, file: &mut std::fs::File) {}
+        // fn pmod(pmod: &Chunk, file: &mut std::fs::File) {}
         fn pgen(pgen: &Chunk, file: &mut std::fs::File) {}
 
         assert_eq!(pdta.id().as_str(), "LIST");
@@ -298,6 +399,7 @@ impl SFHydra {
 
         let mut preset_headers = None;
         let mut preset_bags = None;
+        let mut modulators = None;
 
         for ch in chunks.iter() {
             let id = ch.id();
@@ -309,11 +411,9 @@ impl SFHydra {
                 "pbag" => {
                     preset_bags = Some(SFPresetBag::read_all(ch, file));
                 }
-                "pmod" => {
-                    pmod(ch, file);
-                }
+                "pmod" => modulators = Some(SFModulator::read_all(ch, file)),
                 "pgen" => {
-                    pgen(ch, file);
+                    Some(SFGenerator::read_all(ch, file));
                 }
                 _ => {}
             }
@@ -322,6 +422,7 @@ impl SFHydra {
         Self {
             preset_headers: preset_headers.unwrap(),
             preset_bags: preset_bags.unwrap(),
+            modulators: modulators.unwrap(),
         }
     }
 }
