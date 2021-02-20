@@ -1857,8 +1857,6 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         read_unsafe(fd, &mut (*p).genre);
         read_unsafe(fd, &mut (*p).morph);
 
-        println!("===== {:?} =====", (*p).morph);
-
         if !pr.is_null() {
             if (zndx as i32) < pzndx as i32 {
                 return gerr!(ErrCorr, "Preset header indices not monotonic",);

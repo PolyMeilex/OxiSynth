@@ -1,4 +1,4 @@
-use riff::{Chunk, ChunkId};
+use riff::Chunk;
 
 mod reader;
 use reader::Reader;
@@ -40,10 +40,8 @@ struct SFInfo {
 
 impl SFInfo {
     fn read(info: &Chunk, file: &mut std::fs::File) -> SFInfo {
-        let id = info.id();
-        assert_eq!(id.as_str(), "LIST");
-        let ty = info.read_type(file).unwrap();
-        assert_eq!(ty.as_str(), "INFO");
+        assert_eq!(info.id().as_str(), "LIST");
+        assert_eq!(info.read_type(file).unwrap().as_str(), "INFO");
 
         let children: Vec<Chunk> = info.iter(file).collect();
 
@@ -168,10 +166,8 @@ struct SFSampleData {
 
 impl SFSampleData {
     fn read(sdta: &Chunk, file: &mut std::fs::File) -> Self {
-        let id = sdta.id();
-        assert_eq!(id.as_str(), "LIST");
-        let ty = sdta.read_type(file).unwrap();
-        assert_eq!(ty.as_str(), "sdta");
+        assert_eq!(sdta.id().as_str(), "LIST");
+        assert_eq!(sdta.read_type(file).unwrap().as_str(), "sdta");
 
         let mut smpl = None;
         let mut sm24 = None;
@@ -188,8 +184,8 @@ impl SFSampleData {
                 "sm23" => {
                     sm24 = Some(ch);
                 }
-                other => {
-                    panic!("Unexpected: {} in sdta", other);
+                unknown => {
+                    panic!("Unexpected: {} in sdta", unknown);
                 }
             }
         }
@@ -198,130 +194,185 @@ impl SFSampleData {
     }
 }
 
-fn pdta(pdta: &Chunk, file: &mut std::fs::File) -> () {
-    fn phdr(phdr: &Chunk, file: &mut std::fs::File) {
+#[derive(Debug)]
+struct SFPresetHeader {
+    name: String,
+    preset: u16,
+    bank: u16,
+    bag_index: u16,
+    library: u32,
+    genre: u32,
+    morphology: u32,
+}
+
+impl SFPresetHeader {
+    fn read(reader: &mut Reader) -> Self {
+        let name: String = reader.read_string(20);
+        let preset: u16 = reader.read_u16();
+        let bank: u16 = reader.read_u16();
+        let bag_index: u16 = reader.read_u16();
+
+        let library: u32 = reader.read_u32();
+        let genre: u32 = reader.read_u32();
+        let morphology: u32 = reader.read_u32();
+
+        Self {
+            name,
+            preset,
+            bank,
+            bag_index,
+            library,
+            genre,
+            morphology,
+        }
+    }
+
+    fn read_all(phdr: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+        assert_eq!(phdr.id().as_str(), "phdr");
+
         let size = phdr.len();
         if size % 38 != 0 || size == 0 {
             panic!("Preset header chunk size is invalid");
         }
 
         let amount = size / 38;
-        println!("amount: {}", amount);
 
         let data = phdr.read_contents(file).unwrap();
-        let mut parser = Reader::new(data);
+        let mut reader = Reader::new(data);
 
-        for _ in 0..amount {
-            let name: String = parser.read_string(20);
-            let preset: u16 = parser.read_u16();
-            let bank: u16 = parser.read_u16();
-            let bag: u16 = parser.read_u16();
+        (0..amount).map(|_| Self::read(&mut reader)).collect()
+    }
+}
 
-            let liblary: u32 = parser.read_u32();
-            let genre: u32 = parser.read_u32();
-            let morphology: u32 = parser.read_u32();
+#[derive(Debug)]
+struct SFPresetBag {
+    generator_index: u16,
+    modulator_index: u16,
+}
 
-            // let preset = SFPreset {
-            //     name,
-            //     prenum: preset,
-            //     bank,
-            //     bag,
-            //     libr: liblary,
-            //     genre,
-            //     morph: morphology,
-            // };
+impl SFPresetBag {
+    fn read(reader: &mut Reader) -> Self {
+        let generator_index: u16 = reader.read_u16();
+        let modulator_index: u16 = reader.read_u16();
 
-            // println!("{:#?}", preset);
+        Self {
+            generator_index,
+            modulator_index,
         }
     }
-    fn pbag(pbag: &Chunk, file: &mut std::fs::File) {}
-    fn pmod(pmod: &Chunk, file: &mut std::fs::File) {}
-    fn pgen(pgen: &Chunk, file: &mut std::fs::File) {}
 
-    let id = pdta.id();
-    assert_eq!(id.as_str(), "LIST");
-    let ty = pdta.read_type(file).unwrap();
-    assert_eq!(ty.as_str(), "pdta");
+    fn read_all(pbag: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+        assert_eq!(pbag.id().as_str(), "pbag");
 
-    let chunks: Vec<_> = pdta.iter(file).collect();
-    for ch in chunks.iter() {
-        let id = ch.id();
-        // let ty = ch.read_type(file);
-        println!("{:?}", id);
+        let size = pbag.len();
+        if size % 4 != 0 || size == 0 {
+            panic!("Preset bag chunk size is invalid");
+        }
 
-        match id.as_str() {
-            "phdr" => {
-                phdr(ch, file);
+        let amount = size / 4;
+
+        let data = pbag.read_contents(file).unwrap();
+        let mut reader = Reader::new(data);
+
+        (0..amount).map(|_| Self::read(&mut reader)).collect()
+    }
+}
+
+#[derive(Debug)]
+struct SFHydra {
+    preset_headers: Vec<SFPresetHeader>,
+    preset_bags: Vec<SFPresetBag>,
+}
+
+impl SFHydra {
+    fn read(pdta: &Chunk, file: &mut std::fs::File) -> Self {
+        // fn phdr(phdr: &Chunk, file: &mut std::fs::File) {}
+        // fn pbag(pbag: &Chunk, file: &mut std::fs::File) {}
+        fn pmod(pmod: &Chunk, file: &mut std::fs::File) {}
+        fn pgen(pgen: &Chunk, file: &mut std::fs::File) {}
+
+        assert_eq!(pdta.id().as_str(), "LIST");
+        assert_eq!(pdta.read_type(file).unwrap().as_str(), "pdta");
+
+        let chunks: Vec<_> = pdta.iter(file).collect();
+
+        let mut preset_headers = None;
+        let mut preset_bags = None;
+
+        for ch in chunks.iter() {
+            let id = ch.id();
+
+            match id.as_str() {
+                "phdr" => {
+                    preset_headers = Some(SFPresetHeader::read_all(ch, file));
+                }
+                "pbag" => {
+                    preset_bags = Some(SFPresetBag::read_all(ch, file));
+                }
+                "pmod" => {
+                    pmod(ch, file);
+                }
+                "pgen" => {
+                    pgen(ch, file);
+                }
+                _ => {}
             }
-            "pbag" => {
-                pbag(ch, file);
-            }
-            "pmod" => {
-                pmod(ch, file);
-            }
-            "pgen" => {
-                pgen(ch, file);
-            }
-            _ => {}
+        }
+
+        Self {
+            preset_headers: preset_headers.unwrap(),
+            preset_bags: preset_bags.unwrap(),
         }
     }
+}
+
+#[derive(Debug)]
+struct SFFile {
+    info: SFInfo,
+    sample_data: SFSampleData,
+    hydra: SFHydra,
 }
 
 pub fn main() {
     let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
 
-    let chunk = riff::Chunk::read(&mut file, 0).unwrap();
+    let sfbk = riff::Chunk::read(&mut file, 0).unwrap();
+    assert_eq!(sfbk.id().as_str(), "RIFF");
+    assert_eq!(sfbk.read_type(&mut file).unwrap().as_str(), "sfbk");
 
-    // root
-    let chunks: Vec<_> = chunk.iter(&mut file).collect();
+    let chunks: Vec<_> = sfbk.iter(&mut file).collect();
 
-    // for ch in chunks.iter() {
-    //     let ty = ch.read_type(&mut file).unwrap();
+    let mut info = None;
+    let mut sample_data = None;
+    let mut hydra = None;
 
-    //     println!("{:?}", ty);
-    // }
+    for ch in chunks.iter() {
+        assert_eq!(ch.id().as_str(), "LIST");
+        let ty = ch.read_type(&mut file).unwrap();
 
-    // let root = Root { info };
+        match ty.as_str() {
+            "INFO" => {
+                info = Some(SFInfo::read(ch, &mut file));
+            }
+            "sdta" => {
+                sample_data = Some(SFSampleData::read(ch, &mut file));
+            }
+            "pdta" => {
+                hydra = Some(SFHydra::read(ch, &mut file));
+            }
+            unknown => {
+                panic!("Unexpected: {} in sfbk", unknown);
+            }
+        }
+    }
 
-    let info = SFInfo::read(&chunks[0], &mut file);
+    let sf_file = SFFile {
+        info: info.unwrap(),
+        sample_data: sample_data.unwrap(),
+        hydra: hydra.unwrap(),
+    };
 
-    println!("{:#?}", info);
-
-    let sdta = SFSampleData::read(&chunks[1], &mut file);
-
-    println!("{:#?}", sdta);
-
-    // let (samplepos, samplesize) = sdta(&chunks[1], &mut file);
-    // let () = pdta(&chunks[2], &mut file);
-
-    // let data = SFData {
-    //     version,
-    //     romver,
-
-    //     samplepos,
-    //     samplesize,
-
-    //     ..Default::default()
-    // };
-
-    // println!("{:#?}", data);
-
-    // for chunk in chunks.iter() {
-    //     let ch_type = chunk.read_type(&mut file).unwrap();
-    //     println!("{:#?}", ch_type);
-    // }
-
-    // let info = &chunks[0];
-
-    // let info_vec: Vec<_> = info.iter(&mut file).collect();
-    // println!("{:#?}", info_vec);
-    // let name_raw = info_vec[2].read_contents(&mut file).unwrap();
-
-    // let name = unsafe { std::ffi::CStr::from_ptr(name_raw.as_ptr() as _) };
-    // let name = name.to_str().unwrap();
-    // let name = name.to_owned();
-
-    // println!("{:#?}", name);
+    println!("{:#?}", sf_file);
 }
 
 mod unox {
