@@ -1,4 +1,3 @@
-use crate::fileapi::DefaultFileSystem;
 use crate::sfloader::DefaultPreset;
 use crate::sfloader::DefaultSoundFont;
 
@@ -6,9 +5,8 @@ use super::synth::Synth;
 
 pub struct SoundFontLoader {
     // pub data: *mut libc::c_void,
-    // pub free: Option<unsafe fn(_: *mut SoundFontLoader) -> i32>,
-    // pub load: Option<unsafe fn(_: *mut SoundFontLoader, _: &[u8]) -> Option<SoundFont>>,
-    pub filesystem: DefaultFileSystem,
+// pub free: Option<unsafe fn(_: *mut SoundFontLoader) -> i32>,
+// pub load: Option<unsafe fn(_: *mut SoundFontLoader, _: &[u8]) -> Option<SoundFont>>,
 }
 
 #[derive(Copy, Clone)]

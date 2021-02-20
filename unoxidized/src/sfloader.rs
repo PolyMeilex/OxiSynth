@@ -1,4 +1,5 @@
-use crate::fileapi::{DefaultFile, DefaultFileSystem};
+mod fileapi;
+use fileapi::{DefaultFile, DefaultFileSystem};
 
 use super::gen::fluid_gen_set_default_values;
 use super::gen::Gen;
@@ -191,7 +192,7 @@ struct SFSample {
     loopend: u32,
     samplerate: u32,
     origpitch: u8,
-    pitchadj: libc::c_schar,
+    pitchadj: i8,
     sampletype: u16,
 }
 const GEN_SET: GenFlags = 1;
@@ -292,9 +293,7 @@ unsafe fn read_unsafe<T>(fd: &mut DefaultFile, t: &mut T) -> bool {
 
 impl SoundFontLoader {
     pub fn new() -> Self {
-        Self {
-            filesystem: DefaultFileSystem {},
-        }
+        Self {}
     }
 
     pub unsafe fn load(&mut self, filename: String) -> Option<SoundFont> {
@@ -309,7 +308,7 @@ impl SoundFontLoader {
         };
 
         defsfont
-            .load(filename, &mut self.filesystem)
+            .load(filename, &mut DefaultFileSystem {})
             .ok()
             .map(|_| SoundFont {
                 data: defsfont,
@@ -613,14 +612,6 @@ static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = N
 
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: String, fapi: &mut DefaultFileSystem) -> Result<(), ()> {
-        unsafe fn fluid_defsfont_add_sample(
-            sfont: *mut DefaultSoundFont,
-            sample: *mut Sample,
-        ) -> i32 {
-            (*sfont).sample.push(sample);
-            return FLUID_OK as i32;
-        }
-
         unsafe fn fluid_defsfont_add_preset(
             mut sfont: *mut DefaultSoundFont,
             mut preset: *mut DefaultPreset,
@@ -754,7 +745,9 @@ impl DefaultSoundFont {
                 sfont_close(sfdata);
                 return Err(());
             }
-            fluid_defsfont_add_sample(self, sample);
+
+            self.sample.push(sample);
+
             fluid_voice_optimize_sample(sample);
         }
         for sfpreset in (*sfdata).preset.iter() {
@@ -1421,14 +1414,12 @@ unsafe fn sfload_file(fname: String, fapi: &mut DefaultFileSystem) -> *mut SFDat
     let mut sf: *mut SFData;
     let mut fd;
     let fsize: i32;
+
+    {}
+
     fd = match fapi.open(Path::new(&fname)) {
         None => {
-            log::error!(
-                "Unable to open file \"{}\"",
-                CStr::from_ptr(fname.as_ptr() as *const i8)
-                    .to_str()
-                    .unwrap()
-            );
+            log::error!("Unable to open file '{}'", fname);
             return 0 as *mut SFData;
         }
         Some(file) => file,
@@ -1477,6 +1468,7 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         log::error!("Not a RIFF file",);
         return 0 as i32;
     }
+
     if !read_unsafe(fd, &mut chunk.id) {
         return 0;
     }
@@ -1491,12 +1483,16 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     if read_listchunk(&mut chunk, fd) == 0 {
         return 0 as i32;
     }
+
+    /* Process INFO block */
     if chunkid(chunk.id) != INFO_ID as i32 {
         return gerr!(ErrCorr, "Invalid ID found when expecting INFO chunk",);
     }
     if process_info(chunk.size as i32, sf, fd) == 0 {
         return 0 as i32;
     }
+
+    /* Process sample chunk */
     if read_listchunk(&mut chunk, fd) == 0 {
         return 0 as i32;
     }
@@ -1506,6 +1502,8 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     if process_sdta(chunk.size as i32, sf, fd) == 0 {
         return 0 as i32;
     }
+
+    /* process HYDRA chunk */
     if read_listchunk(&mut chunk, fd) == 0 {
         return 0 as i32;
     }
@@ -1515,6 +1513,7 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     if process_pdta(chunk.size as i32, sf, fd) == 0 {
         return 0 as i32;
     }
+
     if fixup_pgen(sf) == 0 {
         return 0 as i32;
     }
@@ -1524,6 +1523,7 @@ unsafe fn load_body(size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
     if fixup_sample(sf) == 0 {
         return 0 as i32;
     }
+
     (*sf).preset.sort_by(|a, b| {
         let cmp = sfont_preset_compare_func(*a as *mut libc::c_void, *b as *mut libc::c_void);
         if cmp < 0 {
@@ -1706,6 +1706,7 @@ unsafe fn process_pdta(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> 
     {
         return 0 as i32;
     }
+    //
     if load_phdr(chunk.size as i32, sf, fd) == 0 {
         return 0 as i32;
     }
@@ -1855,6 +1856,9 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         read_unsafe(fd, &mut (*p).libr);
         read_unsafe(fd, &mut (*p).genre);
         read_unsafe(fd, &mut (*p).morph);
+
+        println!("===== {:?} =====", (*p).morph);
+
         if !pr.is_null() {
             if (zndx as i32) < pzndx as i32 {
                 return gerr!(ErrCorr, "Preset header indices not monotonic",);

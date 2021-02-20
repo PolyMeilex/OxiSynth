@@ -6,7 +6,7 @@ use std::{
 pub struct DefaultFileSystem;
 
 pub struct DefaultFile {
-    file: std::fs::File,
+    pub file: std::fs::File,
 }
 
 impl DefaultFile {

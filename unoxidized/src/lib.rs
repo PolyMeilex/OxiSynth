@@ -23,5 +23,3 @@ pub mod soundfont;
 pub mod synth;
 pub mod tuning;
 pub mod voice;
-
-pub mod fileapi;
