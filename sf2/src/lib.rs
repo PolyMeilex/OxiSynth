@@ -50,10 +50,13 @@ pub fn main() {
         }
     }
 
+    let mut hydra = hydra.unwrap();
+    hydra.pop_terminators();
+
     let sf_file = SFFile {
         info: info.unwrap(),
         sample_data: sample_data.unwrap(),
-        hydra: hydra.unwrap(),
+        hydra,
     };
 
     println!("{:#?}", sf_file);

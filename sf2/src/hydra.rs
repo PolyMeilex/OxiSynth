@@ -29,8 +29,8 @@ pub struct SFHydra {
     instrument_bags: Vec<SFBag>,
     instrument_modulators: Vec<SFModulator>,
     instrument_generators: Vec<SFGenerator>,
-    
-    samples: Vec<SFSample>
+
+    samples: Vec<SFSample>,
 }
 
 impl SFHydra {
@@ -49,7 +49,6 @@ impl SFHydra {
         let mut instrument_bags = None;
         let mut instrument_modulators = None;
         let mut instrument_generators = None;
-        
         let mut samples = None;
 
         for ch in chunks.iter() {
@@ -90,8 +89,21 @@ impl SFHydra {
             instrument_bags: instrument_bags.unwrap(),
             instrument_modulators: instrument_modulators.unwrap(),
             instrument_generators: instrument_generators.unwrap(),
-            
-            samples: samples.unwrap()
+
+            samples: samples.unwrap(),
         }
+    }
+
+    pub fn pop_terminators(&mut self) {
+        self.preset_headers.pop().unwrap();
+        self.preset_bags.pop().unwrap();
+        self.preset_modulators.pop().unwrap();
+        self.preset_generators.pop().unwrap();
+
+        self.instrument_headers.pop().unwrap();
+        self.instrument_bags.pop().unwrap();
+        self.instrument_modulators.pop().unwrap();
+        self.instrument_generators.pop().unwrap();
+        self.samples.pop().unwrap();
     }
 }
