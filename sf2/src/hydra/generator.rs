@@ -61,7 +61,7 @@ impl SFGenerator {
     }
 
     pub fn read_all(pmod: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
-        assert_eq!(pmod.id().as_str(), "pgen");
+        assert!(pmod.id().as_str() == "pgen" || pmod.id().as_str() == "igen");
 
         let size = pmod.len();
         if size % 4 != 0 || size == 0 {

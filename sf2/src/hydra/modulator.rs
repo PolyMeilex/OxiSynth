@@ -28,7 +28,7 @@ impl SFModulator {
     }
 
     pub fn read_all(pmod: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
-        assert_eq!(pmod.id().as_str(), "pmod");
+        assert!(pmod.id().as_str() == "pmod" || pmod.id().as_str() == "imod");
 
         let size = pmod.len();
         if size % 10 != 0 || size == 0 {
