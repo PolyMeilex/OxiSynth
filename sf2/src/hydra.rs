@@ -13,6 +13,9 @@ pub use preset::SFPresetHeader;
 mod instrument;
 pub use instrument::SFInstrumentHeader;
 
+mod sample;
+use sample::SFSample;
+
 use riff::Chunk;
 
 #[derive(Debug)]
@@ -26,6 +29,8 @@ pub struct SFHydra {
     instrument_bags: Vec<SFBag>,
     instrument_modulators: Vec<SFModulator>,
     instrument_generators: Vec<SFGenerator>,
+    
+    samples: Vec<SFSample>
 }
 
 impl SFHydra {
@@ -44,6 +49,8 @@ impl SFHydra {
         let mut instrument_bags = None;
         let mut instrument_modulators = None;
         let mut instrument_generators = None;
+        
+        let mut samples = None;
 
         for ch in chunks.iter() {
             let id = ch.id();
@@ -66,7 +73,7 @@ impl SFHydra {
                 // The Instrument Generator list
                 "igen" => instrument_generators = Some(SFGenerator::read_all(ch, file)),
                 // The Sample Headers
-                "shdr" => {}
+                "shdr" => samples = Some(SFSample::read_all(ch, file)),
                 unknown => {
                     panic!("Unexpected: {} in hydra", unknown);
                 }
@@ -83,6 +90,8 @@ impl SFHydra {
             instrument_bags: instrument_bags.unwrap(),
             instrument_modulators: instrument_modulators.unwrap(),
             instrument_generators: instrument_generators.unwrap(),
+            
+            samples: samples.unwrap()
         }
     }
 }
