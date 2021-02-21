@@ -52,6 +52,7 @@ pub fn main() {
 
     let mut hydra = hydra.unwrap();
     hydra.pop_terminators();
+    // hydra.test();
 
     let sf_file = SFFile {
         info: info.unwrap(),

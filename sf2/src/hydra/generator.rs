@@ -9,9 +9,9 @@ pub enum SFGeneratorAmount {
 }
 
 pub union SFGeneratorAmountUnion {
-    sword: i16,
-    uword: u16,
-    range: SFGeneratorAmountRange,
+    pub sword: i16,
+    pub uword: u16,
+    pub range: SFGeneratorAmountRange,
 }
 
 impl SFGeneratorAmount {

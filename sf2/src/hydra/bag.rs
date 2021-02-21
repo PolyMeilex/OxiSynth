@@ -3,8 +3,8 @@ use riff::Chunk;
 
 #[derive(Debug)]
 pub struct SFBag {
-    generator_id: u16,
-    modulator_id: u16,
+    pub generator_id: u16,
+    pub modulator_id: u16,
 }
 
 impl SFBag {
