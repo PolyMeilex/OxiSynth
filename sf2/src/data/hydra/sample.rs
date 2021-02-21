@@ -1,4 +1,4 @@
-use crate::Reader;
+use super::super::utils::Reader;
 use riff::Chunk;
 
 #[derive(Default, Debug)]

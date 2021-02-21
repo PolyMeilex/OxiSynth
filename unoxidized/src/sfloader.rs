@@ -1851,6 +1851,7 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
 
             let name_cstr = CStr::from_ptr(name.as_ptr() as _).to_owned();
             let name_str = name_cstr.to_str().unwrap();
+
             (*p).name = name_str.to_owned();
         });
         read_unsafe(fd, &mut (*p).prenum);
@@ -1873,7 +1874,6 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
                 }
                 (*pr).zone.insert(0, 0 as _);
             }
-            println!("======= {}", (*pr).zone.len());
         } else if zndx as i32 > 0 as i32 {
             log::warn!("{} preset zones not referenced, discarding", zndx);
         }
@@ -2523,6 +2523,12 @@ unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
                 return 0;
             }
             (*p).name[20] = 0;
+
+            let s = CStr::from_ptr((*p).name.as_ptr() as *const i8)
+                .to_str()
+                .unwrap();
+
+            println!("{:?}", s);
         });
         read_unsafe(fd, &mut (*p).start);
         read_unsafe(fd, &mut (*p).end);

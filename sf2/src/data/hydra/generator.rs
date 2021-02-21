@@ -1,4 +1,4 @@
-use crate::Reader;
+use super::super::utils::Reader;
 use riff::Chunk;
 
 #[derive(Debug, Clone)]
@@ -22,18 +22,42 @@ impl SFGeneratorAmount {
             SFGeneratorAmount::Range(range) => SFGeneratorAmountUnion { range },
         }
     }
+
+    pub fn as_i16(&self) -> Option<&i16> {
+        if let Self::I16(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_u16(&self) -> Option<&u16> {
+        if let Self::U16(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_range(&self) -> Option<&SFGeneratorAmountRange> {
+        if let Self::Range(r) = self {
+            Some(r)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct SFGeneratorAmountRange {
-    low: u8,
-    high: u8,
+    pub low: u8,
+    pub high: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SFGenerator {
-    ty: SFGeneratorType,
-    amount: SFGeneratorAmount,
+    pub ty: SFGeneratorType,
+    pub amount: SFGeneratorAmount,
 }
 
 impl SFGenerator {
@@ -77,7 +101,7 @@ impl SFGenerator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 #[repr(u16)]
 pub enum SFGeneratorType {
     StartAddrsOffset,

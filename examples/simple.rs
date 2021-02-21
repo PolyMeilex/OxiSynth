@@ -14,7 +14,7 @@ fn synth_sf2() {
 
     let mut synth = fluid::Synth::new(settings).unwrap();
 
-    synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
+    synth.sfload("./testdata/test.sf2", true).unwrap();
 
     let mut samples = [0f32; 44100 / 4];
 

@@ -1,7 +1,7 @@
-use crate::Reader;
+use super::super::utils::Reader;
 use riff::Chunk;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SFPresetHeader {
     /// The name of the preset
     pub name: String,
