@@ -1,167 +1,224 @@
-mod utils;
-use utils::Reader;
+mod data;
 
-mod info;
-use info::SFInfo;
-
-mod sample_data;
-use sample_data::SFSampleData;
-
-mod hydra;
-use hydra::SFHydra;
-
-#[derive(Debug)]
-struct SFFile {
-    info: SFInfo,
-    sample_data: SFSampleData,
-    hydra: SFHydra,
-}
+use data::{
+    SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInstrumentHeader,
+    SFModulator, SFPresetHeader,
+};
 
 pub fn main() {
-    let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+    let mut file = std::fs::File::open("./testdata/test.sf2").unwrap();
 
-    let sfbk = riff::Chunk::read(&mut file, 0).unwrap();
-    assert_eq!(sfbk.id().as_str(), "RIFF");
-    assert_eq!(sfbk.read_type(&mut file).unwrap().as_str(), "sfbk");
+    let data = SFData::load(&mut file);
+    let sf2 = SoundFont2::from_data(data);
 
-    let chunks: Vec<_> = sfbk.iter(&mut file).collect();
-
-    let mut info = None;
-    let mut sample_data = None;
-    let mut hydra = None;
-
-    for ch in chunks.iter() {
-        assert_eq!(ch.id().as_str(), "LIST");
-        let ty = ch.read_type(&mut file).unwrap();
-
-        match ty.as_str() {
-            "INFO" => {
-                info = Some(SFInfo::read(ch, &mut file));
-            }
-            "sdta" => {
-                sample_data = Some(SFSampleData::read(ch, &mut file));
-            }
-            "pdta" => {
-                hydra = Some(SFHydra::read(ch, &mut file));
-            }
-            unknown => {
-                panic!("Unexpected: {} in sfbk", unknown);
-            }
-        }
+    for p in sf2.presets.iter() {
+        println!("====== Preset =======");
+        println!("Name: {}", p.header.name);
+        let instruments: Vec<_> = p
+            .zones
+            .iter()
+            .map(|z| {
+                let id = z.instrument().unwrap();
+                let instrument = &sf2.instruments[*id as usize];
+                instrument.header.name.clone()
+            })
+            .collect();
+        println!("Instruments: {:?}", instruments);
+        println!("");
     }
-
-    let mut hydra = hydra.unwrap();
-    hydra.pop_terminators();
-    // hydra.test();
-
-    let sf_file = SFFile {
-        info: info.unwrap(),
-        sample_data: sample_data.unwrap(),
-        hydra,
-    };
-
-    println!("{:#?}", sf_file);
 }
 
-mod unox {
-    // #[derive(Default, Debug)]
-    // struct SFData {
-    //     version: SFVersion,
-    //     romver: SFVersion,
-    //     samplepos: u32,
-    //     samplesize: u64,
-    //     fname: Vec<u8>,
-    //     sffd: Option<std::fs::File>,
-    //     info: Vec<Vec<u8>>,
-    //     preset: Vec<*mut SFPreset>,
-    //     inst: Vec<*mut SFInst>,
-    //     sample: Vec<*mut SFSample>,
-    // }
+#[derive(Debug)]
+pub struct Preset {
+    header: SFPresetHeader,
+    zones: Vec<Zone>,
+}
 
-    // #[repr(C)]
-    // #[derive(Default, Debug)]
-    // struct SFVersion {
-    //     major: u16,
-    //     minor: u16,
-    // }
+#[derive(Debug)]
+pub struct Instrument {
+    header: SFInstrumentHeader,
+    zones: Vec<Zone>,
+}
 
-    // #[derive(Default)]
-    // struct SFInst {
-    //     name: [u8; 21],
-    //     zone: Vec<*mut SFZone>,
-    // }
+#[derive(Debug)]
+pub struct SoundFont2 {
+    presets: Vec<Preset>,
+    instruments: Vec<Instrument>,
+}
 
-    // enum InstSamp {
-    //     Inst(*mut SFInst),
-    //     Sample(*mut SFSample),
-    //     Int(i32),
-    //     None,
-    // }
+impl SoundFont2 {
+    fn from_data(data: SFData) -> Self {
+        fn get_zones(
+            zones: &[SFBag],
+            modulators: &[SFModulator],
+            generators: &[SFGenerator],
+            start: usize,
+            end: usize,
+        ) -> Vec<Zone> {
+            let mut zone_items = Vec::new();
+            let mut j = start;
+            while j < end {
+                let curr = zones.get(j).unwrap();
+                let next = zones.get(j + 1);
 
-    // struct SFZone {
-    //     instsamp: InstSamp,
-    //     gen: Vec<*mut SFGen>,
-    //     mod_0: Vec<*mut SFMod>,
-    // }
+                let start = curr.generator_id as usize;
 
-    // #[derive(Default, Debug)]
-    // struct SFPreset {
-    //     /// [u8;21]
-    //     name: String,
-    //     prenum: u16,
-    //     bank: u16,
-    //     bag: u16,
-    //     libr: u32,
-    //     genre: u32,
-    //     morph: u32,
-    //     // zone: Vec<*mut SFZone>,
-    // }
+                let end = if let Some(next) = next {
+                    next.generator_id as usize
+                } else {
+                    zones.len()
+                };
 
-    // #[derive(Default)]
-    // struct SFMod {
-    //     src: u16,
-    //     dest: u16,
-    //     amount: i16,
-    //     amtsrc: u16,
-    //     trans: u16,
-    // }
+                let mod_list = {
+                    let mut list = Vec::new();
 
-    // #[derive(Default)]
-    // struct SFSample {
-    //     name: [u8; 21],
-    //     samfile: u8,
-    //     start: u32,
-    //     end: u32,
-    //     loopstart: u32,
-    //     loopend: u32,
-    //     samplerate: u32,
-    //     origpitch: u8,
-    //     pitchadj: i8,
-    //     sampletype: u16,
-    // }
+                    let mut i = start;
+                    while i < end {
+                        let item = modulators.get(i);
+                        if let Some(item) = item {
+                            list.push(item.to_owned());
+                        }
+                        i += 1;
+                    }
+                    list
+                };
 
-    // #[derive(Default)]
-    // struct SFGen {
-    //     id: u16,
-    //     amount: SFGenAmount,
-    // }
+                let gen_list = {
+                    let mut list = Vec::new();
 
-    // #[derive(Default)]
-    // struct SFGenAmount {
-    //     sword: i16,
-    //     uword: u16,
-    //     range: SFGenAmountRange,
-    // }
+                    let mut i = start;
+                    while i < end {
+                        let item = generators.get(i);
+                        if let Some(item) = item {
+                            list.push(item.to_owned());
+                        }
+                        i += 1;
+                    }
+                    list
+                };
 
-    // #[derive(Default)]
-    // struct SFGenAmountRange {
-    //     lo: u8,
-    //     hi: u8,
-    // }
+                zone_items.push(Zone { mod_list, gen_list });
 
-    // #[derive(Default)]
-    // struct SFChunk {
-    //     id: u32,
-    //     size: u32,
-    // }
+                j += 1
+            }
+            zone_items
+        }
+
+        let instruments = {
+            let headers = &data.hydra.instrument_headers;
+            let zones = &data.hydra.instrument_bags;
+            let modulators = &data.hydra.instrument_modulators;
+            let generators = &data.hydra.instrument_generators;
+
+            let iter = headers.iter();
+            let mut iter_peek = headers.iter();
+            iter_peek.next();
+
+            let mut list = Vec::new();
+            for header in iter {
+                let curr = header;
+                let next = iter_peek.next();
+
+                let start = curr.bag_id as usize;
+
+                let end = if let Some(next) = next {
+                    next.bag_id as usize
+                } else {
+                    zones.len()
+                };
+
+                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+                let zone_items: Vec<_> = zone_items
+                    .into_iter()
+                    .filter(|zone| {
+                        zone.gen_list
+                            .iter()
+                            .find(|g| g.ty == SFGeneratorType::SampleID)
+                            .is_some()
+                    })
+                    .collect();
+
+                list.push(Instrument {
+                    header: header.clone(),
+                    zones: zone_items,
+                })
+            }
+            list
+        };
+
+        let presets = {
+            let headers = &data.hydra.preset_headers;
+            let zones = &data.hydra.preset_bags;
+            let modulators = &data.hydra.preset_modulators;
+            let generators = &data.hydra.preset_generators;
+
+            let iter = headers.iter();
+            let mut iter_peek = headers.iter();
+            iter_peek.next();
+
+            let mut list = Vec::new();
+            for header in iter {
+                let curr = header;
+                let next = iter_peek.next();
+
+                let start = curr.bag_id as usize;
+
+                let end = if let Some(next) = next {
+                    next.bag_id as usize
+                } else {
+                    zones.len()
+                };
+
+                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+
+                let zone_items: Vec<_> = zone_items
+                    .into_iter()
+                    .filter(|zone| {
+                        zone.gen_list
+                            .iter()
+                            .find(|g| g.ty == SFGeneratorType::Instrument)
+                            .is_some()
+                    })
+                    .collect();
+
+                list.push(Preset {
+                    header: header.clone(),
+                    zones: zone_items,
+                })
+            }
+            list
+        };
+
+        Self {
+            presets,
+            instruments,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Zone {
+    mod_list: Vec<SFModulator>,
+    gen_list: Vec<SFGenerator>,
+}
+
+impl Zone {
+    fn key_range(&self) -> Option<&i16> {
+        self.gen_list
+            .iter()
+            .find(|g| g.ty == SFGeneratorType::KeyRange)
+            .map(|g| g.amount.as_i16().unwrap())
+    }
+    fn vel_range(&self) -> Option<&SFGeneratorAmountRange> {
+        self.gen_list
+            .iter()
+            .find(|g| g.ty == SFGeneratorType::VelRange)
+            .map(|g| g.amount.as_range().unwrap())
+    }
+    fn instrument(&self) -> Option<&u16> {
+        self.gen_list
+            .iter()
+            .find(|g| g.ty == SFGeneratorType::Instrument)
+            .map(|g| g.amount.as_u16().unwrap())
+    }
 }

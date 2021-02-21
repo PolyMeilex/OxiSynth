@@ -712,7 +712,8 @@ impl DefaultSoundFont {
             }
             (*preset).next = 0 as *mut DefaultPreset;
             (*preset).sfont = sfont;
-            (*preset).name = String::new();
+            // TODO: bring this back
+            // (*preset).name = String::new();
             (*preset).bank = 0 as i32 as u32;
             (*preset).num = 0 as i32 as u32;
             (*preset).global_zone = 0 as *mut PresetZone;
@@ -820,18 +821,20 @@ unsafe fn fluid_defpreset_import_sfont(
     let mut zone: *mut PresetZone;
     let mut count: i32;
     let mut zone_name: [u8; 256] = [0; 256];
-    if (*sfpreset).name.len() != 0 {
-        (*preset).name = (*sfpreset).name.clone();
-    } else {
-        (*preset).name = format!("Bank:{},Preset{}", (*sfpreset).bank, (*sfpreset).prenum);
-    }
+    // TODO: Bring this back
+    // if (*sfpreset).name.len() != 0 {
+    //     (*preset).name = (*sfpreset).name.clone();
+    // } else {
+    //     (*preset).name = format!("Bank:{},Preset{}", (*sfpreset).bank, (*sfpreset).prenum);
+    // }
     (*preset).bank = (*sfpreset).bank as u32;
     (*preset).num = (*sfpreset).prenum as u32;
     count = 0 as i32;
     for sfzone in (*sfpreset).zone.iter() {
         libc::strcpy(
             zone_name.as_mut_ptr() as _,
-            CString::new(format!("{}/{}", (*preset).name, count,))
+            // TODO: Bring name back
+            CString::new(format!("{}/{}", "", count,))
                 .unwrap()
                 .as_c_str()
                 .as_ptr(),
@@ -1848,6 +1851,7 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
 
             let name_cstr = CStr::from_ptr(name.as_ptr() as _).to_owned();
             let name_str = name_cstr.to_str().unwrap();
+
             (*p).name = name_str.to_owned();
         });
         read_unsafe(fd, &mut (*p).prenum);
@@ -2520,6 +2524,12 @@ unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
                 return 0;
             }
             (*p).name[20] = 0;
+
+            let s = CStr::from_ptr((*p).name.as_ptr() as *const i8)
+                .to_str()
+                .unwrap();
+
+            println!("{:?}", s);
         });
         read_unsafe(fd, &mut (*p).start);
         read_unsafe(fd, &mut (*p).end);

@@ -1,36 +1,36 @@
-mod generator;
-pub use generator::SFGenerator;
+pub mod generator;
+pub use generator::{SFGenerator, SFGeneratorAmount, SFGeneratorAmountRange, SFGeneratorType};
 
-mod modulator;
+pub mod modulator;
 pub use modulator::SFModulator;
 
-mod bag;
-use bag::SFBag;
+pub mod bag;
+pub use bag::SFBag;
 
-mod preset;
+pub mod preset;
 pub use preset::SFPresetHeader;
 
-mod instrument;
+pub mod instrument;
 pub use instrument::SFInstrumentHeader;
 
-mod sample;
-use sample::SFSample;
+pub mod sample;
+pub use sample::SFSample;
 
 use riff::Chunk;
 
 #[derive(Debug)]
 pub struct SFHydra {
-    preset_headers: Vec<SFPresetHeader>,
-    preset_bags: Vec<SFBag>,
-    preset_modulators: Vec<SFModulator>,
-    preset_generators: Vec<SFGenerator>,
+    pub preset_headers: Vec<SFPresetHeader>,
+    pub preset_bags: Vec<SFBag>,
+    pub preset_modulators: Vec<SFModulator>,
+    pub preset_generators: Vec<SFGenerator>,
 
-    instrument_headers: Vec<SFInstrumentHeader>,
-    instrument_bags: Vec<SFBag>,
-    instrument_modulators: Vec<SFModulator>,
-    instrument_generators: Vec<SFGenerator>,
+    pub instrument_headers: Vec<SFInstrumentHeader>,
+    pub instrument_bags: Vec<SFBag>,
+    pub instrument_modulators: Vec<SFModulator>,
+    pub instrument_generators: Vec<SFGenerator>,
 
-    samples: Vec<SFSample>,
+    pub samples: Vec<SFSample>,
 }
 
 impl SFHydra {
