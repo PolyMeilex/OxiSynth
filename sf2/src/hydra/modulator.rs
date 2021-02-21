@@ -3,11 +3,11 @@ use riff::Chunk;
 
 #[derive(Debug)]
 pub struct SFModulator {
-    src: u16,
-    dest: u16,
-    amount: i16,
-    amt_src: u16,
-    transform: u16,
+    pub src: u16,
+    pub dest: u16,
+    pub amount: i16,
+    pub amt_src: u16,
+    pub transform: u16,
 }
 
 impl SFModulator {

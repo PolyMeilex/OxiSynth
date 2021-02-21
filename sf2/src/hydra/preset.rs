@@ -3,13 +3,20 @@ use riff::Chunk;
 
 #[derive(Debug)]
 pub struct SFPresetHeader {
-    name: String,
-    preset: u16,
-    bank: u16,
-    bag_id: u16,
-    library: u32,
-    genre: u32,
-    morphology: u32,
+    /// The name of the preset
+    pub name: String,
+    /// The MIDI preset number which to apply to the preset.
+    pub preset: u16,
+    /// The preset bank
+    pub bank: u16,
+    pub bag_id: u16,
+
+    /// Reserved?
+    pub library: u32,
+    /// Reserved?
+    pub genre: u32,
+    /// Reserved?
+    pub morphology: u32,
 }
 
 impl SFPresetHeader {

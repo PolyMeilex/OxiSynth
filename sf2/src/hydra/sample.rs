@@ -3,18 +3,18 @@ use riff::Chunk;
 
 #[derive(Default, Debug)]
 pub struct SFSample {
-    name: String,
+    pub name: String,
 
-    start: u32,
-    end: u32,
-    loop_start: u32,
-    loop_end: u32,
-    sample_rate: u32,
+    pub start: u32,
+    pub end: u32,
+    pub loop_start: u32,
+    pub loop_end: u32,
+    pub sample_rate: u32,
 
-    origpitch: u8,
-    pitchadj: i8,
-    sample_link: u16,
-    sample_type: u16,
+    pub origpitch: u8,
+    pub pitchadj: i8,
+    pub sample_link: u16,
+    pub sample_type: u16,
 }
 
 impl SFSample {

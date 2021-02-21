@@ -3,8 +3,8 @@ use riff::Chunk;
 
 #[derive(Debug)]
 pub struct SFInstrumentHeader {
-    name: String,
-    bag_id: u16,
+    pub name: String,
+    pub bag_id: u16,
 }
 
 impl SFInstrumentHeader {
