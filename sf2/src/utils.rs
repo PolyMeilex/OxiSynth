@@ -23,8 +23,12 @@ impl Reader {
         let end = self.curr + len;
         self.curr = end;
 
-        let data = &self.data[start..end];
+        let mut data = self.data[start..end].to_vec();
+        // Null terminate it, just in case...
+        data.push(0x0);
+
         let name = unsafe { std::ffi::CStr::from_ptr(data.as_ptr() as _) };
+
         let name = name.to_str().unwrap();
         let name = name.to_owned();
 
