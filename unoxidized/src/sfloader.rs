@@ -712,7 +712,8 @@ impl DefaultSoundFont {
             }
             (*preset).next = 0 as *mut DefaultPreset;
             (*preset).sfont = sfont;
-            (*preset).name = String::new();
+            // TODO: bring this back
+            // (*preset).name = String::new();
             (*preset).bank = 0 as i32 as u32;
             (*preset).num = 0 as i32 as u32;
             (*preset).global_zone = 0 as *mut PresetZone;
@@ -820,18 +821,20 @@ unsafe fn fluid_defpreset_import_sfont(
     let mut zone: *mut PresetZone;
     let mut count: i32;
     let mut zone_name: [u8; 256] = [0; 256];
-    if (*sfpreset).name.len() != 0 {
-        (*preset).name = (*sfpreset).name.clone();
-    } else {
-        (*preset).name = format!("Bank:{},Preset{}", (*sfpreset).bank, (*sfpreset).prenum);
-    }
+    // TODO: Bring this back
+    // if (*sfpreset).name.len() != 0 {
+    //     (*preset).name = (*sfpreset).name.clone();
+    // } else {
+    //     (*preset).name = format!("Bank:{},Preset{}", (*sfpreset).bank, (*sfpreset).prenum);
+    // }
     (*preset).bank = (*sfpreset).bank as u32;
     (*preset).num = (*sfpreset).prenum as u32;
     count = 0 as i32;
     for sfzone in (*sfpreset).zone.iter() {
         libc::strcpy(
             zone_name.as_mut_ptr() as _,
-            CString::new(format!("{}/{}", (*preset).name, count,))
+            // TODO: Bring name back
+            CString::new(format!("{}/{}", "", count,))
                 .unwrap()
                 .as_c_str()
                 .as_ptr(),
