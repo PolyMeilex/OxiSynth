@@ -14,7 +14,7 @@ pub mod instrument;
 pub use instrument::SFInstrumentHeader;
 
 pub mod sample;
-pub use sample::SFSample;
+pub use sample::SFSampleHeader;
 
 use riff::Chunk;
 
@@ -30,7 +30,7 @@ pub struct SFHydra {
     pub instrument_modulators: Vec<SFModulator>,
     pub instrument_generators: Vec<SFGenerator>,
 
-    pub samples: Vec<SFSample>,
+    pub sample_headers: Vec<SFSampleHeader>,
 }
 
 impl SFHydra {
@@ -49,7 +49,8 @@ impl SFHydra {
         let mut instrument_bags = None;
         let mut instrument_modulators = None;
         let mut instrument_generators = None;
-        let mut samples = None;
+
+        let mut sample_headers = None;
 
         for ch in chunks.iter() {
             let id = ch.id();
@@ -72,7 +73,7 @@ impl SFHydra {
                 // The Instrument Generator list
                 "igen" => instrument_generators = Some(SFGenerator::read_all(ch, file)),
                 // The Sample Headers
-                "shdr" => samples = Some(SFSample::read_all(ch, file)),
+                "shdr" => sample_headers = Some(SFSampleHeader::read_all(ch, file)),
                 unknown => {
                     panic!("Unexpected: {} in hydra", unknown);
                 }
@@ -90,7 +91,7 @@ impl SFHydra {
             instrument_modulators: instrument_modulators.unwrap(),
             instrument_generators: instrument_generators.unwrap(),
 
-            samples: samples.unwrap(),
+            sample_headers: sample_headers.unwrap(),
         }
     }
 
@@ -104,7 +105,7 @@ impl SFHydra {
         self.instrument_bags.pop().unwrap();
         self.instrument_modulators.pop().unwrap();
         self.instrument_generators.pop().unwrap();
-        self.samples.pop().unwrap();
+        self.sample_headers.pop().unwrap();
     }
 
     pub fn test(&self) {
@@ -124,9 +125,7 @@ impl SFHydra {
 
             let mut bag_items: Vec<()> = Vec::new();
 
-            for n in start..end {
-                
-            }
+            for n in start..end {}
         }
     }
 }

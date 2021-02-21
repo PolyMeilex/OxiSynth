@@ -2,7 +2,7 @@ mod data;
 
 use data::{
     SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInstrumentHeader,
-    SFModulator, SFPresetHeader,
+    SFModulator, SFPresetHeader, SFSampleData, SFSampleHeader,
 };
 
 pub fn main() {
@@ -20,7 +20,14 @@ pub fn main() {
             .map(|z| {
                 let id = z.instrument().unwrap();
                 let instrument = &sf2.instruments[*id as usize];
-                instrument.header.name.clone()
+
+                let mut samples = Vec::new();
+                for z in instrument.zones.iter() {
+                    let sample_id = z.sample().unwrap();
+                    samples.push(sf2.sample_headers[*sample_id as usize].clone());
+                }
+
+                (instrument.header.name.clone(), samples.len())
             })
             .collect();
         println!("Instruments: {:?}", instruments);
@@ -44,6 +51,8 @@ pub struct Instrument {
 pub struct SoundFont2 {
     presets: Vec<Preset>,
     instruments: Vec<Instrument>,
+    sample_headers: Vec<SFSampleHeader>,
+    sample_data: SFSampleData,
 }
 
 impl SoundFont2 {
@@ -192,6 +201,8 @@ impl SoundFont2 {
         Self {
             presets,
             instruments,
+            sample_headers: data.hydra.sample_headers,
+            sample_data: data.sample_data,
         }
     }
 }
@@ -219,6 +230,12 @@ impl Zone {
         self.gen_list
             .iter()
             .find(|g| g.ty == SFGeneratorType::Instrument)
+            .map(|g| g.amount.as_u16().unwrap())
+    }
+    fn sample(&self) -> Option<&u16> {
+        self.gen_list
+            .iter()
+            .find(|g| g.ty == SFGeneratorType::SampleID)
             .map(|g| g.amount.as_u16().unwrap())
     }
 }

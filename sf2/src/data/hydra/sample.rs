@@ -1,8 +1,8 @@
 use super::super::utils::Reader;
 use riff::Chunk;
 
-#[derive(Default, Debug)]
-pub struct SFSample {
+#[derive(Default, Debug, Clone)]
+pub struct SFSampleHeader {
     pub name: String,
 
     pub start: u32,
@@ -17,7 +17,7 @@ pub struct SFSample {
     pub sample_type: u16,
 }
 
-impl SFSample {
+impl SFSampleHeader {
     pub fn read(reader: &mut Reader) -> Self {
         let name: String = reader.read_string(20);
         // 20

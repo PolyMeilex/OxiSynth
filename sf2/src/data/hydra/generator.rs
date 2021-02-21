@@ -77,7 +77,9 @@ impl SFGenerator {
                     high: reader.read_u8(),
                 })
             }
-            SFGeneratorType::Instrument => SFGeneratorAmount::U16(reader.read_u16()),
+            SFGeneratorType::Instrument | SFGeneratorType::SampleID => {
+                SFGeneratorAmount::U16(reader.read_u16())
+            }
             _ => SFGeneratorAmount::I16(reader.read_i16()),
         };
 
