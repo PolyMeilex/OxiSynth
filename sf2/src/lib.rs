@@ -1,8 +1,8 @@
-mod data;
+pub mod data;
 
 use data::{
-    SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInstrumentHeader,
-    SFModulator, SFPresetHeader, SFSampleData, SFSampleHeader,
+    SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInfo,
+    SFInstrumentHeader, SFModulator, SFPresetHeader, SFSampleData, SFSampleHeader,
 };
 
 pub fn main() {
@@ -17,17 +17,19 @@ pub fn main() {
         let instruments: Vec<_> = p
             .zones
             .iter()
-            .map(|z| {
-                let id = z.instrument().unwrap();
-                let instrument = &sf2.instruments[*id as usize];
+            .filter_map(|z| {
+                z.instrument().map(|id| {
+                    let instrument = &sf2.instruments[*id as usize];
 
-                let mut samples = Vec::new();
-                for z in instrument.zones.iter() {
-                    let sample_id = z.sample().unwrap();
-                    samples.push(sf2.sample_headers[*sample_id as usize].clone());
-                }
+                    let mut samples = Vec::new();
+                    for z in instrument.zones.iter() {
+                        if let Some(sample_id) = z.sample() {
+                            samples.push(sf2.sample_headers[*sample_id as usize].clone());
+                        }
+                    }
 
-                (instrument.header.name.clone(), samples.len())
+                    (instrument.header.name.clone(), samples.len())
+                })
             })
             .collect();
         println!("Instruments: {:?}", instruments);
@@ -37,26 +39,27 @@ pub fn main() {
 
 #[derive(Debug)]
 pub struct Preset {
-    header: SFPresetHeader,
-    zones: Vec<Zone>,
+    pub header: SFPresetHeader,
+    pub zones: Vec<Zone>,
 }
 
 #[derive(Debug)]
 pub struct Instrument {
-    header: SFInstrumentHeader,
-    zones: Vec<Zone>,
+    pub header: SFInstrumentHeader,
+    pub zones: Vec<Zone>,
 }
 
 #[derive(Debug)]
 pub struct SoundFont2 {
-    presets: Vec<Preset>,
-    instruments: Vec<Instrument>,
-    sample_headers: Vec<SFSampleHeader>,
-    sample_data: SFSampleData,
+    pub info: SFInfo,
+    pub presets: Vec<Preset>,
+    pub instruments: Vec<Instrument>,
+    pub sample_headers: Vec<SFSampleHeader>,
+    pub sample_data: SFSampleData,
 }
 
 impl SoundFont2 {
-    fn from_data(data: SFData) -> Self {
+    pub fn from_data(data: SFData) -> Self {
         fn get_zones(
             zones: &[SFBag],
             modulators: &[SFModulator],
@@ -70,15 +73,14 @@ impl SoundFont2 {
                 let curr = zones.get(j).unwrap();
                 let next = zones.get(j + 1);
 
-                let start = curr.generator_id as usize;
-
-                let end = if let Some(next) = next {
-                    next.generator_id as usize
-                } else {
-                    zones.len()
-                };
-
                 let mod_list = {
+                    let start = curr.modulator_id as usize;
+                    let end = if let Some(next) = next {
+                        next.modulator_id as usize
+                    } else {
+                        zones.len()
+                    };
+
                     let mut list = Vec::new();
 
                     let mut i = start;
@@ -93,6 +95,13 @@ impl SoundFont2 {
                 };
 
                 let gen_list = {
+                    let start = curr.generator_id as usize;
+                    let end = if let Some(next) = next {
+                        next.generator_id as usize
+                    } else {
+                        zones.len()
+                    };
+
                     let mut list = Vec::new();
 
                     let mut i = start;
@@ -124,34 +133,53 @@ impl SoundFont2 {
             iter_peek.next();
 
             let mut list = Vec::new();
-            for header in iter {
-                let curr = header;
-                let next = iter_peek.next();
-
-                let start = curr.bag_id as usize;
-
-                let end = if let Some(next) = next {
-                    next.bag_id as usize
-                } else {
-                    zones.len()
-                };
+            let mut i = 0;
+            while i < headers.len() - 1 {
+                let start = headers[i].bag_id as usize;
+                let end = headers[i + 1].bag_id as usize;
 
                 let zone_items = get_zones(&zones, &modulators, &generators, start, end);
-                let zone_items: Vec<_> = zone_items
-                    .into_iter()
-                    .filter(|zone| {
-                        zone.gen_list
-                            .iter()
-                            .find(|g| g.ty == SFGeneratorType::SampleID)
-                            .is_some()
-                    })
-                    .collect();
 
-                list.push(Instrument {
-                    header: header.clone(),
-                    zones: zone_items,
-                })
+                if headers[i].name != "EOI" {
+                    list.push(Instrument {
+                        header: headers[i].clone(),
+                        zones: zone_items,
+                    })
+                }
+
+                i += 1;
             }
+
+            // for header in iter {
+            //     let curr = header;
+            //     let next = iter_peek.next();
+
+            //     let start = curr.bag_id as usize;
+
+            //     let end = if let Some(next) = next {
+            //         next.bag_id as usize
+            //     } else {
+            //         zones.len()
+            //     };
+
+            //     let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+            //     // let zone_items: Vec<_> = zone_items
+            //     //     .into_iter()
+            //     //     .filter(|zone| {
+            //     //         zone.gen_list
+            //     //             .iter()
+            //     //             .find(|g| g.ty == SFGeneratorType::SampleID)
+            //     //             .is_some()
+            //     //     })
+            //     //     .collect();
+
+            //     if header.name != "EOS" {
+            //         list.push(Instrument {
+            //             header: header.clone(),
+            //             zones: zone_items,
+            //         })
+            //     }
+            // }
             list
         };
 
@@ -178,61 +206,162 @@ impl SoundFont2 {
                     zones.len()
                 };
 
-                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+                let mut zone_items = get_zones(&zones, &modulators, &generators, start, end);
 
-                let zone_items: Vec<_> = zone_items
-                    .into_iter()
-                    .filter(|zone| {
-                        zone.gen_list
-                            .iter()
-                            .find(|g| g.ty == SFGeneratorType::Instrument)
-                            .is_some()
+                if header.name != "EOP" {
+                    list.push(Preset {
+                        header: header.clone(),
+                        zones: zone_items,
                     })
-                    .collect();
-
-                list.push(Preset {
-                    header: header.clone(),
-                    zones: zone_items,
-                })
+                }
             }
+
+            // let re = {
+            //     let headers = data.hydra.preset_headers.clone();
+            //     // headers.pop();
+
+            //     let mut n = 0;
+
+            //     let mut i = headers.len() - 1;
+            //     println!("{}", i);
+
+            //     let mut pr: Option<usize> = None;
+            //     let mut zndx: u16 = 0;
+            //     let mut pzndx: u16 = 0;
+            //     let mut presets = Vec::new();
+
+            //     while i > 0 {
+            //         presets.push(Vec::new());
+
+            //         zndx = headers[n].bag_id;
+
+            //         if let Some(pr) = &pr {
+            //             if (zndx as i32) < pzndx as i32 {
+            //                 panic!("Preset header indices not monotonic");
+            //             }
+            //             let mut i2 = zndx as i32 - pzndx as i32;
+            //             loop {
+            //                 let fresh6 = i2;
+            //                 i2 = i2 - 1;
+            //                 if !(fresh6 != 0) {
+            //                     break;
+            //                 }
+            //                 presets[*pr].insert(0, ());
+            //             }
+            //         } else if zndx > 0 {
+            //             panic!("{} preset zones not referenced, discarding", zndx);
+            //         }
+            //         pr = Some(presets.len() - 1);
+            //         pzndx = zndx;
+
+            //         i -= 1;
+            //         n += 1;
+            //     }
+            //     // println!("Zndx: {}", zndx);
+            //     zndx = headers[n].bag_id;
+            //     // println!("Zndx: {}", zndx);
+
+            //     if zndx < pzndx {
+            //         panic!("Preset header indices not monotonic");
+            //     }
+            //     let mut i2 = zndx as i32 - pzndx as i32;
+            //     loop {
+            //         let fresh7 = i2;
+            //         i2 = i2 - 1;
+            //         if !(fresh7 != 0) {
+            //             break;
+            //         }
+            //         if let Some(pr) = &pr {
+            //             presets[*pr].insert(0, ());
+            //         }
+            //     }
+            //     // println!("list: {}", presets.len());
+            //     presets
+            // };
+
+            // println!("zones: {}", re[12].len());
+            // println!("my-zones: {:?}", list[12].zones.len());
+
+            // println!("gen: {:?}", list[1].zones[0].gen_list.len());
+
+            // for (id, my) in list.iter().enumerate() {
+            //     let re = &re[id];
+
+            //     let re_len = re.len();
+            //     let my_len = my.zones.len();
+
+            //     assert_eq!(re_len, my_len);
+            // }
+
             list
         };
 
+        let mut sum = 0;
+        for p in presets.iter() {
+            for z in p.zones.iter() {
+                if let Some(i) = z.instrument() {
+                    sum += 1;
+                }
+            }
+        }
+        println!("SUM {}", sum);
         Self {
+            info: data.info,
             presets,
             instruments,
-            sample_headers: data.hydra.sample_headers,
+            sample_headers: data
+                .hydra
+                .sample_headers
+                .into_iter()
+                .filter(|h| h.name != "EOS")
+                .collect(),
             sample_data: data.sample_data,
         }
+    }
+
+    pub fn sort_presets(&mut self) {
+        self.presets.sort_by(|a, b| {
+            let aval = (a.header.bank as i32) << 16 | a.header.preset as i32;
+            let bbal = (b.header.bank as i32) << 16 | b.header.preset as i32;
+            let cmp = aval - bbal;
+
+            if cmp < 0 {
+                std::cmp::Ordering::Less
+            } else if cmp > 0 {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        });
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Zone {
-    mod_list: Vec<SFModulator>,
-    gen_list: Vec<SFGenerator>,
+    pub mod_list: Vec<SFModulator>,
+    pub gen_list: Vec<SFGenerator>,
 }
 
 impl Zone {
-    fn key_range(&self) -> Option<&i16> {
+    pub fn key_range(&self) -> Option<&i16> {
         self.gen_list
             .iter()
             .find(|g| g.ty == SFGeneratorType::KeyRange)
             .map(|g| g.amount.as_i16().unwrap())
     }
-    fn vel_range(&self) -> Option<&SFGeneratorAmountRange> {
+    pub fn vel_range(&self) -> Option<&SFGeneratorAmountRange> {
         self.gen_list
             .iter()
             .find(|g| g.ty == SFGeneratorType::VelRange)
             .map(|g| g.amount.as_range().unwrap())
     }
-    fn instrument(&self) -> Option<&u16> {
+    pub fn instrument(&self) -> Option<&u16> {
         self.gen_list
             .iter()
             .find(|g| g.ty == SFGeneratorType::Instrument)
             .map(|g| g.amount.as_u16().unwrap())
     }
-    fn sample(&self) -> Option<&u16> {
+    pub fn sample(&self) -> Option<&u16> {
         self.gen_list
             .iter()
             .find(|g| g.ty == SFGeneratorType::SampleID)

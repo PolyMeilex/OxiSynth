@@ -103,7 +103,7 @@ impl SFGenerator {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u16)]
 pub enum SFGeneratorType {
     StartAddrsOffset,

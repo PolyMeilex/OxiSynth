@@ -107,25 +107,4 @@ impl SFHydra {
         self.instrument_generators.pop().unwrap();
         self.sample_headers.pop().unwrap();
     }
-
-    pub fn test(&self) {
-        let mut items: Vec<()> = Vec::new();
-
-        for header in self.preset_headers.chunks(2) {
-            let curr = header.get(0).unwrap();
-            let next = header.get(1);
-
-            let start = curr.bag_id as usize;
-
-            let end = if let Some(next) = next {
-                next.bag_id as usize
-            } else {
-                self.preset_bags.len()
-            };
-
-            let mut bag_items: Vec<()> = Vec::new();
-
-            for n in start..end {}
-        }
-    }
 }

@@ -11,29 +11,29 @@ pub struct SFVersion {
 #[derive(Debug)]
 pub struct SFInfo {
     /// Refers to the version of the Sound Font RIFF file
-    version: SFVersion,
+    pub version: SFVersion,
     /// Refers to the target Sound Engine
-    sound_engine: String,
+    pub sound_engine: String,
     /// Refers to the Sound Font Bank Name
-    bank_name: String,
+    pub bank_name: String,
 
     /// Refers to the Sound ROM Name
-    rom_name: Option<String>,
+    pub rom_name: Option<String>,
     /// Refers to the Sound ROM Version
-    rom_version: Option<SFVersion>,
+    pub rom_version: Option<SFVersion>,
 
     /// Refers to the Date of Creation of the Bank
-    creation_date: Option<String>,
+    pub creation_date: Option<String>,
     /// Sound Designers and Engineers for the Bank
-    engineers: Option<String>,
+    pub engineers: Option<String>,
     /// Product for which the Bank was intended
-    product: Option<String>,
+    pub product: Option<String>,
     /// Contains any Copyright message
-    copyright: Option<String>,
+    pub copyright: Option<String>,
     /// Contains any Comments on the Bank
-    comments: Option<String>,
+    pub comments: Option<String>,
     /// The SoundFont tools used to create and alter the bank
-    software: Option<String>,
+    pub software: Option<String>,
 }
 
 impl SFInfo {

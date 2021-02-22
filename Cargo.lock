@@ -236,7 +236,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "riff",
+ "sf2",
 ]
 
 [[package]]
