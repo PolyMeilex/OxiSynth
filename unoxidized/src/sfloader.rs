@@ -95,13 +95,6 @@ impl DefaultPreset {
 
         let mut count = 0 as i32;
         for (id, (sfzone, new_zone)) in sfpreset.zone.iter().zip(new.zones.iter()).enumerate() {
-            // println!(
-            //     "#{},{},{}",
-            //     id,
-            //     (**sfzone).gen.len(),
-            //     new_zone.gen_list.len()
-            // );
-
             let tmp_gen: Vec<_> = new_zone
                 .gen_list
                 .iter()
@@ -110,8 +103,6 @@ impl DefaultPreset {
             assert_eq!((**sfzone).gen.len(), tmp_gen.len());
 
             for (old, new) in (**sfzone).gen.iter().zip(tmp_gen.iter()) {
-                // println!("{:#?}", (**old).id);
-                // println!("{:#?}", new.ty as u16);
                 assert_eq!((**old).id, new.ty as u16);
 
                 let n = new.amount.get_union().sword;
@@ -850,10 +841,6 @@ impl DefaultSoundFont {
                 return Err(());
             }
         }
-
-        // {
-        //     println!("gen-Ref: {:?}", (*(*(*sfdata).preset[2]).zone[0]).gen.len());
-        // }
 
         for (sfpreset, new) in (*sfdata).preset.iter().zip(sf2.presets.iter()) {
             let preset = DefaultPreset::new(self);
@@ -1939,10 +1926,6 @@ unsafe fn process_pdta(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> 
     if load_pgen(chunk.size as i32, sf, fd) == 0 {
         return 0 as i32;
     }
-    println!(
-        "gen-Ref (after pgen): {:?}",
-        (*(*(*sf).preset[1]).zone[0]).gen.len()
-    );
 
     if pdtahelper(
         IHDR_ID as i32 as u32,
@@ -2023,7 +2006,6 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         return gerr!(ErrCorr, "Preset header chunk size is invalid",);
     }
     i = size / 38 as i32 - 1 as i32;
-    println!("{}", i);
     if i == 0 as i32 {
         log::warn!("File contains no presets",);
         if !fd.seek(SeekFrom::Current(38)) {
@@ -2068,7 +2050,6 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
                 }
                 (*pr).zone.insert(0, 0 as _);
             }
-            // println!("zones-Ref: {}", (*pr).zone.len());
         } else if zndx as i32 > 0 as i32 {
             log::warn!("{} preset zones not referenced, discarding", zndx);
         }
@@ -2076,12 +2057,10 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         pzndx = zndx;
         i -= 1
     }
-    println!("Zndx-Ref: {}", zndx);
     if !fd.seek(SeekFrom::Current(24)) {
         return 0;
     }
     read_unsafe(fd, &mut zndx);
-    println!("Zndx-Ref: {}", zndx);
     if !fd.seek(SeekFrom::Current(12)) {
         return 0;
     }
@@ -2097,9 +2076,6 @@ unsafe fn load_phdr(size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
         }
         (*pr).zone.insert(0, 0 as _);
     }
-
-    println!("list-Ref: {}", (*sf).preset.len());
-    println!("zones-Ref: {}", (*(*sf).preset[12]).zone.len());
 
     return 1 as i32;
 }
@@ -2155,7 +2131,6 @@ unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
             pmodndx = modndx;
         }
     }
-    println!("gen-Ref: {:?}", (*(*(*sf).preset[1]).zone[0]).gen.len());
     size -= 4 as i32;
     if size != 0 as i32 {
         return gerr!(ErrCorr, "Preset bag chunk size mismatch",);
@@ -2195,7 +2170,6 @@ unsafe fn load_pbag(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
         }
         (*pz).mod_0.insert(0, 0 as _);
     }
-    println!("gen-Ref: {:?}", (*(*(*sf).preset[1]).zone[0]).gen.len());
     return 1 as i32;
 }
 unsafe fn load_pmod(mut size: i32, sf: *mut SFData, fd: &mut DefaultFile) -> i32 {
@@ -2753,12 +2727,10 @@ unsafe fn load_shdr(mut size: u32, sf: *mut SFData, fd: &mut DefaultFile) -> i32
 unsafe fn fixup_pgen(sf: *mut SFData) -> i32 {
     let mut p3;
     let mut i: i32;
-    let mut sum = 0;
     for preset in (*sf).preset.iter() {
         for z in (**preset).zone.iter() {
             if !(**z).instsamp.is_none() {
                 i = (**z).instsamp.unwrap_int();
-                sum += i;
                 p3 = (*sf).inst.get(i as usize - 1);
                 if p3.is_none() {
                     return gerr!(
@@ -2774,7 +2746,6 @@ unsafe fn fixup_pgen(sf: *mut SFData) -> i32 {
             }
         }
     }
-    println!("SUM:ref {}", sum);
     return 1 as i32;
 }
 unsafe fn fixup_igen(sf: *mut SFData) -> i32 {

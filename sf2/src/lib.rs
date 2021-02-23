@@ -206,7 +206,7 @@ impl SoundFont2 {
                     zones.len()
                 };
 
-                let mut zone_items = get_zones(&zones, &modulators, &generators, start, end);
+                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
 
                 if header.name != "EOP" {
                     list.push(Preset {
@@ -216,95 +216,9 @@ impl SoundFont2 {
                 }
             }
 
-            // let re = {
-            //     let headers = data.hydra.preset_headers.clone();
-            //     // headers.pop();
-
-            //     let mut n = 0;
-
-            //     let mut i = headers.len() - 1;
-            //     println!("{}", i);
-
-            //     let mut pr: Option<usize> = None;
-            //     let mut zndx: u16 = 0;
-            //     let mut pzndx: u16 = 0;
-            //     let mut presets = Vec::new();
-
-            //     while i > 0 {
-            //         presets.push(Vec::new());
-
-            //         zndx = headers[n].bag_id;
-
-            //         if let Some(pr) = &pr {
-            //             if (zndx as i32) < pzndx as i32 {
-            //                 panic!("Preset header indices not monotonic");
-            //             }
-            //             let mut i2 = zndx as i32 - pzndx as i32;
-            //             loop {
-            //                 let fresh6 = i2;
-            //                 i2 = i2 - 1;
-            //                 if !(fresh6 != 0) {
-            //                     break;
-            //                 }
-            //                 presets[*pr].insert(0, ());
-            //             }
-            //         } else if zndx > 0 {
-            //             panic!("{} preset zones not referenced, discarding", zndx);
-            //         }
-            //         pr = Some(presets.len() - 1);
-            //         pzndx = zndx;
-
-            //         i -= 1;
-            //         n += 1;
-            //     }
-            //     // println!("Zndx: {}", zndx);
-            //     zndx = headers[n].bag_id;
-            //     // println!("Zndx: {}", zndx);
-
-            //     if zndx < pzndx {
-            //         panic!("Preset header indices not monotonic");
-            //     }
-            //     let mut i2 = zndx as i32 - pzndx as i32;
-            //     loop {
-            //         let fresh7 = i2;
-            //         i2 = i2 - 1;
-            //         if !(fresh7 != 0) {
-            //             break;
-            //         }
-            //         if let Some(pr) = &pr {
-            //             presets[*pr].insert(0, ());
-            //         }
-            //     }
-            //     // println!("list: {}", presets.len());
-            //     presets
-            // };
-
-            // println!("zones: {}", re[12].len());
-            // println!("my-zones: {:?}", list[12].zones.len());
-
-            // println!("gen: {:?}", list[1].zones[0].gen_list.len());
-
-            // for (id, my) in list.iter().enumerate() {
-            //     let re = &re[id];
-
-            //     let re_len = re.len();
-            //     let my_len = my.zones.len();
-
-            //     assert_eq!(re_len, my_len);
-            // }
-
             list
         };
 
-        let mut sum = 0;
-        for p in presets.iter() {
-            for z in p.zones.iter() {
-                if let Some(i) = z.instrument() {
-                    sum += 1;
-                }
-            }
-        }
-        println!("SUM {}", sum);
         Self {
             info: data.info,
             presets,
