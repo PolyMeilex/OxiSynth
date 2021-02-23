@@ -128,9 +128,9 @@ impl SoundFont2 {
             let modulators = &data.hydra.instrument_modulators;
             let generators = &data.hydra.instrument_generators;
 
-            let iter = headers.iter();
-            let mut iter_peek = headers.iter();
-            iter_peek.next();
+            // let iter = headers.iter();
+            // let mut iter_peek = headers.iter();
+            // iter_peek.next();
 
             let mut list = Vec::new();
             let mut i = 0;
