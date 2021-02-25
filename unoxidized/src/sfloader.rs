@@ -30,7 +30,6 @@ pub struct DefaultSoundFont {
     pub sampledata: *mut i16,
     pub sample: Vec<*mut Sample>,
     pub preset: *mut DefaultPreset,
-    pub iter_cur: *mut DefaultPreset,
 }
 
 impl DefaultSoundFont {
@@ -61,8 +60,12 @@ pub struct DefaultPreset {
 }
 
 impl DefaultPreset {
-    fn new(sfont: &mut DefaultSoundFont) -> DefaultPreset {
-        DefaultPreset {
+    unsafe fn import_sfont(
+        sf2: &sf2::SoundFont2,
+        sfpreset: &sf2::Preset,
+        sfont: &mut DefaultSoundFont,
+    ) -> Result<Self, ()> {
+        let mut preset = DefaultPreset {
             next: 0 as *mut DefaultPreset,
             sfont: sfont,
             name: String::new(),
@@ -70,26 +73,19 @@ impl DefaultPreset {
             num: 0 as i32 as u32,
             global_zone: 0 as *mut PresetZone,
             zone: 0 as *mut PresetZone,
-        }
-    }
+        };
 
-    unsafe fn import_sfont(
-        &mut self,
-        sf2: &sf2::SoundFont2,
-        sfpreset: &sf2::Preset,
-        sfont: &mut DefaultSoundFont,
-    ) -> Result<(), ()> {
         if sfpreset.header.name.len() != 0 {
-            self.name = sfpreset.header.name.clone();
+            preset.name = sfpreset.header.name.clone();
         } else {
-            self.name = format!(
+            preset.name = format!(
                 "Bank:{},Preset{}",
                 sfpreset.header.bank, sfpreset.header.preset
             );
         }
 
-        self.bank = sfpreset.header.bank as u32;
-        self.num = sfpreset.header.preset as u32;
+        preset.bank = sfpreset.header.bank as u32;
+        preset.num = sfpreset.header.preset as u32;
 
         let mut count = 0 as i32;
         for sfzone in sfpreset.zones.iter() {
@@ -110,13 +106,13 @@ impl DefaultPreset {
                 return Err(());
             }
             if count == 0 as i32 && fluid_preset_zone_get_inst(zone).is_null() {
-                fluid_defpreset_set_global_zone(self, zone);
-            } else if fluid_defpreset_add_zone(self, zone) != FLUID_OK as i32 {
+                fluid_defpreset_set_global_zone(&mut preset, zone);
+            } else if fluid_defpreset_add_zone(&mut preset, zone) != FLUID_OK as i32 {
                 return Err(());
             }
             count += 1
         }
-        return Ok(());
+        return Ok(preset);
     }
 }
 
@@ -198,7 +194,6 @@ impl SoundFontLoader {
             sample: Vec::new(),
             sampledata: 0 as _,
             preset: 0 as _,
-            iter_cur: 0 as _,
         };
 
         defsfont.load(filename).ok().map(|_| SoundFont {
@@ -236,36 +231,6 @@ impl SoundFont {
             } else {
                 None
             }
-        }
-    }
-
-    fn iteration_start(&mut self) {
-        unsafe fn fluid_defsfont_iteration_start(mut sfont: *mut DefaultSoundFont) {
-            (*sfont).iter_cur = (*sfont).preset;
-        }
-        unsafe {
-            fluid_defsfont_iteration_start(&mut self.data);
-        }
-    }
-
-    fn iteration_next(&mut self, preset: *mut Preset) -> i32 {
-        unsafe fn fluid_defpreset_next(preset: *mut DefaultPreset) -> *mut DefaultPreset {
-            return (*preset).next;
-        }
-
-        unsafe fn fluid_defsfont_iteration_next(
-            mut sfont: *mut DefaultSoundFont,
-            mut preset: *mut Preset,
-        ) -> i32 {
-            if (*sfont).iter_cur.is_null() {
-                return 0 as i32;
-            }
-            (*preset).data = (*sfont).iter_cur as *mut _;
-            (*sfont).iter_cur = fluid_defpreset_next((*sfont).iter_cur);
-            return 1 as i32;
-        }
-        unsafe {
-            return fluid_defsfont_iteration_next(&mut self.data, preset);
         }
     }
 }
@@ -504,26 +469,26 @@ static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = N
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: String) -> Result<(), ()> {
         unsafe fn fluid_defsfont_add_preset(
-            mut sfont: *mut DefaultSoundFont,
-            mut preset: *mut DefaultPreset,
+            mut sfont: &mut DefaultSoundFont,
+            mut preset: &mut DefaultPreset,
         ) -> i32 {
             let mut cur: *mut DefaultPreset;
             let mut prev: *mut DefaultPreset;
-            if (*sfont).preset.is_null() {
-                (*preset).next = 0 as *mut DefaultPreset;
-                (*sfont).preset = preset
+            if sfont.preset.is_null() {
+                preset.next = 0 as *mut DefaultPreset;
+                sfont.preset = preset
             } else {
-                cur = (*sfont).preset;
+                cur = sfont.preset;
                 prev = 0 as *mut DefaultPreset;
                 while !cur.is_null() {
-                    if (*preset).bank < (*cur).bank
-                        || (*preset).bank == (*cur).bank && (*preset).num < (*cur).num
+                    if preset.bank < (*cur).bank
+                        || preset.bank == (*cur).bank && preset.num < (*cur).num
                     {
                         if prev.is_null() {
-                            (*preset).next = cur;
-                            (*sfont).preset = preset
+                            preset.next = cur;
+                            sfont.preset = preset
                         } else {
-                            (*preset).next = cur;
+                            preset.next = cur;
                             (*prev).next = preset
                         }
                         return FLUID_OK as i32;
@@ -531,16 +496,16 @@ impl DefaultSoundFont {
                     prev = cur;
                     cur = (*cur).next
                 }
-                (*preset).next = 0 as *mut DefaultPreset;
+                preset.next = 0 as *mut DefaultPreset;
                 (*prev).next = preset
             }
             return FLUID_OK as i32;
         }
 
-        unsafe fn fluid_defsfont_load_sampledata(mut sfont: *mut DefaultSoundFont) -> i32 {
+        unsafe fn fluid_defsfont_load_sampledata(sfont: &mut DefaultSoundFont) -> i32 {
             let mut endian: u16;
 
-            let file = std::fs::File::open(Path::new(&(*sfont).filename));
+            let file = std::fs::File::open(Path::new(&sfont.filename));
 
             let mut file = match file {
                 Err(err) => {
@@ -549,21 +514,21 @@ impl DefaultSoundFont {
                 }
                 Ok(file) => file,
             };
-            if file.seek(SeekFrom::Start((*sfont).samplepos as _)).is_err() {
+            if file.seek(SeekFrom::Start(sfont.samplepos as _)).is_err() {
                 libc::perror(b"error\x00" as *const u8 as *const i8);
                 log::error!("Failed to seek position in data file",);
                 return FLUID_FAILED as i32;
             }
-            (*sfont).sampledata = libc::malloc((*sfont).samplesize as libc::size_t) as *mut i16;
-            if (*sfont).sampledata.is_null() {
+            sfont.sampledata = libc::malloc(sfont.samplesize as libc::size_t) as *mut i16;
+            if sfont.sampledata.is_null() {
                 log::error!("Out of memory",);
                 return FLUID_FAILED as i32;
             }
 
             if file
                 .read(from_raw_parts_mut(
-                    (*sfont).sampledata as _,
-                    (*sfont).samplesize as _,
+                    sfont.sampledata as _,
+                    sfont.samplesize as _,
                 ))
                 .is_err()
             {
@@ -578,10 +543,10 @@ impl DefaultSoundFont {
                 let mut i: u32;
                 let mut j: u32;
                 let mut s: i16;
-                cbuf = (*sfont).sampledata as *mut u8;
+                cbuf = sfont.sampledata as *mut u8;
                 i = 0 as i32 as u32;
                 j = 0 as i32 as u32;
-                while j < (*sfont).samplesize {
+                while j < sfont.samplesize {
                     let fresh0 = j;
                     j = j.wrapping_add(1);
                     lo = *cbuf.offset(fresh0 as isize);
@@ -589,7 +554,7 @@ impl DefaultSoundFont {
                     j = j.wrapping_add(1);
                     hi = *cbuf.offset(fresh1 as isize);
                     s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
-                    *(*sfont).sampledata.offset(i as isize) = s;
+                    *sfont.sampledata.offset(i as isize) = s;
                     i = i.wrapping_add(1)
                 }
             }
@@ -625,20 +590,19 @@ impl DefaultSoundFont {
         }
 
         for sfpreset in sf2.presets.iter() {
-            let preset = DefaultPreset::new(self);
+            if let Ok(preset) = DefaultPreset::import_sfont(&sf2, sfpreset, self) {
+                let preset = Box::into_raw(Box::new(preset));
 
-            let preset = Box::into_raw(Box::new(preset));
-
-            if (&mut *preset).import_sfont(&sf2, sfpreset, self).is_err() {
+                fluid_defsfont_add_preset(self, &mut *preset);
+                if PRESET_CALLBACK.is_some() {
+                    PRESET_CALLBACK.expect("non-null function pointer")(
+                        (*preset).bank,
+                        (*preset).num,
+                        &(*preset).name,
+                    );
+                }
+            } else {
                 return Err(());
-            }
-            fluid_defsfont_add_preset(self, preset);
-            if PRESET_CALLBACK.is_some() {
-                PRESET_CALLBACK.expect("non-null function pointer")(
-                    (*preset).bank,
-                    (*preset).num,
-                    &(*preset).name,
-                );
             }
         }
         return Ok(());
