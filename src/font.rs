@@ -1,12 +1,13 @@
 use crate::{engine, Bank, FontId, PresetId};
 use std::marker::PhantomData;
+use std::path::Path;
 
 /**
 The SoundFont interface
  */
 pub trait IsFont {
     fn get_id(&self) -> FontId;
-    fn get_name(&self) -> String;
+    fn get_name(&self) -> &Path;
     fn get_preset(&self, bank: Bank, num: PresetId) -> Option<engine::soundfont::Preset>;
 }
 
@@ -19,27 +20,27 @@ pub trait IsPreset {
     fn get_num(&self) -> PresetId;
 }
 
-/**
-Reference to SoundFont object
- */
-#[repr(transparent)]
-pub struct FontRef<'a> {
-    handle: *mut engine::soundfont::SoundFont,
-    phantom: PhantomData<&'a ()>,
-}
+// /**
+// Reference to SoundFont object
+//  */
+// #[repr(transparent)]
+// pub struct FontRef<'a> {
+//     handle: *mut engine::soundfont::SoundFont,
+//     phantom: PhantomData<&'a ()>,
+// }
 
-impl<'a> FontRef<'a> {
-    pub(crate) fn from_ptr(handle: *mut engine::soundfont::SoundFont) -> Self {
-        Self {
-            handle,
-            phantom: PhantomData,
-        }
-    }
+// impl<'a> FontRef<'a> {
+//     pub(crate) fn from_ptr(handle: *mut engine::soundfont::SoundFont) -> Self {
+//         Self {
+//             handle,
+//             phantom: PhantomData,
+//         }
+//     }
 
-    pub(crate) fn as_ptr(&self) -> *mut engine::soundfont::SoundFont {
-        self.handle
-    }
-}
+//     pub(crate) fn as_ptr(&self) -> *mut engine::soundfont::SoundFont {
+//         self.handle
+//     }
+// }
 
 /**
 Reference to Preset object
@@ -60,9 +61,8 @@ pub struct PresetRef<'a> {
 // }
 
 mod private {
-    use crate::{
-        engine, private::HasHandle, Bank, FontId, FontRef, IsFont, IsPreset, PresetId, PresetRef,
-    };
+    use crate::{engine, private::HasHandle, Bank, FontId, IsFont, IsPreset, PresetId, PresetRef};
+    use std::path::Path;
 
     impl<X> IsFont for X
     where
@@ -74,7 +74,7 @@ mod private {
             font_c.id
         }
 
-        fn get_name(&self) -> String {
+        fn get_name(&self) -> &Path {
             let handle = self.get_handle();
             let font_c = unsafe { &*handle };
             let name = font_c.get_name();
@@ -88,17 +88,17 @@ mod private {
         }
     }
 
-    impl<'a> HasHandle for FontRef<'a> {
-        type Handle = engine::soundfont::SoundFont;
+    // impl<'a> HasHandle for FontRef<'a> {
+    //     type Handle = engine::soundfont::SoundFont;
 
-        fn get_handle(&self) -> *const Self::Handle {
-            self.handle
-        }
+    //     fn get_handle(&self) -> *const Self::Handle {
+    //         self.handle
+    //     }
 
-        fn get_mut_handle(&mut self) -> *mut Self::Handle {
-            self.handle
-        }
-    }
+    //     fn get_mut_handle(&mut self) -> *mut Self::Handle {
+    //         self.handle
+    //     }
+    // }
 
     impl<X> IsPreset for X
     where

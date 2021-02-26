@@ -1,6 +1,6 @@
 use crate::{Status, Synth};
 
-type InterpMethod = crate::engine::channel::InterpMethod;
+use crate::engine::channel::InterpMethod;
 
 /**
 Synthesis parameters
@@ -51,8 +51,8 @@ impl Synth {
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */
-    pub fn set_interp_method(&mut self, chan: Option<u32>, interp_method: InterpMethod) -> Status {
-        let chan = if let Some(chan) = chan { chan as _ } else { -1 };
-        Synth::zero_ok(unsafe { self.handle.set_interp_method(chan, interp_method as _) })
+    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) -> Status {
+        // let chan = if let Some(chan) = chan { chan as _ } else { -1 };
+        Synth::zero_ok(self.handle.set_interp_method(chan, interp_method))
     }
 }

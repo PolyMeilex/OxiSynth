@@ -26,7 +26,7 @@ pub struct SynthSettings {
     /// Def: 16
     /// Min: 16
     /// Max: 256
-    pub midi_channels: i32,
+    pub midi_channels: u8,
     /// Def: 0.2
     /// Min: 0.0
     /// Max: 10.0

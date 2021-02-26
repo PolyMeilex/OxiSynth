@@ -1,4 +1,4 @@
-use crate::{engine, Error, Result, Status, Synth};
+use crate::{engine, Error, Status, Synth};
 use std::ffi::CStr;
 
 impl Synth {
@@ -11,13 +11,13 @@ impl Synth {
         error.to_str().unwrap().into()
     }
 
-    pub(super) fn neg_err(ret: i32) -> Result<i32> {
-        if ret < 0 {
-            Err(Error::Fluid(Synth::error()))
-        } else {
-            Ok(ret)
-        }
-    }
+    // pub(super) fn neg_err(ret: i32) -> Result<i32> {
+    //     if ret < 0 {
+    //         Err(Error::Fluid(Synth::error()))
+    //     } else {
+    //         Ok(ret)
+    //     }
+    // }
 
     pub(super) fn zero_ok(ret: i32) -> Status {
         if ret == 0 {

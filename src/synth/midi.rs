@@ -80,7 +80,7 @@ impl Synth {
     Send a program change message.
      */
     pub fn program_change(&mut self, chan: Chan, prog: Prog) -> Status {
-        Synth::zero_ok(unsafe { self.handle.program_change(chan as _, prog as _) })
+        Synth::zero_ok(self.handle.program_change(chan as _, prog as _))
     }
 
     /**
@@ -161,7 +161,7 @@ impl Synth {
     This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
      */
     pub fn program_reset(&mut self) -> Status {
-        Synth::zero_ok(unsafe { self.handle.program_reset() })
+        Synth::zero_ok(self.handle.program_reset())
     }
 
     /**

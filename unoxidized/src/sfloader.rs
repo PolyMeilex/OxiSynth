@@ -1,4 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
+use std::path::PathBuf;
 
 use super::gen::fluid_gen_set_default_values;
 use super::gen::Gen;
@@ -23,7 +24,7 @@ const FLUID_FAILED: i32 = -1;
 #[derive(Clone)]
 #[repr(C)]
 pub struct DefaultSoundFont {
-    pub filename: String,
+    pub filename: PathBuf,
     pub samplepos: u32,
     pub samplesize: u32,
     pub sampledata: *mut i16,
@@ -185,9 +186,9 @@ impl SoundFontLoader {
         Self {}
     }
 
-    pub unsafe fn load(&mut self, filename: String) -> Option<SoundFont> {
+    pub fn load(&mut self, filename: &Path) -> Result<SoundFont, ()> {
         let mut defsfont = DefaultSoundFont {
-            filename: String::new(),
+            filename: PathBuf::new(),
             samplepos: 0 as _,
             samplesize: 0 as _,
             sample: Vec::new(),
@@ -195,16 +196,18 @@ impl SoundFontLoader {
             preset: 0 as _,
         };
 
-        defsfont.load(filename).ok().map(|_| SoundFont {
-            data: defsfont,
-            id: 0 as _,
-        })
+        unsafe {
+            defsfont.load(filename).map(|_| SoundFont {
+                data: defsfont,
+                id: 0,
+            })
+        }
     }
 }
 
 impl SoundFont {
-    pub fn get_name(&self) -> String {
-        self.data.filename.clone()
+    pub fn get_name(&self) -> &Path {
+        &self.data.filename
     }
 
     pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
@@ -273,11 +276,11 @@ impl Preset {
         unsafe { (*self.data).num }
     }
 
-    pub fn noteon(&mut self, synth: &mut Synth, chan: i32, key: i32, vel: i32) -> i32 {
+    pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: i32, vel: i32) -> i32 {
         unsafe fn fluid_defpreset_noteon(
             preset: *mut DefaultPreset,
             synth: &mut Synth,
-            chan: i32,
+            chan: u8,
             key: i32,
             vel: i32,
         ) -> i32 {
@@ -467,7 +470,7 @@ impl Preset {
 static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = None;
 
 impl DefaultSoundFont {
-    unsafe fn load(&mut self, file: String) -> Result<(), ()> {
+    unsafe fn load(&mut self, file: &Path) -> Result<(), ()> {
         unsafe fn fluid_defsfont_add_preset(
             mut sfont: &mut DefaultSoundFont,
             mut preset: &mut DefaultPreset,
@@ -561,7 +564,8 @@ impl DefaultSoundFont {
             return FLUID_OK as i32;
         }
 
-        self.filename = file.clone();
+        // TODO: Remove unwrap().
+        self.filename = file.to_owned();
 
         let mut file = std::fs::File::open("./testdata/test.sf2").unwrap();
 

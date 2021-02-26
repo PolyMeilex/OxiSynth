@@ -33,7 +33,7 @@ impl Default for InterpMethod {
 
 #[derive(Clone)]
 pub struct Channel {
-    pub(crate) channum: i32,
+    pub(crate) channum: u8,
     sfontnum: u32,
     banknum: u32,
     prognum: u32,
@@ -80,7 +80,7 @@ pub const VOLUME_MSB: MidiControlChange = 7;
 pub const BANK_SELECT_MSB: MidiControlChange = 0;
 
 impl Channel {
-    pub fn new(synth: &Synth, num: i32) -> Self {
+    pub fn new(synth: &Synth, num: u8) -> Self {
         let mut chan = Self {
             channum: num,
             sfontnum: 0 as _,
@@ -109,16 +109,8 @@ impl Channel {
         self.prognum = 0 as i32 as u32;
         self.banknum = 0 as i32 as u32;
         self.sfontnum = 0 as i32 as u32;
-        // match unsafe { self.preset.as_ref() } {
-        //     Some(preset) => match preset.free {
-        //         Some(free) => unsafe {
-        //             free(self.preset);
-        //         },
-        //         _ => {}
-        //     },
-        //     _ => {}
-        // }
-        self.preset = unsafe { synth.find_preset(self.banknum, self.prognum) };
+
+        self.preset = synth.find_preset(self.banknum, self.prognum);
         self.interp_method = Default::default();
         self.tuning = None;
         self.nrpn_select = 0 as _;
@@ -234,14 +226,14 @@ impl Channel {
                     }
                 }
                 0 => {
-                    if self.channum == 9 as i32 && synth.settings.synth.drums_channel_active {
+                    if self.channum == 9 && synth.settings.synth.drums_channel_active {
                         return FLUID_OK as i32;
                     }
                     self.bank_msb = (value & 0x7f as i32) as u8;
                     self.set_banknum((value & 0x7f as i32) as u32);
                 }
                 32 => {
-                    if self.channum == 9 as i32 && synth.settings.synth.drums_channel_active {
+                    if self.channum == 9 && synth.settings.synth.drums_channel_active {
                         return FLUID_OK as i32;
                     }
                     self.set_banknum(
@@ -268,7 +260,8 @@ impl Channel {
                         {
                             if (self.nrpn_select as i32) < GEN_LAST as i32 {
                                 let val: f32 = fluid_gen_scale_nrpn(self.nrpn_select, data);
-                                synth.set_gen(self.channum, self.nrpn_select, val);
+                                let param = std::mem::transmute(self.nrpn_select as u32);
+                                synth.set_gen(self.channum, param, val);
                             }
                             self.nrpn_select = 0
                         }
@@ -280,14 +273,14 @@ impl Channel {
                             1 => {
                                 synth.set_gen(
                                     self.channum,
-                                    GenParam::FineTune as i16,
+                                    GenParam::FineTune,
                                     ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
                                 );
                             }
                             2 => {
                                 synth.set_gen(
                                     self.channum,
-                                    GenParam::CoarseTune as i16,
+                                    GenParam::CoarseTune,
                                     (value - 64 as i32) as f32,
                                 );
                             }
@@ -355,8 +348,8 @@ impl Channel {
         return FLUID_OK as i32;
     }
 
-    pub fn get_num(&self) -> i32 {
-        return self.channum;
+    pub fn get_num(&self) -> u8 {
+        self.channum
     }
 
     pub fn set_interp_method(&mut self, new_method: InterpMethod) {

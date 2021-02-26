@@ -1,5 +1,6 @@
-use crate::{engine, option_from_ptr, Error, FontId, FontRef, Result, Status, Synth};
-use std::{marker::PhantomData, path::Path};
+use crate::engine::soundfont::SoundFont;
+use crate::{FontId, Status, Synth};
+use std::path::Path;
 
 /**
 SoundFont management
@@ -12,34 +13,34 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<P: AsRef<Path>>(&mut self, filename: P, reset_presets: bool) -> Result<FontId> {
-        let filename = filename.as_ref().to_str().ok_or_else(|| Error::Path)?;
-        // let filename = CString::new(filename).map_err(|_| Error::Path)?;
-
-        Synth::neg_err(unsafe { self.handle.sfload(filename.to_string(), reset_presets as _) })
-            .map(|id| id as _)
+    pub fn sfload<P: AsRef<Path>>(
+        &mut self,
+        filename: P,
+        reset_presets: bool,
+    ) -> std::result::Result<FontId, ()> {
+        self.handle.sfload(filename.as_ref(), reset_presets)
     }
 
     /**
     Reload a SoundFont. The reloaded SoundFont retains its ID and
     index on the stack.
      */
-    pub fn sfreload(&mut self, id: FontId) -> Result<FontId> {
-        Synth::neg_err(unsafe { self.handle.sfreload(id as _) }).map(|id| id as _)
+    pub fn sfreload(&mut self, id: FontId) -> std::result::Result<FontId, ()> {
+        self.handle.sfreload(id)
     }
 
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: FontId, reset_presets: bool) -> Status {
-        Synth::zero_ok(unsafe { self.handle.sfunload(id, reset_presets as _) })
+    pub fn sfunload(&mut self, id: FontId, reset_presets: bool) -> std::result::Result<(), ()> {
+        self.handle.sfunload(id, reset_presets)
     }
 
     /**
     Count the number of loaded SoundFonts.
      */
     pub fn sfcount(&self) -> u32 {
-        unsafe { self.handle.sfcount() as _ }
+        self.handle.sfcount() as _
     }
 
     /**
@@ -48,22 +49,22 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_sfont(&mut self, num: u32) -> Option<FontRef<'_>> {
-        option_from_ptr(unsafe { self.handle.get_sfont(num) }).map(FontRef::from_ptr)
+    pub fn get_sfont(&self, num: u32) -> Option<&SoundFont> {
+        self.handle.get_sfont(num)
     }
 
-    /**
-    Get an iterator over loaded SoundFonts.
-     */
-    pub fn sfont_iter(&mut self) -> FontIter<'_> {
-        FontIter::from_ptr(&mut self.handle)
-    }
+    // /**
+    // Get an iterator over loaded SoundFonts.
+    //  */
+    // pub fn sfont_iter(&mut self) -> FontIter<'_> {
+    //     FontIter::from_ptr(&mut self.handle)
+    // }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&mut self, id: FontId) -> Option<FontRef<'_>> {
-        option_from_ptr(unsafe { self.handle.get_sfont_by_id(id) }).map(FontRef::from_ptr)
+    pub fn get_sfont_by_id(&mut self, id: FontId) -> Option<&SoundFont> {
+        self.handle.get_sfont_by_id(id)
     }
 
     /**
@@ -71,10 +72,8 @@ impl Synth {
     fluid_synth_add_sfont(). The synthesizer does not delete the
     SoundFont; this is responsability of the caller.
      */
-    pub fn remove_sfont(&mut self, sfont: FontRef<'_>) {
-        unsafe {
-            self.handle.remove_sfont(sfont.as_ptr());
-        }
+    pub fn remove_sfont(&mut self, id: u32) {
+        self.handle.remove_sfont(id);
     }
 
     /*
@@ -107,15 +106,13 @@ impl Synth {
     Get the offset of the bank numbers in a SoundFont.
      */
     pub fn get_bank_offset(&self, sfont_id: FontId) -> Option<u32> {
-        self.handle
-            .get_bank_offset(sfont_id as i32)
-            .map(|o| o.offset)
+        self.handle.get_bank_offset(sfont_id).map(|o| o.offset)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{IsFont, Settings, Synth};
+    use crate::{Settings, Synth};
 
     #[test]
     fn font_and_preset() {
@@ -129,8 +126,11 @@ mod test {
 
         let font = synth.get_sfont(0).unwrap();
 
-        assert_eq!(font.get_id(), 1);
-        assert_eq!(font.get_name(), "./testdata/Boomwhacker.sf2");
+        assert_eq!(font.id, 1);
+        assert_eq!(
+            font.get_name().to_str().unwrap(),
+            "./testdata/Boomwhacker.sf2"
+        );
 
         let preset = font.get_preset(0, 0).unwrap();
 
@@ -140,35 +140,35 @@ mod test {
     }
 }
 
-/**
-The iterator over loaded SoundFonts.
- */
-pub struct FontIter<'a> {
-    handle: *mut engine::synth::Synth,
-    phantom: PhantomData<&'a ()>,
-    font_no: u32,
-}
+// /**
+// The iterator over loaded SoundFonts.
+//  */
+// pub struct FontIter<'a> {
+//     handle: *mut engine::synth::Synth,
+//     phantom: PhantomData<&'a ()>,
+//     font_no: u32,
+// }
 
-impl<'a> FontIter<'a> {
-    fn from_ptr(handle: *mut engine::synth::Synth) -> Self {
-        Self {
-            handle,
-            phantom: PhantomData,
-            font_no: 0,
-        }
-    }
-}
+// impl<'a> FontIter<'a> {
+//     fn from_ptr(handle: *mut engine::synth::Synth) -> Self {
+//         Self {
+//             handle,
+//             phantom: PhantomData,
+//             font_no: 0,
+//         }
+//     }
+// }
 
-impl<'a> Iterator for FontIter<'a> {
-    type Item = FontRef<'a>;
+// impl<'a> Iterator for FontIter<'a> {
+//     type Item = FontRef<'a>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let font =
-            option_from_ptr(unsafe { self.handle.as_mut().unwrap().get_sfont(self.font_no) })
-                .map(FontRef::from_ptr);
-        if font.is_some() {
-            self.font_no += 1;
-        }
-        font
-    }
-}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let font =
+//             option_from_ptr(unsafe { self.handle.as_mut().unwrap().get_sfont(self.font_no) })
+//                 .map(FontRef::from_ptr);
+//         if font.is_some() {
+//             self.font_no += 1;
+//         }
+//         font
+//     }
+// }

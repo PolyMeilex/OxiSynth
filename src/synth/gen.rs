@@ -1,6 +1,6 @@
 use crate::{engine, Chan, Status, Synth};
 
-type GenParam = engine::gen::GenParam;
+use engine::gen::GenParam;
 
 /**
 Generator interface
@@ -26,6 +26,6 @@ impl Synth {
     Returns the value of the generator.
      */
     pub fn get_gen(&self, chan: Chan, param: GenParam) -> f32 {
-        unsafe { self.handle.get_gen(chan as _, param as _) }
+        self.handle.get_gen(chan, param)
     }
 }

@@ -197,7 +197,7 @@ pub const SUSTAIN_SWITCH: MidiControlChange = 64;
 pub type MidiControlChange = u32;
 pub type LoopMode = u32;
 
-pub unsafe fn new_fluid_voice(output_rate: f32) -> Voice {
+pub fn new_fluid_voice(output_rate: f32) -> Voice {
     let mut volenv_data = [EnvData::default(); 7];
     {
         let sustain = &mut volenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
@@ -1746,7 +1746,7 @@ pub unsafe fn fluid_voice_check_sample_sanity(voice: &mut Voice) {
 
 pub unsafe fn fluid_voice_set_param(
     mut voice: &mut Voice,
-    gen: i16,
+    gen: u16,
     nrpn_value: f32,
     abs: i32,
 ) -> i32 {

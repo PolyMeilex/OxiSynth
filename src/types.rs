@@ -5,7 +5,7 @@ use std::{
 };
 
 /// Channel number
-pub type Chan = u32;
+pub type Chan = u8;
 
 /// Key number
 pub type Key = u32;
@@ -69,10 +69,10 @@ impl Display for Error {
 //     }
 // }
 
-pub(crate) fn option_from_ptr<T>(ptr: *mut T) -> Option<*mut T> {
-    if ptr.is_null() {
-        None
-    } else {
-        Some(ptr)
-    }
-}
+// pub(crate) fn option_from_ptr<T>(ptr: *mut T) -> Option<*mut T> {
+//     if ptr.is_null() {
+//         None
+//     } else {
+//         Some(ptr)
+//     }
+// }

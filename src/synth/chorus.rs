@@ -1,37 +1,8 @@
 use crate::{engine, Synth};
 
-type ChorusMode = engine::chorus::ChorusMode;
+use engine::chorus::ChorusMode;
+pub use engine::synth::chorus::ChorusParams;
 
-/**
-Chorus parameters
- */
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ChorusParams {
-    pub nr: u32,
-    pub level: f64,
-    /// Speed in Hz
-    pub speed: f64,
-    /// Depth in mS
-    pub depth: f64,
-    /// Mode
-    pub mode: ChorusMode,
-}
-
-impl Default for ChorusParams {
-    fn default() -> Self {
-        Self {
-            nr: 3,
-            level: 2.0,
-            speed: 0.3,
-            depth: 8.0,
-            mode: ChorusMode::default(),
-        }
-    }
-}
-
-/**
-Chorus
- */
 impl Synth {
     /**
     Set up the chorus. It should be turned on with Synth::chorus_on().
@@ -102,7 +73,7 @@ impl Synth {
     Query the current chorus mode
      */
     pub fn get_chorus_mode(&self) -> ChorusMode {
-        self.handle.get_chorus_type()
+        self.handle.get_chorus_mode()
     }
 
     /**

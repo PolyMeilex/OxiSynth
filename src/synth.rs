@@ -53,9 +53,7 @@ impl Synth {
     Set synth sample rate
      */
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        unsafe {
-            self.handle.set_sample_rate(sample_rate);
-        }
+        self.handle.set_sample_rate(sample_rate);
     }
 
     // /**

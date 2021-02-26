@@ -109,11 +109,11 @@ impl Chorus {
                 i += 1
             }
         }
-        self.set_nr(3 as i32);
-        self.set_level(2.0f32);
-        self.set_speed_hz(0.3f32);
-        self.set_depth_ms(8.0f32);
-        self.set_type(ChorusMode::Sine);
+        self.set_nr(3);
+        self.set_level(2.0);
+        self.set_speed_hz(0.3);
+        self.set_depth_ms(8.0);
+        self.set_mode(ChorusMode::Sine);
         self.update();
     }
 
@@ -149,12 +149,12 @@ impl Chorus {
         return self.depth_ms;
     }
 
-    pub fn set_type(&mut self, type_0: ChorusMode) {
-        self.new_type = type_0;
+    pub fn set_mode(&mut self, mode: ChorusMode) {
+        self.new_type = mode;
     }
 
-    pub fn get_type(&self) -> ChorusMode {
-        return self.type_0;
+    pub fn get_mode(&self) -> ChorusMode {
+        self.type_0
     }
 
     pub fn delete(&mut self) {
