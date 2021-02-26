@@ -13,7 +13,6 @@ use super::voice::fluid_voice_gen_incr;
 use super::voice::fluid_voice_gen_set;
 use super::voice::fluid_voice_optimize_sample;
 use super::voice::FluidVoiceAddMod;
-use super::voice::Voice;
 use std::slice::from_raw_parts_mut;
 use std::{
     ffi::{CStr, CString},
@@ -291,7 +290,7 @@ impl Preset {
             let mut inst_zone: *mut InstrumentZone;
             let mut global_inst_zone: *mut InstrumentZone;
             let mut sample: *mut Sample;
-            let mut voice: *mut Voice;
+            // let mut voice: *mut Voice;
             let mut mod_0: *mut Mod;
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64];
             let mut mod_list_count: i32;
@@ -311,145 +310,149 @@ impl Preset {
                             if fluid_inst_zone_inside_range(inst_zone, key, vel) != 0
                                 && !sample.is_null()
                             {
-                                voice = synth.alloc_voice(sample, chan, key, vel);
-                                if voice.is_null() {
+                                let voice_id = synth.alloc_voice(sample, chan, key, vel);
+
+                                if let Some(voice_id) = voice_id {
+                                    i = 0 as i32;
+                                    while i < GEN_LAST as i32 {
+                                        if (*inst_zone).gen[i as usize].flags != 0 {
+                                            fluid_voice_gen_set(
+                                                &mut synth.voice[voice_id.0],
+                                                i,
+                                                (*inst_zone).gen[i as usize].val as f32,
+                                            );
+                                        } else if !global_inst_zone.is_null()
+                                            && (*global_inst_zone).gen[i as usize].flags as i32 != 0
+                                        {
+                                            fluid_voice_gen_set(
+                                                &mut synth.voice[voice_id.0],
+                                                i,
+                                                (*global_inst_zone).gen[i as usize].val as f32,
+                                            );
+                                        }
+                                        i += 1
+                                    }
+                                    mod_list_count = 0 as i32;
+                                    if !global_inst_zone.is_null() {
+                                        mod_0 = (*global_inst_zone).mod_0;
+                                        while !mod_0.is_null() {
+                                            let fresh2 = mod_list_count;
+                                            mod_list_count = mod_list_count + 1;
+                                            mod_list[fresh2 as usize] = mod_0;
+                                            mod_0 = (*mod_0).next
+                                        }
+                                    }
+                                    mod_0 = (*inst_zone).mod_0;
+                                    while !mod_0.is_null() {
+                                        i = 0 as i32;
+                                        while i < mod_list_count {
+                                            if !mod_list[i as usize].is_null()
+                                                && mod_0.as_ref().unwrap().test_identity(
+                                                    mod_list[i as usize].as_ref().unwrap(),
+                                                ) != 0
+                                            {
+                                                mod_list[i as usize] = 0 as *mut Mod
+                                            }
+                                            i += 1
+                                        }
+                                        let fresh3 = mod_list_count;
+                                        mod_list_count = mod_list_count + 1;
+                                        mod_list[fresh3 as usize] = mod_0;
+                                        mod_0 = (*mod_0).next
+                                    }
+                                    i = 0 as i32;
+                                    while i < mod_list_count {
+                                        mod_0 = mod_list[i as usize];
+                                        if !mod_0.is_null() {
+                                            fluid_voice_add_mod(
+                                                &mut synth.voice[voice_id.0],
+                                                mod_0.as_ref().unwrap(),
+                                                FLUID_VOICE_OVERWRITE as i32,
+                                            );
+                                        }
+                                        i += 1
+                                    }
+                                    i = 0 as i32;
+                                    while i < GEN_LAST as i32 {
+                                        if i != GEN_STARTADDROFS as i32
+                                            && i != GEN_ENDADDROFS as i32
+                                            && i != GEN_STARTLOOPADDROFS as i32
+                                            && i != GEN_ENDLOOPADDROFS as i32
+                                            && i != GEN_STARTADDRCOARSEOFS as i32
+                                            && i != GEN_ENDADDRCOARSEOFS as i32
+                                            && i != GEN_STARTLOOPADDRCOARSEOFS as i32
+                                            && i != GEN_KEYNUM as i32
+                                            && i != GEN_VELOCITY as i32
+                                            && i != GEN_ENDLOOPADDRCOARSEOFS as i32
+                                            && i != GEN_SAMPLEMODE as i32
+                                            && i != GEN_EXCLUSIVECLASS as i32
+                                            && i != GEN_OVERRIDEROOTKEY as i32
+                                        {
+                                            if (*preset_zone).gen[i as usize].flags != 0 {
+                                                fluid_voice_gen_incr(
+                                                    &mut synth.voice[voice_id.0],
+                                                    i,
+                                                    (*preset_zone).gen[i as usize].val as f32,
+                                                );
+                                            } else if !global_preset_zone.is_null()
+                                                && (*global_preset_zone).gen[i as usize].flags
+                                                    as i32
+                                                    != 0
+                                            {
+                                                fluid_voice_gen_incr(
+                                                    &mut synth.voice[voice_id.0],
+                                                    i,
+                                                    (*global_preset_zone).gen[i as usize].val
+                                                        as f32,
+                                                );
+                                            }
+                                        }
+                                        i += 1
+                                    }
+                                    mod_list_count = 0 as i32;
+                                    if !global_preset_zone.is_null() {
+                                        mod_0 = (*global_preset_zone).mod_0;
+                                        while !mod_0.is_null() {
+                                            let fresh4 = mod_list_count;
+                                            mod_list_count = mod_list_count + 1;
+                                            mod_list[fresh4 as usize] = mod_0;
+                                            mod_0 = (*mod_0).next
+                                        }
+                                    }
+                                    mod_0 = (*preset_zone).mod_0;
+                                    while !mod_0.is_null() {
+                                        i = 0 as i32;
+                                        while i < mod_list_count {
+                                            if !mod_list[i as usize].is_null()
+                                                && mod_0.as_ref().unwrap().test_identity(
+                                                    mod_list[i as usize].as_ref().unwrap(),
+                                                ) != 0
+                                            {
+                                                mod_list[i as usize] = 0 as *mut Mod
+                                            }
+                                            i += 1
+                                        }
+                                        let fresh5 = mod_list_count;
+                                        mod_list_count = mod_list_count + 1;
+                                        mod_list[fresh5 as usize] = mod_0;
+                                        mod_0 = (*mod_0).next
+                                    }
+                                    i = 0 as i32;
+                                    while i < mod_list_count {
+                                        mod_0 = mod_list[i as usize];
+                                        if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
+                                            fluid_voice_add_mod(
+                                                &mut synth.voice[voice_id.0],
+                                                mod_0.as_ref().unwrap(),
+                                                FLUID_VOICE_ADD as i32,
+                                            );
+                                        }
+                                        i += 1
+                                    }
+                                    synth.start_voice(voice_id);
+                                } else {
                                     return FLUID_FAILED as i32;
                                 }
-                                i = 0 as i32;
-                                while i < GEN_LAST as i32 {
-                                    if (*inst_zone).gen[i as usize].flags != 0 {
-                                        fluid_voice_gen_set(
-                                            voice,
-                                            i,
-                                            (*inst_zone).gen[i as usize].val as f32,
-                                        );
-                                    } else if !global_inst_zone.is_null()
-                                        && (*global_inst_zone).gen[i as usize].flags as i32 != 0
-                                    {
-                                        fluid_voice_gen_set(
-                                            voice,
-                                            i,
-                                            (*global_inst_zone).gen[i as usize].val as f32,
-                                        );
-                                    }
-                                    i += 1
-                                }
-                                mod_list_count = 0 as i32;
-                                if !global_inst_zone.is_null() {
-                                    mod_0 = (*global_inst_zone).mod_0;
-                                    while !mod_0.is_null() {
-                                        let fresh2 = mod_list_count;
-                                        mod_list_count = mod_list_count + 1;
-                                        mod_list[fresh2 as usize] = mod_0;
-                                        mod_0 = (*mod_0).next
-                                    }
-                                }
-                                mod_0 = (*inst_zone).mod_0;
-                                while !mod_0.is_null() {
-                                    i = 0 as i32;
-                                    while i < mod_list_count {
-                                        if !mod_list[i as usize].is_null()
-                                            && mod_0.as_ref().unwrap().test_identity(
-                                                mod_list[i as usize].as_ref().unwrap(),
-                                            ) != 0
-                                        {
-                                            mod_list[i as usize] = 0 as *mut Mod
-                                        }
-                                        i += 1
-                                    }
-                                    let fresh3 = mod_list_count;
-                                    mod_list_count = mod_list_count + 1;
-                                    mod_list[fresh3 as usize] = mod_0;
-                                    mod_0 = (*mod_0).next
-                                }
-                                i = 0 as i32;
-                                while i < mod_list_count {
-                                    mod_0 = mod_list[i as usize];
-                                    if !mod_0.is_null() {
-                                        fluid_voice_add_mod(
-                                            voice,
-                                            mod_0.as_ref().unwrap(),
-                                            FLUID_VOICE_OVERWRITE as i32,
-                                        );
-                                    }
-                                    i += 1
-                                }
-                                i = 0 as i32;
-                                while i < GEN_LAST as i32 {
-                                    if i != GEN_STARTADDROFS as i32
-                                        && i != GEN_ENDADDROFS as i32
-                                        && i != GEN_STARTLOOPADDROFS as i32
-                                        && i != GEN_ENDLOOPADDROFS as i32
-                                        && i != GEN_STARTADDRCOARSEOFS as i32
-                                        && i != GEN_ENDADDRCOARSEOFS as i32
-                                        && i != GEN_STARTLOOPADDRCOARSEOFS as i32
-                                        && i != GEN_KEYNUM as i32
-                                        && i != GEN_VELOCITY as i32
-                                        && i != GEN_ENDLOOPADDRCOARSEOFS as i32
-                                        && i != GEN_SAMPLEMODE as i32
-                                        && i != GEN_EXCLUSIVECLASS as i32
-                                        && i != GEN_OVERRIDEROOTKEY as i32
-                                    {
-                                        if (*preset_zone).gen[i as usize].flags != 0 {
-                                            fluid_voice_gen_incr(
-                                                voice,
-                                                i,
-                                                (*preset_zone).gen[i as usize].val as f32,
-                                            );
-                                        } else if !global_preset_zone.is_null()
-                                            && (*global_preset_zone).gen[i as usize].flags as i32
-                                                != 0
-                                        {
-                                            fluid_voice_gen_incr(
-                                                voice,
-                                                i,
-                                                (*global_preset_zone).gen[i as usize].val as f32,
-                                            );
-                                        }
-                                    }
-                                    i += 1
-                                }
-                                mod_list_count = 0 as i32;
-                                if !global_preset_zone.is_null() {
-                                    mod_0 = (*global_preset_zone).mod_0;
-                                    while !mod_0.is_null() {
-                                        let fresh4 = mod_list_count;
-                                        mod_list_count = mod_list_count + 1;
-                                        mod_list[fresh4 as usize] = mod_0;
-                                        mod_0 = (*mod_0).next
-                                    }
-                                }
-                                mod_0 = (*preset_zone).mod_0;
-                                while !mod_0.is_null() {
-                                    i = 0 as i32;
-                                    while i < mod_list_count {
-                                        if !mod_list[i as usize].is_null()
-                                            && mod_0.as_ref().unwrap().test_identity(
-                                                mod_list[i as usize].as_ref().unwrap(),
-                                            ) != 0
-                                        {
-                                            mod_list[i as usize] = 0 as *mut Mod
-                                        }
-                                        i += 1
-                                    }
-                                    let fresh5 = mod_list_count;
-                                    mod_list_count = mod_list_count + 1;
-                                    mod_list[fresh5 as usize] = mod_0;
-                                    mod_0 = (*mod_0).next
-                                }
-                                i = 0 as i32;
-                                while i < mod_list_count {
-                                    mod_0 = mod_list[i as usize];
-                                    if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
-                                        fluid_voice_add_mod(
-                                            voice,
-                                            mod_0.as_ref().unwrap(),
-                                            FLUID_VOICE_ADD as i32,
-                                        );
-                                    }
-                                    i += 1
-                                }
-                                synth.start_voice(voice);
                             }
                             inst_zone = fluid_inst_zone_next(inst_zone)
                         }
@@ -583,7 +586,7 @@ impl DefaultSoundFont {
 
                 self.sample.push(sample);
 
-                fluid_voice_optimize_sample(sample);
+                fluid_voice_optimize_sample(&mut *sample);
             } else {
                 return Err(());
             }

@@ -17,7 +17,15 @@ use super::gen::fluid_gen_init;
 use super::gen::Gen;
 use super::modulator::Mod;
 use super::soundfont::Sample;
-use super::synth::Synth;
+
+#[derive(Copy, Clone)]
+pub struct VoiceId(pub usize);
+
+impl From<usize> for VoiceId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
 
 pub struct Voice {
     pub(crate) id: u32,
@@ -368,8 +376,8 @@ pub unsafe fn fluid_voice_gen_incr(mut voice: *mut Voice, i: i32, val: f32) {
 }
 
 pub unsafe fn fluid_voice_write(
-    mut voice: *mut Voice,
-    synth: &Synth,
+    voice: &mut Voice,
+    min_note_length_ticks: u32,
     dsp_left_buf: *mut f32,
     dsp_right_buf: *mut f32,
     dsp_reverb_buf: *mut f32,
@@ -380,22 +388,21 @@ pub unsafe fn fluid_voice_write(
     let target_amp;
     let count;
     let mut dsp_buf: [f32; 64] = [0.; 64];
-    let mut env_data;
     let mut x;
-    if !((*voice).status as i32 == FLUID_VOICE_ON as i32
-        || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32)
+    if !(voice.status as i32 == FLUID_VOICE_ON as i32
+        || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
     {
         return FLUID_OK as i32;
     }
-    if (*voice).sample.is_null() {
+    if voice.sample.is_null() {
         fluid_voice_off(voice);
         return FLUID_OK as i32;
     }
-    if (*voice).noteoff_ticks != 0 as i32 as u32 && (*voice).ticks >= (*voice).noteoff_ticks {
-        fluid_voice_noteoff(voice, synth);
+    if voice.noteoff_ticks != 0 as i32 as u32 && voice.ticks >= voice.noteoff_ticks {
+        fluid_voice_noteoff(voice, min_note_length_ticks);
     }
     fluid_voice_check_sample_sanity(voice);
-    env_data = &mut *(*voice)
+    let mut env_data = &mut *voice
         .volenv_data
         .as_mut_ptr()
         .offset((*voice).volenv_section as isize) as *mut EnvData;
@@ -700,13 +707,13 @@ pub unsafe fn fluid_voice_get_channel(voice: *mut Voice) -> *mut Channel {
     return (*voice).channel;
 }
 
-pub unsafe fn fluid_voice_start(mut voice: *mut Voice) {
+pub unsafe fn fluid_voice_start(voice: &mut Voice) {
     fluid_voice_calculate_runtime_synthesis_parameters(voice);
     (*voice).check_sample_sanity_flag = (1 as i32) << 1 as i32;
     (*voice).status = FLUID_VOICE_ON as i32 as u8;
 }
 
-pub unsafe fn fluid_voice_calculate_runtime_synthesis_parameters(mut voice: *mut Voice) -> i32 {
+pub unsafe fn fluid_voice_calculate_runtime_synthesis_parameters(voice: &mut Voice) -> i32 {
     let mut i;
     let list_of_generators_to_initialize: [i32; 35] = [
         GEN_STARTADDROFS as i32,
@@ -746,27 +753,26 @@ pub unsafe fn fluid_voice_calculate_runtime_synthesis_parameters(mut voice: *mut
         -(1 as i32),
     ];
     i = 0 as i32;
-    while i < (*voice).mod_count {
-        let mod_0: *mut Mod = &mut *(*voice).mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
+    while i < voice.mod_count {
+        let mod_0: *mut Mod = &mut *voice.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
         let modval: f32 = mod_0
             .as_mut()
             .unwrap()
-            .get_value((*voice).channel.as_mut().unwrap(), voice.as_mut().unwrap());
+            .get_value(voice.channel.as_mut().unwrap(), voice);
         let dest_gen_index: i32 = (*mod_0).dest as i32;
         let mut dest_gen: *mut Gen =
-            &mut *(*voice).gen.as_mut_ptr().offset(dest_gen_index as isize) as *mut Gen;
+            &mut *voice.gen.as_mut_ptr().offset(dest_gen_index as isize) as *mut Gen;
         (*dest_gen).mod_0 += modval as f64;
         i += 1
     }
-    if !(*(*voice).channel).tuning.is_none() {
-        let tuning = (*(*voice).channel).tuning.as_ref().unwrap();
-        (*voice).gen[GEN_PITCH as i32 as usize].val = tuning.pitch[60 as i32 as usize]
-            + (*voice).gen[GEN_SCALETUNE as i32 as usize].val / 100.0f32 as f64
-                * (tuning.pitch[(*voice).key as usize] - tuning.pitch[60 as i32 as usize])
+    if !(*voice.channel).tuning.is_none() {
+        let tuning = (*voice.channel).tuning.as_ref().unwrap();
+        voice.gen[GEN_PITCH as i32 as usize].val = tuning.pitch[60 as i32 as usize]
+            + voice.gen[GEN_SCALETUNE as i32 as usize].val / 100.0f32 as f64
+                * (tuning.pitch[voice.key as usize] - tuning.pitch[60 as i32 as usize])
     } else {
-        (*voice).gen[GEN_PITCH as i32 as usize].val = (*voice).gen[GEN_SCALETUNE as i32 as usize]
-            .val
-            * ((*voice).key as i32 as f32 - 60.0f32) as f64
+        voice.gen[GEN_PITCH as i32 as usize].val = (*voice).gen[GEN_SCALETUNE as i32 as usize].val
+            * (voice.key as i32 as f32 - 60.0f32) as f64
             + (100.0f32 * 60.0f32) as f64
     }
     i = 0 as i32;
@@ -814,7 +820,7 @@ pub unsafe fn calculate_hold_decay_buffers(
     return buffers;
 }
 
-pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
+pub unsafe fn fluid_voice_update_param(voice: &mut Voice, gen: i32) {
     let mut q_d_b;
     let mut x;
     let mut y;
@@ -824,99 +830,97 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
     let current_block_195: u64;
     match gen as u32 {
         17 => {
-            (*voice).pan = (*voice).gen[GEN_PAN as i32 as usize].val as f32
-                + (*voice).gen[GEN_PAN as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_PAN as i32 as usize].nrpn as f32;
-            (*voice).amp_left =
-                fluid_pan((*voice).pan, 1 as i32) * (*voice).synth_gain / 32768.0f32;
-            (*voice).amp_right =
-                fluid_pan((*voice).pan, 0 as i32) * (*voice).synth_gain / 32768.0f32;
+            voice.pan = voice.gen[GEN_PAN as i32 as usize].val as f32
+                + voice.gen[GEN_PAN as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_PAN as i32 as usize].nrpn as f32;
+            voice.amp_left = fluid_pan(voice.pan, 1 as i32) * voice.synth_gain / 32768.0f32;
+            voice.amp_right = fluid_pan(voice.pan, 0 as i32) * voice.synth_gain / 32768.0f32;
             current_block_195 = 5267916556966421873;
         }
         48 => {
-            (*voice).attenuation = (*voice).gen[GEN_ATTENUATION as i32 as usize].val as f32
+            voice.attenuation = voice.gen[GEN_ATTENUATION as i32 as usize].val as f32
                 * ALT_ATTENUATION_SCALE
-                + (*voice).gen[GEN_ATTENUATION as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_ATTENUATION as i32 as usize].nrpn as f32;
-            (*voice).attenuation = if ((*voice).attenuation as f64) < 0.0f64 {
+                + voice.gen[GEN_ATTENUATION as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_ATTENUATION as i32 as usize].nrpn as f32;
+            voice.attenuation = if (voice.attenuation as f64) < 0.0f64 {
                 0.0f64
-            } else if (*voice).attenuation as f64 > 1440.0f64 {
+            } else if voice.attenuation as f64 > 1440.0f64 {
                 1440.0f64
             } else {
-                (*voice).attenuation as f64
+                voice.attenuation as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         59 | 51 | 52 => {
-            (*voice).pitch = (*voice).gen[GEN_PITCH as i32 as usize].val as f32
-                + (*voice).gen[GEN_PITCH as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_PITCH as i32 as usize].nrpn as f32
+            voice.pitch = voice.gen[GEN_PITCH as i32 as usize].val as f32
+                + voice.gen[GEN_PITCH as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_PITCH as i32 as usize].nrpn as f32
                 + 100.0f32
-                    * ((*voice).gen[GEN_COARSETUNE as i32 as usize].val as f32
-                        + (*voice).gen[GEN_COARSETUNE as i32 as usize].mod_0 as f32
-                        + (*voice).gen[GEN_COARSETUNE as i32 as usize].nrpn as f32)
-                + ((*voice).gen[GEN_FINETUNE as i32 as usize].val as f32
-                    + (*voice).gen[GEN_FINETUNE as i32 as usize].mod_0 as f32
-                    + (*voice).gen[GEN_FINETUNE as i32 as usize].nrpn as f32);
+                    * (voice.gen[GEN_COARSETUNE as i32 as usize].val as f32
+                        + voice.gen[GEN_COARSETUNE as i32 as usize].mod_0 as f32
+                        + voice.gen[GEN_COARSETUNE as i32 as usize].nrpn as f32)
+                + (voice.gen[GEN_FINETUNE as i32 as usize].val as f32
+                    + voice.gen[GEN_FINETUNE as i32 as usize].mod_0 as f32
+                    + voice.gen[GEN_FINETUNE as i32 as usize].nrpn as f32);
             current_block_195 = 5267916556966421873;
         }
         16 => {
-            (*voice).reverb_send = ((*voice).gen[GEN_REVERBSEND as i32 as usize].val as f32
-                + (*voice).gen[GEN_REVERBSEND as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_REVERBSEND as i32 as usize].nrpn as f32)
+            voice.reverb_send = (voice.gen[GEN_REVERBSEND as i32 as usize].val as f32
+                + voice.gen[GEN_REVERBSEND as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_REVERBSEND as i32 as usize].nrpn as f32)
                 / 1000.0f32;
-            (*voice).reverb_send = if ((*voice).reverb_send as f64) < 0.0f64 {
+            voice.reverb_send = if (voice.reverb_send as f64) < 0.0f64 {
                 0.0f64
-            } else if (*voice).reverb_send as f64 > 1.0f64 {
+            } else if voice.reverb_send as f64 > 1.0f64 {
                 1.0f64
             } else {
-                (*voice).reverb_send as f64
+                voice.reverb_send as f64
             } as f32;
-            (*voice).amp_reverb = (*voice).reverb_send * (*voice).synth_gain / 32768.0f32;
+            voice.amp_reverb = voice.reverb_send * voice.synth_gain / 32768.0f32;
             current_block_195 = 5267916556966421873;
         }
         15 => {
-            (*voice).chorus_send = ((*voice).gen[GEN_CHORUSSEND as i32 as usize].val as f32
+            voice.chorus_send = (voice.gen[GEN_CHORUSSEND as i32 as usize].val as f32
                 + (*voice).gen[GEN_CHORUSSEND as i32 as usize].mod_0 as f32
                 + (*voice).gen[GEN_CHORUSSEND as i32 as usize].nrpn as f32)
                 / 1000.0f32;
-            (*voice).chorus_send = if ((*voice).chorus_send as f64) < 0.0f64 {
+            voice.chorus_send = if (voice.chorus_send as f64) < 0.0f64 {
                 0.0f64
-            } else if (*voice).chorus_send as f64 > 1.0f64 {
+            } else if voice.chorus_send as f64 > 1.0f64 {
                 1.0f64
             } else {
-                (*voice).chorus_send as f64
+                voice.chorus_send as f64
             } as f32;
-            (*voice).amp_chorus = (*voice).chorus_send * (*voice).synth_gain / 32768.0f32;
+            voice.amp_chorus = voice.chorus_send * voice.synth_gain / 32768.0f32;
             current_block_195 = 5267916556966421873;
         }
         58 => {
-            if (*voice).gen[GEN_OVERRIDEROOTKEY as i32 as usize].val > -(1 as i32) as f64 {
+            if voice.gen[GEN_OVERRIDEROOTKEY as i32 as usize].val > -(1 as i32) as f64 {
                 //FIXME: use flag instead of -1
-                (*voice).root_pitch =
-                    ((*voice).gen[GEN_OVERRIDEROOTKEY as i32 as usize].val * 100.0f32 as f64
-                        - (*(*voice).sample).pitchadj as f64) as f32
+                voice.root_pitch = (voice.gen[GEN_OVERRIDEROOTKEY as i32 as usize].val
+                    * 100.0f32 as f64
+                    - (*voice.sample).pitchadj as f64) as f32
             } else {
-                (*voice).root_pitch = (*(*voice).sample).origpitch as f32 * 100.0f32
-                    - (*(*voice).sample).pitchadj as f32
+                voice.root_pitch =
+                    (*voice.sample).origpitch as f32 * 100.0f32 - (*voice.sample).pitchadj as f32
             }
-            (*voice).root_pitch = fluid_ct2hz((*voice).root_pitch);
-            if !(*voice).sample.is_null() {
-                (*voice).root_pitch *= (*voice).output_rate / (*(*voice).sample).samplerate as f32
+            voice.root_pitch = fluid_ct2hz((*voice).root_pitch);
+            if !voice.sample.is_null() {
+                voice.root_pitch *= voice.output_rate / (*voice.sample).samplerate as f32
             }
             current_block_195 = 5267916556966421873;
         }
         8 => {
-            (*voice).fres = (*voice).gen[GEN_FILTERFC as i32 as usize].val as f32
-                + (*voice).gen[GEN_FILTERFC as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_FILTERFC as i32 as usize].nrpn as f32;
+            voice.fres = (*voice).gen[GEN_FILTERFC as i32 as usize].val as f32
+                + voice.gen[GEN_FILTERFC as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_FILTERFC as i32 as usize].nrpn as f32;
             (*voice).last_fres = -1.0f32;
             current_block_195 = 5267916556966421873;
         }
         9 => {
-            q_d_b = (((*voice).gen[GEN_FILTERQ as i32 as usize].val as f32
-                + (*voice).gen[GEN_FILTERQ as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_FILTERQ as i32 as usize].nrpn as f32)
+            q_d_b = ((voice.gen[GEN_FILTERQ as i32 as usize].val as f32
+                + voice.gen[GEN_FILTERQ as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_FILTERQ as i32 as usize].nrpn as f32)
                 / 10.0f32) as f64;
             q_d_b = if q_d_b < 0.0f32 as f64 {
                 0.0f32 as f64
@@ -926,54 +930,54 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 q_d_b
             };
             q_d_b -= 3.01f32 as f64;
-            (*voice).q_lin = f64::powf(10.0f32 as f64, q_d_b / 20.0f32 as f64) as f32;
-            (*voice).filter_gain = (1.0f64 / f64::sqrt((*voice).q_lin as f64)) as f32;
-            (*voice).last_fres = -1.0f32;
+            voice.q_lin = f64::powf(10.0f32 as f64, q_d_b / 20.0f32 as f64) as f32;
+            voice.filter_gain = (1.0f64 / f64::sqrt(voice.q_lin as f64)) as f32;
+            voice.last_fres = -1.0f32;
             current_block_195 = 5267916556966421873;
         }
         5 => {
-            (*voice).modlfo_to_pitch = (*voice).gen[GEN_MODLFOTOPITCH as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODLFOTOPITCH as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODLFOTOPITCH as i32 as usize].nrpn as f32;
-            (*voice).modlfo_to_pitch = if ((*voice).modlfo_to_pitch as f64) < -12000.0f64 {
+            voice.modlfo_to_pitch = voice.gen[GEN_MODLFOTOPITCH as i32 as usize].val as f32
+                + voice.gen[GEN_MODLFOTOPITCH as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODLFOTOPITCH as i32 as usize].nrpn as f32;
+            voice.modlfo_to_pitch = if (voice.modlfo_to_pitch as f64) < -12000.0f64 {
                 -12000.0f64
-            } else if (*voice).modlfo_to_pitch as f64 > 12000.0f64 {
+            } else if voice.modlfo_to_pitch as f64 > 12000.0f64 {
                 12000.0f64
             } else {
-                (*voice).modlfo_to_pitch as f64
+                voice.modlfo_to_pitch as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         13 => {
-            (*voice).modlfo_to_vol = (*voice).gen[GEN_MODLFOTOVOL as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODLFOTOVOL as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODLFOTOVOL as i32 as usize].nrpn as f32;
-            (*voice).modlfo_to_vol = if ((*voice).modlfo_to_vol as f64) < -960.0f64 {
+            voice.modlfo_to_vol = voice.gen[GEN_MODLFOTOVOL as i32 as usize].val as f32
+                + voice.gen[GEN_MODLFOTOVOL as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODLFOTOVOL as i32 as usize].nrpn as f32;
+            voice.modlfo_to_vol = if (voice.modlfo_to_vol as f64) < -960.0f64 {
                 -960.0f64
-            } else if (*voice).modlfo_to_vol as f64 > 960.0f64 {
+            } else if voice.modlfo_to_vol as f64 > 960.0f64 {
                 960.0f64
             } else {
-                (*voice).modlfo_to_vol as f64
+                voice.modlfo_to_vol as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         10 => {
-            (*voice).modlfo_to_fc = (*voice).gen[GEN_MODLFOTOFILTERFC as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODLFOTOFILTERFC as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODLFOTOFILTERFC as i32 as usize].nrpn as f32;
-            (*voice).modlfo_to_fc = if (*voice).modlfo_to_fc < -(12000 as i32) as f32 {
+            voice.modlfo_to_fc = voice.gen[GEN_MODLFOTOFILTERFC as i32 as usize].val as f32
+                + voice.gen[GEN_MODLFOTOFILTERFC as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODLFOTOFILTERFC as i32 as usize].nrpn as f32;
+            voice.modlfo_to_fc = if voice.modlfo_to_fc < -(12000 as i32) as f32 {
                 -(12000 as i32) as f32
-            } else if (*voice).modlfo_to_fc > 12000 as i32 as f32 {
+            } else if voice.modlfo_to_fc > 12000 as i32 as f32 {
                 12000 as i32 as f32
             } else {
-                (*voice).modlfo_to_fc
+                voice.modlfo_to_fc
             };
             current_block_195 = 5267916556966421873;
         }
         21 => {
-            x = (*voice).gen[GEN_MODLFODELAY as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODLFODELAY as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODLFODELAY as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_MODLFODELAY as i32 as usize].val as f32
+                + voice.gen[GEN_MODLFODELAY as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODLFODELAY as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 5000.0f32 {
@@ -981,13 +985,13 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            (*voice).modlfo_delay = ((*voice).output_rate * fluid_tc2sec_delay(x)) as u32;
+            voice.modlfo_delay = (voice.output_rate * fluid_tc2sec_delay(x)) as u32;
             current_block_195 = 5267916556966421873;
         }
         22 => {
-            x = (*voice).gen[GEN_MODLFOFREQ as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODLFOFREQ as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODLFOFREQ as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_MODLFOFREQ as i32 as usize].val as f32
+                + voice.gen[GEN_MODLFOFREQ as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODLFOFREQ as i32 as usize].nrpn as f32;
             x = if x < -16000.0f32 {
                 -16000.0f32
             } else if x > 4500.0f32 {
@@ -995,14 +999,13 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            (*voice).modlfo_incr =
-                4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / (*voice).output_rate;
+            voice.modlfo_incr = 4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / voice.output_rate;
             current_block_195 = 5267916556966421873;
         }
         24 => {
-            x = (*voice).gen[GEN_VIBLFOFREQ as i32 as usize].val as f32
-                + (*voice).gen[GEN_VIBLFOFREQ as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VIBLFOFREQ as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VIBLFOFREQ as i32 as usize].val as f32
+                + voice.gen[GEN_VIBLFOFREQ as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VIBLFOFREQ as i32 as usize].nrpn as f32;
             x = if x < -16000.0f32 {
                 -16000.0f32
             } else if x > 4500.0f32 {
@@ -1010,14 +1013,13 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            (*voice).viblfo_incr =
-                4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / (*voice).output_rate;
+            voice.viblfo_incr = 4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / voice.output_rate;
             current_block_195 = 5267916556966421873;
         }
         23 => {
-            x = (*voice).gen[GEN_VIBLFODELAY as i32 as usize].val as f32
-                + (*voice).gen[GEN_VIBLFODELAY as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VIBLFODELAY as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VIBLFODELAY as i32 as usize].val as f32
+                + voice.gen[GEN_VIBLFODELAY as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VIBLFODELAY as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 5000.0f32 {
@@ -1025,156 +1027,155 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            (*voice).viblfo_delay = ((*voice).output_rate * fluid_tc2sec_delay(x)) as u32;
+            voice.viblfo_delay = (voice.output_rate * fluid_tc2sec_delay(x)) as u32;
             current_block_195 = 5267916556966421873;
         }
         6 => {
-            (*voice).viblfo_to_pitch = (*voice).gen[GEN_VIBLFOTOPITCH as i32 as usize].val as f32
+            voice.viblfo_to_pitch = voice.gen[GEN_VIBLFOTOPITCH as i32 as usize].val as f32
                 + (*voice).gen[GEN_VIBLFOTOPITCH as i32 as usize].mod_0 as f32
                 + (*voice).gen[GEN_VIBLFOTOPITCH as i32 as usize].nrpn as f32;
-            (*voice).viblfo_to_pitch = if ((*voice).viblfo_to_pitch as f64) < -12000.0f64 {
+            voice.viblfo_to_pitch = if (voice.viblfo_to_pitch as f64) < -12000.0f64 {
                 -12000.0f64
-            } else if (*voice).viblfo_to_pitch as f64 > 12000.0f64 {
+            } else if voice.viblfo_to_pitch as f64 > 12000.0f64 {
                 12000.0f64
             } else {
-                (*voice).viblfo_to_pitch as f64
+                voice.viblfo_to_pitch as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         46 => {
-            x = (*voice).gen[GEN_KEYNUM as i32 as usize].val as f32
-                + (*voice).gen[GEN_KEYNUM as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_KEYNUM as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_KEYNUM as i32 as usize].val as f32
+                + voice.gen[GEN_KEYNUM as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_KEYNUM as i32 as usize].nrpn as f32;
             if x >= 0 as i32 as f32 {
-                (*voice).key = x as u8
+                voice.key = x as u8
             }
             current_block_195 = 5267916556966421873;
         }
         47 => {
-            x = (*voice).gen[GEN_VELOCITY as i32 as usize].val as f32
-                + (*voice).gen[GEN_VELOCITY as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VELOCITY as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VELOCITY as i32 as usize].val as f32
+                + voice.gen[GEN_VELOCITY as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VELOCITY as i32 as usize].nrpn as f32;
             if x > 0 as i32 as f32 {
-                (*voice).vel = x as u8
+                voice.vel = x as u8
             }
             current_block_195 = 5267916556966421873;
         }
         7 => {
-            (*voice).modenv_to_pitch = (*voice).gen[GEN_MODENVTOPITCH as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODENVTOPITCH as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODENVTOPITCH as i32 as usize].nrpn as f32;
-            (*voice).modenv_to_pitch = if ((*voice).modenv_to_pitch as f64) < -12000.0f64 {
+            voice.modenv_to_pitch = voice.gen[GEN_MODENVTOPITCH as i32 as usize].val as f32
+                + voice.gen[GEN_MODENVTOPITCH as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODENVTOPITCH as i32 as usize].nrpn as f32;
+            voice.modenv_to_pitch = if (voice.modenv_to_pitch as f64) < -12000.0f64 {
                 -12000.0f64
-            } else if (*voice).modenv_to_pitch as f64 > 12000.0f64 {
+            } else if voice.modenv_to_pitch as f64 > 12000.0f64 {
                 12000.0f64
             } else {
-                (*voice).modenv_to_pitch as f64
+                voice.modenv_to_pitch as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         11 => {
-            (*voice).modenv_to_fc = (*voice).gen[GEN_MODENVTOFILTERFC as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODENVTOFILTERFC as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODENVTOFILTERFC as i32 as usize].nrpn as f32;
-            (*voice).modenv_to_fc = if ((*voice).modenv_to_fc as f64) < -12000.0f64 {
+            voice.modenv_to_fc = voice.gen[GEN_MODENVTOFILTERFC as i32 as usize].val as f32
+                + voice.gen[GEN_MODENVTOFILTERFC as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODENVTOFILTERFC as i32 as usize].nrpn as f32;
+            voice.modenv_to_fc = if ((*voice).modenv_to_fc as f64) < -12000.0f64 {
                 -12000.0f64
-            } else if (*voice).modenv_to_fc as f64 > 12000.0f64 {
+            } else if voice.modenv_to_fc as f64 > 12000.0f64 {
                 12000.0f64
             } else {
-                (*voice).modenv_to_fc as f64
+                voice.modenv_to_fc as f64
             } as f32;
             current_block_195 = 5267916556966421873;
         }
         0 | 4 => {
-            if !(*voice).sample.is_null() {
-                (*voice).start = (*(*voice).sample)
+            if !voice.sample.is_null() {
+                voice.start = (*voice.sample)
                     .start
                     .wrapping_add(
-                        ((*voice).gen[GEN_STARTADDROFS as i32 as usize].val as f32
-                            + (*voice).gen[GEN_STARTADDROFS as i32 as usize].mod_0 as f32
-                            + (*voice).gen[GEN_STARTADDROFS as i32 as usize].nrpn as f32)
+                        (voice.gen[GEN_STARTADDROFS as i32 as usize].val as f32
+                            + voice.gen[GEN_STARTADDROFS as i32 as usize].mod_0 as f32
+                            + voice.gen[GEN_STARTADDROFS as i32 as usize].nrpn as f32)
                             as i32 as u32,
                     )
                     .wrapping_add(
                         (32768 as i32
-                            * ((*voice).gen[GEN_STARTADDRCOARSEOFS as i32 as usize].val as f32
-                                + (*voice).gen[GEN_STARTADDRCOARSEOFS as i32 as usize].mod_0 as f32
-                                + (*voice).gen[GEN_STARTADDRCOARSEOFS as i32 as usize].nrpn as f32)
+                            * (voice.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].val as f32
+                                + voice.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].mod_0 as f32
+                                + voice.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].nrpn as f32)
                                 as i32) as u32,
                     ) as i32;
-                (*voice).check_sample_sanity_flag = (1 as i32) << 0 as i32
+                voice.check_sample_sanity_flag = (1 as i32) << 0 as i32
             }
             current_block_195 = 5267916556966421873;
         }
         1 | 12 => {
-            if !(*voice).sample.is_null() {
-                (*voice).end = (*(*voice).sample)
+            if !voice.sample.is_null() {
+                voice.end = (*voice.sample)
                     .end
                     .wrapping_add(
-                        ((*voice).gen[GEN_ENDADDROFS as i32 as usize].val as f32
-                            + (*voice).gen[GEN_ENDADDROFS as i32 as usize].mod_0 as f32
-                            + (*voice).gen[GEN_ENDADDROFS as i32 as usize].nrpn as f32)
+                        (voice.gen[GEN_ENDADDROFS as i32 as usize].val as f32
+                            + voice.gen[GEN_ENDADDROFS as i32 as usize].mod_0 as f32
+                            + voice.gen[GEN_ENDADDROFS as i32 as usize].nrpn as f32)
                             as i32 as u32,
                     )
                     .wrapping_add(
                         (32768 as i32
-                            * ((*voice).gen[GEN_ENDADDRCOARSEOFS as i32 as usize].val as f32
-                                + (*voice).gen[GEN_ENDADDRCOARSEOFS as i32 as usize].mod_0 as f32
-                                + (*voice).gen[GEN_ENDADDRCOARSEOFS as i32 as usize].nrpn as f32)
+                            * (voice.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].val as f32
+                                + voice.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].mod_0 as f32
+                                + voice.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].nrpn as f32)
                                 as i32) as u32,
                     ) as i32;
-                (*voice).check_sample_sanity_flag = (1 as i32) << 0 as i32
+                voice.check_sample_sanity_flag = (1 as i32) << 0 as i32
             }
             current_block_195 = 5267916556966421873;
         }
         2 | 45 => {
-            if !(*voice).sample.is_null() {
-                (*voice).loopstart = (*(*voice).sample)
+            if !voice.sample.is_null() {
+                voice.loopstart = (*voice.sample)
                     .loopstart
                     .wrapping_add(
-                        ((*voice).gen[GEN_STARTLOOPADDROFS as i32 as usize].val as f32
-                            + (*voice).gen[GEN_STARTLOOPADDROFS as i32 as usize].mod_0 as f32
-                            + (*voice).gen[GEN_STARTLOOPADDROFS as i32 as usize].nrpn as f32)
+                        (voice.gen[GEN_STARTLOOPADDROFS as i32 as usize].val as f32
+                            + voice.gen[GEN_STARTLOOPADDROFS as i32 as usize].mod_0 as f32
+                            + voice.gen[GEN_STARTLOOPADDROFS as i32 as usize].nrpn as f32)
                             as i32 as u32,
                     )
                     .wrapping_add(
                         (32768 as i32
-                            * ((*voice).gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].val as f32
-                                + (*voice).gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].mod_0
+                            * (voice.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].val as f32
+                                + voice.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].mod_0
                                     as f32
-                                + (*voice).gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].nrpn
-                                    as f32) as i32) as u32,
+                                + voice.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].nrpn as f32)
+                                as i32) as u32,
                     ) as i32;
-                (*voice).check_sample_sanity_flag = (1 as i32) << 0 as i32
+                voice.check_sample_sanity_flag = (1 as i32) << 0 as i32
             }
             current_block_195 = 5267916556966421873;
         }
         3 | 50 => {
-            if !(*voice).sample.is_null() {
-                (*voice).loopend = (*(*voice).sample)
+            if !voice.sample.is_null() {
+                voice.loopend = (*voice.sample)
                     .loopend
                     .wrapping_add(
-                        ((*voice).gen[GEN_ENDLOOPADDROFS as i32 as usize].val as f32
-                            + (*voice).gen[GEN_ENDLOOPADDROFS as i32 as usize].mod_0 as f32
-                            + (*voice).gen[GEN_ENDLOOPADDROFS as i32 as usize].nrpn as f32)
+                        (voice.gen[GEN_ENDLOOPADDROFS as i32 as usize].val as f32
+                            + voice.gen[GEN_ENDLOOPADDROFS as i32 as usize].mod_0 as f32
+                            + voice.gen[GEN_ENDLOOPADDROFS as i32 as usize].nrpn as f32)
                             as i32 as u32,
                     )
                     .wrapping_add(
                         (32768 as i32
-                            * ((*voice).gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].val as f32
-                                + (*voice).gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].mod_0
-                                    as f32
-                                + (*voice).gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].nrpn
-                                    as f32) as i32) as u32,
+                            * (voice.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].val as f32
+                                + voice.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].mod_0 as f32
+                                + voice.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].nrpn as f32)
+                                as i32) as u32,
                     ) as i32;
-                (*voice).check_sample_sanity_flag = (1 as i32) << 0 as i32
+                voice.check_sample_sanity_flag = (1 as i32) << 0 as i32
             }
             current_block_195 = 5267916556966421873;
         }
         33 => {
-            x = (*voice).gen[GEN_VOLENVDELAY as i32 as usize].val as f32
-                + (*voice).gen[GEN_VOLENVDELAY as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VOLENVDELAY as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VOLENVDELAY as i32 as usize].val as f32
+                + voice.gen[GEN_VOLENVDELAY as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VOLENVDELAY as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 5000.0f32 {
@@ -1182,18 +1183,18 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            count = ((*voice).output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count = count;
-            (*voice).volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
+            count = (voice.output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
+            voice.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count = count;
+            voice.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
             current_block_195 = 5267916556966421873;
         }
         34 => {
-            x = (*voice).gen[GEN_VOLENVATTACK as i32 as usize].val as f32
-                + (*voice).gen[GEN_VOLENVATTACK as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VOLENVATTACK as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VOLENVATTACK as i32 as usize].val as f32
+                + voice.gen[GEN_VOLENVATTACK as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VOLENVATTACK as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 8000.0f32 {
@@ -1202,17 +1203,17 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 x
             };
             count = (1 as i32 as u32).wrapping_add(
-                ((*voice).output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
+                (voice.output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
             );
-            (*voice).volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
-            (*voice).volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
+            voice.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
+            voice.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
                 (1.0f32) / count as f32
             } else {
                 0.0f32
             };
-            (*voice).volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
             current_block_195 = 5267916556966421873;
         }
         35 | 39 => {
@@ -1222,11 +1223,11 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 GEN_KEYTOVOLENVHOLD as i32,
                 0 as i32,
             ) as u32;
-            (*voice).volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
-            (*voice).volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
+            voice.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
             current_block_195 = 5267916556966421873;
         }
         36 => {
@@ -1236,9 +1237,9 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             current_block_195 = 16592787104725195690;
         }
         38 => {
-            x = (*voice).gen[GEN_VOLENVRELEASE as i32 as usize].val as f32
-                + (*voice).gen[GEN_VOLENVRELEASE as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_VOLENVRELEASE as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_VOLENVRELEASE as i32 as usize].val as f32
+                + voice.gen[GEN_VOLENVRELEASE as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_VOLENVRELEASE as i32 as usize].nrpn as f32;
             x = if x < -7200.0f32 {
                 -7200.0f32
             } else if x > 8000.0f32 {
@@ -1247,23 +1248,23 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 x
             };
             count = (1 as i32 as u32).wrapping_add(
-                ((*voice).output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
+                (voice.output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
             );
-            (*voice).volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
-            (*voice).volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
+            voice.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
+            voice.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
                 (-1.0f32) / count as f32
             } else {
                 0.0f32
             };
-            (*voice).volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 1.0f32;
             current_block_195 = 5267916556966421873;
         }
         25 => {
-            x = (*voice).gen[GEN_MODENVDELAY as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODENVDELAY as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODENVDELAY as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_MODENVDELAY as i32 as usize].val as f32
+                + voice.gen[GEN_MODENVDELAY as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODENVDELAY as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 5000.0f32 {
@@ -1271,18 +1272,18 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 x
             };
-            (*voice).modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count =
-                ((*voice).output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
-            (*voice).modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count =
+                (voice.output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
+            voice.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
             current_block_195 = 5267916556966421873;
         }
         26 => {
-            x = (*voice).gen[GEN_MODENVATTACK as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODENVATTACK as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODENVATTACK as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_MODENVATTACK as i32 as usize].val as f32
+                + voice.gen[GEN_MODENVATTACK as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODENVATTACK as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 8000.0f32 {
@@ -1291,17 +1292,17 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 x
             };
             count = (1 as i32 as u32).wrapping_add(
-                ((*voice).output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
+                (voice.output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
             );
-            (*voice).modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
-            (*voice).modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
+            voice.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
+            voice.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
                 (1.0f32) / count as f32
             } else {
                 0.0f32
             };
-            (*voice).modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
             current_block_195 = 5267916556966421873;
         }
         27 | 31 => {
@@ -1311,11 +1312,11 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 GEN_KEYTOMODENVHOLD as i32,
                 0 as i32,
             ) as u32;
-            (*voice).modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
-            (*voice).modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
+            voice.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
             current_block_195 = 5267916556966421873;
         }
         28 => {
@@ -1325,9 +1326,9 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             current_block_195 = 9635119298622998056;
         }
         30 => {
-            x = (*voice).gen[GEN_MODENVRELEASE as i32 as usize].val as f32
-                + (*voice).gen[GEN_MODENVRELEASE as i32 as usize].mod_0 as f32
-                + (*voice).gen[GEN_MODENVRELEASE as i32 as usize].nrpn as f32;
+            x = voice.gen[GEN_MODENVRELEASE as i32 as usize].val as f32
+                + voice.gen[GEN_MODENVRELEASE as i32 as usize].mod_0 as f32
+                + voice.gen[GEN_MODENVRELEASE as i32 as usize].nrpn as f32;
             x = if x < -12000.0f32 {
                 -12000.0f32
             } else if x > 8000.0f32 {
@@ -1336,18 +1337,17 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 x
             };
             count = (1 as i32 as u32).wrapping_add(
-                ((*voice).output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
+                (voice.output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
             );
-            (*voice).modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
-            (*voice).modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
+            voice.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
+            voice.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
                 (-1.0f32 / count as f32) as f64
             } else {
                 0.0f64
-            }
-                as f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 2.0f32;
+            } as f32;
+            voice.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 2.0f32;
             current_block_195 = 5267916556966421873;
         }
         _ => {
@@ -1364,9 +1364,9 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             ) as u32;
             y = 1.0f32
                 - 0.001f32
-                    * ((*voice).gen[GEN_MODENVSUSTAIN as i32 as usize].val as f32
-                        + (*voice).gen[GEN_MODENVSUSTAIN as i32 as usize].mod_0 as f32
-                        + (*voice).gen[GEN_MODENVSUSTAIN as i32 as usize].nrpn as f32);
+                    * (voice.gen[GEN_MODENVSUSTAIN as i32 as usize].val as f32
+                        + voice.gen[GEN_MODENVSUSTAIN as i32 as usize].mod_0 as f32
+                        + voice.gen[GEN_MODENVSUSTAIN as i32 as usize].nrpn as f32);
             y = if y < 0.0f32 {
                 0.0f32
             } else if y > 1.0f32 {
@@ -1374,22 +1374,22 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
             } else {
                 y
             };
-            (*voice).modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
-            (*voice).modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
-            (*voice).modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
+            voice.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
+            voice.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
+            voice.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
                 (-1.0f32) / count as f32
             } else {
                 0.0f32
             };
-            (*voice).modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
-            (*voice).modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
+            voice.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
+            voice.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
         }
         16592787104725195690 => {
             y = 1.0f32
                 - 0.001f32
-                    * ((*voice).gen[GEN_VOLENVSUSTAIN as i32 as usize].val as f32
-                        + (*voice).gen[GEN_VOLENVSUSTAIN as i32 as usize].mod_0 as f32
-                        + (*voice).gen[GEN_VOLENVSUSTAIN as i32 as usize].nrpn as f32);
+                    * (voice.gen[GEN_VOLENVSUSTAIN as i32 as usize].val as f32
+                        + voice.gen[GEN_VOLENVSUSTAIN as i32 as usize].mod_0 as f32
+                        + voice.gen[GEN_VOLENVSUSTAIN as i32 as usize].nrpn as f32);
             y = if y < 0.0f32 {
                 0.0f32
             } else if y > 1.0f32 {
@@ -1403,29 +1403,29 @@ pub unsafe fn fluid_voice_update_param(mut voice: *mut Voice, gen: i32) {
                 GEN_KEYTOVOLENVDECAY as i32,
                 1 as i32,
             ) as u32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
-            (*voice).volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
-            (*voice).volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
+            voice.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
+            voice.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
+            voice.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
                 (-1.0f32) / count as f32
             } else {
                 0.0f32
             };
-            (*voice).volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
-            (*voice).volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
+            voice.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
+            voice.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
         }
         _ => {}
     };
 }
 
-pub unsafe fn fluid_voice_modulate(mut voice: *mut Voice, cc: i32, ctrl: i32) -> i32 {
+pub unsafe fn fluid_voice_modulate(voice: &mut Voice, cc: i32, ctrl: i32) -> i32 {
     let mut i;
     let mut k;
     let mut mod_0;
     let mut gen;
     let mut modval;
     i = 0 as i32;
-    while i < (*voice).mod_count {
-        mod_0 = &mut *(*voice).mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
+    while i < voice.mod_count {
+        mod_0 = &mut *voice.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
         if (*mod_0).src1 as i32 == ctrl
             && (*mod_0).flags1 as i32 & FLUID_MOD_CC as i32 != 0 as i32
             && cc != 0 as i32
@@ -1442,19 +1442,19 @@ pub unsafe fn fluid_voice_modulate(mut voice: *mut Voice, cc: i32, ctrl: i32) ->
             gen = mod_0.as_ref().unwrap().get_dest();
             modval = 0.0f32;
             k = 0 as i32;
-            while k < (*voice).mod_count {
+            while k < voice.mod_count {
                 if (*voice).mod_0[k as usize].dest as i32 == gen {
-                    modval += (*voice)
+                    modval += voice
                         .mod_0
                         .as_mut_ptr()
                         .offset(k as isize)
                         .as_mut()
                         .unwrap()
-                        .get_value((*voice).channel.as_mut().unwrap(), voice.as_mut().unwrap())
+                        .get_value(voice.channel.as_mut().unwrap(), voice)
                 }
                 k += 1
             }
-            (*voice).gen[gen as usize].mod_0 = modval as f64;
+            voice.gen[gen as usize].mod_0 = modval as f64;
             fluid_voice_update_param(voice, gen);
         }
         i += 1
@@ -1462,53 +1462,53 @@ pub unsafe fn fluid_voice_modulate(mut voice: *mut Voice, cc: i32, ctrl: i32) ->
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_modulate_all(mut voice: *mut Voice) -> i32 {
+pub unsafe fn fluid_voice_modulate_all(voice: &mut Voice) -> i32 {
     let mut mod_0;
     let mut i;
     let mut k;
     let mut gen;
     let mut modval;
     i = 0 as i32;
-    while i < (*voice).mod_count {
-        mod_0 = &mut *(*voice).mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
+    while i < voice.mod_count {
+        mod_0 = &mut *voice.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
         gen = mod_0.as_ref().unwrap().get_dest();
         modval = 0.0f32;
         k = 0 as i32;
         while k < (*voice).mod_count {
-            if (*voice).mod_0[k as usize].dest as i32 == gen {
-                modval += (*voice)
+            if voice.mod_0[k as usize].dest as i32 == gen {
+                modval += voice
                     .mod_0
                     .as_mut_ptr()
                     .offset(k as isize)
                     .as_mut()
                     .unwrap()
-                    .get_value((*voice).channel.as_mut().unwrap(), voice.as_mut().unwrap())
+                    .get_value(voice.channel.as_mut().unwrap(), voice)
             }
             k += 1
         }
-        (*voice).gen[gen as usize].mod_0 = modval as f64;
+        voice.gen[gen as usize].mod_0 = modval as f64;
         fluid_voice_update_param(voice, gen);
         i += 1
     }
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_noteoff(mut voice: *mut Voice, synth: &Synth) -> i32 {
+pub unsafe fn fluid_voice_noteoff(voice: &mut Voice, min_note_length_ticks: u32) -> i32 {
     let at_tick;
-    at_tick = synth.min_note_length_ticks;
-    if at_tick > (*voice).ticks {
-        (*voice).noteoff_ticks = at_tick;
+    at_tick = min_note_length_ticks;
+    if at_tick > voice.ticks {
+        voice.noteoff_ticks = at_tick;
         return FLUID_OK as i32;
     }
-    if !(*voice).channel.is_null()
-        && (*(*voice).channel).cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
+    if !voice.channel.is_null()
+        && (*voice.channel).cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
     {
-        (*voice).status = FLUID_VOICE_SUSTAINED as i32 as u8
+        voice.status = FLUID_VOICE_SUSTAINED as i32 as u8
     } else {
-        if (*voice).volenv_section == FLUID_VOICE_ENVATTACK as i32 {
-            if (*voice).volenv_val > 0 as i32 as f32 {
-                let lfo: f32 = (*voice).modlfo_val * -(*voice).modlfo_to_vol;
-                let amp: f32 = ((*voice).volenv_val as f64
+        if voice.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
+            if voice.volenv_val > 0 as i32 as f32 {
+                let lfo: f32 = voice.modlfo_val * -voice.modlfo_to_vol;
+                let amp: f32 = (voice.volenv_val as f64
                     * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
                     as f32;
                 let mut env_value: f32 =
@@ -1522,29 +1522,29 @@ pub unsafe fn fluid_voice_noteoff(mut voice: *mut Voice, synth: &Synth) -> i32 {
                 } else {
                     env_value as f64
                 } as f32;
-                (*voice).volenv_val = env_value
+                voice.volenv_val = env_value
             }
         }
-        (*voice).volenv_section = FLUID_VOICE_ENVRELEASE as i32;
-        (*voice).volenv_count = 0 as i32 as u32;
-        (*voice).modenv_section = FLUID_VOICE_ENVRELEASE as i32;
-        (*voice).modenv_count = 0 as i32 as u32
+        voice.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
+        voice.volenv_count = 0 as i32 as u32;
+        voice.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
+        voice.modenv_count = 0 as i32 as u32
     }
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_kill_excl(mut voice: *mut Voice) -> i32 {
-    if !((*voice).status as i32 == FLUID_VOICE_ON as i32
-        || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32)
+pub unsafe fn fluid_voice_kill_excl(voice: &mut Voice) -> i32 {
+    if !(voice.status as i32 == FLUID_VOICE_ON as i32
+        || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
     {
         return FLUID_OK as i32;
     }
     fluid_voice_gen_set(voice, GEN_EXCLUSIVECLASS as i32, 0 as i32 as f32);
-    if (*voice).volenv_section != FLUID_VOICE_ENVRELEASE as i32 {
-        (*voice).volenv_section = FLUID_VOICE_ENVRELEASE as i32;
-        (*voice).volenv_count = 0 as i32 as u32;
-        (*voice).modenv_section = FLUID_VOICE_ENVRELEASE as i32;
-        (*voice).modenv_count = 0 as i32 as u32
+    if voice.volenv_section != FLUID_VOICE_ENVRELEASE as i32 {
+        voice.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
+        voice.volenv_count = 0 as i32 as u32;
+        voice.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
+        voice.modenv_count = 0 as i32 as u32
     }
     fluid_voice_gen_set(voice, GEN_VOLENVRELEASE as i32, -(200 as i32) as f32);
     fluid_voice_update_param(voice, GEN_VOLENVRELEASE as i32);
@@ -1553,21 +1553,21 @@ pub unsafe fn fluid_voice_kill_excl(mut voice: *mut Voice) -> i32 {
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_off(mut voice: *mut Voice) -> i32 {
-    (*voice).chan = 0xff as i32 as u8;
-    (*voice).volenv_section = FLUID_VOICE_ENVFINISHED as i32;
-    (*voice).volenv_count = 0 as i32 as u32;
-    (*voice).modenv_section = FLUID_VOICE_ENVFINISHED as i32;
-    (*voice).modenv_count = 0 as i32 as u32;
-    (*voice).status = FLUID_VOICE_OFF as i32 as u8;
-    if !(*voice).sample.is_null() {
-        (*(*voice).sample).refcount = (*(*voice).sample).refcount.wrapping_sub(1);
-        (*voice).sample = 0 as *mut Sample
+pub unsafe fn fluid_voice_off(voice: &mut Voice) -> i32 {
+    voice.chan = 0xff as i32 as u8;
+    voice.volenv_section = FLUID_VOICE_ENVFINISHED as i32;
+    voice.volenv_count = 0 as i32 as u32;
+    voice.modenv_section = FLUID_VOICE_ENVFINISHED as i32;
+    voice.modenv_count = 0 as i32 as u32;
+    voice.status = FLUID_VOICE_OFF as i32 as u8;
+    if !voice.sample.is_null() {
+        (*voice.sample).refcount = (*voice.sample).refcount.wrapping_sub(1);
+        voice.sample = 0 as *mut Sample
     }
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_add_mod(mut voice: *mut Voice, mod_0: &Mod, mode: i32) {
+pub unsafe fn fluid_voice_add_mod(voice: &mut Voice, mod_0: &Mod, mode: i32) {
     let mut i;
     if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
         && (mod_0.src1 as i32 != 0 as i32
@@ -1586,18 +1586,18 @@ pub unsafe fn fluid_voice_add_mod(mut voice: *mut Voice, mod_0: &Mod, mode: i32)
     }
     if mode == FLUID_VOICE_ADD as i32 {
         i = 0 as i32;
-        while i < (*voice).mod_count {
-            if (*voice).mod_0[i as usize].test_identity(mod_0) != 0 {
+        while i < voice.mod_count {
+            if voice.mod_0[i as usize].test_identity(mod_0) != 0 {
                 //		printf("Adding modulator...\n");
-                (*voice).mod_0[i as usize].amount += (*mod_0).amount;
+                voice.mod_0[i as usize].amount += (*mod_0).amount;
                 return;
             }
             i += 1
         }
     } else if mode == FLUID_VOICE_OVERWRITE as i32 {
         i = 0 as i32;
-        while i < (*voice).mod_count {
-            if (*voice)
+        while i < voice.mod_count {
+            if voice
                 .mod_0
                 .as_mut_ptr()
                 .offset(i as isize)
@@ -1607,21 +1607,17 @@ pub unsafe fn fluid_voice_add_mod(mut voice: *mut Voice, mod_0: &Mod, mode: i32)
                 != 0
             {
                 //		printf("Replacing modulator...amount is %f\n",mod->amount);
-                (*voice).mod_0[i as usize].amount = (*mod_0).amount;
+                voice.mod_0[i as usize].amount = (*mod_0).amount;
                 return;
             }
             i += 1
         }
     }
-    if (*voice).mod_count < 64 as i32 {
+    if voice.mod_count < 64 as i32 {
         let fresh7 = (*voice).mod_count;
-        (*voice).mod_count = (*voice).mod_count + 1;
-        *(*voice).mod_0.as_mut_ptr().offset(fresh7 as isize) = mod_0.clone();
+        voice.mod_count = (*voice).mod_count + 1;
+        *voice.mod_0.as_mut_ptr().offset(fresh7 as isize) = mod_0.clone();
     };
-}
-
-pub unsafe fn fluid_voice_get_id(voice: *mut Voice) -> u32 {
-    return (*voice).id;
 }
 
 pub unsafe fn fluid_voice_get_lower_boundary_for_attenuation(voice: *mut Voice) -> f32 {
@@ -1663,101 +1659,99 @@ pub unsafe fn fluid_voice_get_lower_boundary_for_attenuation(voice: *mut Voice) 
     return lower_bound;
 }
 
-pub unsafe fn fluid_voice_check_sample_sanity(mut voice: *mut Voice) {
-    let min_index_nonloop: i32 = (*(*voice).sample).start as i32;
-    let max_index_nonloop: i32 = (*(*voice).sample).end as i32;
-    let min_index_loop: i32 = (*(*voice).sample).start as i32 + 0 as i32;
-    let max_index_loop: i32 = (*(*voice).sample).end as i32 - 0 as i32 + 1 as i32;
-    if (*voice).check_sample_sanity_flag == 0 {
+pub unsafe fn fluid_voice_check_sample_sanity(voice: &mut Voice) {
+    let min_index_nonloop: i32 = (*voice.sample).start as i32;
+    let max_index_nonloop: i32 = (*voice.sample).end as i32;
+    let min_index_loop: i32 = (*voice.sample).start as i32 + 0 as i32;
+    let max_index_loop: i32 = (*voice.sample).end as i32 - 0 as i32 + 1 as i32;
+    if (voice).check_sample_sanity_flag == 0 {
         return;
     }
-    if (*voice).start < min_index_nonloop {
-        (*voice).start = min_index_nonloop
-    } else if (*voice).start > max_index_nonloop {
-        (*voice).start = max_index_nonloop
+    if voice.start < min_index_nonloop {
+        voice.start = min_index_nonloop
+    } else if voice.start > max_index_nonloop {
+        voice.start = max_index_nonloop
     }
-    if (*voice).end < min_index_nonloop {
-        (*voice).end = min_index_nonloop
+    if voice.end < min_index_nonloop {
+        voice.end = min_index_nonloop
     } else if (*voice).end > max_index_nonloop {
-        (*voice).end = max_index_nonloop
+        voice.end = max_index_nonloop
     }
-    if (*voice).start > (*voice).end {
-        let temp: i32 = (*voice).start;
-        (*voice).start = (*voice).end;
-        (*voice).end = temp
+    if voice.start > voice.end {
+        let temp: i32 = voice.start;
+        voice.start = voice.end;
+        voice.end = temp
     }
-    if (*voice).start == (*voice).end {
+    if voice.start == voice.end {
         fluid_voice_off(voice);
         return;
     }
-    if (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-        || (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
+    if voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+        || voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_DURING_RELEASE as i32
     {
-        if (*voice).loopstart < min_index_loop {
-            (*voice).loopstart = min_index_loop
-        } else if (*voice).loopstart > max_index_loop {
-            (*voice).loopstart = max_index_loop
+        if voice.loopstart < min_index_loop {
+            voice.loopstart = min_index_loop
+        } else if voice.loopstart > max_index_loop {
+            voice.loopstart = max_index_loop
         }
-        if (*voice).loopend < min_index_loop {
-            (*voice).loopend = min_index_loop
-        } else if (*voice).loopend > max_index_loop {
-            (*voice).loopend = max_index_loop
+        if voice.loopend < min_index_loop {
+            voice.loopend = min_index_loop
+        } else if voice.loopend > max_index_loop {
+            voice.loopend = max_index_loop
         }
-        if (*voice).loopstart > (*voice).loopend {
-            let temp_0: i32 = (*voice).loopstart;
-            (*voice).loopstart = (*voice).loopend;
-            (*voice).loopend = temp_0
+        if voice.loopstart > voice.loopend {
+            let temp_0: i32 = voice.loopstart;
+            voice.loopstart = voice.loopend;
+            voice.loopend = temp_0
         }
-        if (*voice).loopend < (*voice).loopstart + 2 as i32 {
-            (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+        if voice.loopend < voice.loopstart + 2 as i32 {
+            voice.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
         }
-        if (*voice).loopstart >= (*(*voice).sample).loopstart as i32
-            && (*voice).loopend <= (*(*voice).sample).loopend as i32
+        if voice.loopstart >= (*voice.sample).loopstart as i32
+            && voice.loopend <= (*voice.sample).loopend as i32
         {
-            if (*(*voice).sample).amplitude_that_reaches_noise_floor_is_valid != 0 {
-                (*voice).amplitude_that_reaches_noise_floor_loop =
-                    ((*(*voice).sample).amplitude_that_reaches_noise_floor
-                        / (*voice).synth_gain as f64) as f32
+            if (*voice.sample).amplitude_that_reaches_noise_floor_is_valid != 0 {
+                voice.amplitude_that_reaches_noise_floor_loop =
+                    ((*voice.sample).amplitude_that_reaches_noise_floor / voice.synth_gain as f64)
+                        as f32
             } else {
-                (*voice).amplitude_that_reaches_noise_floor_loop =
-                    (*voice).amplitude_that_reaches_noise_floor_nonloop
+                voice.amplitude_that_reaches_noise_floor_loop =
+                    voice.amplitude_that_reaches_noise_floor_nonloop
             }
         }
     }
-    if (*voice).check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
+    if voice.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
         if max_index_loop - min_index_loop < 2 as i32 {
-            if (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+            if voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                || (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                || voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                     == FLUID_LOOP_DURING_RELEASE as i32
             {
-                (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+                voice.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
             }
         }
-        (*voice).phase = ((*voice).start as u64) << 32 as i32
+        voice.phase = (voice.start as u64) << 32 as i32
     }
-    if (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-        && (*voice).volenv_section < FLUID_VOICE_ENVRELEASE as i32
-        || (*voice).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
+    if voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+        && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+        || voice.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_DURING_RELEASE as i32
     {
-        let index_in_sample: i32 = ((*voice).phase >> 32 as i32) as u32 as i32;
-        if index_in_sample >= (*voice).loopend {
-            (*voice).phase = ((*voice).loopstart as u64) << 32 as i32
+        let index_in_sample: i32 = (voice.phase >> 32 as i32) as u32 as i32;
+        if index_in_sample >= voice.loopend {
+            voice.phase = (voice.loopstart as u64) << 32 as i32
         }
     }
-    (*voice).check_sample_sanity_flag = 0 as i32;
+    voice.check_sample_sanity_flag = 0 as i32;
 }
 
 pub unsafe fn fluid_voice_set_param(
-    mut voice: *mut Voice,
+    mut voice: &mut Voice,
     gen: i16,
     nrpn_value: f32,
     abs: i32,
 ) -> i32 {
-    (*voice).gen[gen as usize].nrpn = nrpn_value as f64;
-    (*voice).gen[gen as usize].flags = if abs != 0 {
+    voice.gen[gen as usize].nrpn = nrpn_value as f64;
+    voice.gen[gen as usize].flags = if abs != 0 {
         GEN_ABS_NRPN as i32
     } else {
         GEN_SET as i32
@@ -1766,32 +1760,31 @@ pub unsafe fn fluid_voice_set_param(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_set_gain(mut voice: *mut Voice, mut gain: f32) -> i32 {
+pub unsafe fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f32) {
     if (gain as f64) < 0.0000001f64 {
         gain = 0.0000001f32
     }
-    (*voice).synth_gain = gain;
-    (*voice).amp_left = fluid_pan((*voice).pan, 1 as i32) * gain / 32768.0f32;
-    (*voice).amp_right = fluid_pan((*voice).pan, 0 as i32) * gain / 32768.0f32;
-    (*voice).amp_reverb = (*voice).reverb_send * gain / 32768.0f32;
-    (*voice).amp_chorus = (*voice).chorus_send * gain / 32768.0f32;
-    return FLUID_OK as i32;
+    voice.synth_gain = gain;
+    voice.amp_left = fluid_pan(voice.pan, 1 as i32) * gain / 32768.0f32;
+    voice.amp_right = fluid_pan(voice.pan, 0 as i32) * gain / 32768.0f32;
+    voice.amp_reverb = voice.reverb_send * gain / 32768.0f32;
+    voice.amp_chorus = voice.chorus_send * gain / 32768.0f32;
 }
 
-pub unsafe fn fluid_voice_optimize_sample(mut s: *mut Sample) -> i32 {
+pub unsafe fn fluid_voice_optimize_sample(s: &mut Sample) {
     let mut peak_max: i16 = 0 as i32 as i16;
     let mut peak_min: i16 = 0 as i32 as i16;
     let mut peak;
     let normalized_amplitude_during_loop;
     let result;
     let mut i;
-    if (*s).valid == 0 || (*s).sampletype & 0x10 as i32 != 0 {
-        return FLUID_OK as i32;
+    if s.valid == 0 || s.sampletype & 0x10 as i32 != 0 {
+        return;
     }
-    if (*s).amplitude_that_reaches_noise_floor_is_valid == 0 {
-        i = (*s).loopstart as i32;
-        while i < (*s).loopend as i32 {
-            let val: i16 = *(*s).data.offset(i as isize);
+    if s.amplitude_that_reaches_noise_floor_is_valid == 0 {
+        i = s.loopstart as i32;
+        while i < s.loopend as i32 {
+            let val: i16 = *s.data.offset(i as isize);
             if val as i32 > peak_max as i32 {
                 peak_max = val
             } else if (val as i32) < peak_min as i32 {
@@ -1809,8 +1802,7 @@ pub unsafe fn fluid_voice_optimize_sample(mut s: *mut Sample) -> i32 {
         }
         normalized_amplitude_during_loop = (peak as f32 as f64 / 32768.0f64) as f32;
         result = 0.00003f64 / normalized_amplitude_during_loop as f64;
-        (*s).amplitude_that_reaches_noise_floor = result;
-        (*s).amplitude_that_reaches_noise_floor_is_valid = 1 as i32
+        s.amplitude_that_reaches_noise_floor = result;
+        s.amplitude_that_reaches_noise_floor_is_valid = 1 as i32
     }
-    return FLUID_OK as i32;
 }

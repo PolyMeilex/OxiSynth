@@ -1,3 +1,4 @@
+use crate::voice::VoiceId;
 use std::ffi::CStr;
 
 use super::chorus::Chorus;
@@ -12,7 +13,6 @@ use super::soundfont::SoundFontLoader;
 use super::tuning::Tuning;
 use super::voice::fluid_voice_add_mod;
 use super::voice::fluid_voice_get_channel;
-use super::voice::fluid_voice_get_id;
 use super::voice::fluid_voice_init;
 use super::voice::fluid_voice_kill_excl;
 use super::voice::fluid_voice_modulate;
@@ -201,7 +201,7 @@ pub struct Synth {
     gain: f64,
     channel: Vec<Channel>,
     nvoice: i32,
-    voice: Vec<Voice>,
+    pub(crate) voice: Vec<Voice>,
     noteid: u32,
     storeid: u32,
     nbuf: i32,
@@ -431,17 +431,16 @@ impl Synth {
                     }
                     log::info!(
                         "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                        (*voice).chan,
-                        (*voice).key,
+                        voice.chan,
+                        voice.key,
                         0 as i32,
-                        (*voice).id,
-                        ((*voice).start_time.wrapping_add((*voice).ticks) as f32 / 44100.0f32)
-                            as f64,
-                        ((*voice).ticks as f32 / 44100.0f32) as f64,
+                        voice.id,
+                        (voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0f32) as f64,
+                        (voice.ticks as f32 / 44100.0f32) as f64,
                         used_voices
                     );
                 }
-                fluid_voice_noteoff(voice, &*self);
+                fluid_voice_noteoff(voice, self.min_note_length_ticks);
                 status = FLUID_OK as i32
             }
             i += 1
@@ -455,7 +454,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voice[i as usize];
             if voice.chan as i32 == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
-                fluid_voice_noteoff(voice, &*self);
+                fluid_voice_noteoff(voice, self.min_note_length_ticks);
             }
             i += 1
         }
@@ -510,7 +509,7 @@ impl Synth {
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan as i32 == chan
             {
-                fluid_voice_noteoff(voice, &*self);
+                fluid_voice_noteoff(voice, self.min_note_length_ticks);
             }
             i += 1
         }
@@ -1146,7 +1145,14 @@ impl Synth {
                 auchan %= self.settings.synth.audio_groups;
                 left_buf = self.left_buf[auchan as usize].as_mut_ptr();
                 right_buf = self.right_buf[auchan as usize].as_mut_ptr();
-                fluid_voice_write(voice, &*self, left_buf, right_buf, reverb_buf, chorus_buf);
+                fluid_voice_write(
+                    voice,
+                    self.min_note_length_ticks,
+                    left_buf,
+                    right_buf,
+                    reverb_buf,
+                    chorus_buf,
+                );
             }
             i += 1
         }
@@ -1185,43 +1191,49 @@ impl Synth {
         return 0 as i32;
     }
 
-    pub unsafe fn free_voice_by_kill(&mut self) -> *mut Voice {
-        let mut i;
+    pub unsafe fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut this_voice_prio;
-        let mut best_voice_index: i32 = -(1 as i32);
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
-            if voice.status as i32 == FLUID_VOICE_CLEAN as i32
-                || voice.status as i32 == FLUID_VOICE_OFF as i32
+        let mut best_voice_index: Option<usize> = None;
+
+        {
+            for (id, voice) in self
+                .voice
+                .iter_mut()
+                .take(self.settings.synth.polyphony as usize)
+                .enumerate()
             {
-                return voice;
+                if voice.status as i32 == FLUID_VOICE_CLEAN as i32
+                    || voice.status as i32 == FLUID_VOICE_OFF as i32
+                {
+                    return Some(id.into());
+                }
+                this_voice_prio = 10000.0f32;
+                if voice.chan as i32 == 0xff as i32 {
+                    this_voice_prio = (this_voice_prio as f64 - 2000.0f64) as f32
+                }
+                if voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
+                    this_voice_prio -= 1000 as i32 as f32
+                }
+                this_voice_prio -= self.noteid.wrapping_sub(voice.id) as f32;
+                if voice.volenv_section != FLUID_VOICE_ENVATTACK as i32 {
+                    this_voice_prio =
+                        (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
+                }
+                if this_voice_prio < best_prio {
+                    best_voice_index = Some(id);
+                    best_prio = this_voice_prio
+                }
             }
-            this_voice_prio = 10000.0f32;
-            if voice.chan as i32 == 0xff as i32 {
-                this_voice_prio = (this_voice_prio as f64 - 2000.0f64) as f32
-            }
-            if voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
-                this_voice_prio -= 1000 as i32 as f32
-            }
-            this_voice_prio -= self.noteid.wrapping_sub(fluid_voice_get_id(voice)) as f32;
-            if voice.volenv_section != FLUID_VOICE_ENVATTACK as i32 {
-                this_voice_prio =
-                    (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
-            }
-            if this_voice_prio < best_prio {
-                best_voice_index = i;
-                best_prio = this_voice_prio
-            }
-            i += 1
         }
-        if best_voice_index < 0 as i32 {
-            return 0 as *mut Voice;
+
+        if let Some(id) = best_voice_index {
+            let voice = &mut self.voice[id];
+            fluid_voice_off(voice);
+            Some(id.into())
+        } else {
+            None
         }
-        let voice = &mut self.voice[best_voice_index as usize];
-        fluid_voice_off(voice);
-        return voice;
     }
 
     pub unsafe fn alloc_voice(
@@ -1230,128 +1242,140 @@ impl Synth {
         chan: i32,
         key: i32,
         vel: i32,
-    ) -> *mut Voice {
-        let mut i;
-        let mut k;
-        let mut voice: *mut Voice = 0 as *mut Voice;
+    ) -> Option<VoiceId> {
+        let mut voice_id: Option<VoiceId> = None;
         let channel;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
+
+        let mut i = 0;
+        while i < self.settings.synth.polyphony as usize {
             if self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
                 || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32
             {
-                voice = &mut self.voice[i as usize];
+                voice_id = Some(i.into());
                 break;
             } else {
                 i += 1
             }
         }
-        if voice.is_null() {
-            voice = self.free_voice_by_kill()
+        if voice_id.is_none() {
+            voice_id = self.free_voice_by_kill()
         }
-        if voice.is_null() {
+
+        if let Some(voice_id) = voice_id {
+            if self.settings.synth.verbose {
+                let mut k = 0;
+                let mut i = 0;
+                while i < self.settings.synth.polyphony {
+                    if !(self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
+                        || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
+                    {
+                        k += 1
+                    }
+                    i += 1
+                }
+                log::info!(
+                    "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
+                    chan,
+                    key,
+                    vel,
+                    self.storeid,
+                    (self.ticks as f32 / 44100.0f32) as f64,
+                    0.0f32 as f64,
+                    k
+                );
+            }
+            if chan >= 0 as i32 {
+                channel = &mut self.channel[chan as usize]
+            } else {
+                log::warn!("Channel should be valid",);
+                return None;
+            }
+            let voice = &mut self.voice[voice_id.0];
+            if fluid_voice_init(
+                voice,
+                sample,
+                channel,
+                key,
+                vel,
+                self.storeid,
+                self.ticks,
+                self.gain as f32,
+            ) != FLUID_OK as i32
+            {
+                log::warn!("Failed to initialize voice",);
+                return None;
+            }
+            fluid_voice_add_mod(voice, &mut DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(
+                voice,
+                &mut DEFAULT_VEL2FILTER_MOD,
+                FLUID_VOICE_DEFAULT as i32,
+            );
+            fluid_voice_add_mod(
+                voice,
+                &mut DEFAULT_AT2VIBLFO_MOD,
+                FLUID_VOICE_DEFAULT as i32,
+            );
+            fluid_voice_add_mod(
+                voice,
+                &mut DEFAULT_MOD2VIBLFO_MOD,
+                FLUID_VOICE_DEFAULT as i32,
+            );
+            fluid_voice_add_mod(voice, &mut DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(voice, &mut DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(voice, &mut DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(voice, &mut DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(voice, &mut DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT as i32);
+            fluid_voice_add_mod(
+                voice,
+                &mut DEFAULT_PITCH_BEND_MOD,
+                FLUID_VOICE_DEFAULT as i32,
+            );
+
+            Some(voice_id)
+        } else {
             log::warn!(
                 "Failed to allocate a synthesis process. (chan={},key={})",
                 chan,
                 key
             );
-            return 0 as *mut Voice;
+            None
         }
-        if self.settings.synth.verbose {
-            k = 0 as i32;
-            i = 0 as i32;
-            while i < self.settings.synth.polyphony {
-                if !(self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
-                    || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
-                {
-                    k += 1
-                }
-                i += 1
-            }
-            log::info!(
-                "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                chan,
-                key,
-                vel,
-                self.storeid,
-                (self.ticks as f32 / 44100.0f32) as f64,
-                0.0f32 as f64,
-                k
-            );
-        }
-        if chan >= 0 as i32 {
-            channel = &mut self.channel[chan as usize]
-        } else {
-            log::warn!("Channel should be valid",);
-            return 0 as *mut Voice;
-        }
-        if fluid_voice_init(
-            voice,
-            sample,
-            channel,
-            key,
-            vel,
-            self.storeid,
-            self.ticks,
-            self.gain as f32,
-        ) != FLUID_OK as i32
-        {
-            log::warn!("Failed to initialize voice",);
-            return 0 as *mut Voice;
-        }
-        fluid_voice_add_mod(voice, &mut DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(
-            voice,
-            &mut DEFAULT_VEL2FILTER_MOD,
-            FLUID_VOICE_DEFAULT as i32,
-        );
-        fluid_voice_add_mod(
-            voice,
-            &mut DEFAULT_AT2VIBLFO_MOD,
-            FLUID_VOICE_DEFAULT as i32,
-        );
-        fluid_voice_add_mod(
-            voice,
-            &mut DEFAULT_MOD2VIBLFO_MOD,
-            FLUID_VOICE_DEFAULT as i32,
-        );
-        fluid_voice_add_mod(voice, &mut DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(voice, &mut DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(voice, &mut DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(voice, &mut DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(voice, &mut DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT as i32);
-        fluid_voice_add_mod(
-            voice,
-            &mut DEFAULT_PITCH_BEND_MOD,
-            FLUID_VOICE_DEFAULT as i32,
-        );
-        return voice;
     }
 
-    pub unsafe fn kill_by_exclusive_class(&mut self, new_voice: *mut Voice) {
+    pub unsafe fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let mut i;
-        let excl_class: i32 = ((*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
-            + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
-            + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
-            as i32;
-        if excl_class == 0 as i32 {
+
+        let excl_class = {
+            let new_voice = &mut self.voice[new_voice.0];
+            let excl_class: i32 = ((*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
+                + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
+                + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
+                as i32;
+            excl_class
+        };
+
+        if excl_class == 0 {
             return;
         }
+
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let existing_voice = &mut self.voice[i as usize];
+            let new_voice = &self.voice[new_voice.0];
+            let existing_voice = &self.voice[i as usize];
+
             if existing_voice.status as i32 == FLUID_VOICE_ON as i32
                 || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                if !(existing_voice.chan as i32 != (*new_voice).chan as i32) {
+                if !(existing_voice.chan as i32 != new_voice.chan as i32) {
                     if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
                         + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
                         + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
                         as i32
                         != excl_class)
                     {
-                        if !(fluid_voice_get_id(existing_voice) == fluid_voice_get_id(new_voice)) {
-                            fluid_voice_kill_excl(existing_voice);
+                        if !(existing_voice.id == new_voice.id) {
+                            fluid_voice_kill_excl(&mut self.voice[i as usize]);
                         }
                     }
                 }
@@ -1360,9 +1384,9 @@ impl Synth {
         }
     }
 
-    pub unsafe fn start_voice(&mut self, voice: *mut Voice) {
-        self.kill_by_exclusive_class(voice);
-        fluid_voice_start(voice);
+    pub unsafe fn start_voice(&mut self, voice_id: VoiceId) {
+        self.kill_by_exclusive_class(voice_id);
+        fluid_voice_start(&mut self.voice[voice_id.0]);
     }
 
     pub fn add_sfloader(&mut self, loader: SoundFontLoader) {
@@ -1547,9 +1571,9 @@ impl Synth {
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan as i32 == chan
                 && voice.key as i32 == key
-                && fluid_voice_get_id(voice) != self.noteid
+                && voice.id != self.noteid
             {
-                fluid_voice_noteoff(voice, &*self);
+                fluid_voice_noteoff(voice, self.min_note_length_ticks);
             }
             i += 1
         }
