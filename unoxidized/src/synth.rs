@@ -10,7 +10,6 @@ use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::soundfont::SoundFontLoader;
 use super::tuning::Tuning;
-use super::voice::delete_fluid_voice;
 use super::voice::fluid_voice_add_mod;
 use super::voice::fluid_voice_get_channel;
 use super::voice::fluid_voice_get_id;
@@ -202,7 +201,7 @@ pub struct Synth {
     gain: f64,
     channel: Vec<Channel>,
     nvoice: i32,
-    voice: Vec<*mut Voice>,
+    voice: Vec<Voice>,
     noteid: u32,
     storeid: u32,
     nbuf: i32,
@@ -368,7 +367,7 @@ impl Synth {
     pub unsafe fn set_sample_rate(&mut self, sample_rate: f32) {
         self.settings.synth.sample_rate = sample_rate as f64;
         for i in 0..self.nvoice {
-            delete_fluid_voice(self.voice[i as usize]);
+            // delete_fluid_voice(self.voice[i as usize]);
             self.voice[i as usize] = new_fluid_voice(self.settings.synth.sample_rate as f32);
         }
         self.chorus.delete();
@@ -409,23 +408,22 @@ impl Synth {
 
     pub unsafe fn noteoff(&mut self, chan: i32, key: i32) -> i32 {
         let mut i;
-        let mut voice;
         let mut status: i32 = FLUID_FAILED as i32;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_ON as i32
-                && (*voice).volenv_section < FLUID_VOICE_ENVRELEASE as i32
-                && (*voice).chan as i32 == chan
-                && (*voice).key as i32 == key
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_ON as i32
+                && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+                && voice.chan as i32 == chan
+                && voice.key as i32 == key
             {
                 if self.settings.synth.verbose {
                     let mut used_voices: i32 = 0 as i32;
                     let mut k;
                     k = 0 as i32;
                     while k < self.settings.synth.polyphony {
-                        if !((*self.voice[i as usize]).status as i32 == FLUID_VOICE_CLEAN as i32
-                            || (*self.voice[i as usize]).status as i32 == FLUID_VOICE_OFF as i32)
+                        if !(voice.status as i32 == FLUID_VOICE_CLEAN as i32
+                            || voice.status as i32 == FLUID_VOICE_OFF as i32)
                         {
                             used_voices += 1
                         }
@@ -453,13 +451,10 @@ impl Synth {
 
     pub unsafe fn damp_voices(&mut self, chan: i32) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).chan as i32 == chan
-                && (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
+            let voice = &mut self.voice[i as usize];
+            if voice.chan as i32 == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
                 fluid_voice_noteoff(voice, &*self);
             }
             i += 1
@@ -508,13 +503,12 @@ impl Synth {
 
     pub unsafe fn all_notes_off(&mut self, chan: i32) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if ((*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && (*voice).chan as i32 == chan
+            let voice = &mut self.voice[i as usize];
+            if (voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
+                && voice.chan as i32 == chan
             {
                 fluid_voice_noteoff(voice, &*self);
             }
@@ -525,13 +519,12 @@ impl Synth {
 
     pub unsafe fn all_sounds_off(&mut self, chan: i32) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if ((*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && (*voice).chan as i32 == chan
+            let voice = &mut self.voice[i as usize];
+            if (voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
+                && voice.chan as i32 == chan
             {
                 fluid_voice_off(voice);
             }
@@ -542,12 +535,11 @@ impl Synth {
 
     pub unsafe fn system_reset(&mut self) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 fluid_voice_off(voice);
             }
@@ -567,11 +559,10 @@ impl Synth {
 
     pub unsafe fn modulate_voices(&mut self, chan: i32, is_cc: i32, ctrl: i32) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).chan as i32 == chan {
+            let voice = &mut self.voice[i as usize];
+            if voice.chan as i32 == chan {
                 fluid_voice_modulate(voice, is_cc, ctrl);
             }
             i += 1
@@ -581,11 +572,10 @@ impl Synth {
 
     pub unsafe fn modulate_voices_all(&mut self, chan: i32) -> i32 {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).chan as i32 == chan {
+            let voice = &mut self.voice[i as usize];
+            if voice.chan as i32 == chan {
                 fluid_voice_modulate_all(voice);
             }
             i += 1
@@ -620,12 +610,11 @@ impl Synth {
             log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
         }
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
-        let mut voice;
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).chan as i32 == chan && (*voice).key as i32 == key {
+            let voice = &mut self.voice[i as usize];
+            if voice.chan as i32 == chan && voice.key as i32 == key {
                 result = fluid_voice_modulate(voice, 0 as i32, FLUID_MOD_KEYPRESSURE as i32);
                 if result != FLUID_OK as i32 {
                     break;
@@ -869,9 +858,9 @@ impl Synth {
         self.gain = gain as f64;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice: *mut Voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 fluid_voice_set_gain(voice, gain);
             }
@@ -895,9 +884,9 @@ impl Synth {
         }
         i = polyphony;
         while i < self.nvoice {
-            let voice: *mut Voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 fluid_voice_off(voice);
             }
@@ -1102,7 +1091,6 @@ impl Synth {
     pub unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
         let mut i;
         let mut auchan;
-        let mut voice;
         let mut left_buf;
         let mut right_buf;
         let reverb_buf;
@@ -1150,9 +1138,9 @@ impl Synth {
         };
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 auchan = fluid_voice_get_channel(voice).as_ref().unwrap().get_num();
                 auchan %= self.settings.synth.audio_groups;
@@ -1201,27 +1189,26 @@ impl Synth {
         let mut i;
         let mut best_prio: f32 = 999999.0f32;
         let mut this_voice_prio;
-        let mut voice;
         let mut best_voice_index: i32 = -(1 as i32);
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).status as i32 == FLUID_VOICE_CLEAN as i32
-                || (*voice).status as i32 == FLUID_VOICE_OFF as i32
+            let voice = &mut self.voice[i as usize];
+            if voice.status as i32 == FLUID_VOICE_CLEAN as i32
+                || voice.status as i32 == FLUID_VOICE_OFF as i32
             {
                 return voice;
             }
             this_voice_prio = 10000.0f32;
-            if (*voice).chan as i32 == 0xff as i32 {
+            if voice.chan as i32 == 0xff as i32 {
                 this_voice_prio = (this_voice_prio as f64 - 2000.0f64) as f32
             }
-            if (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32 {
+            if voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
                 this_voice_prio -= 1000 as i32 as f32
             }
             this_voice_prio -= self.noteid.wrapping_sub(fluid_voice_get_id(voice)) as f32;
-            if (*voice).volenv_section != FLUID_VOICE_ENVATTACK as i32 {
+            if voice.volenv_section != FLUID_VOICE_ENVATTACK as i32 {
                 this_voice_prio =
-                    (this_voice_prio as f64 + (*voice).volenv_val as f64 * 1000.0f64) as f32
+                    (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
             }
             if this_voice_prio < best_prio {
                 best_voice_index = i;
@@ -1232,7 +1219,7 @@ impl Synth {
         if best_voice_index < 0 as i32 {
             return 0 as *mut Voice;
         }
-        voice = self.voice[best_voice_index as usize];
+        let voice = &mut self.voice[best_voice_index as usize];
         fluid_voice_off(voice);
         return voice;
     }
@@ -1250,10 +1237,10 @@ impl Synth {
         let channel;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            if (*self.voice[i as usize]).status as i32 == FLUID_VOICE_CLEAN as i32
-                || (*self.voice[i as usize]).status as i32 == FLUID_VOICE_OFF as i32
+            if self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
+                || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32
             {
-                voice = self.voice[i as usize];
+                voice = &mut self.voice[i as usize];
                 break;
             } else {
                 i += 1
@@ -1274,8 +1261,8 @@ impl Synth {
             k = 0 as i32;
             i = 0 as i32;
             while i < self.settings.synth.polyphony {
-                if !((*self.voice[i as usize]).status as i32 == FLUID_VOICE_CLEAN as i32
-                    || (*self.voice[i as usize]).status as i32 == FLUID_VOICE_OFF as i32)
+                if !(self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
+                    || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
                 {
                     k += 1
                 }
@@ -1352,14 +1339,14 @@ impl Synth {
         }
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let existing_voice: *mut Voice = self.voice[i as usize];
-            if (*existing_voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*existing_voice).status as i32 == FLUID_VOICE_SUSTAINED as i32
+            let existing_voice = &mut self.voice[i as usize];
+            if existing_voice.status as i32 == FLUID_VOICE_ON as i32
+                || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                if !((*existing_voice).chan as i32 != (*new_voice).chan as i32) {
-                    if !(((*existing_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
-                        + (*existing_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
-                        + (*existing_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
+                if !(existing_voice.chan as i32 != (*new_voice).chan as i32) {
+                    if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
+                        + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
+                        + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
                         as i32
                         != excl_class)
                     {
@@ -1553,14 +1540,13 @@ impl Synth {
 
     pub unsafe fn release_voice_on_same_note(&mut self, chan: i32, key: i32) {
         let mut i;
-        let mut voice;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if ((*voice).status as i32 == FLUID_VOICE_ON as i32
-                || (*voice).status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && (*voice).chan as i32 == chan
-                && (*voice).key as i32 == key
+            let voice = &mut self.voice[i as usize];
+            if (voice.status as i32 == FLUID_VOICE_ON as i32
+                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
+                && voice.chan as i32 == chan
+                && voice.key as i32 == key
                 && fluid_voice_get_id(voice) != self.noteid
             {
                 fluid_voice_noteoff(voice, &*self);
@@ -1821,7 +1807,6 @@ impl Synth {
 
     pub unsafe fn set_gen(&mut self, chan: i32, param: i16, value: f32) -> i32 {
         let mut i;
-        let mut voice;
         if chan < 0 as i32 || chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
@@ -1830,8 +1815,8 @@ impl Synth {
         self.channel[chan as usize].gen_abs[param as usize] = 0 as i32 as i8;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            voice = self.voice[i as usize];
-            if (*voice).chan as i32 == chan {
+            let voice = &mut self.voice[i as usize];
+            if voice.chan as i32 == chan {
                 fluid_voice_set_param(voice, param, value, 0 as i32);
             }
             i += 1
@@ -2166,14 +2151,14 @@ impl Drop for Synth {
     fn drop(&mut self) {
         unsafe {
             self.state = FLUID_SYNTH_STOPPED as i32 as u32;
-            for voice in self.voice.iter() {
-                fluid_voice_off(*voice);
+            for voice in self.voice.iter_mut() {
+                fluid_voice_off(voice);
             }
             self.bank_offsets.clear();
             self.loaders.clear();
-            for voice in self.voice.iter_mut() {
-                delete_fluid_voice(*voice);
-            }
+            // for voice in self.voice.iter_mut() {
+            //     delete_fluid_voice(voice);
+            // }
             self.voice.clear();
             self.chorus.delete();
         }

@@ -98,7 +98,7 @@ pub struct Voice {
     interp_method: InterpMethod,
     debug: i32,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Default, Clone)]
 pub struct EnvData {
     pub count: u32,
     pub coeff: f32,
@@ -189,49 +189,120 @@ pub const SUSTAIN_SWITCH: MidiControlChange = 64;
 pub type MidiControlChange = u32;
 pub type LoopMode = u32;
 
-pub unsafe fn new_fluid_voice(output_rate: f32) -> *mut Voice {
-    let voice: *mut Voice;
-    voice = libc::malloc(::std::mem::size_of::<Voice>() as libc::size_t) as *mut Voice;
-    if voice.is_null() {
-        log::error!("Out of memory",);
-        return 0 as *mut Voice;
-    }
-    (*voice).status = FLUID_VOICE_CLEAN as i32 as u8;
-    (*voice).chan = 0xff as i32 as u8;
-    (*voice).key = 0 as i32 as u8;
-    (*voice).vel = 0 as i32 as u8;
-    (*voice).channel = 0 as *mut Channel;
-    (*voice).sample = 0 as *mut Sample;
-    (*voice).output_rate = output_rate;
-    (*voice).volenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].count = 0xffffffff as u32;
-    (*voice).volenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].coeff = 1.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].incr = 0.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].min = -1.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].max = 2.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].count = 0xffffffff as u32;
-    (*voice).volenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].coeff = 0.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].incr = 0.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].min = -1.0f32;
-    (*voice).volenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].max = 1.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].count = 0xffffffff as u32;
-    (*voice).modenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].coeff = 1.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].incr = 0.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].min = -1.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVSUSTAIN as i32 as usize].max = 2.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].count = 0xffffffff as u32;
-    (*voice).modenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].coeff = 0.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].incr = 0.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].min = -1.0f32;
-    (*voice).modenv_data[FLUID_VOICE_ENVFINISHED as i32 as usize].max = 1.0f32;
-    return voice;
-}
+pub unsafe fn new_fluid_voice(output_rate: f32) -> Voice {
+    let mut volenv_data = [EnvData::default(); 7];
+    {
+        let sustain = &mut volenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
 
-pub unsafe fn delete_fluid_voice(voice: *mut Voice) -> i32 {
-    if voice.is_null() {
-        return FLUID_OK as i32;
+        sustain.count = 0xffffffff as u32;
+        sustain.coeff = 1.0f32;
+        sustain.incr = 0.0f32;
+        sustain.min = -1.0f32;
+        sustain.max = 2.0f32;
+
+        let finished = &mut volenv_data[FLUID_VOICE_ENVFINISHED as usize];
+        finished.count = 0xffffffff as u32;
+        finished.coeff = 0.0f32;
+        finished.incr = 0.0f32;
+        finished.min = -1.0f32;
+        finished.max = 1.0f32;
     }
-    libc::free(voice as *mut libc::c_void);
-    return FLUID_OK as i32;
+    let mut modenv_data = [EnvData::default(); 7];
+    {
+        let sustain = &mut modenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
+        sustain.count = 0xffffffff as u32;
+        sustain.coeff = 1.0f32;
+        sustain.incr = 0.0f32;
+        sustain.min = -1.0f32;
+        sustain.max = 2.0f32;
+
+        let finished = &mut modenv_data[FLUID_VOICE_ENVFINISHED as usize];
+        finished.count = 0xffffffff as u32;
+        finished.coeff = 0.0f32;
+        finished.incr = 0.0f32;
+        finished.min = -1.0f32;
+        finished.max = 1.0f32;
+    }
+
+    Voice {
+        id: 0,
+        status: FLUID_VOICE_CLEAN as i32 as u8,
+        chan: 0xff,
+        key: 0,
+        vel: 0,
+        channel: 0 as *mut Channel,
+        gen: [Gen::default(); 60],
+        mod_0: [Mod::default(); 64],
+        mod_count: 0,
+        has_looped: 0,
+        sample: std::ptr::null_mut(),
+        check_sample_sanity_flag: 0,
+        output_rate: output_rate,
+        start_time: 0,
+        ticks: 0,
+        noteoff_ticks: 0,
+        amp: 0.0,
+        phase: 0 as Phase,
+        phase_incr: 0.0,
+        amp_incr: 0.0,
+        dsp_buf: std::ptr::null_mut(),
+        pitch: 0.0,
+        attenuation: 0.0,
+        min_attenuation_c_b: 0.0,
+        root_pitch: 0.0,
+        start: 0,
+        end: 0,
+        loopstart: 0,
+        loopend: 0,
+        synth_gain: 0.0,
+        volenv_data: volenv_data,
+        volenv_count: 0,
+        volenv_section: 0,
+        volenv_val: 0.0,
+        amplitude_that_reaches_noise_floor_nonloop: 0.0,
+        amplitude_that_reaches_noise_floor_loop: 0.0,
+        modenv_data: modenv_data,
+        modenv_count: 0,
+        modenv_section: 0,
+        modenv_val: 0.0,
+        modenv_to_fc: 0.0,
+        modenv_to_pitch: 0.0,
+        modlfo_val: 0.0,
+        modlfo_delay: 0,
+        modlfo_incr: 0.0,
+        modlfo_to_fc: 0.0,
+        modlfo_to_pitch: 0.0,
+        modlfo_to_vol: 0.0,
+        viblfo_val: 0.0,
+        viblfo_delay: 0,
+        viblfo_incr: 0.0,
+        viblfo_to_pitch: 0.0,
+        fres: 0.0,
+        last_fres: 0.0,
+        q_lin: 0.0,
+        filter_gain: 0.0,
+        hist1: 0.0,
+        hist2: 0.0,
+        filter_startup: 0,
+        b02: 0.0,
+        b1: 0.0,
+        a1: 0.0,
+        a2: 0.0,
+        b02_incr: 0.0,
+        b1_incr: 0.0,
+        a1_incr: 0.0,
+        a2_incr: 0.0,
+        filter_coeff_incr_count: 0,
+        pan: 0.0,
+        amp_left: 0.0,
+        amp_right: 0.0,
+        reverb_send: 0.0,
+        amp_reverb: 0.0,
+        chorus_send: 0.0,
+        amp_chorus: 0.0,
+        interp_method: InterpMethod::None,
+        debug: 0,
+    }
 }
 
 pub unsafe fn fluid_voice_init(

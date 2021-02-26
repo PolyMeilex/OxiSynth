@@ -15,6 +15,7 @@ pub const FLUID_MOD_VELOCITY: ModSrc = 2;
 pub type GenType = u32;
 pub const GEN_FILTERFC: GenType = 8;
 
+#[derive(Copy)]
 pub struct Mod {
     pub(crate) dest: u8,
     pub(crate) src1: u8,
@@ -35,6 +36,20 @@ impl Clone for Mod {
             flags2: self.flags2,
             amount: self.amount,
             next: 0 as _,
+        }
+    }
+}
+
+impl Default for Mod {
+    fn default() -> Self {
+        Self {
+            dest: 0,
+            src1: 0,
+            flags1: 0,
+            src2: 0,
+            flags2: 0,
+            amount: 0.0,
+            next: std::ptr::null_mut(),
         }
     }
 }

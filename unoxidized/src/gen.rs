@@ -138,7 +138,7 @@ pub enum GenParam {
     Last = 60,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Default, Clone)]
 pub struct Gen {
     pub(crate) flags: u8,
     pub(crate) val: f64,
