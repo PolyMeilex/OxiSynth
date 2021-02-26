@@ -106,8 +106,10 @@ impl Synth {
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset(&self, sfont_id: FontId) -> Result<u32> {
-        Synth::neg_err(unsafe { self.handle.get_bank_offset(sfont_id as _) }).map(|val| val as _)
+    pub fn get_bank_offset(&self, sfont_id: FontId) -> Option<u32> {
+        self.handle
+            .get_bank_offset(sfont_id as i32)
+            .map(|o| o.offset)
     }
 }
 

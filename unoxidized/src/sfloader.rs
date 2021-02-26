@@ -314,7 +314,7 @@ impl Preset {
                                     while i < GEN_LAST as i32 {
                                         if (*inst_zone).gen[i as usize].flags != 0 {
                                             fluid_voice_gen_set(
-                                                &mut synth.voice[voice_id.0],
+                                                &mut synth.voices[voice_id.0],
                                                 i,
                                                 (*inst_zone).gen[i as usize].val as f32,
                                             );
@@ -322,7 +322,7 @@ impl Preset {
                                             && (*global_inst_zone).gen[i as usize].flags as i32 != 0
                                         {
                                             fluid_voice_gen_set(
-                                                &mut synth.voice[voice_id.0],
+                                                &mut synth.voices[voice_id.0],
                                                 i,
                                                 (*global_inst_zone).gen[i as usize].val as f32,
                                             );
@@ -362,7 +362,7 @@ impl Preset {
                                         mod_0 = mod_list[i as usize];
                                         if !mod_0.is_null() {
                                             fluid_voice_add_mod(
-                                                &mut synth.voice[voice_id.0],
+                                                &mut synth.voices[voice_id.0],
                                                 mod_0.as_ref().unwrap(),
                                                 FLUID_VOICE_OVERWRITE as i32,
                                             );
@@ -387,7 +387,7 @@ impl Preset {
                                         {
                                             if (*preset_zone).gen[i as usize].flags != 0 {
                                                 fluid_voice_gen_incr(
-                                                    &mut synth.voice[voice_id.0],
+                                                    &mut synth.voices[voice_id.0],
                                                     i,
                                                     (*preset_zone).gen[i as usize].val as f32,
                                                 );
@@ -397,7 +397,7 @@ impl Preset {
                                                     != 0
                                             {
                                                 fluid_voice_gen_incr(
-                                                    &mut synth.voice[voice_id.0],
+                                                    &mut synth.voices[voice_id.0],
                                                     i,
                                                     (*global_preset_zone).gen[i as usize].val
                                                         as f32,
@@ -439,7 +439,7 @@ impl Preset {
                                         mod_0 = mod_list[i as usize];
                                         if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
                                             fluid_voice_add_mod(
-                                                &mut synth.voice[voice_id.0],
+                                                &mut synth.voices[voice_id.0],
                                                 mod_0.as_ref().unwrap(),
                                                 FLUID_VOICE_ADD as i32,
                                             );

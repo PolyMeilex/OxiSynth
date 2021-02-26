@@ -37,7 +37,7 @@ pub const FLUID_OK: C2RustUnnamed = 0;
 #[derive(Copy, Clone)]
 pub struct BankOffset {
     pub sfont_id: i32,
-    pub offset: i32,
+    pub offset: u32,
 }
 pub const FLUID_SYNTH_STOPPED: SynthStatus = 3;
 pub const FLUID_FAILED: C2RustUnnamed = -1;
@@ -201,7 +201,7 @@ pub struct Synth {
     gain: f64,
     channel: Vec<Channel>,
     nvoice: i32,
-    pub(crate) voice: Vec<Voice>,
+    pub(crate) voices: Vec<Voice>,
     noteid: u32,
     storeid: u32,
     nbuf: i32,
@@ -281,7 +281,7 @@ impl Synth {
                 gain: settings.synth.gain,
                 channel: Vec::new(),
                 nvoice: 0 as _,
-                voice: Vec::new(),
+                voices: Vec::new(),
                 noteid: 0,
                 storeid: 0 as _,
                 nbuf,
@@ -339,7 +339,7 @@ impl Synth {
             synth.nvoice = synth.settings.synth.polyphony;
             for _ in 0..synth.nvoice {
                 synth
-                    .voice
+                    .voices
                     .push(new_fluid_voice(synth.settings.synth.sample_rate as f32));
             }
 
@@ -367,8 +367,7 @@ impl Synth {
     pub unsafe fn set_sample_rate(&mut self, sample_rate: f32) {
         self.settings.synth.sample_rate = sample_rate as f64;
         for i in 0..self.nvoice {
-            // delete_fluid_voice(self.voice[i as usize]);
-            self.voice[i as usize] = new_fluid_voice(self.settings.synth.sample_rate as f32);
+            self.voices[i as usize] = new_fluid_voice(self.settings.synth.sample_rate as f32);
         }
         self.chorus.delete();
         self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
@@ -411,7 +410,7 @@ impl Synth {
         let mut status: i32 = FLUID_FAILED as i32;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
                 && voice.chan as i32 == chan
@@ -452,7 +451,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
                 fluid_voice_noteoff(voice, self.min_note_length_ticks);
             }
@@ -504,7 +503,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if (voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan as i32 == chan
@@ -520,7 +519,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if (voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan as i32 == chan
@@ -536,7 +535,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
@@ -560,7 +559,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan {
                 fluid_voice_modulate(voice, is_cc, ctrl);
             }
@@ -573,7 +572,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan {
                 fluid_voice_modulate_all(voice);
             }
@@ -612,7 +611,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.key as i32 == key {
                 result = fluid_voice_modulate(voice, 0 as i32, FLUID_MOD_KEYPRESSURE as i32);
                 if result != FLUID_OK as i32 {
@@ -678,13 +677,13 @@ impl Synth {
         banknum: u32,
         prognum: u32,
     ) -> Option<Preset> {
-        let preset;
-        let sfont;
-        let offset;
-        sfont = self.get_sfont_by_id(sfontnum);
+        let sfont = self.get_sfont_by_id(sfontnum);
         if !sfont.is_null() {
-            offset = self.get_bank_offset(sfontnum as i32);
-            preset = (*sfont).get_preset(banknum.wrapping_sub(offset as u32), prognum);
+            let offset = self
+                .get_bank_offset(sfontnum as i32)
+                .map(|o| o.offset)
+                .unwrap_or_default();
+            let preset = (*sfont).get_preset(banknum.wrapping_sub(offset as u32), prognum);
             preset
         } else {
             None
@@ -693,7 +692,11 @@ impl Synth {
 
     pub unsafe fn find_preset(&self, banknum: u32, prognum: u32) -> Option<Preset> {
         for sfont in self.sfont.iter() {
-            let offset = self.get_bank_offset(sfont.id as i32);
+            let offset = self
+                .get_bank_offset(sfont.id as i32)
+                .map(|o| o.offset)
+                .unwrap_or_default();
+
             let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
             if let Some(mut preset) = preset {
                 preset.sfont = sfont;
@@ -857,7 +860,7 @@ impl Synth {
         self.gain = gain as f64;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
@@ -883,7 +886,7 @@ impl Synth {
         }
         i = polyphony;
         while i < self.nvoice {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
@@ -1137,7 +1140,7 @@ impl Synth {
         };
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
@@ -1198,7 +1201,7 @@ impl Synth {
 
         {
             for (id, voice) in self
-                .voice
+                .voices
                 .iter_mut()
                 .take(self.settings.synth.polyphony as usize)
                 .enumerate()
@@ -1228,7 +1231,7 @@ impl Synth {
         }
 
         if let Some(id) = best_voice_index {
-            let voice = &mut self.voice[id];
+            let voice = &mut self.voices[id];
             fluid_voice_off(voice);
             Some(id.into())
         } else {
@@ -1248,8 +1251,8 @@ impl Synth {
 
         let mut i = 0;
         while i < self.settings.synth.polyphony as usize {
-            if self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
-                || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32
+            if self.voices[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
+                || self.voices[i as usize].status as i32 == FLUID_VOICE_OFF as i32
             {
                 voice_id = Some(i.into());
                 break;
@@ -1266,8 +1269,8 @@ impl Synth {
                 let mut k = 0;
                 let mut i = 0;
                 while i < self.settings.synth.polyphony {
-                    if !(self.voice[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
-                        || self.voice[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
+                    if !(self.voices[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
+                        || self.voices[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
                     {
                         k += 1
                     }
@@ -1290,7 +1293,7 @@ impl Synth {
                 log::warn!("Channel should be valid",);
                 return None;
             }
-            let voice = &mut self.voice[voice_id.0];
+            let voice = &mut self.voices[voice_id.0];
             if fluid_voice_init(
                 voice,
                 sample,
@@ -1347,7 +1350,7 @@ impl Synth {
         let mut i;
 
         let excl_class = {
-            let new_voice = &mut self.voice[new_voice.0];
+            let new_voice = &mut self.voices[new_voice.0];
             let excl_class: i32 = ((*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
                 + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
                 + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
@@ -1361,8 +1364,8 @@ impl Synth {
 
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let new_voice = &self.voice[new_voice.0];
-            let existing_voice = &self.voice[i as usize];
+            let new_voice = &self.voices[new_voice.0];
+            let existing_voice = &self.voices[i as usize];
 
             if existing_voice.status as i32 == FLUID_VOICE_ON as i32
                 || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
@@ -1375,7 +1378,7 @@ impl Synth {
                         != excl_class)
                     {
                         if !(existing_voice.id == new_voice.id) {
-                            fluid_voice_kill_excl(&mut self.voice[i as usize]);
+                            fluid_voice_kill_excl(&mut self.voices[i as usize]);
                         }
                     }
                 }
@@ -1386,7 +1389,7 @@ impl Synth {
 
     pub unsafe fn start_voice(&mut self, voice_id: VoiceId) {
         self.kill_by_exclusive_class(voice_id);
-        fluid_voice_start(&mut self.voice[voice_id.0]);
+        fluid_voice_start(&mut self.voices[voice_id.0]);
     }
 
     pub fn add_sfloader(&mut self, loader: SoundFontLoader) {
@@ -1566,7 +1569,7 @@ impl Synth {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if (voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan as i32 == chan
@@ -1839,7 +1842,7 @@ impl Synth {
         self.channel[chan as usize].gen_abs[param as usize] = 0 as i32 as i8;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
-            let voice = &mut self.voice[i as usize];
+            let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan {
                 fluid_voice_set_param(voice, param, value, 0 as i32);
             }
@@ -1887,13 +1890,8 @@ impl Synth {
         return r;
     }
 
-    pub unsafe fn get_bank_offset0(&self, sfont_id: i32) -> *const BankOffset {
-        return self
-            .bank_offsets
-            .iter()
-            .find(|x| x.sfont_id == sfont_id)
-            .map(|x| x as *const BankOffset)
-            .unwrap_or(0 as _);
+    pub fn get_bank_offset(&self, sfont_id: i32) -> Option<&BankOffset> {
+        self.bank_offsets.iter().find(|x| x.sfont_id == sfont_id)
     }
 
     pub unsafe fn get_mut_bank_offset0(&mut self, sfont_id: i32) -> *mut BankOffset {
@@ -1905,7 +1903,7 @@ impl Synth {
             .unwrap_or(0 as _);
     }
 
-    pub unsafe fn set_bank_offset(&mut self, sfont_id: i32, offset: i32) -> i32 {
+    pub unsafe fn set_bank_offset(&mut self, sfont_id: i32, offset: u32) -> i32 {
         let mut bank_offset;
         bank_offset = self.get_mut_bank_offset0(sfont_id);
         if bank_offset.is_null() {
@@ -1926,17 +1924,17 @@ impl Synth {
         return 0 as i32;
     }
 
-    pub unsafe fn get_bank_offset(&self, sfont_id: i32) -> i32 {
-        let bank_offset;
-        bank_offset = self.get_bank_offset0(sfont_id);
-        return if bank_offset.is_null() {
-            0 as i32
-        } else {
-            (*bank_offset).offset
-        };
-    }
+    // pub fn get_bank_offset(&self, sfont_id: i32) -> i32 {
+    //     let bank_offset = self.get_bank_offset0(sfont_id);
 
-    pub unsafe fn remove_bank_offset(&mut self, sfont_id: i32) {
+    //     if let Some(bank_offset) = bank_offset {
+    //         bank_offset.offset
+    //     } else {
+    //         0
+    //     }
+    // }
+
+    pub fn remove_bank_offset(&mut self, sfont_id: i32) {
         self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
     }
 
@@ -2175,15 +2173,12 @@ impl Drop for Synth {
     fn drop(&mut self) {
         unsafe {
             self.state = FLUID_SYNTH_STOPPED as i32 as u32;
-            for voice in self.voice.iter_mut() {
+            for voice in self.voices.iter_mut() {
                 fluid_voice_off(voice);
             }
             self.bank_offsets.clear();
             self.loaders.clear();
-            // for voice in self.voice.iter_mut() {
-            //     delete_fluid_voice(voice);
-            // }
-            self.voice.clear();
+            self.voices.clear();
             self.chorus.delete();
         }
     }
