@@ -136,7 +136,7 @@ impl Synth {
         }
     }
 
-    pub unsafe fn all_notes_off(&mut self, chan: u8) -> i32 {
+    pub fn all_notes_off(&mut self, chan: u8) -> i32 {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -144,7 +144,9 @@ impl Synth {
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan == chan
             {
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                unsafe {
+                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                }
             }
             i += 1
         }

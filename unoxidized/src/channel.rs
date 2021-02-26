@@ -42,7 +42,7 @@ pub struct Channel {
     pub(crate) channel_pressure: i16,
     pub(crate) pitch_bend: i16,
     pub(crate) pitch_wheel_sensitivity: i16,
-    pub(crate) cc: [i16; 128],
+    pub(crate) cc: [u8; 128],
     bank_msb: u8,
     interp_method: InterpMethod,
     pub(crate) tuning: Option<Tuning>,
@@ -138,7 +138,7 @@ impl Channel {
                             || i == PAN_MSB as i32
                             || i == PAN_LSB as i32)
                         {
-                            self.cc[i as usize] = 0 as i32 as i16
+                            self.cc[i as usize] = 0;
                         }
                     }
                 }
@@ -147,7 +147,7 @@ impl Channel {
         } else {
             i = 0 as i32;
             while i < 128 as i32 {
-                self.cc[i as usize] = 0 as i32 as i16;
+                self.cc[i as usize] = 0;
                 i += 1
             }
         }
@@ -156,23 +156,23 @@ impl Channel {
             self.key_pressure[i as usize] = 0 as i32 as i8;
             i += 1
         }
-        self.cc[RPN_LSB as i32 as usize] = 127 as i32 as i16;
-        self.cc[RPN_MSB as i32 as usize] = 127 as i32 as i16;
-        self.cc[NRPN_LSB as i32 as usize] = 127 as i32 as i16;
-        self.cc[NRPN_MSB as i32 as usize] = 127 as i32 as i16;
-        self.cc[EXPRESSION_MSB as i32 as usize] = 127 as i32 as i16;
-        self.cc[EXPRESSION_LSB as i32 as usize] = 127 as i32 as i16;
+        self.cc[RPN_LSB as i32 as usize] = 127;
+        self.cc[RPN_MSB as i32 as usize] = 127;
+        self.cc[NRPN_LSB as i32 as usize] = 127;
+        self.cc[NRPN_MSB as i32 as usize] = 127;
+        self.cc[EXPRESSION_MSB as i32 as usize] = 127;
+        self.cc[EXPRESSION_LSB as i32 as usize] = 127;
         if is_all_ctrl_off == 0 {
             self.pitch_wheel_sensitivity = 2 as i32 as i16;
             i = SOUND_CTRL1 as i32;
             while i <= SOUND_CTRL10 as i32 {
-                self.cc[i as usize] = 64 as i32 as i16;
+                self.cc[i as usize] = 64;
                 i += 1
             }
-            self.cc[VOLUME_MSB as i32 as usize] = 100 as i32 as i16;
-            self.cc[VOLUME_LSB as i32 as usize] = 0 as i32 as i16;
-            self.cc[PAN_MSB as i32 as usize] = 64 as i32 as i16;
-            self.cc[PAN_LSB as i32 as usize] = 0 as i32 as i16
+            self.cc[VOLUME_MSB as i32 as usize] = 100;
+            self.cc[VOLUME_LSB as i32 as usize] = 0;
+            self.cc[PAN_MSB as i32 as usize] = 64;
+            self.cc[PAN_LSB as i32 as usize] = 0;
         };
     }
 
@@ -218,7 +218,7 @@ impl Channel {
 
     pub fn cc(&mut self, synth: &mut Synth, num: i32, value: i32) -> i32 {
         unsafe {
-            self.cc[num as usize] = value as i16;
+            self.cc[num as usize] = value as u8;
             match num {
                 64 => {
                     if value < 64 as i32 {
@@ -293,7 +293,7 @@ impl Channel {
                     }
                 }
                 99 => {
-                    self.cc[NRPN_LSB as i32 as usize] = 0 as i32 as i16;
+                    self.cc[NRPN_LSB as i32 as usize] = 0;
                     self.nrpn_select = 0 as _;
                     self.nrpn_active = 1 as _
                 }
