@@ -27,18 +27,18 @@ pub struct DefaultSoundFont {
     pub samplepos: u32,
     pub samplesize: u32,
     pub sampledata: *mut i16,
-    pub sample: Vec<*mut Sample>,
+    pub sample: Vec<Sample>,
     pub preset: *mut DefaultPreset,
 }
 
 impl DefaultSoundFont {
-    unsafe fn get_sample(&self, s: &[u8]) -> Option<&mut Sample> {
-        for sample in self.sample.iter() {
-            let name_a = CString::new((**sample).name.clone()).unwrap();
-            let name_b = CStr::from_ptr(s.as_ptr() as _);
+    fn get_sample(&mut self, s: &[u8]) -> Option<&mut Sample> {
+        for sample in self.sample.iter_mut() {
+            let name_a = CString::new(sample.name.clone()).unwrap();
+            let name_b = unsafe { CStr::from_ptr(s.as_ptr() as _) };
 
             if name_a.as_c_str() == name_b {
-                return Some(&mut **sample);
+                return Some(sample);
             }
         }
         return None;
@@ -236,29 +236,26 @@ impl SoundFont {
 
 impl Drop for SoundFont {
     fn drop(&mut self) {
-        unsafe fn delete_fluid_defsfont(mut sfont: *mut DefaultSoundFont) -> i32 {
+        unsafe fn delete_fluid_defsfont(sfont: &mut DefaultSoundFont) -> i32 {
             let mut preset: *mut DefaultPreset;
             for sample in (*sfont).sample.iter() {
-                if (**sample).refcount != 0 as i32 as u32 {
+                if sample.refcount != 0 as i32 as u32 {
                     return -(1 as i32);
                 }
             }
-            for sample in (*sfont).sample.iter() {
-                delete_fluid_sample(*sample);
-            }
-            if !(*sfont).sampledata.is_null() {
-                libc::free((*sfont).sampledata as *mut libc::c_void);
+            if !sfont.sampledata.is_null() {
+                libc::free(sfont.sampledata as *mut libc::c_void);
             }
             preset = (*sfont).preset;
             while !preset.is_null() {
                 (*sfont).preset = (*preset).next;
                 delete_fluid_defpreset(preset);
-                preset = (*sfont).preset
+                preset = sfont.preset
             }
             return FLUID_OK as i32;
         }
         unsafe {
-            delete_fluid_defsfont(&mut (*self).data);
+            delete_fluid_defsfont(&mut self.data);
         }
     }
 }
@@ -582,11 +579,10 @@ impl DefaultSoundFont {
 
         for sfsample in sf2.sample_headers.iter() {
             if let Ok(sample) = Sample::import_sfont(sfsample, self) {
-                let sample = Box::into_raw(Box::new(sample));
+                let mut sample = sample;
+                fluid_voice_optimize_sample(&mut sample);
 
                 self.sample.push(sample);
-
-                fluid_voice_optimize_sample(&mut *sample);
             } else {
                 return Err(());
             }
@@ -1124,11 +1120,6 @@ unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: i32, vel:
         && (*zone).keyhi >= key
         && (*zone).vello <= vel
         && (*zone).velhi >= vel) as i32;
-}
-
-unsafe fn delete_fluid_sample(sample: *mut Sample) -> i32 {
-    libc::free(sample as *mut libc::c_void);
-    return FLUID_OK as i32;
 }
 
 unsafe fn fluid_sample_in_rom(sample: *mut Sample) -> i32 {
