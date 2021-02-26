@@ -101,4 +101,17 @@ impl Synth {
     pub fn get_chorus_mode(&self) -> ChorusMode {
         self.chorus.get_mode()
     }
+
+    /**
+    Query the current chorus params
+     */
+    pub fn get_chorus(&self) -> ChorusParams {
+        ChorusParams {
+            nr: self.get_chorus_nr() as _,
+            level: self.get_chorus_level(),
+            speed: self.get_chorus_speed_hz() as _,
+            depth: self.get_chorus_depth_ms() as _,
+            mode: self.get_chorus_mode(),
+        }
+    }
 }

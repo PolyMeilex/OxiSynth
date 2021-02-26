@@ -29,11 +29,8 @@ impl Synth {
     /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: Chan, ctrl: Ctrl) -> Result<Val> {
-        let mut val = MaybeUninit::uninit();
-
-        Synth::zero_ok(unsafe { self.handle.get_cc(chan as _, ctrl as _, val.as_mut_ptr()) })
-            .map(|_| unsafe { val.assume_init() as _ })
+    pub fn get_cc(&self, chan: Chan, ctrl: Ctrl) -> std::result::Result<u8, ()> {
+        self.handle.get_cc(chan, ctrl)
     }
 
     /**
@@ -46,14 +43,8 @@ impl Synth {
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: Chan) -> Result<Val> {
-        let mut pitch_bend = MaybeUninit::uninit();
-
-        Synth::zero_ok(unsafe {
-            self.handle
-                .get_pitch_bend(chan as _, pitch_bend.as_mut_ptr())
-        })
-        .map(|_| unsafe { pitch_bend.assume_init() as _ })
+    pub fn get_pitch_bend(&self, chan: Chan) -> std::result::Result<i16, ()> {
+        self.handle.get_pitch_bend(chan)
     }
 
     /**

@@ -1,5 +1,5 @@
 use crate::engine::soundfont::SoundFont;
-use crate::{FontId, Status, Synth};
+use crate::{FontId, Synth};
 use std::path::Path;
 
 /**
@@ -39,8 +39,8 @@ impl Synth {
     /**
     Count the number of loaded SoundFonts.
      */
-    pub fn sfcount(&self) -> u32 {
-        self.handle.sfcount() as _
+    pub fn sfcount(&self) -> usize {
+        self.handle.sfcount()
     }
 
     /**

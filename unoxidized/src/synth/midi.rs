@@ -123,17 +123,17 @@ impl Synth {
     /**
     Get a control value.
      */
-    pub unsafe fn get_cc(&self, chan: u8, num: i32, pval: *mut i32) -> i32 {
+    pub fn get_cc(&self, chan: u8, num: u32) -> Result<u8, ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if num < 0 as i32 || num >= 128 as i32 {
+            Err(())
+        } else if num >= 128 {
             log::warn!("Ctrl out of range",);
-            return FLUID_FAILED as i32;
+            Err(())
+        } else {
+            let pval = self.channel[chan as usize].cc[num as usize];
+            Ok(pval as u8)
         }
-        *pval = self.channel[chan as usize].cc[num as usize] as i32;
-        return FLUID_OK as i32;
     }
 
     pub unsafe fn all_notes_off(&mut self, chan: u8) -> i32 {
@@ -187,13 +187,14 @@ impl Synth {
     /**
     Get the pitch bend value.
      */
-    pub unsafe fn get_pitch_bend(&self, chan: u8, ppitch_bend: *mut i32) -> i32 {
+    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            Err(())
+        } else {
+            let pitch_bend = self.channel[chan as usize].pitch_bend;
+            Ok(pitch_bend)
         }
-        *ppitch_bend = self.channel[chan as usize].pitch_bend as i32;
-        return FLUID_OK as i32;
     }
 
     /**

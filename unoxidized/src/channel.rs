@@ -261,7 +261,7 @@ impl Channel {
                             if (self.nrpn_select as i32) < GEN_LAST as i32 {
                                 let val: f32 = fluid_gen_scale_nrpn(self.nrpn_select, data);
                                 let param = std::mem::transmute(self.nrpn_select as u32);
-                                synth.set_gen(self.channum, param, val);
+                                synth.set_gen(self.channum, param, val).unwrap();
                             }
                             self.nrpn_select = 0
                         }
@@ -271,18 +271,22 @@ impl Channel {
                                 self.pitch_wheel_sens(synth, value);
                             }
                             1 => {
-                                synth.set_gen(
-                                    self.channum,
-                                    GenParam::FineTune,
-                                    ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
-                                );
+                                synth
+                                    .set_gen(
+                                        self.channum,
+                                        GenParam::FineTune,
+                                        ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
+                                    )
+                                    .unwrap();
                             }
                             2 => {
-                                synth.set_gen(
-                                    self.channum,
-                                    GenParam::CoarseTune,
-                                    (value - 64 as i32) as f32,
-                                );
+                                synth
+                                    .set_gen(
+                                        self.channum,
+                                        GenParam::CoarseTune,
+                                        (value - 64 as i32) as f32,
+                                    )
+                                    .unwrap();
                             }
                             3 | 4 | 5 | _ => {}
                         }

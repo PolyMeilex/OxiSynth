@@ -27,13 +27,7 @@ impl Synth {
     Keep in mind, that the needed CPU time is proportional to `nr`.
      */
     pub fn set_chorus(&mut self, params: &ChorusParams) {
-        self.set_chorus_params(
-            params.nr,
-            params.level,
-            params.speed,
-            params.depth,
-            params.mode,
-        );
+        self.handle.set_chorus(params);
     }
 
     /** Turn on/off the built-in chorus unit */
@@ -80,12 +74,6 @@ impl Synth {
     Query the current chorus params
      */
     pub fn get_chorus(&self) -> ChorusParams {
-        ChorusParams {
-            nr: self.get_chorus_nr(),
-            level: self.get_chorus_level(),
-            speed: self.get_chorus_speed(),
-            depth: self.get_chorus_depth(),
-            mode: self.get_chorus_mode(),
-        }
+        self.handle.get_chorus()
     }
 }
