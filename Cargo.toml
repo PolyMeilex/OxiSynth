@@ -13,6 +13,8 @@ riff = "1.0.1"
 unoxidized={path="./unoxidized"}
 sf2={path="./sf2"}
 
-[[examples]]
+[[example]]
 name="sf2"
+[[example]]
+name="simple"
 

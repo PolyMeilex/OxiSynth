@@ -1,15 +1,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-mod macros {
-    macro_rules! gerr {
-        ($err:expr, $fmt_string:expr, $( $arg:expr ),*) => {
-            { println!($fmt_string, $( $arg ),*); 0 }
-        }
-    }
-}
-
 pub mod channel;
 pub mod chorus;
 pub mod conv;
