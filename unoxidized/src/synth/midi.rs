@@ -15,10 +15,10 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub unsafe fn noteon(&mut self, chan: u8, key: i32, vel: i32) -> i32 {
+    pub fn noteon(&mut self, chan: u8, key: u8, vel: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range");
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if vel == 0 as i32 {
             return self.noteoff(chan, key);
@@ -37,28 +37,28 @@ impl Synth {
                     "channel has no preset"
                 );
             }
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         self.release_voice_on_same_note(chan, key);
         let fresh7 = self.noteid;
         self.noteid = self.noteid.wrapping_add(1);
 
-        let preset_ptr = self.channel[chan as usize].preset.as_mut().unwrap() as *mut _;
-        return self.start(fresh7, preset_ptr, 0, chan, key, vel);
+        // let preset_ptr = self.channel[chan as usize].preset.as_mut().unwrap();
+        return self.start(fresh7, 0, chan, key, vel);
     }
 
     /**
     Send a noteoff message.
      */
-    pub unsafe fn noteoff(&mut self, chan: u8, key: i32) -> i32 {
+    pub fn noteoff(&mut self, chan: u8, key: u8) -> Result<(), ()> {
         let mut i = 0;
-        let mut status: i32 = FLUID_FAILED as i32;
+        let mut status = Err(());
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
                 && voice.chan == chan
-                && voice.key as i32 == key
+                && voice.key == key
             {
                 if self.settings.synth.verbose {
                     let mut used_voices: i32 = 0 as i32;
@@ -83,8 +83,10 @@ impl Synth {
                         used_voices
                     );
                 }
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
-                status = FLUID_OK as i32
+                unsafe {
+                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                }
+                status = Ok(());
             }
             i += 1
         }

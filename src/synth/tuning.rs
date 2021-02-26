@@ -117,24 +117,24 @@ impl Synth {
     Select a tuning for a channel.
      */
     pub fn select_tuning(&mut self, chan: Chan, tuning_bank: Bank, tuning_prog: Prog) -> Status {
-        Synth::zero_ok(unsafe {
+        Synth::zero_ok(
             self.handle
-                .select_tuning(chan as _, tuning_bank as _, tuning_prog as _)
-        })
+                .select_tuning(chan as _, tuning_bank as _, tuning_prog as _),
+        )
     }
 
     pub fn activate_tuning(&mut self, chan: Chan, bank: Bank, prog: Prog, apply: bool) -> Status {
-        Synth::zero_ok(unsafe {
+        Synth::zero_ok(
             self.handle
-                .activate_tuning(chan as _, bank as _, prog as _, apply as _)
-        })
+                .activate_tuning(chan as _, bank as _, prog as _, apply as _),
+        )
     }
 
     /**
     Set the tuning to the default well-tempered tuning on a channel.
      */
     pub fn reset_tuning(&mut self, chan: Chan) -> Status {
-        Synth::zero_ok(unsafe { self.handle.reset_tuning(chan as _) })
+        Synth::zero_ok(self.handle.reset_tuning(chan))
     }
 
     /**

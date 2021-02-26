@@ -122,8 +122,8 @@ struct PresetZone {
     next: *mut PresetZone,
     name: Vec<u8>,
     inst: *mut Instrument,
-    keylo: i32,
-    keyhi: i32,
+    keylo: u8,
+    keyhi: u8,
     vello: i32,
     velhi: i32,
     gen: [Gen; 60],
@@ -142,8 +142,8 @@ struct InstrumentZone {
     next: *mut InstrumentZone,
     name: Vec<u8>,
     sample: *mut Sample,
-    keylo: i32,
-    keyhi: i32,
+    keylo: u8,
+    keyhi: u8,
     vello: i32,
     velhi: i32,
     gen: [Gen; 60],
@@ -276,12 +276,12 @@ impl Preset {
         unsafe { (*self.data).num }
     }
 
-    pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: i32, vel: i32) -> i32 {
+    pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: u8, vel: i32) -> i32 {
         unsafe fn fluid_defpreset_noteon(
             preset: *mut DefaultPreset,
             synth: &mut Synth,
             chan: u8,
-            key: i32,
+            key: u8,
             vel: i32,
         ) -> i32 {
             let mut preset_zone: *mut PresetZone;
@@ -678,8 +678,8 @@ unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
     (*zone).next = 0 as *mut PresetZone;
     (*zone).name = name.to_vec();
     (*zone).inst = 0 as *mut Instrument;
-    (*zone).keylo = 0 as i32;
-    (*zone).keyhi = 128 as i32;
+    (*zone).keylo = 0;
+    (*zone).keyhi = 128;
     (*zone).vello = 0 as i32;
     (*zone).velhi = 128 as i32;
     fluid_gen_set_default_values(&mut *(*zone).gen.as_mut_ptr().offset(0 as i32 as isize));
@@ -719,8 +719,8 @@ unsafe fn fluid_preset_zone_import_sfont(
         match sfgen.ty {
             sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
                 let amount = sfgen.amount.as_range().unwrap();
-                (*zone).keylo = amount.low as i32;
-                (*zone).keyhi = amount.high as i32
+                (*zone).keylo = amount.low;
+                (*zone).keyhi = amount.high;
             }
             _ => {
                 (*zone).gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
@@ -835,7 +835,7 @@ unsafe fn fluid_preset_zone_get_inst(zone: *mut PresetZone) -> *mut Instrument {
     return (*zone).inst;
 }
 
-unsafe fn fluid_preset_zone_inside_range(zone: *mut PresetZone, key: i32, vel: i32) -> i32 {
+unsafe fn fluid_preset_zone_inside_range(zone: *mut PresetZone, key: u8, vel: i32) -> i32 {
     return ((*zone).keylo <= key
         && (*zone).keyhi >= key
         && (*zone).vello <= vel
@@ -961,8 +961,8 @@ unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
     (*zone).next = 0 as *mut InstrumentZone;
     (*zone).name = name.to_vec();
     (*zone).sample = 0 as *mut Sample;
-    (*zone).keylo = 0 as i32;
-    (*zone).keyhi = 128 as i32;
+    (*zone).keylo = 0;
+    (*zone).keyhi = 128;
     (*zone).vello = 0 as i32;
     (*zone).velhi = 128 as i32;
     fluid_gen_set_default_values(&mut *(*zone).gen.as_mut_ptr().offset(0 as i32 as isize));
@@ -1004,8 +1004,8 @@ unsafe fn fluid_inst_zone_import_sfont(
         match new_gen.ty {
             sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
                 let amount = new_gen.amount.as_range().unwrap();
-                (*zone).keylo = amount.low as i32;
-                (*zone).keyhi = amount.high as i32
+                (*zone).keylo = amount.low;
+                (*zone).keyhi = amount.high;
             }
             _ => {
                 (*zone).gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
@@ -1119,7 +1119,7 @@ unsafe fn fluid_inst_zone_get_sample(zone: *mut InstrumentZone) -> *mut Sample {
     return (*zone).sample;
 }
 
-unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: i32, vel: i32) -> i32 {
+unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: u8, vel: i32) -> i32 {
     return ((*zone).keylo <= key
         && (*zone).keyhi >= key
         && (*zone).vello <= vel

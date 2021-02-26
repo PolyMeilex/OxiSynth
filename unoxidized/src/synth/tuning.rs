@@ -1,6 +1,7 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_FAILED;
 use crate::synth::FLUID_OK;
+use crate::tuning::Tuning;
 
 impl Synth {
     /**
@@ -113,7 +114,7 @@ impl Synth {
     /**
     Select a tuning for a channel.
      */
-    pub unsafe fn select_tuning(&mut self, chan: u8, bank: i32, prog: i32) -> i32 {
+    pub fn select_tuning(&mut self, chan: u8, bank: i32, prog: i32) -> i32 {
         let tuning;
         if !(bank >= 0 as i32 && bank < 128 as i32) {
             return FLUID_FAILED as i32;
@@ -133,14 +134,14 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn activate_tuning(&mut self, chan: u8, bank: i32, prog: i32, _apply: i32) -> i32 {
-        return self.select_tuning(chan, bank, prog);
+    pub fn activate_tuning(&mut self, chan: u8, bank: i32, prog: i32, _apply: i32) -> i32 {
+        self.select_tuning(chan, bank, prog)
     }
 
     /**
     Set the tuning to the default well-tempered tuning on a channel.
      */
-    pub unsafe fn reset_tuning(&mut self, chan: u8) -> i32 {
+    pub fn reset_tuning(&mut self, chan: u8) -> i32 {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return FLUID_FAILED as i32;
@@ -218,5 +219,39 @@ impl Synth {
                 return FLUID_FAILED as i32;
             }
         }
+    }
+
+    fn get_tuning(&self, bank: i32, prog: i32) -> Option<&Tuning> {
+        if bank < 0 as i32 || bank >= 128 as i32 {
+            log::warn!("Bank number out of range",);
+            return None;
+        }
+        if prog < 0 as i32 || prog >= 128 as i32 {
+            log::warn!("Program number out of range",);
+            return None;
+        }
+        return self.tuning[bank as usize][prog as usize].as_ref();
+    }
+
+    unsafe fn create_tuning<'a>(
+        &'a mut self,
+        bank: i32,
+        prog: i32,
+        name: &[u8],
+    ) -> Option<&'a mut Tuning> {
+        if bank < 0 as i32 || bank >= 128 as i32 {
+            log::warn!("Bank number out of range",);
+            return None;
+        }
+        if prog < 0 as i32 || prog >= 128 as i32 {
+            log::warn!("Program number out of range",);
+            return None;
+        }
+        let tuning = self.tuning[bank as usize][prog as usize]
+            .get_or_insert_with(|| Tuning::new(name, bank, prog));
+        if libc::strcmp(tuning.get_name().as_ptr() as _, name.as_ptr() as _) != 0 {
+            tuning.set_name(name);
+        }
+        return Some(tuning);
     }
 }

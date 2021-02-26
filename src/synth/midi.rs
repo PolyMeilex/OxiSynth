@@ -8,15 +8,15 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn note_on(&mut self, chan: Chan, key: Key, vel: Vel) -> Status {
-        Synth::zero_ok(unsafe { self.handle.noteon(chan as _, key as _, vel as _) })
+    pub fn note_on(&mut self, chan: Chan, key: Key, vel: Vel) -> std::result::Result<(), ()> {
+        self.handle.noteon(chan as _, key as _, vel as _)
     }
 
     /**
     Send a noteoff message.
      */
-    pub fn note_off(&mut self, chan: Chan, key: Key) -> Status {
-        Synth::zero_ok(unsafe { self.handle.noteoff(chan as _, key as _) })
+    pub fn note_off(&mut self, chan: Chan, key: Key) -> std::result::Result<(), ()> {
+        self.handle.noteoff(chan, key)
     }
 
     /**

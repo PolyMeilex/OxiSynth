@@ -603,7 +603,7 @@ impl Synth {
         &mut self,
         sample: *mut Sample,
         chan: u8,
-        key: i32,
+        key: u8,
         vel: i32,
     ) -> Option<VoiceId> {
         let mut voice_id: Option<VoiceId> = None;
@@ -749,80 +749,53 @@ impl Synth {
         fluid_voice_start(&mut self.voices[voice_id.0]);
     }
 
-    pub(crate) unsafe fn release_voice_on_same_note(&mut self, chan: u8, key: i32) {
+    pub(crate) fn release_voice_on_same_note(&mut self, chan: u8, key: u8) {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if (voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan == chan
-                && voice.key as i32 == key
+                && voice.key == key
                 && voice.id != self.noteid
             {
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                unsafe {
+                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                }
             }
             i += 1
         }
     }
 
-    fn get_tuning(&self, bank: i32, prog: i32) -> Option<&Tuning> {
-        if bank < 0 as i32 || bank >= 128 as i32 {
-            log::warn!("Bank number out of range",);
-            return None;
-        }
-        if prog < 0 as i32 || prog >= 128 as i32 {
-            log::warn!("Program number out of range",);
-            return None;
-        }
-        return self.tuning[bank as usize][prog as usize].as_ref();
-    }
-    unsafe fn create_tuning<'a>(
-        &'a mut self,
-        bank: i32,
-        prog: i32,
-        name: &[u8],
-    ) -> Option<&'a mut Tuning> {
-        if bank < 0 as i32 || bank >= 128 as i32 {
-            log::warn!("Bank number out of range",);
-            return None;
-        }
-        if prog < 0 as i32 || prog >= 128 as i32 {
-            log::warn!("Program number out of range",);
-            return None;
-        }
-        let tuning = self.tuning[bank as usize][prog as usize]
-            .get_or_insert_with(|| Tuning::new(name, bank, prog));
-        if libc::strcmp(tuning.get_name().as_ptr() as _, name.as_ptr() as _) != 0 {
-            tuning.set_name(name);
-        }
-        return Some(tuning);
-    }
-
-    pub(crate) unsafe fn start(
+    pub(crate) fn start(
         &mut self,
         id: u32,
-        preset: *mut Preset,
         _audio_chan: i32,
         midi_chan: u8,
-        key: i32,
+        key: u8,
         vel: i32,
-    ) -> i32 {
-        let r;
+    ) -> Result<(), ()> {
         if midi_chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if key < 0 as i32 || key >= 128 as i32 {
+            Err(())
+        } else if key >= 128 {
             log::warn!("Key out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if vel <= 0 as i32 || vel >= 128 as i32 {
+            Err(())
+        } else if vel <= 0 || vel >= 128 {
             log::warn!("Velocity out of range",);
-            return FLUID_FAILED as i32;
+            Err(())
+        } else {
+            self.storeid = id;
+
+            // TODO: proper borrowing...
+            let preset = self.channel[midi_chan as usize].preset.as_mut().unwrap() as *mut Preset;
+
+            if unsafe { *preset }.noteon(self, midi_chan, key, vel) == FLUID_OK {
+                Ok(())
+            } else {
+                Err(())
+            }
         }
-        self.storeid = id;
-        r = (*preset).noteon(self, midi_chan, key, vel);
-        return r;
     }
 
     pub(crate) fn update_presets(&mut self) {

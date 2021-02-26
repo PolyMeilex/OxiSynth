@@ -317,7 +317,7 @@ pub unsafe fn fluid_voice_init(
     voice: *mut Voice,
     sample: *mut Sample,
     channel: *mut Channel,
-    key: i32,
+    key: u8,
     vel: i32,
     id: u32,
     start_time: u32,
@@ -709,8 +709,8 @@ pub unsafe fn fluid_voice_get_channel(voice: *mut Voice) -> *mut Channel {
 
 pub unsafe fn fluid_voice_start(voice: &mut Voice) {
     fluid_voice_calculate_runtime_synthesis_parameters(voice);
-    (*voice).check_sample_sanity_flag = (1 as i32) << 1 as i32;
-    (*voice).status = FLUID_VOICE_ON as i32 as u8;
+    voice.check_sample_sanity_flag = (1 as i32) << 1 as i32;
+    voice.status = FLUID_VOICE_ON as i32 as u8;
 }
 
 pub unsafe fn fluid_voice_calculate_runtime_synthesis_parameters(voice: &mut Voice) -> i32 {
@@ -784,39 +784,36 @@ pub unsafe fn fluid_voice_calculate_runtime_synthesis_parameters(voice: &mut Voi
     return FLUID_OK as i32;
 }
 
-pub unsafe fn calculate_hold_decay_buffers(
-    voice: *mut Voice,
+pub fn calculate_hold_decay_buffers(
+    voice: &mut Voice,
     gen_base: i32,
     gen_key2base: i32,
     is_decay: i32,
 ) -> i32 {
-    let mut timecents;
-    let seconds;
-    let buffers;
-    timecents = (((*voice).gen[gen_base as usize].val as f32
-        + (*voice).gen[gen_base as usize].mod_0 as f32
-        + (*voice).gen[gen_base as usize].nrpn as f32) as f64
-        + ((*voice).gen[gen_key2base as usize].val as f32
-            + (*voice).gen[gen_key2base as usize].mod_0 as f32
-            + (*voice).gen[gen_key2base as usize].nrpn as f32) as f64
-            * (60.0f64 - (*voice).key as i32 as f64)) as f32;
+    let mut timecents = (voice.gen[gen_base as usize].val
+        + voice.gen[gen_base as usize].mod_0
+        + voice.gen[gen_base as usize].nrpn)
+        + (voice.gen[gen_key2base as usize].val
+            + voice.gen[gen_key2base as usize].mod_0
+            + voice.gen[gen_key2base as usize].nrpn)
+            * (60.0 - voice.key as f64);
     if is_decay != 0 {
-        if timecents as f64 > 8000.0f64 {
-            timecents = 8000.0f32
+        if timecents > 8000.0 {
+            timecents = 8000.0;
         }
     } else {
-        if timecents > 5000 as i32 as f32 {
-            timecents = 5000.0f32
+        if timecents > 5000.0 {
+            timecents = 5000.0;
         }
-        if timecents as f64 <= -32768.0f64 {
-            return 0 as i32;
+        if timecents <= -32768.0 {
+            return 0;
         }
     }
-    if (timecents as f64) < -12000.0f64 {
-        timecents = -12000.0f32
+    if (timecents as f64) < -12000.0 {
+        timecents = -12000.0;
     }
-    seconds = fluid_tc2sec(timecents);
-    buffers = (((*voice).output_rate * seconds / 64 as i32 as f32) as f64 + 0.5f64) as i32;
+    let seconds = fluid_tc2sec(timecents);
+    let buffers = ((voice.output_rate as f64 * seconds / 64.0) + 0.5) as i32;
     return buffers;
 }
 

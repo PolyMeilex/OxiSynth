@@ -8,7 +8,7 @@ use std::{
 pub type Chan = u8;
 
 /// Key number
-pub type Key = u32;
+pub type Key = u8;
 
 /// Velocity value
 pub type Vel = u32;

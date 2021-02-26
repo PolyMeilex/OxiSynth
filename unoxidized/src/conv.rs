@@ -143,8 +143,8 @@ pub fn fluid_tc2sec_attack(mut tc: f32) -> f32 {
     return f64::powf(2.0f64, tc as f64 / 1200.0f64) as f32;
 }
 
-pub fn fluid_tc2sec(tc: f32) -> f32 {
-    return f64::powf(2.0f64, tc as f64 / 1200.0f64) as f32;
+pub fn fluid_tc2sec(tc: f64) -> f64 {
+    f64::powf(2.0, tc / 1200.0)
 }
 
 pub fn fluid_tc2sec_release(mut tc: f32) -> f32 {
