@@ -7,48 +7,68 @@ pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
 pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
 pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
 pub type LoopMode = u32;
-static mut INTERP_COEFF_LINEAR: [[f32; 2]; 256] = [[0.; 2]; 256];
-static mut INTERP_COEFF: [[f32; 4]; 256] = [[0.; 4]; 256];
-static mut SINC_TABLE7: [[f32; 7]; 256] = [[0.; 7]; 256];
 
-pub unsafe fn fluid_dsp_float_config() {
-    let mut i: usize;
-    let mut i2: i32;
-    let mut x: f64;
-    let mut v: f64;
-    let mut i_shifted: f64;
-    i = 0 as usize;
-    while i < 256 {
-        x = i as f64 / 256 as i32 as f64;
-        INTERP_COEFF[i][0] = (x * (-0.5f64 + x * (1 as i32 as f64 - 0.5f64 * x))) as f32;
-        INTERP_COEFF[i][1] = (1.0f64 + x * x * (1.5f64 * x - 2.5f64)) as f32;
-        INTERP_COEFF[i][2] = (x * (0.5f64 + x * (2.0f64 - 1.5f64 * x))) as f32;
-        INTERP_COEFF[i][3] = (0.5f64 * x * x * (x - 1.0f64)) as f32;
-        INTERP_COEFF_LINEAR[i][0] = (1.0f64 - x) as f32;
-        INTERP_COEFF_LINEAR[i][1] = x as f32;
-        i += 1
-    }
-    i = 0;
-    while i < 7 {
-        i2 = 0 as i32;
-        while i2 < 256 as i32 {
-            i_shifted = i as f64 - 7 as i32 as f64 / 2.0f64 + i2 as f64 / 256 as i32 as f64;
-            if f64::abs(i_shifted) > 0.000001f64 {
-                v = f64::sin(i_shifted * std::f64::consts::PI) as f32 as f64
-                    / (std::f64::consts::PI * i_shifted);
-                v *= 0.5f64
-                    * (1.0f64
-                        + f64::cos(
-                            2.0f64 * std::f64::consts::PI * i_shifted / 7 as i32 as f32 as f64,
-                        ))
-            } else {
-                v = 1.0f64
-            }
-            SINC_TABLE7[(256 as i32 - i2 - 1 as i32) as usize][i as usize] = v as f32;
-            i2 += 1
+// static mut INTERP_COEFF_LINEAR: [[f32; 2]; 256] = [[0.; 2]; 256];
+// static mut INTERP_COEFF: [[f32; 4]; 256] = [[0.; 4]; 256];
+// static mut SINC_TABLE7: [[f32; 7]; 256] = [[0.; 7]; 256];
+
+pub struct DspFloatGlobal {
+    interp_coeff_linear: [[f32; 2]; 256],
+    interp_coeff: [[f32; 4]; 256],
+    sinc_table7: [[f32; 7]; 256],
+}
+impl DspFloatGlobal {
+    fn new() -> Self {
+        let mut global = DspFloatGlobal {
+            interp_coeff_linear: [[0.; 2]; 256],
+            interp_coeff: [[0.; 4]; 256],
+            sinc_table7: [[0.; 7]; 256],
+        };
+
+        let mut i: usize;
+        let mut i2: i32;
+        let mut x: f64;
+        let mut v: f64;
+        let mut i_shifted: f64;
+        i = 0 as usize;
+        while i < 256 {
+            x = i as f64 / 256 as i32 as f64;
+            global.interp_coeff[i][0] = (x * (-0.5f64 + x * (1 as i32 as f64 - 0.5f64 * x))) as f32;
+            global.interp_coeff[i][1] = (1.0f64 + x * x * (1.5f64 * x - 2.5f64)) as f32;
+            global.interp_coeff[i][2] = (x * (0.5f64 + x * (2.0f64 - 1.5f64 * x))) as f32;
+            global.interp_coeff[i][3] = (0.5f64 * x * x * (x - 1.0f64)) as f32;
+            global.interp_coeff_linear[i][0] = (1.0f64 - x) as f32;
+            global.interp_coeff_linear[i][1] = x as f32;
+            i += 1
         }
-        i += 1
+        i = 0;
+        while i < 7 {
+            i2 = 0 as i32;
+            while i2 < 256 as i32 {
+                i_shifted = i as f64 - 7 as i32 as f64 / 2.0f64 + i2 as f64 / 256 as i32 as f64;
+                if f64::abs(i_shifted) > 0.000001f64 {
+                    v = f64::sin(i_shifted * std::f64::consts::PI) as f32 as f64
+                        / (std::f64::consts::PI * i_shifted);
+                    v *= 0.5f64
+                        * (1.0f64
+                            + f64::cos(
+                                2.0f64 * std::f64::consts::PI * i_shifted / 7 as i32 as f32 as f64,
+                            ))
+                } else {
+                    v = 1.0f64
+                }
+                global.sinc_table7[(256 as i32 - i2 - 1 as i32) as usize][i as usize] = v as f32;
+                i2 += 1
+            }
+            i += 1
+        }
+
+        global
     }
+}
+
+lazy_static! {
+    static ref DSP_FLOAT_GLOBAL: DspFloatGlobal = DspFloatGlobal::new();
 }
 
 pub unsafe fn fluid_dsp_float_interpolate_none(mut voice: *mut Voice) -> i32 {
@@ -115,7 +135,6 @@ pub unsafe fn fluid_dsp_float_interpolate_linear(mut voice: *mut Voice) -> i32 {
     let mut dsp_phase_index: u32;
     let mut end_index: u32;
     let point: i16;
-    let mut coeffs: *mut f32;
     let looping: i32;
     dsp_phase_incr = ((*voice).phase_incr as u64) << 32 as i32
         | (((*voice).phase_incr as f64 - (*voice).phase_incr as i32 as f64) * 4294967296.0f64)
@@ -138,10 +157,12 @@ pub unsafe fn fluid_dsp_float_interpolate_linear(mut voice: *mut Voice) -> i32 {
     loop {
         dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
         while dsp_i < 64 as i32 as u32 && dsp_phase_index <= end_index {
-            coeffs = INTERP_COEFF_LINEAR[(((dsp_phase & 0xffffffff as u32 as u64) as u32
-                & 0xff000000 as u32)
-                >> 24 as i32) as usize]
-                .as_mut_ptr();
+            let coeffs =
+                DSP_FLOAT_GLOBAL.interp_coeff_linear[(((dsp_phase & 0xffffffff as u32 as u64)
+                    as u32
+                    & 0xff000000 as u32)
+                    >> 24 as i32) as usize]
+                    .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index as isize) as i32 as f32
@@ -158,10 +179,12 @@ pub unsafe fn fluid_dsp_float_interpolate_linear(mut voice: *mut Voice) -> i32 {
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = INTERP_COEFF_LINEAR[(((dsp_phase & 0xffffffff as u32 as u64) as u32
-                & 0xff000000 as u32)
-                >> 24 as i32) as usize]
-                .as_mut_ptr();
+            let coeffs =
+                DSP_FLOAT_GLOBAL.interp_coeff_linear[(((dsp_phase & 0xffffffff as u32 as u64)
+                    as u32
+                    & 0xff000000 as u32)
+                    >> 24 as i32) as usize]
+                    .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index as isize) as i32 as f32
@@ -204,7 +227,6 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
     let mut start_point: i16;
     let end_point1: i16;
     let end_point2: i16;
-    let mut coeffs: *mut f32;
     let looping: i32;
     dsp_phase_incr = ((*voice).phase_incr as u64) << 32 as i32
         | (((*voice).phase_incr as f64 - (*voice).phase_incr as i32 as f64) * 4294967296.0f64)
@@ -236,10 +258,11 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
     loop {
         dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
         while dsp_phase_index == start_index && dsp_i < 64 as i32 as u32 {
-            coeffs = INTERP_COEFF[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.interp_coeff[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize) * start_point as i32 as f32
                     + *coeffs.offset(1 as i32 as isize)
@@ -256,10 +279,11 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
             dsp_i = dsp_i.wrapping_add(1)
         }
         while dsp_i < 64 as i32 as u32 && dsp_phase_index <= end_index {
-            coeffs = INTERP_COEFF[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.interp_coeff[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
@@ -282,10 +306,11 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = INTERP_COEFF[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.interp_coeff[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
@@ -303,10 +328,11 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = INTERP_COEFF[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.interp_coeff[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
@@ -356,7 +382,6 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
     let mut end_index: u32;
     let mut start_points: [i16; 3] = [0; 3];
     let mut end_points: [i16; 3] = [0; 3];
-    let mut coeffs: *mut f32;
     let looping: i32;
     dsp_phase_incr = ((*voice).phase_incr as u64) << 32 as i32
         | (((*voice).phase_incr as f64 - (*voice).phase_incr as i32 as f64) * 4294967296.0f64)
@@ -395,10 +420,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
     loop {
         dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
         while dsp_phase_index == start_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize) * start_points[2 as i32 as usize] as f32
                     + *coeffs.offset(1 as i32 as isize) * start_points[1 as i32 as usize] as f32
@@ -421,10 +447,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         start_index = start_index.wrapping_add(1);
         while dsp_phase_index == start_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize) * start_points[1 as i32 as usize] as f32
                     + *coeffs.offset(1 as i32 as isize) * start_points[0 as i32 as usize] as f32
@@ -449,10 +476,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         start_index = start_index.wrapping_add(1);
         while dsp_phase_index == start_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize) * start_points[0 as i32 as usize] as f32
                     + *coeffs.offset(1 as i32 as isize)
@@ -479,10 +507,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         start_index = start_index.wrapping_sub(2 as i32 as u32);
         while dsp_i < 64 as i32 as u32 && dsp_phase_index <= end_index {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
@@ -514,10 +543,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
@@ -544,10 +574,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
@@ -572,10 +603,11 @@ pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i3
         }
         end_index = end_index.wrapping_add(1);
         while dsp_phase_index <= end_index && dsp_i < 64 as i32 as u32 {
-            coeffs = SINC_TABLE7[(((dsp_phase & 0xffffffff as u32 as u64) as u32
+            let coeffs = DSP_FLOAT_GLOBAL.sinc_table7[(((dsp_phase & 0xffffffff as u32 as u64)
+                as u32
                 & 0xff000000 as u32)
                 >> 24 as i32) as usize]
-                .as_mut_ptr();
+                .as_ptr();
             *dsp_buf.offset(dsp_i as isize) = dsp_amp
                 * (*coeffs.offset(0 as i32 as isize)
                     * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)

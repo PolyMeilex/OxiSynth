@@ -12,7 +12,6 @@ pub mod write;
 use crate::voice::VoiceId;
 
 use super::chorus::Chorus;
-use super::dsp_float::fluid_dsp_float_config;
 use super::modulator::Mod;
 use super::reverb::ReverbModel;
 use super::settings::Settings;
@@ -812,7 +811,6 @@ impl Synth {
 
     unsafe fn init() {
         FLUID_SYNTH_INITIALIZED += 1;
-        fluid_dsp_float_config();
         init_dither();
         DEFAULT_VEL2ATT_MOD.set_source1(
             FLUID_MOD_VELOCITY as i32,
