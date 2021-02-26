@@ -2,6 +2,12 @@ pub mod chorus;
 pub mod count;
 pub mod font;
 pub mod gen;
+pub mod midi;
+pub mod misc;
+pub mod params;
+pub mod reverb;
+pub mod tuning;
+pub mod write;
 
 use crate::voice::VoiceId;
 
@@ -23,7 +29,6 @@ use super::voice::fluid_voice_modulate;
 use super::voice::fluid_voice_modulate_all;
 use super::voice::fluid_voice_noteoff;
 use super::voice::fluid_voice_off;
-use super::voice::fluid_voice_set_gain;
 use super::voice::fluid_voice_start;
 use super::voice::fluid_voice_write;
 use super::voice::new_fluid_voice;
@@ -197,7 +202,7 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
 pub struct Synth {
     state: u32,
     ticks: u32,
-    loaders: Vec<SoundFontLoader>,
+    loader: SoundFontLoader,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
@@ -277,7 +282,7 @@ impl Synth {
             let mut synth = Self {
                 state: FLUID_SYNTH_PLAYING,
                 ticks: 0,
-                loaders: Vec::new(),
+                loader: SoundFontLoader::new(),
                 sfont: Vec::new(),
                 sfont_id: 0 as _,
                 bank_offsets: Vec::new(),
@@ -332,9 +337,6 @@ impl Synth {
             //     &mut synth as *mut Self as *mut libc::c_void,
             // );
 
-            let loader = SoundFontLoader::new();
-            synth.add_sfloader(loader);
-
             for i in 0..synth.settings.synth.midi_channels {
                 synth.channel.push(Channel::new(&synth, i));
             }
@@ -376,80 +378,7 @@ impl Synth {
         self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
     }
 
-    pub unsafe fn noteon(&mut self, chan: u8, key: i32, vel: i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range");
-            return FLUID_FAILED as i32;
-        }
-        if vel == 0 as i32 {
-            return self.noteoff(chan, key);
-        }
-        if self.channel[chan as usize].preset.is_none() {
-            if self.settings.synth.verbose {
-                log::info!(
-                    "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
-                    chan,
-                    key,
-                    vel,
-                    0,
-                    (self.ticks as f32 / 44100.0f32),
-                    0.0f32,
-                    0,
-                    "channel has no preset"
-                );
-            }
-            return FLUID_FAILED as i32;
-        }
-        self.release_voice_on_same_note(chan, key);
-        let fresh7 = self.noteid;
-        self.noteid = self.noteid.wrapping_add(1);
-
-        let preset_ptr = self.channel[chan as usize].preset.as_mut().unwrap() as *mut _;
-        return self.start(fresh7, preset_ptr, 0, chan, key, vel);
-    }
-
-    pub unsafe fn noteoff(&mut self, chan: u8, key: i32) -> i32 {
-        let mut i = 0;
-        let mut status: i32 = FLUID_FAILED as i32;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
-                && voice.chan == chan
-                && voice.key as i32 == key
-            {
-                if self.settings.synth.verbose {
-                    let mut used_voices: i32 = 0 as i32;
-                    let mut k;
-                    k = 0 as i32;
-                    while k < self.settings.synth.polyphony {
-                        if !(voice.status as i32 == FLUID_VOICE_CLEAN as i32
-                            || voice.status as i32 == FLUID_VOICE_OFF as i32)
-                        {
-                            used_voices += 1
-                        }
-                        k += 1
-                    }
-                    log::info!(
-                        "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                        voice.chan,
-                        voice.key,
-                        0 as i32,
-                        voice.id,
-                        (voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0f32) as f64,
-                        (voice.ticks as f32 / 44100.0f32) as f64,
-                        used_voices
-                    );
-                }
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
-                status = FLUID_OK as i32
-            }
-            i += 1
-        }
-        return status;
-    }
-
-    pub unsafe fn damp_voices(&mut self, chan: u8) -> i32 {
+    pub(crate) unsafe fn damp_voices(&mut self, chan: u8) -> i32 {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {
@@ -462,99 +391,7 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn cc(&mut self, chan: u8, num: i32, val: i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if num < 0 as i32 || num >= 128 as i32 {
-            log::warn!("Ctrl out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if val < 0 as i32 || val >= 128 as i32 {
-            log::warn!("Value out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if self.settings.synth.verbose {
-            log::info!("cc\t{}\t{}\t{}", chan, num, val);
-        }
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize].cc(
-            synth_ptr.as_mut().unwrap(),
-            num,
-            val,
-        );
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn get_cc(&self, chan: u8, num: i32, pval: *mut i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if num < 0 as i32 || num >= 128 as i32 {
-            log::warn!("Ctrl out of range",);
-            return FLUID_FAILED as i32;
-        }
-        *pval = self.channel[chan as usize].cc[num as usize] as i32;
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn all_notes_off(&mut self, chan: u8) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if (voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && voice.chan == chan
-            {
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
-            }
-            i += 1
-        }
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn all_sounds_off(&mut self, chan: u8) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if (voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && voice.chan == chan
-            {
-                fluid_voice_off(voice);
-            }
-            i += 1
-        }
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn system_reset(&mut self) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
-                fluid_voice_off(voice);
-            }
-            i += 1
-        }
-        let mut i = 0;
-        while i < self.settings.synth.midi_channels {
-            // TODO: double borrow
-            let synth_ptr = self as *mut Synth;
-            synth_ptr.as_mut().unwrap().channel[i as usize].reset(synth_ptr.as_mut().unwrap());
-            i += 1
-        }
-        self.chorus.reset();
-        self.reverb.reset();
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32) -> i32 {
+    pub(crate) unsafe fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32) -> i32 {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -566,7 +403,7 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn modulate_voices_all(&mut self, chan: u8) -> i32 {
+    pub(crate) unsafe fn modulate_voices_all(&mut self, chan: u8) -> i32 {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -578,97 +415,12 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn channel_pressure(&mut self, chan: u8, val: i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if self.settings.synth.verbose {
-            log::info!("channelpressure\t{}\t{}", chan, val);
-        }
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pressure(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> i32 {
-        let mut result: i32 = FLUID_OK as i32;
-        if key < 0 as i32 || key > 127 as i32 {
-            return FLUID_FAILED as i32;
-        }
-        if val < 0 as i32 || val > 127 as i32 {
-            return FLUID_FAILED as i32;
-        }
-        if self.settings.synth.verbose {
-            log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
-        }
-        self.channel[chan as usize].key_pressure[key as usize] = val as i8;
-        let mut i;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan as i32 == chan && voice.key as i32 == key {
-                result = fluid_voice_modulate(voice, 0 as i32, FLUID_MOD_KEYPRESSURE as i32);
-                if result != FLUID_OK as i32 {
-                    break;
-                }
-            }
-            i += 1
-        }
-        return result;
-    }
-
-    pub unsafe fn pitch_bend(&mut self, chan: u8, val: i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if self.settings.synth.verbose {
-            log::info!("pitchb\t{}\t{}", chan, val);
-        }
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pitch_bend(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn get_pitch_bend(&self, chan: u8, ppitch_bend: *mut i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        *ppitch_bend = self.channel[chan as usize].pitch_bend as i32;
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn pitch_wheel_sens(&mut self, chan: u8, val: i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        if self.settings.synth.verbose {
-            log::info!("pitchsens\t{}\t{}", chan, val);
-        }
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pitch_wheel_sens(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn get_pitch_wheel_sens(&self, chan: u8, pval: *mut i32) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        *pval = self.channel[chan as usize].pitch_wheel_sensitivity as i32;
-        return FLUID_OK as i32;
-    }
-
-    pub fn get_preset(&mut self, sfontnum: u32, banknum: u32, prognum: u32) -> Option<Preset> {
+    pub(crate) fn get_preset(
+        &mut self,
+        sfontnum: u32,
+        banknum: u32,
+        prognum: u32,
+    ) -> Option<Preset> {
         let sfont = self.get_sfont_by_id(sfontnum);
         if let Some(sfont) = sfont {
             let offset = self
@@ -682,7 +434,7 @@ impl Synth {
         }
     }
 
-    pub fn find_preset(&self, banknum: u32, prognum: u32) -> Option<Preset> {
+    pub(crate) fn find_preset(&self, banknum: u32, prognum: u32) -> Option<Preset> {
         for sfont in self.sfont.iter() {
             let offset = self
                 .get_bank_offset(sfont.id)
@@ -698,368 +450,7 @@ impl Synth {
         return None;
     }
 
-    pub fn program_change(&mut self, chan: u8, prognum: i32) -> i32 {
-        let mut preset;
-        let banknum;
-        let sfont_id;
-        let mut subst_bank;
-        let mut subst_prog;
-        if prognum < 0 as i32 || prognum >= 128 as i32 || chan >= self.settings.synth.midi_channels
-        {
-            log::error!("Index out of range (chan={}, prog={})", chan, prognum);
-            return FLUID_FAILED as i32;
-        }
-        banknum = self.channel[chan as usize].get_banknum();
-        self.channel[chan as usize].set_prognum(prognum);
-        if self.settings.synth.verbose {
-            log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
-        }
-
-        if self.channel[chan as usize].channum == 9 && self.settings.synth.drums_channel_active {
-            preset = self.find_preset(128 as i32 as u32, prognum as u32)
-        } else {
-            preset = self.find_preset(banknum, prognum as u32)
-        }
-
-        if preset.is_none() {
-            subst_bank = banknum as i32;
-            subst_prog = prognum;
-            if banknum != 128 as i32 as u32 {
-                subst_bank = 0 as i32;
-                preset = self.find_preset(0 as i32 as u32, prognum as u32);
-                if preset.is_none() && prognum != 0 as i32 {
-                    preset = self.find_preset(0 as i32 as u32, 0 as i32 as u32);
-                    subst_prog = 0 as i32
-                }
-            } else {
-                preset = self.find_preset(128 as i32 as u32, 0 as i32 as u32);
-                subst_prog = 0 as i32
-            }
-            if preset.is_none() {
-                log::warn!(
-                        "Instrument not found on channel {} [bank={} prog={}], substituted [bank={} prog={}]",
-                        chan, banknum, prognum,
-                        subst_bank, subst_prog);
-            }
-        }
-        sfont_id = if let Some(preset) = &preset {
-            unsafe { (*preset.sfont).id }
-        } else {
-            0
-        };
-        self.channel[chan as usize].set_sfontnum(sfont_id);
-        self.channel[chan as usize].set_preset(preset);
-        return FLUID_OK as i32;
-    }
-
-    pub fn bank_select(&mut self, chan: u8, bank: u32) -> i32 {
-        if chan < self.settings.synth.midi_channels {
-            self.channel[chan as usize].set_banknum(bank);
-            return FLUID_OK as i32;
-        }
-        return FLUID_FAILED as i32;
-    }
-
-    pub unsafe fn sfont_select(&mut self, chan: u8, sfont_id: u32) -> i32 {
-        if chan < self.settings.synth.midi_channels {
-            self.channel[chan as usize].set_sfontnum(sfont_id);
-            return FLUID_OK as i32;
-        }
-        return FLUID_FAILED as i32;
-    }
-
-    pub unsafe fn get_program(
-        &self,
-        chan: u8,
-        sfont_id: *mut u32,
-        bank_num: *mut u32,
-        preset_num: *mut u32,
-    ) -> i32 {
-        let channel;
-        if chan < self.settings.synth.midi_channels {
-            channel = &self.channel[chan as usize];
-            *sfont_id = channel.get_sfontnum();
-            *bank_num = channel.get_banknum();
-            *preset_num = channel.get_prognum() as u32;
-            return FLUID_OK as i32;
-        }
-        return FLUID_FAILED as i32;
-    }
-
-    pub unsafe fn program_select(
-        &mut self,
-        chan: u8,
-        sfont_id: u32,
-        bank_num: u32,
-        preset_num: u32,
-    ) -> i32 {
-        let preset;
-        let channel;
-        if chan >= self.settings.synth.midi_channels {
-            log::error!("Channel number out of range (chan={})", chan);
-            return FLUID_FAILED as i32;
-        }
-        preset = self.get_preset(sfont_id, bank_num, preset_num);
-        if preset.is_none() {
-            log::error!(
-                "There is no preset with bank number {} and preset number {} in SoundFont {}",
-                bank_num,
-                preset_num,
-                sfont_id
-            );
-            return FLUID_FAILED as i32;
-        }
-        channel = &mut self.channel[chan as usize];
-        channel.set_sfontnum(sfont_id);
-        channel.set_banknum(bank_num);
-        channel.set_prognum(preset_num as i32);
-        channel.set_preset(preset);
-        return FLUID_OK as i32;
-    }
-
-    pub fn update_presets(&mut self) {
-        let mut chan = 0;
-        while chan < self.settings.synth.midi_channels {
-            let sfontnum = self.channel[chan as usize].get_sfontnum();
-            let banknum = self.channel[chan as usize].get_banknum();
-            let prognum = self.channel[chan as usize].get_prognum() as u32;
-            let preset = self.get_preset(sfontnum, banknum, prognum);
-            self.channel[chan as usize].set_preset(preset);
-            chan += 1
-        }
-    }
-
-    pub unsafe fn update_gain(&mut self, _name: &str, value: f64) -> i32 {
-        self.set_gain(value as f32);
-        return 0 as i32;
-    }
-
-    pub unsafe fn set_gain(&mut self, mut gain: f32) {
-        let mut i;
-        gain = if gain < 0.0f32 {
-            0.0f32
-        } else if gain > 10.0f32 {
-            10.0f32
-        } else {
-            gain
-        };
-        self.gain = gain as f64;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
-                fluid_voice_set_gain(voice, gain);
-            }
-            i += 1
-        }
-    }
-
-    pub unsafe fn get_gain(&self) -> f32 {
-        return self.gain as f32;
-    }
-
-    pub unsafe fn update_polyphony(&mut self, _name: &str, value: i32) -> i32 {
-        self.set_polyphony(value);
-        return 0 as i32;
-    }
-
-    pub unsafe fn set_polyphony(&mut self, polyphony: i32) -> i32 {
-        let mut i;
-        if polyphony < 1 as i32 || polyphony > self.nvoice {
-            return FLUID_FAILED as i32;
-        }
-        i = polyphony;
-        while i < self.nvoice {
-            let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
-                fluid_voice_off(voice);
-            }
-            i += 1
-        }
-        self.settings.synth.polyphony = polyphony;
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn get_polyphony(&self) -> i32 {
-        return self.settings.synth.polyphony;
-    }
-
-    pub unsafe fn get_internal_bufsize(&self) -> i32 {
-        return 64 as i32;
-    }
-
-    pub fn program_reset(&mut self) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.midi_channels {
-            self.program_change(i, self.channel[i as usize].get_prognum());
-            i += 1
-        }
-        return FLUID_OK as i32;
-    }
-
-    pub fn set_reverb_params(&mut self, roomsize: f64, damping: f64, width: f64, level: f64) {
-        self.reverb.set_room_size(roomsize as f32);
-        self.reverb.set_damp(damping as f32);
-        self.reverb.set_width(width as f32);
-        self.reverb.set_level(level as f32);
-    }
-
-    pub unsafe fn write_f32(
-        &mut self,
-        len: i32,
-        lout: *mut libc::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut libc::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut l;
-        let left_out: *mut f32 = lout as *mut f32;
-        let right_out: *mut f32 = rout as *mut f32;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
-        }
-        l = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
-        while i < len {
-            if l == 64 as i32 {
-                self.one_block(0 as i32);
-                l = 0 as i32
-            }
-            *left_out.offset(j as isize) = *left_in.offset(l as isize);
-            *right_out.offset(k as isize) = *right_in.offset(l as isize);
-            i += 1;
-            l += 1;
-            j += lincr;
-            k += rincr
-        }
-        self.cur = l;
-        return 0 as i32;
-    }
-
-    pub unsafe fn write_f64(
-        &mut self,
-        len: i32,
-        lout: *mut libc::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut libc::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut l;
-        let left_out: *mut f64 = lout as *mut f64;
-        let right_out: *mut f64 = rout as *mut f64;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
-        }
-        l = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
-        while i < len {
-            if l == 64 as i32 {
-                self.one_block(0 as i32);
-                l = 0 as i32
-            }
-            *left_out.offset(j as isize) = *left_in.offset(l as isize) as f64;
-            *right_out.offset(k as isize) = *right_in.offset(l as isize) as f64;
-            i += 1;
-            l += 1;
-            j += lincr;
-            k += rincr
-        }
-        self.cur = l;
-        return 0 as i32;
-    }
-
-    pub unsafe fn write_s16(
-        &mut self,
-        len: i32,
-        lout: *mut libc::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut libc::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut cur;
-        let left_out: *mut i16 = lout as *mut i16;
-        let right_out: *mut i16 = rout as *mut i16;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        let mut left_sample;
-        let mut right_sample;
-        let mut di: i32 = self.dither_index;
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
-        }
-        cur = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
-        while i < len {
-            if cur == 64 as i32 {
-                self.one_block(0 as i32);
-                cur = 0 as i32
-            }
-            left_sample = roundi(
-                *left_in.offset(cur as isize) * 32766.0f32
-                    + RAND_TABLE[0 as i32 as usize][di as usize],
-            ) as f32;
-            right_sample = roundi(
-                *right_in.offset(cur as isize) * 32766.0f32
-                    + RAND_TABLE[1 as i32 as usize][di as usize],
-            ) as f32;
-            di += 1;
-            if di >= 48000 as i32 {
-                di = 0 as i32
-            }
-            if left_sample > 32767.0f32 {
-                left_sample = 32767.0f32
-            }
-            if left_sample < -32768.0f32 {
-                left_sample = -32768.0f32
-            }
-            if right_sample > 32767.0f32 {
-                right_sample = 32767.0f32
-            }
-            if right_sample < -32768.0f32 {
-                right_sample = -32768.0f32
-            }
-            *left_out.offset(j as isize) = left_sample as i16;
-            *right_out.offset(k as isize) = right_sample as i16;
-            i += 1;
-            cur += 1;
-            j += lincr;
-            k += rincr
-        }
-        self.cur = cur;
-        self.dither_index = di;
-        return 0 as i32;
-    }
-
-    pub unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
+    pub(crate) unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
         let mut i;
         let mut auchan;
         let mut left_buf;
@@ -1163,7 +554,7 @@ impl Synth {
         return 0 as i32;
     }
 
-    pub unsafe fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
+    pub(crate) unsafe fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut this_voice_prio;
         let mut best_voice_index: Option<usize> = None;
@@ -1208,7 +599,7 @@ impl Synth {
         }
     }
 
-    pub unsafe fn alloc_voice(
+    pub(crate) unsafe fn alloc_voice(
         &mut self,
         sample: *mut Sample,
         chan: u8,
@@ -1312,7 +703,7 @@ impl Synth {
         }
     }
 
-    pub unsafe fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
+    pub(crate) unsafe fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let mut i;
 
         let excl_class = {
@@ -1353,43 +744,12 @@ impl Synth {
         }
     }
 
-    pub unsafe fn start_voice(&mut self, voice_id: VoiceId) {
+    pub(crate) unsafe fn start_voice(&mut self, voice_id: VoiceId) {
         self.kill_by_exclusive_class(voice_id);
         fluid_voice_start(&mut self.voices[voice_id.0]);
     }
 
-    pub fn add_sfloader(&mut self, loader: SoundFontLoader) {
-        self.loaders.insert(0, loader);
-    }
-
-    pub unsafe fn get_channel_preset(&mut self, chan: u8) -> Option<&mut Preset> {
-        if chan < self.settings.synth.midi_channels {
-            return self.channel[chan as usize].get_preset();
-        }
-        return None;
-    }
-
-    pub fn set_reverb_on(&mut self, on: bool) {
-        self.settings.synth.reverb_active = on;
-    }
-
-    pub fn get_reverb_roomsize(&self) -> f64 {
-        return self.reverb.get_room_size() as f64;
-    }
-
-    pub fn get_reverb_damp(&self) -> f64 {
-        return self.reverb.get_damp() as f64;
-    }
-
-    pub fn get_reverb_level(&self) -> f64 {
-        return self.reverb.get_level() as f64;
-    }
-
-    pub fn get_reverb_width(&self) -> f64 {
-        return self.reverb.get_width() as f64;
-    }
-
-    pub unsafe fn release_voice_on_same_note(&mut self, chan: u8, key: i32) {
+    pub(crate) unsafe fn release_voice_on_same_note(&mut self, chan: u8, key: i32) {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -1403,34 +763,6 @@ impl Synth {
             }
             i += 1
         }
-    }
-
-    /* Purpose:
-     * Sets the interpolation method to use on channel chan.
-     * If chan is < 0, then set the interpolation method on all channels.
-     */
-    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) -> i32 {
-        if let Some(chan) = chan {
-            let ch = self
-                .channel
-                .iter_mut()
-                .take(self.settings.synth.midi_channels as usize)
-                .find(|ch| ch.get_num() == chan);
-
-            if let Some(ch) = ch {
-                ch.set_interp_method(interp_method);
-            }
-        } else {
-            for ch in self
-                .channel
-                .iter_mut()
-                .take(self.settings.synth.midi_channels as usize)
-            {
-                ch.set_interp_method(interp_method);
-            }
-        }
-
-        return FLUID_OK as i32;
     }
 
     fn get_tuning(&self, bank: i32, prog: i32) -> Option<&Tuning> {
@@ -1466,197 +798,7 @@ impl Synth {
         return Some(tuning);
     }
 
-    pub unsafe fn create_key_tuning(
-        &mut self,
-        bank: i32,
-        prog: i32,
-        name: &[u8],
-        pitch: &[f64; 128],
-    ) -> i32 {
-        return match self.create_tuning(bank, prog, name) {
-            Some(tuning) => {
-                tuning.set_all(pitch);
-                FLUID_OK as i32
-            }
-            None => FLUID_FAILED as i32,
-        };
-    }
-
-    pub unsafe fn create_octave_tuning(
-        &mut self,
-        bank: i32,
-        prog: i32,
-        name: &[u8],
-        pitch: &[f64; 12],
-    ) -> i32 {
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        return match self.create_tuning(bank, prog, name) {
-            Some(tuning) => {
-                tuning.set_octave(pitch);
-                FLUID_OK as i32
-            }
-            None => FLUID_FAILED as i32,
-        };
-    }
-
-    pub unsafe fn activate_octave_tuning(
-        &mut self,
-        bank: i32,
-        prog: i32,
-        name: &[u8],
-        pitch: &[f64; 12],
-        _apply: i32,
-    ) -> i32 {
-        return self.create_octave_tuning(bank, prog, name, pitch);
-    }
-
-    pub unsafe fn tune_notes(
-        &mut self,
-        bank: i32,
-        prog: i32,
-        len: i32,
-        key: *mut i32,
-        pitch: *mut f64,
-        _apply: i32,
-    ) -> i32 {
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(len > 0 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if key.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        if pitch.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        match self.create_tuning(bank, prog, b"Unnamed\x00") {
-            Some(tuning) => {
-                for i in 0..len {
-                    tuning.set_pitch(*key.offset(i as isize), *pitch.offset(i as isize));
-                }
-                return FLUID_OK as i32;
-            }
-            None => {
-                return FLUID_FAILED as i32;
-            }
-        }
-    }
-
-    pub unsafe fn select_tuning(&mut self, chan: u8, bank: i32, prog: i32) -> i32 {
-        let tuning;
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        tuning = self.get_tuning(bank, prog);
-        if tuning.is_none() {
-            return FLUID_FAILED as i32;
-        }
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        self.channel[chan as usize].tuning = Some(tuning.unwrap().clone());
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn activate_tuning(&mut self, chan: u8, bank: i32, prog: i32, _apply: i32) -> i32 {
-        return self.select_tuning(chan, bank, prog);
-    }
-
-    pub unsafe fn reset_tuning(&mut self, chan: u8) -> i32 {
-        if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
-        }
-        self.channel[chan as usize].tuning = None;
-        return FLUID_OK as i32;
-    }
-
-    pub unsafe fn tuning_iteration_start(&mut self) {
-        self.cur_tuning = None;
-    }
-
-    pub unsafe fn tuning_iteration_next(&mut self, bank: *mut i32, prog: *mut i32) -> i32 {
-        let mut b = 0;
-        let mut p = 0;
-        match self.cur_tuning.as_ref() {
-            Some(tuning) => {
-                b = tuning.bank;
-                p = tuning.prog + 1;
-                if p >= 128 {
-                    p = 0;
-                    b += 1
-                }
-            }
-            None => {}
-        }
-        while b < 128 {
-            while p < 128 {
-                match self.tuning[b as usize][p as usize] {
-                    Some(_) => {
-                        *bank = b;
-                        *prog = p;
-                        return 1;
-                    }
-                    None => {}
-                }
-                p += 1
-            }
-            p = 0 as i32;
-            b += 1
-        }
-        return 0 as i32;
-    }
-
-    pub unsafe fn tuning_dump(
-        &self,
-        bank: i32,
-        prog: i32,
-        name: *mut i8,
-        len: i32,
-        pitch: *mut f64,
-    ) -> i32 {
-        match self.get_tuning(bank, prog) {
-            Some(tuning) => {
-                if !name.is_null() {
-                    libc::strncpy(
-                        name,
-                        tuning.get_name().as_ptr() as _,
-                        (len - 1 as i32) as libc::size_t,
-                    );
-                    *name.offset((len - 1 as i32) as isize) = 0 as i32 as i8
-                }
-                if !pitch.is_null() {
-                    libc::memcpy(
-                        pitch as *mut libc::c_void,
-                        tuning.pitch.as_ptr().offset(0 as i32 as isize) as *mut f64
-                            as *const libc::c_void,
-                        (128 as i32 as libc::size_t)
-                            .wrapping_mul(::std::mem::size_of::<f64>() as libc::size_t),
-                    );
-                }
-                return FLUID_OK as i32;
-            }
-            None => {
-                return FLUID_FAILED as i32;
-            }
-        }
-    }
-
-    pub unsafe fn start(
+    pub(crate) unsafe fn start(
         &mut self,
         id: u32,
         preset: *mut Preset,
@@ -1683,165 +825,17 @@ impl Synth {
         return r;
     }
 
-    pub fn get_bank_offset(&self, sfont_id: u32) -> Option<&BankOffset> {
-        self.bank_offsets.iter().find(|x| x.sfont_id == sfont_id)
-    }
-
-    pub unsafe fn get_mut_bank_offset0(&mut self, sfont_id: u32) -> *mut BankOffset {
-        return self
-            .bank_offsets
-            .iter_mut()
-            .find(|x| x.sfont_id == sfont_id)
-            .map(|x| x as *mut BankOffset)
-            .unwrap_or(0 as _);
-    }
-
-    pub unsafe fn set_bank_offset(&mut self, sfont_id: u32, offset: u32) -> i32 {
-        let mut bank_offset;
-        bank_offset = self.get_mut_bank_offset0(sfont_id);
-        if bank_offset.is_null() {
-            // bank_offset = libc::malloc(::std::mem::size_of::<BankOffset>() as libc::size_t)
-            //     as *mut BankOffset;
-
-            let bank_offset = BankOffset { sfont_id, offset };
-
-            // if bank_offset.is_null() {
-            //     return -(1 as i32);
-            // }
-            // (*bank_offset).sfont_id = sfont_id;
-            // (*bank_offset).offset = offset;
-            self.bank_offsets.insert(0, bank_offset);
-        } else {
-            (*bank_offset).offset = offset
+    pub(crate) fn update_presets(&mut self) {
+        let mut chan = 0;
+        while chan < self.settings.synth.midi_channels {
+            let sfontnum = self.channel[chan as usize].get_sfontnum();
+            let banknum = self.channel[chan as usize].get_banknum();
+            let prognum = self.channel[chan as usize].get_prognum() as u32;
+            let preset = self.get_preset(sfontnum, banknum, prognum);
+            self.channel[chan as usize].set_preset(preset);
+            chan += 1
         }
-        return 0 as i32;
     }
-
-    // pub fn get_bank_offset(&self, sfont_id: i32) -> i32 {
-    //     let bank_offset = self.get_bank_offset0(sfont_id);
-
-    //     if let Some(bank_offset) = bank_offset {
-    //         bank_offset.offset
-    //     } else {
-    //         0
-    //     }
-    // }
-
-    pub fn remove_bank_offset(&mut self, sfont_id: u32) {
-        self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
-    }
-
-    // pub(crate) unsafe fn register_settings(settings: &mut Settings) {
-    //     settings.register_str(
-    //         "synth.verbose",
-    //         "no",
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_str("synth.dump", "no", 0 as i32, None, 0 as *mut libc::c_void);
-    //     settings.register_str(
-    //         "synth.reverb.active",
-    //         "yes",
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_str(
-    //         "synth.chorus.active",
-    //         "yes",
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_str(
-    //         "synth.ladspa.active",
-    //         "no",
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_str("midi.portname", "", 0 as i32, None, 0 as *mut libc::c_void);
-    //     settings.register_str(
-    //         "synth.drums-channel.active",
-    //         "yes",
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.polyphony",
-    //         256 as i32,
-    //         16 as i32,
-    //         4096 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.midi-channels",
-    //         16 as i32,
-    //         16 as i32,
-    //         256 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_num(
-    //         "synth.gain",
-    //         0.2f32 as f64,
-    //         0.0f32 as f64,
-    //         10.0f32 as f64,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.audio-channels",
-    //         1 as i32,
-    //         1 as i32,
-    //         256 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.audio-groups",
-    //         1 as i32,
-    //         1 as i32,
-    //         256 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.effects-channels",
-    //         2 as i32,
-    //         2 as i32,
-    //         2 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_num(
-    //         "synth.sample-rate",
-    //         44100.0f32 as f64,
-    //         22050.0f32 as f64,
-    //         96000.0f32 as f64,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    //     settings.register_int(
-    //         "synth.min-note-length",
-    //         10 as i32,
-    //         0 as i32,
-    //         65535 as i32,
-    //         0 as i32,
-    //         None,
-    //         0 as *mut libc::c_void,
-    //     );
-    // }
 
     unsafe fn init() {
         FLUID_SYNTH_INITIALIZED += 1;
@@ -1970,15 +964,10 @@ impl Drop for Synth {
                 fluid_voice_off(voice);
             }
             self.bank_offsets.clear();
-            self.loaders.clear();
             self.voices.clear();
             self.chorus.delete();
         }
     }
-}
-
-pub unsafe fn error() -> *mut u8 {
-    return FLUID_ERRBUF.as_mut_ptr();
 }
 
 static mut RAND_TABLE: [[f32; 48000]; 2] = [[0.; 48000]; 2];
@@ -2000,11 +989,4 @@ unsafe fn init_dither() {
         RAND_TABLE[c as usize][(48000 as i32 - 1 as i32) as usize] = 0 as i32 as f32 - dp;
         c += 1
     }
-}
-unsafe fn roundi(x: f32) -> i32 {
-    if x >= 0.0f32 {
-        return (x + 0.5f32) as i32;
-    } else {
-        return (x - 0.5f32) as i32;
-    };
 }

@@ -1760,10 +1760,11 @@ pub unsafe fn fluid_voice_set_param(
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f32) {
-    if (gain as f64) < 0.0000001f64 {
-        gain = 0.0000001f32
+pub unsafe fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f64) {
+    if gain < 0.0000001 {
+        gain = 0.0000001;
     }
+    let gain = gain as f32;
     voice.synth_gain = gain;
     voice.amp_left = fluid_pan(voice.pan, 1 as i32) * gain / 32768.0f32;
     voice.amp_right = fluid_pan(voice.pan, 0 as i32) * gain / 32768.0f32;

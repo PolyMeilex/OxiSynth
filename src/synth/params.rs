@@ -9,7 +9,7 @@ impl Synth {
     /**
     Set the master gain
      */
-    pub fn set_gain(&mut self, gain: f32) {
+    pub fn set_gain(&mut self, gain: f64) {
         unsafe {
             self.handle.set_gain(gain);
         }
@@ -18,8 +18,8 @@ impl Synth {
     /**
     Get the master gain
      */
-    pub fn get_gain(&self) -> f32 {
-        unsafe { self.handle.get_gain() }
+    pub fn get_gain(&self) -> f64 {
+        self.handle.get_gain()
     }
 
     /**
@@ -47,7 +47,7 @@ impl Synth {
     size is useful for client who want to optimize their buffer sizes.
      */
     pub fn get_internal_buffer_size(&self) -> usize {
-        unsafe { self.handle.get_internal_bufsize() as _ }
+        self.handle.get_internal_bufsize()
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */

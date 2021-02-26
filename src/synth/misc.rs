@@ -6,7 +6,7 @@ impl Synth {
     Get a textual representation of the last error
      */
     pub(super) fn error() -> String {
-        let error = unsafe { engine::synth::error() };
+        let error = unsafe { engine::synth::misc::error() };
         let error = unsafe { CStr::from_ptr(error as _) };
         error.to_str().unwrap().into()
     }

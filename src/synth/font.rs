@@ -98,8 +98,8 @@ impl Synth {
     Offset the bank numbers in a SoundFont.
     Returns -1 if an error occured (out of memory or negative offset)
      */
-    pub fn set_bank_offset(&mut self, sfont_id: FontId, offset: u32) -> Status {
-        Synth::zero_ok(unsafe { self.handle.set_bank_offset(sfont_id as _, offset as _) })
+    pub fn set_bank_offset(&mut self, sfont_id: FontId, offset: u32) {
+        self.handle.set_bank_offset(sfont_id as _, offset as _)
     }
 
     /**
