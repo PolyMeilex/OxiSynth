@@ -106,77 +106,138 @@ impl SFGenerator {
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u16)]
 pub enum SFGeneratorType {
-    StartAddrsOffset,
-    EndAddrsOffset,
+    /// Sample start address offset (0-32767)
+    StartAddrsOffset = 0,
+    ///< Sample end address offset (-32767-0)
+    EndAddrsOffset = 1,
 
-    StartloopAddrsOffset,
-    EndloopAddrsOffset,
-    StartAddrsCoarseOffset,
-    ModLfoToPitch,
-    VibLfoToPitch,
-    ModEnvToPitch,
-    InitialFilterFc,
-    InitialFilterQ,
-    ModLfoToFilterFc,
-    ModEnvToFilterFc,
-    EndAddrsCoarseOffset,
-    ModLfoToVolume,
-    Unused1,
-    ChorusEffectsSend,
-    ReverbEffectsSend,
-    Pan,
+    ///< Sample loop start address offset (-32767-32767)
+    StartloopAddrsOffset = 2,
+    ///< Sample loop end address offset (-32767-32767)
+    EndloopAddrsOffset = 3,
+    /// Sample start address coarse offset (X 32768)
+    StartAddrsCoarseOffset = 4,
+    /// Modulation LFO to pitch
+    ModLfoToPitch = 5,
+    /// Vibrato LFO to pitch
+    VibLfoToPitch = 6,
+    /// Modulation envelope to pitch
+    ModEnvToPitch = 7,
+    /// Filter cutoff
+    InitialFilterFc = 8,
+    /// Modulation envelope to filter cutoff
+    InitialFilterQ = 9,
+    /// Modulation envelope to filter cutoff
+    ModLfoToFilterFc = 10,
+    /// Modulation LFO to volume
+    ModEnvToFilterFc = 11,
+    /// Sample end address coarse offset (X 32768)
+    EndAddrsCoarseOffset = 12,
+    /// Modulation LFO to volume
+    ModLfoToVolume = 13,
+    /// Unused
+    Unused1 = 14,
+    /// Chorus send amount
+    ChorusEffectsSend = 15,
+    /// Reverb send amount
+    ReverbEffectsSend = 16,
+    /// Stereo panning
+    Pan = 17,
 
-    Unused2,
-    Unused3,
-    Unused4,
+    /// Unused
+    Unused2 = 18,
+    /// Unused
+    Unused3 = 19,
+    /// Unused
+    Unused4 = 20,
 
-    DelayModLFO,
-    FreqModLFO,
-    DelayVibLFO,
-    FreqVibLFO,
+    /// Modulation LFO delay
+    DelayModLFO = 21,
+    /// Modulation LFO frequency
+    FreqModLFO = 22,
+    /// Vibrato LFO delay
+    DelayVibLFO = 23,
+    /// Vibrato LFO frequency
+    FreqVibLFO = 24,
 
-    DelayModEnv,
-    AttackModEnv,
-    HoldModEnv,
-    DecayModEnv,
-    SustainModEnv,
-    ReleaseModEnv,
+    /// Modulation envelope delay
+    DelayModEnv = 25,
+    /// Modulation envelope attack
+    AttackModEnv = 26,
+    /// Modulation envelope hold
+    HoldModEnv = 27,
+    /// Modulation envelope decay
+    DecayModEnv = 28,
+    /// Modulation envelope sustain
+    SustainModEnv = 29,
+    /// Modulation envelope release
+    ReleaseModEnv = 30,
 
-    KeynumToModEnvHold,
-    KeynumToModEnvDecay,
+    /// Key to modulation envelope hold
+    KeynumToModEnvHold = 31,
+    /// Key to modulation envelope decay
+    KeynumToModEnvDecay = 32,
 
-    DelayVolEnv,
-    AttackVolEnv,
-    HoldVolEnv,
-    DecayVolEnv,
+    /// Volume envelope delay
+    DelayVolEnv = 33,
+    /// Volume envelope attack
+    AttackVolEnv = 34,
+    /// Volume envelope hold
+    HoldVolEnv = 35,
+    /// Volume envelope decay
+    DecayVolEnv = 36,
 
-    SustainVolEnv,
-    ReleaseVolEnv,
-    KeynumToVolEnvHold,
-    KeynumToVolEnvDecay,
-    Instrument,
-    Reserved1,
+    /// Volume envelope sustain
+    SustainVolEnv = 37,
+    /// Volume envelope release
+    ReleaseVolEnv = 38,
+    /// Key to volume envelope hold
+    KeynumToVolEnvHold = 39,
+    /// Key to volume envelope decay
+    KeynumToVolEnvDecay = 40,
+    /// Instrument ID (shouldn't be set by user)
+    Instrument = 41,
+    /// Reserved
+    Reserved1 = 42,
 
-    KeyRange,
-    VelRange,
-    StartloopAddrsCoarseOffset,
-    Keynum,
-    Velocity,
-    InitialAttenuation,
-    Reserved2,
-    EndloopAddrsCoarseOffset,
-    CoarseTune,
-    FineTune,
+    /// MIDI note range
+    KeyRange = 43,
+    /// MIDI velocity range
+    VelRange = 44,
+    /// Sample start loop address coarse offset (X 32768)
+    StartloopAddrsCoarseOffset = 45,
+    /// Fixed MIDI note number
+    Keynum = 46,
+    /// Fixed MIDI velocity value
+    Velocity = 47,
+    /// Initial volume attenuation
+    InitialAttenuation = 48,
+    /// Reserved
+    Reserved2 = 49,
+    /// Sample end loop address coarse offset (X 32768)
+    EndloopAddrsCoarseOffset = 50,
+    /// Coarse tuning
+    CoarseTune = 51,
+    /// Fine tuning
+    FineTune = 52,
 
-    SampleID,
-    SampleModes,
+    /// Sample ID (shouldn't be set by user)
+    SampleID = 53,
+    /// Sample mode flags
+    SampleModes = 54,
 
-    Reserved3,
-    ScaleTuning,
-    ExclusiveClass,
-    OverridingRootKey,
-    Unused5,
-    EndOper,
+    /// Reserved
+    Reserved3 = 55,
+    /// Scale tuning
+    ScaleTuning = 56,
+    /// Exclusive class number
+    ExclusiveClass = 57,
+    /// Sample root note override
+    OverridingRootKey = 58,
+    /// Unused
+    Unused5 = 59,
+
+    EndOper = 60,
 }
 
 #[cfg(test)]
