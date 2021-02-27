@@ -26,7 +26,7 @@ const FLUID_FAILED: i32 = -1;
 #[repr(C)]
 pub struct DefaultSoundFont {
     pub filename: PathBuf,
-    pub samplepos: u32,
+    pub samplepos: u64,
     pub samplesize: u32,
     pub sampledata: *mut i16,
     pub sample: Vec<Sample>,
@@ -106,10 +106,17 @@ impl DefaultPreset {
             if fluid_preset_zone_import_sfont(sf2, zone, sfzone, sfont) != FLUID_OK as i32 {
                 return Err(());
             }
-            if count == 0 as i32 && fluid_preset_zone_get_inst(zone).is_null() {
-                fluid_defpreset_set_global_zone(&mut preset, zone);
-            } else if fluid_defpreset_add_zone(&mut preset, zone) != FLUID_OK as i32 {
-                return Err(());
+            if count == 0 as i32 && (*zone).inst.is_null() {
+                preset.global_zone = zone;
+            } else {
+                // fluid_defpreset_add_zone
+                if preset.zone.is_null() {
+                    (*zone).next = 0 as *mut PresetZone;
+                    preset.zone = zone
+                } else {
+                    (*zone).next = preset.zone;
+                    preset.zone = zone
+                }
             }
             count += 1
         }
@@ -188,21 +195,10 @@ impl SoundFontLoader {
     }
 
     pub fn load(&mut self, filename: &Path) -> Result<SoundFont, ()> {
-        let mut defsfont = DefaultSoundFont {
-            filename: PathBuf::new(),
-            samplepos: 0 as _,
-            samplesize: 0 as _,
-            sample: Vec::new(),
-            sampledata: 0 as _,
-            preset: 0 as _,
-        };
-
-        unsafe {
-            defsfont.load(filename).map(|_| SoundFont {
-                data: defsfont,
-                id: 0,
-            })
-        }
+        DefaultSoundFont::load(filename).map(|defsfont| SoundFont {
+            data: defsfont,
+            id: 0,
+        })
     }
 }
 
@@ -285,30 +281,49 @@ impl Preset {
             key: u8,
             vel: i32,
         ) -> i32 {
-            let mut preset_zone: *mut PresetZone;
-            let global_preset_zone: *mut PresetZone;
+            fn fluid_preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
+                zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+            }
+
+            unsafe fn fluid_inst_zone_inside_range(
+                zone: *mut InstrumentZone,
+                key: u8,
+                vel: i32,
+            ) -> bool {
+                (*zone).keylo <= key
+                    && (*zone).keyhi >= key
+                    && (*zone).vello <= vel
+                    && (*zone).velhi >= vel
+            }
+
+            unsafe fn fluid_sample_in_rom(sample: *mut Sample) -> i32 {
+                return (*sample).sampletype & 0x8000 as i32;
+            }
+
             let mut inst: *mut Instrument;
             let mut inst_zone: *mut InstrumentZone;
             let mut global_inst_zone: *mut InstrumentZone;
             let mut sample: *mut Sample;
-            // let mut voice: *mut Voice;
+
             let mut mod_0: *mut Mod;
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64];
             let mut mod_list_count: i32;
             let mut i: i32;
-            global_preset_zone = fluid_defpreset_get_global_zone(preset);
-            preset_zone = fluid_defpreset_get_zone(preset);
+
+            let global_preset_zone = (*preset).global_zone;
+            let mut preset_zone = (*preset).zone;
+
             while !preset_zone.is_null() {
-                if fluid_preset_zone_inside_range(preset_zone, key, vel) != 0 {
-                    inst = fluid_preset_zone_get_inst(preset_zone);
-                    global_inst_zone = fluid_inst_get_global_zone(inst);
-                    inst_zone = fluid_inst_get_zone(inst);
+                if fluid_preset_zone_inside_range(&*preset_zone, key, vel) {
+                    inst = (*preset_zone).inst;
+                    global_inst_zone = (*inst).global_zone;
+                    inst_zone = (*inst).zone;
                     while !inst_zone.is_null() {
-                        sample = fluid_inst_zone_get_sample(inst_zone);
+                        sample = (*inst_zone).sample;
                         if fluid_sample_in_rom(sample) != 0 || sample.is_null() {
-                            inst_zone = fluid_inst_zone_next(inst_zone)
+                            inst_zone = (*inst_zone).next;
                         } else {
-                            if fluid_inst_zone_inside_range(inst_zone, key, vel) != 0
+                            if fluid_inst_zone_inside_range(inst_zone, key, vel)
                                 && !sample.is_null()
                             {
                                 let voice_id = synth.alloc_voice(sample, chan, key, vel);
@@ -455,11 +470,11 @@ impl Preset {
                                     return FLUID_FAILED as i32;
                                 }
                             }
-                            inst_zone = fluid_inst_zone_next(inst_zone)
+                            inst_zone = (*inst_zone).next;
                         }
                     }
                 }
-                preset_zone = fluid_preset_zone_next(preset_zone)
+                preset_zone = (*preset_zone).next
             }
             return FLUID_OK as i32;
         }
@@ -469,62 +484,9 @@ impl Preset {
 }
 
 impl DefaultSoundFont {
-    unsafe fn load(&mut self, file: &Path) -> Result<(), ()> {
-        unsafe fn fluid_defsfont_load_sampledata(
-            file: &mut std::fs::File,
-            sfont: &mut DefaultSoundFont,
-        ) -> i32 {
-            if file.seek(SeekFrom::Start(sfont.samplepos as _)).is_err() {
-                libc::perror(b"error\x00" as *const u8 as *const i8);
-                log::error!("Failed to seek position in data file",);
-                return FLUID_FAILED as i32;
-            }
-            sfont.sampledata = libc::malloc(sfont.samplesize as libc::size_t) as *mut i16;
-            if sfont.sampledata.is_null() {
-                log::error!("Out of memory",);
-                return FLUID_FAILED as i32;
-            }
-
-            if file
-                .read(from_raw_parts_mut(
-                    sfont.sampledata as _,
-                    sfont.samplesize as _,
-                ))
-                .is_err()
-            {
-                log::error!("Failed to read sample data",);
-                return FLUID_FAILED as i32;
-            }
-            let mut endian = 0x100 as u16;
-            if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
-                let cbuf: *mut u8;
-                let mut hi: u8;
-                let mut lo: u8;
-                let mut i: u32;
-                let mut j: u32;
-                let mut s: i16;
-                cbuf = sfont.sampledata as *mut u8;
-                i = 0 as i32 as u32;
-                j = 0 as i32 as u32;
-                while j < sfont.samplesize {
-                    let fresh0 = j;
-                    j = j.wrapping_add(1);
-                    lo = *cbuf.offset(fresh0 as isize);
-                    let fresh1 = j;
-                    j = j.wrapping_add(1);
-                    hi = *cbuf.offset(fresh1 as isize);
-                    s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
-                    *sfont.sampledata.offset(i as isize) = s;
-                    i = i.wrapping_add(1)
-                }
-            }
-            return FLUID_OK as i32;
-        }
-
-        // TODO: Remove unwrap().
-        self.filename = file.to_owned();
-
-        let mut file = std::fs::File::open(&self.filename).unwrap();
+    fn load(path: &Path) -> Result<Self, ()> {
+        let filename = path.to_owned();
+        let mut file = std::fs::File::open(&filename).unwrap();
 
         let data = sf2::data::SFData::load(&mut file);
         let mut sf2 = sf2::SoundFont2::from_data(data);
@@ -532,33 +494,90 @@ impl DefaultSoundFont {
 
         let smpl = sf2.sample_data.smpl.as_ref().unwrap();
 
-        self.samplepos = smpl.offset() as u32 + 8;
-        self.samplesize = smpl.len();
-        if fluid_defsfont_load_sampledata(&mut file, self) != FLUID_OK {
-            return Err(());
-        }
+        let samplepos = smpl.offset() + 8;
+        let samplesize = smpl.len();
+
+        let sampledata = unsafe { Self::load_sampledata(&mut file, samplepos, samplesize)? };
+
+        let mut defsfont = DefaultSoundFont {
+            filename,
+            samplepos,
+            samplesize,
+            sample: Vec::new(),
+            sampledata,
+            preset: std::ptr::null_mut(),
+        };
 
         for sfsample in sf2.sample_headers.iter() {
-            if let Ok(sample) = Sample::import_sfont(sfsample, self) {
-                let mut sample = sample;
-                sample.optimize_sample();
+            let sample = Sample::import_sfont(sfsample, &mut defsfont)?;
+            let mut sample = sample;
 
-                self.sample.push(sample);
-            } else {
-                return Err(());
+            unsafe {
+                sample.optimize_sample();
             }
+
+            defsfont.sample.push(sample);
         }
 
         for sfpreset in sf2.presets.iter() {
-            if let Ok(preset) = DefaultPreset::import_sfont(&sf2, sfpreset, self) {
-                let preset = Box::into_raw(Box::new(preset));
+            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
+            let preset = Box::into_raw(Box::new(preset));
 
-                self.add_preset(&mut *preset);
-            } else {
-                return Err(());
+            unsafe {
+                defsfont.add_preset(&mut *preset);
             }
         }
-        return Ok(());
+
+        Ok(defsfont)
+    }
+
+    unsafe fn load_sampledata(
+        file: &mut std::fs::File,
+        samplepos: u64,
+        samplesize: u32,
+    ) -> Result<*mut i16, ()> {
+        if file.seek(SeekFrom::Start(samplepos)).is_err() {
+            libc::perror(b"error\x00" as *const u8 as *const i8);
+            log::error!("Failed to seek position in data file",);
+            return Err(());
+        }
+        let sampledata = libc::malloc(samplesize as libc::size_t) as *mut i16;
+        if sampledata.is_null() {
+            log::error!("Out of memory",);
+            return Err(());
+        }
+
+        if file
+            .read(from_raw_parts_mut(sampledata as _, samplesize as _))
+            .is_err()
+        {
+            log::error!("Failed to read sample data",);
+            return Err(());
+        }
+        let mut endian = 0x100 as u16;
+        if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
+            let cbuf: *mut u8;
+            let mut hi: u8;
+            let mut lo: u8;
+            let mut i: u32;
+            let mut j: u32;
+            let mut s: i16;
+            cbuf = sampledata as *mut u8;
+            i = 0 as i32 as u32;
+            j = 0 as i32 as u32;
+            while j < samplesize {
+                let fresh0 = j;
+                j = j.wrapping_add(1);
+                lo = *cbuf.offset(fresh0 as isize);
+                let fresh1 = j;
+                j = j.wrapping_add(1);
+                hi = *cbuf.offset(fresh1 as isize);
+                s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
+                *sampledata.offset(i as isize) = s;
+                i = i.wrapping_add(1)
+            }
+        }
+        Ok(sampledata)
     }
 
     unsafe fn add_preset(&mut self, mut preset: &mut DefaultPreset) -> i32 {
@@ -612,40 +631,6 @@ unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
     }
     libc::free(preset as *mut libc::c_void);
     return err;
-}
-
-unsafe fn fluid_defpreset_set_global_zone(
-    mut preset: *mut DefaultPreset,
-    zone: *mut PresetZone,
-) -> i32 {
-    (*preset).global_zone = zone;
-    return FLUID_OK as i32;
-}
-
-unsafe fn fluid_defpreset_add_zone(
-    mut preset: *mut DefaultPreset,
-    mut zone: *mut PresetZone,
-) -> i32 {
-    if (*preset).zone.is_null() {
-        (*zone).next = 0 as *mut PresetZone;
-        (*preset).zone = zone
-    } else {
-        (*zone).next = (*preset).zone;
-        (*preset).zone = zone
-    }
-    return FLUID_OK as i32;
-}
-
-unsafe fn fluid_defpreset_get_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
-    return (*preset).zone;
-}
-
-unsafe fn fluid_defpreset_get_global_zone(preset: *mut DefaultPreset) -> *mut PresetZone {
-    return (*preset).global_zone;
-}
-
-unsafe fn fluid_preset_zone_next(preset: *mut PresetZone) -> *mut PresetZone {
-    return (*preset).next;
 }
 
 unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
@@ -812,17 +797,6 @@ unsafe fn fluid_preset_zone_import_sfont(
     return FLUID_OK as i32;
 }
 
-unsafe fn fluid_preset_zone_get_inst(zone: *mut PresetZone) -> *mut Instrument {
-    return (*zone).inst;
-}
-
-unsafe fn fluid_preset_zone_inside_range(zone: *mut PresetZone, key: u8, vel: i32) -> i32 {
-    return ((*zone).keylo <= key
-        && (*zone).keyhi >= key
-        && (*zone).vello <= vel
-        && (*zone).velhi >= vel) as i32;
-}
-
 unsafe fn new_fluid_inst() -> *mut Instrument {
     let mut inst: *mut Instrument =
         libc::malloc(::std::mem::size_of::<Instrument>() as libc::size_t) as *mut Instrument;
@@ -901,33 +875,27 @@ unsafe fn fluid_inst_import_sfont(
         if fluid_inst_zone_import_sfont(sf2, zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
-        if count == 0 as i32 && fluid_inst_zone_get_sample(zone).is_null() {
+        if count == 0 as i32 && (*zone).sample.is_null() {
             fluid_inst_set_global_zone(inst, zone);
-        } else if fluid_inst_add_zone(inst, zone) != FLUID_OK as i32 {
-            return FLUID_FAILED as i32;
+        } else {
+            unsafe fn fluid_inst_add_zone(
+                mut inst: *mut Instrument,
+                mut zone: *mut InstrumentZone,
+            ) {
+                if (*inst).zone.is_null() {
+                    (*zone).next = 0 as *mut InstrumentZone;
+                    (*inst).zone = zone
+                } else {
+                    (*zone).next = (*inst).zone;
+                    (*inst).zone = zone
+                }
+            }
+
+            fluid_inst_add_zone(inst, zone);
         }
         count += 1
     }
     return FLUID_OK as i32;
-}
-
-unsafe fn fluid_inst_add_zone(mut inst: *mut Instrument, mut zone: *mut InstrumentZone) -> i32 {
-    if (*inst).zone.is_null() {
-        (*zone).next = 0 as *mut InstrumentZone;
-        (*inst).zone = zone
-    } else {
-        (*zone).next = (*inst).zone;
-        (*inst).zone = zone
-    }
-    return FLUID_OK as i32;
-}
-
-unsafe fn fluid_inst_get_zone(inst: *mut Instrument) -> *mut InstrumentZone {
-    return (*inst).zone;
-}
-
-unsafe fn fluid_inst_get_global_zone(inst: *mut Instrument) -> *mut InstrumentZone {
-    return (*inst).global_zone;
 }
 
 unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
@@ -962,10 +930,6 @@ unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
     }
     libc::free(zone as *mut libc::c_void);
     return FLUID_OK as i32;
-}
-
-unsafe fn fluid_inst_zone_next(zone: *mut InstrumentZone) -> *mut InstrumentZone {
-    return (*zone).next;
 }
 
 unsafe fn fluid_inst_zone_import_sfont(
@@ -1094,19 +1058,4 @@ unsafe fn fluid_inst_zone_import_sfont(
         count += 1
     }
     return FLUID_OK as i32;
-}
-
-unsafe fn fluid_inst_zone_get_sample(zone: *mut InstrumentZone) -> *mut Sample {
-    return (*zone).sample;
-}
-
-unsafe fn fluid_inst_zone_inside_range(zone: *mut InstrumentZone, key: u8, vel: i32) -> i32 {
-    return ((*zone).keylo <= key
-        && (*zone).keyhi >= key
-        && (*zone).vello <= vel
-        && (*zone).velhi >= vel) as i32;
-}
-
-unsafe fn fluid_sample_in_rom(sample: *mut Sample) -> i32 {
-    return (*sample).sampletype & 0x8000 as i32;
 }
