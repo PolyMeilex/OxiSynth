@@ -191,14 +191,14 @@ impl InstrumentZone {
     }
 }
 
-pub(super) fn load(filename: &Path) -> Result<SoundFont, ()> {
-    DefaultSoundFont::load(filename).map(|defsfont| SoundFont {
-        data: defsfont,
-        id: 0,
-    })
-}
-
 impl SoundFont {
+    pub(crate) fn load(filename: &Path) -> Result<Self, ()> {
+        DefaultSoundFont::load(filename).map(|defsfont| Self {
+            data: defsfont,
+            id: 0,
+        })
+    }
+
     pub fn get_name(&self) -> &Path {
         &self.data.filename
     }
