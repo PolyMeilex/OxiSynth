@@ -13,8 +13,8 @@ use crate::voice::fluid_voice_add_mod;
 use crate::voice::fluid_voice_gen_incr;
 use crate::voice::fluid_voice_gen_set;
 use crate::voice::FluidVoiceAddMod;
+use std::path::Path;
 use std::slice::from_raw_parts_mut;
-use std::{ffi::CString, path::Path};
 
 const GEN_SET: GenFlags = 1;
 const GEN_VELOCITY: u32 = 47;
@@ -98,17 +98,10 @@ impl DefaultPreset {
         preset.num = sfpreset.header.preset as u32;
 
         for (id, sfzone) in sfpreset.zones.iter().enumerate() {
-            let mut zone_name: [u8; 256] = [0; 256];
-
-            libc::strcpy(
-                zone_name.as_mut_ptr() as _,
-                CString::new(format!("{}/{}", sfpreset.header.name, id))
-                    .unwrap()
-                    .as_c_str()
-                    .as_ptr(),
-            );
-
-            let mut zone = Box::into_raw(Box::new(PresetZone::new(&zone_name)));
+            let mut zone = Box::into_raw(Box::new(PresetZone::new(format!(
+                "{}/{}",
+                sfpreset.header.name, id
+            ))));
 
             fluid_preset_zone_import_sfont(sf2, &mut *zone, sfzone, sfont)?;
 
@@ -134,7 +127,7 @@ impl DefaultPreset {
 #[repr(C)]
 struct PresetZone {
     next: *mut PresetZone,
-    name: Vec<u8>,
+    name: String,
     inst: *mut Instrument,
     keylo: u8,
     keyhi: u8,
@@ -145,10 +138,10 @@ struct PresetZone {
 }
 
 impl PresetZone {
-    fn new(name: &[u8]) -> PresetZone {
+    fn new(name: String) -> PresetZone {
         PresetZone {
             next: 0 as *mut PresetZone,
-            name: name.to_vec(),
+            name,
             inst: 0 as *mut Instrument,
             keylo: 0,
             keyhi: 128,
@@ -180,6 +173,22 @@ struct InstrumentZone {
     velhi: i32,
     gen: [Gen; 60],
     mod_0: *mut Mod,
+}
+
+impl InstrumentZone {
+    fn new(name: String) -> InstrumentZone {
+        InstrumentZone {
+            next: 0 as *mut InstrumentZone,
+            name: name,
+            sample: 0 as *mut Sample,
+            keylo: 0,
+            keyhi: 128,
+            vello: 0,
+            velhi: 128,
+            gen: gen::get_default_values(),
+            mod_0: 0 as *mut Mod,
+        }
+    }
 }
 
 pub(super) fn load(filename: &Path) -> Result<SoundFont, ()> {
@@ -751,49 +760,26 @@ unsafe fn fluid_inst_import_sfont(
 
     count = 0 as i32;
     for new_zone in new_inst.zones.iter() {
-        let zone = new_fluid_inst_zone(format!("{}/{}", new_inst.header.name, count));
-        if zone.is_null() {
+        let mut zone = InstrumentZone::new(format!("{}/{}", new_inst.header.name, count));
+
+        if fluid_inst_zone_import_sfont(sf2, &mut zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
-        if fluid_inst_zone_import_sfont(sf2, &mut *zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
-            return FLUID_FAILED as i32;
-        }
-        if count == 0 as i32 && (*zone).sample.is_null() {
-            inst.global_zone = zone;
+        if count == 0 as i32 && zone.sample.is_null() {
+            inst.global_zone = Box::into_raw(Box::new(zone));
         } else {
             // fluid_inst_add_zone
             if inst.zone.is_null() {
-                (*zone).next = 0 as *mut InstrumentZone;
-                inst.zone = zone
+                zone.next = 0 as *mut InstrumentZone;
+                inst.zone = Box::into_raw(Box::new(zone));
             } else {
-                (*zone).next = (*inst).zone;
-                inst.zone = zone
+                zone.next = (*inst).zone;
+                inst.zone = Box::into_raw(Box::new(zone));
             }
         }
         count += 1
     }
     return FLUID_OK as i32;
-}
-
-unsafe fn new_fluid_inst_zone(name: String) -> *mut InstrumentZone {
-    let mut zone: *mut InstrumentZone;
-    zone = libc::malloc(::std::mem::size_of::<InstrumentZone>() as libc::size_t)
-        as *mut InstrumentZone;
-    libc::memset(zone as _, 0, std::mem::size_of::<InstrumentZone>() as _);
-    if zone.is_null() {
-        log::error!("Out of memory",);
-        return 0 as *mut InstrumentZone;
-    }
-    (*zone).next = 0 as *mut InstrumentZone;
-    (*zone).name = name;
-    (*zone).sample = 0 as *mut Sample;
-    (*zone).keylo = 0;
-    (*zone).keyhi = 128;
-    (*zone).vello = 0 as i32;
-    (*zone).velhi = 128 as i32;
-    (*zone).gen = gen::get_default_values();
-    (*zone).mod_0 = 0 as *mut Mod;
-    return zone;
 }
 
 unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
