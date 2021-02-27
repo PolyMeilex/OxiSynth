@@ -171,7 +171,7 @@ struct Instrument {
 #[repr(C)]
 struct InstrumentZone {
     next: *mut InstrumentZone,
-    name: Vec<u8>,
+    name: String,
     sample: *mut Sample,
     keylo: u8,
     keyhi: u8,
@@ -741,8 +741,6 @@ unsafe fn fluid_inst_import_sfont(
     new_inst: &sf2::Instrument,
     sfont: *mut DefaultSoundFont,
 ) -> i32 {
-    let mut zone: *mut InstrumentZone;
-    let mut zone_name: [u8; 256] = [0; 256];
     let mut count: i32;
 
     if new_inst.header.name.len() > 0 {
@@ -760,14 +758,7 @@ unsafe fn fluid_inst_import_sfont(
 
     count = 0 as i32;
     for new_zone in new_inst.zones.iter() {
-        libc::strcpy(
-            zone_name.as_mut_ptr() as _,
-            CString::new(format!("{}/{}", new_inst.header.name, count))
-                .unwrap()
-                .as_c_str()
-                .as_ptr(),
-        );
-        zone = new_fluid_inst_zone(&zone_name);
+        let zone = new_fluid_inst_zone(format!("{}/{}", new_inst.header.name, count));
         if zone.is_null() {
             return FLUID_FAILED as i32;
         }
@@ -797,7 +788,7 @@ unsafe fn fluid_inst_import_sfont(
     return FLUID_OK as i32;
 }
 
-unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
+unsafe fn new_fluid_inst_zone(name: String) -> *mut InstrumentZone {
     let mut zone: *mut InstrumentZone;
     zone = libc::malloc(::std::mem::size_of::<InstrumentZone>() as libc::size_t)
         as *mut InstrumentZone;
@@ -807,7 +798,7 @@ unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
         return 0 as *mut InstrumentZone;
     }
     (*zone).next = 0 as *mut InstrumentZone;
-    (*zone).name = name.to_vec();
+    (*zone).name = name;
     (*zone).sample = 0 as *mut Sample;
     (*zone).keylo = 0;
     (*zone).keyhi = 128;
