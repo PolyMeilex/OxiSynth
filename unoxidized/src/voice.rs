@@ -1768,39 +1768,3 @@ pub unsafe fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f64) {
     voice.amp_reverb = voice.reverb_send * gain / 32768.0f32;
     voice.amp_chorus = voice.chorus_send * gain / 32768.0f32;
 }
-
-pub unsafe fn fluid_voice_optimize_sample(s: &mut Sample) {
-    let mut peak_max: i16 = 0 as i32 as i16;
-    let mut peak_min: i16 = 0 as i32 as i16;
-    let mut peak;
-    let normalized_amplitude_during_loop;
-    let result;
-    let mut i;
-    if s.valid == 0 || s.sampletype & 0x10 as i32 != 0 {
-        return;
-    }
-    if s.amplitude_that_reaches_noise_floor_is_valid == 0 {
-        i = s.loopstart as i32;
-        while i < s.loopend as i32 {
-            let val: i16 = *s.data.offset(i as isize);
-            if val as i32 > peak_max as i32 {
-                peak_max = val
-            } else if (val as i32) < peak_min as i32 {
-                peak_min = val
-            }
-            i += 1
-        }
-        if peak_max as i32 > -(peak_min as i32) {
-            peak = peak_max
-        } else {
-            peak = -(peak_min as i32) as i16
-        }
-        if peak as i32 == 0 as i32 {
-            peak = 1 as i32 as i16
-        }
-        normalized_amplitude_during_loop = (peak as f32 as f64 / 32768.0f64) as f32;
-        result = 0.00003f64 / normalized_amplitude_during_loop as f64;
-        s.amplitude_that_reaches_noise_floor = result;
-        s.amplitude_that_reaches_noise_floor_is_valid = 1 as i32
-    }
-}

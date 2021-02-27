@@ -14,7 +14,6 @@ use super::synth::Synth;
 use super::voice::fluid_voice_add_mod;
 use super::voice::fluid_voice_gen_incr;
 use super::voice::fluid_voice_gen_set;
-use super::voice::fluid_voice_optimize_sample;
 use super::voice::FluidVoiceAddMod;
 use std::slice::from_raw_parts_mut;
 use std::{
@@ -471,40 +470,6 @@ impl Preset {
 
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: &Path) -> Result<(), ()> {
-        unsafe fn fluid_defsfont_add_preset(
-            mut sfont: &mut DefaultSoundFont,
-            mut preset: &mut DefaultPreset,
-        ) -> i32 {
-            let mut cur: *mut DefaultPreset;
-            let mut prev: *mut DefaultPreset;
-            if sfont.preset.is_null() {
-                preset.next = 0 as *mut DefaultPreset;
-                sfont.preset = preset
-            } else {
-                cur = sfont.preset;
-                prev = 0 as *mut DefaultPreset;
-                while !cur.is_null() {
-                    if preset.bank < (*cur).bank
-                        || preset.bank == (*cur).bank && preset.num < (*cur).num
-                    {
-                        if prev.is_null() {
-                            preset.next = cur;
-                            sfont.preset = preset
-                        } else {
-                            preset.next = cur;
-                            (*prev).next = preset
-                        }
-                        return FLUID_OK as i32;
-                    }
-                    prev = cur;
-                    cur = (*cur).next
-                }
-                preset.next = 0 as *mut DefaultPreset;
-                (*prev).next = preset
-            }
-            return FLUID_OK as i32;
-        }
-
         unsafe fn fluid_defsfont_load_sampledata(
             file: &mut std::fs::File,
             sfont: &mut DefaultSoundFont,
@@ -576,7 +541,7 @@ impl DefaultSoundFont {
         for sfsample in sf2.sample_headers.iter() {
             if let Ok(sample) = Sample::import_sfont(sfsample, self) {
                 let mut sample = sample;
-                fluid_voice_optimize_sample(&mut sample);
+                sample.optimize_sample();
 
                 self.sample.push(sample);
             } else {
@@ -588,12 +553,43 @@ impl DefaultSoundFont {
             if let Ok(preset) = DefaultPreset::import_sfont(&sf2, sfpreset, self) {
                 let preset = Box::into_raw(Box::new(preset));
 
-                fluid_defsfont_add_preset(self, &mut *preset);
+                self.add_preset(&mut *preset);
             } else {
                 return Err(());
             }
         }
         return Ok(());
+    }
+
+    unsafe fn add_preset(&mut self, mut preset: &mut DefaultPreset) -> i32 {
+        let mut cur: *mut DefaultPreset;
+        let mut prev: *mut DefaultPreset;
+        if self.preset.is_null() {
+            preset.next = 0 as *mut DefaultPreset;
+            self.preset = preset
+        } else {
+            cur = self.preset;
+            prev = 0 as *mut DefaultPreset;
+            while !cur.is_null() {
+                if preset.bank < (*cur).bank
+                    || preset.bank == (*cur).bank && preset.num < (*cur).num
+                {
+                    if prev.is_null() {
+                        preset.next = cur;
+                        self.preset = preset
+                    } else {
+                        preset.next = cur;
+                        (*prev).next = preset
+                    }
+                    return FLUID_OK as i32;
+                }
+                prev = cur;
+                cur = (*cur).next
+            }
+            preset.next = 0 as *mut DefaultPreset;
+            (*prev).next = preset
+        }
+        return FLUID_OK as i32;
     }
 }
 

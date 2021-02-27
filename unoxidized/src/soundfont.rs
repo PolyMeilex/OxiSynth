@@ -72,4 +72,40 @@ impl Sample {
 
         return Ok(sample);
     }
+
+    pub unsafe fn optimize_sample(&mut self) {
+        let mut peak_max: i16 = 0 as i32 as i16;
+        let mut peak_min: i16 = 0 as i32 as i16;
+        let mut peak;
+        let normalized_amplitude_during_loop;
+        let result;
+        let mut i;
+        if self.valid == 0 || self.sampletype & 0x10 as i32 != 0 {
+            return;
+        }
+        if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
+            i = self.loopstart as i32;
+            while i < self.loopend as i32 {
+                let val: i16 = *self.data.offset(i as isize);
+                if val as i32 > peak_max as i32 {
+                    peak_max = val
+                } else if (val as i32) < peak_min as i32 {
+                    peak_min = val
+                }
+                i += 1
+            }
+            if peak_max as i32 > -(peak_min as i32) {
+                peak = peak_max
+            } else {
+                peak = -(peak_min as i32) as i16
+            }
+            if peak as i32 == 0 as i32 {
+                peak = 1 as i32 as i16
+            }
+            normalized_amplitude_during_loop = (peak as f32 as f64 / 32768.0f64) as f32;
+            result = 0.00003f64 / normalized_amplitude_during_loop as f64;
+            self.amplitude_that_reaches_noise_floor = result;
+            self.amplitude_that_reaches_noise_floor_is_valid = 1 as i32
+        }
+    }
 }
