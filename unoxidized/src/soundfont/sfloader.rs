@@ -666,8 +666,12 @@ unsafe fn fluid_preset_zone_import_sfont(
             log::error!("Out of memory");
             return Err(());
         }
-        if fluid_inst_import_sfont(sf2, zone.inst, &sf2.instruments[*inst as usize], sfont)
-            != FLUID_OK as i32
+        if fluid_inst_import_sfont(
+            sf2,
+            &mut *zone.inst,
+            &sf2.instruments[*inst as usize],
+            sfont,
+        ) != FLUID_OK as i32
         {
             return Err(());
         }
@@ -731,23 +735,18 @@ unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
     return err;
 }
 
-unsafe fn fluid_inst_set_global_zone(mut inst: *mut Instrument, zone: *mut InstrumentZone) -> i32 {
-    (*inst).global_zone = zone;
-    return FLUID_OK as i32;
-}
-
 unsafe fn fluid_inst_import_sfont(
     sf2: &sf2::SoundFont2,
-    inst: *mut Instrument,
+    inst: &mut Instrument,
     new_inst: &sf2::Instrument,
-    sfont: *mut DefaultSoundFont,
+    sfont: &mut DefaultSoundFont,
 ) -> i32 {
     let mut count: i32;
 
     if new_inst.header.name.len() > 0 {
-        (*inst).name = new_inst.header.name.clone();
+        inst.name = new_inst.header.name.clone();
     } else {
-        (*inst).name = "<untitled>".into();
+        inst.name = "<untitled>".into();
     }
 
     count = 0 as i32;
@@ -760,22 +759,16 @@ unsafe fn fluid_inst_import_sfont(
             return FLUID_FAILED as i32;
         }
         if count == 0 as i32 && (*zone).sample.is_null() {
-            fluid_inst_set_global_zone(inst, zone);
+            inst.global_zone = zone;
         } else {
-            unsafe fn fluid_inst_add_zone(
-                mut inst: *mut Instrument,
-                mut zone: *mut InstrumentZone,
-            ) {
-                if (*inst).zone.is_null() {
-                    (*zone).next = 0 as *mut InstrumentZone;
-                    (*inst).zone = zone
-                } else {
-                    (*zone).next = (*inst).zone;
-                    (*inst).zone = zone
-                }
+            // fluid_inst_add_zone
+            if inst.zone.is_null() {
+                (*zone).next = 0 as *mut InstrumentZone;
+                inst.zone = zone
+            } else {
+                (*zone).next = (*inst).zone;
+                inst.zone = zone
             }
-
-            fluid_inst_add_zone(inst, zone);
         }
         count += 1
     }
