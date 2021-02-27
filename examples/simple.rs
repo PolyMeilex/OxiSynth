@@ -16,25 +16,20 @@ fn synth_sf2() {
 
     synth.sfload("./testdata/sin.sf2", true).unwrap();
 
-    let mut samples = [0f32; 44100];
+    let mut samples = [0f32; 44100 / 8];
 
-    for n in 0..70 {
-        let n = 60 + ((n as f64 * 10.0).sin() * 20.0).round() as u8;
-        synth.note_on(0, n, 127).unwrap();
+    for _ in 0..5 {
+        for n in 50..100 {
+            synth.note_on(0, n, 127).unwrap();
 
-        synth.write(samples.as_mut()).unwrap();
-        pcm.write(unsafe {
-            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        })
-        .unwrap();
+            synth.write(samples.as_mut()).unwrap();
+            pcm.write(unsafe {
+                from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
+            })
+            .unwrap();
 
-        synth.note_off(0, n).unwrap();
-
-        // synth.write(samples.as_mut()).unwrap();
-        // pcm.write(unsafe {
-        //     from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        // })
-        // .unwrap();
+            synth.note_off(0, n).unwrap();
+        }
     }
 
     drop(synth);
