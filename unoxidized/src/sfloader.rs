@@ -507,18 +507,10 @@ impl DefaultSoundFont {
             return FLUID_OK as i32;
         }
 
-        unsafe fn fluid_defsfont_load_sampledata(sfont: &mut DefaultSoundFont) -> i32 {
-            let mut endian: u16;
-
-            let file = std::fs::File::open(Path::new(&sfont.filename));
-
-            let mut file = match file {
-                Err(err) => {
-                    log::error!("Can't open soundfont file: {:?}", err);
-                    return FLUID_FAILED as i32;
-                }
-                Ok(file) => file,
-            };
+        unsafe fn fluid_defsfont_load_sampledata(
+            file: &mut std::fs::File,
+            sfont: &mut DefaultSoundFont,
+        ) -> i32 {
             if file.seek(SeekFrom::Start(sfont.samplepos as _)).is_err() {
                 libc::perror(b"error\x00" as *const u8 as *const i8);
                 log::error!("Failed to seek position in data file",);
@@ -540,7 +532,7 @@ impl DefaultSoundFont {
                 log::error!("Failed to read sample data",);
                 return FLUID_FAILED as i32;
             }
-            endian = 0x100 as i32 as u16;
+            let mut endian = 0x100 as u16;
             if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
                 let cbuf: *mut u8;
                 let mut hi: u8;
@@ -579,7 +571,7 @@ impl DefaultSoundFont {
 
         self.samplepos = smpl.offset() as u32 + 8;
         self.samplesize = smpl.len();
-        if fluid_defsfont_load_sampledata(self) != FLUID_OK {
+        if fluid_defsfont_load_sampledata(&mut file, self) != FLUID_OK {
             return Err(());
         }
 
