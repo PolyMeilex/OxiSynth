@@ -96,10 +96,6 @@ impl SoundFont2 {
             let modulators = &data.hydra.instrument_modulators;
             let generators = &data.hydra.instrument_generators;
 
-            // let iter = headers.iter();
-            // let mut iter_peek = headers.iter();
-            // iter_peek.next();
-
             let mut list = Vec::new();
             let mut i = 0;
             while i < headers.len() - 1 {
@@ -118,36 +114,6 @@ impl SoundFont2 {
                 i += 1;
             }
 
-            // for header in iter {
-            //     let curr = header;
-            //     let next = iter_peek.next();
-
-            //     let start = curr.bag_id as usize;
-
-            //     let end = if let Some(next) = next {
-            //         next.bag_id as usize
-            //     } else {
-            //         zones.len()
-            //     };
-
-            //     let zone_items = get_zones(&zones, &modulators, &generators, start, end);
-            //     // let zone_items: Vec<_> = zone_items
-            //     //     .into_iter()
-            //     //     .filter(|zone| {
-            //     //         zone.gen_list
-            //     //             .iter()
-            //     //             .find(|g| g.ty == SFGeneratorType::SampleID)
-            //     //             .is_some()
-            //     //     })
-            //     //     .collect();
-
-            //     if header.name != "EOS" {
-            //         list.push(Instrument {
-            //             header: header.clone(),
-            //             zones: zone_items,
-            //         })
-            //     }
-            // }
             list
         };
 
