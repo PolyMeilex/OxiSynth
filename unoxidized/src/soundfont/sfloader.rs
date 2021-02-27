@@ -19,16 +19,6 @@ use std::{
     path::Path,
 };
 
-const FLUID_MOD_SWITCH: ModFlags = 12;
-const FLUID_MOD_CONVEX: ModFlags = 8;
-const FLUID_MOD_CONCAVE: ModFlags = 4;
-const FLUID_MOD_LINEAR: ModFlags = 0;
-const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
-const FLUID_MOD_POSITIVE: ModFlags = 0;
-const FLUID_MOD_NEGATIVE: ModFlags = 1;
-const FLUID_MOD_GC: ModFlags = 0;
-const FLUID_MOD_CC: ModFlags = 16;
 const GEN_SET: GenFlags = 1;
 const GEN_VELOCITY: u32 = 47;
 const GEN_KEYNUM: u32 = 46;
@@ -46,7 +36,6 @@ const GEN_ENDADDROFS: GenType = 1;
 const GEN_STARTADDROFS: GenType = 0;
 const GEN_LAST: GenType = 60;
 const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
-type ModFlags = u32;
 type GenType = u32;
 type GenFlags = u32;
 
@@ -892,79 +881,12 @@ unsafe fn fluid_inst_zone_import_sfont(
     }
     count = 0 as i32;
     for new_mod in new_zone.mod_list.iter() {
-        let mut type_0: i32;
-
-        let mut mod_dest = Mod::new();
-
-        (mod_dest).next = 0 as *mut Mod;
-        (mod_dest).amount = new_mod.amount as f64;
-        (mod_dest).src1 = (new_mod.src as i32 & 127 as i32) as u8;
-        (mod_dest).flags1 = 0 as i32 as u8;
-        if new_mod.src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CC as i32) as u8
-        } else {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_GC as i32) as u8
-        }
-        if new_mod.src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
-        } else {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_POSITIVE as i32) as u8
-        }
-        if new_mod.src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
-        } else {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
-        }
-        type_0 = new_mod.src as i32 >> 10 as i32;
-        type_0 &= 63 as i32;
-        if type_0 == 0 as i32 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_LINEAR as i32) as u8
-        } else if type_0 == 1 as i32 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CONCAVE as i32) as u8
-        } else if type_0 == 2 as i32 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CONVEX as i32) as u8
-        } else if type_0 == 3 as i32 {
-            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_SWITCH as i32) as u8
-        } else {
-            (mod_dest).amount = 0 as i32 as f64
-        }
-        (mod_dest).dest = new_mod.dest as u8;
-        (mod_dest).src2 = (new_mod.amt_src as i32 & 127 as i32) as u8;
-        (mod_dest).flags2 = 0 as i32 as u8;
-        if new_mod.amt_src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CC as i32) as u8
-        } else {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_GC as i32) as u8
-        }
-        if new_mod.amt_src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
-        } else {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_POSITIVE as i32) as u8
-        }
-        if new_mod.amt_src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
-        } else {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
-        }
-        type_0 = new_mod.amt_src as i32 >> 10 as i32;
-        type_0 &= 63 as i32;
-        if type_0 == 0 as i32 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_LINEAR as i32) as u8
-        } else if type_0 == 1 as i32 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CONCAVE as i32) as u8
-        } else if type_0 == 2 as i32 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CONVEX as i32) as u8
-        } else if type_0 == 3 as i32 {
-            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_SWITCH as i32) as u8
-        } else {
-            (mod_dest).amount = 0 as i32 as f64
-        }
-        if new_mod.transform as i32 != 0 as i32 {
-            (mod_dest).amount = 0 as i32 as f64
-        }
-
+        let mod_dest = Mod::from(new_mod);
         let mod_dest = Box::into_raw(Box::new(mod_dest));
 
+        /* Store the new modulator in the zone
+         * The order of modulators will make a difference, at least in an instrument context:
+         * The second modulator overwrites the first one, if they only differ in amount. */
         if count == 0 as i32 {
             (*zone).mod_0 = mod_dest
         } else {
