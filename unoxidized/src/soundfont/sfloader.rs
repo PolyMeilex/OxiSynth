@@ -160,10 +160,11 @@ impl PresetZone {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[repr(C)]
 struct Instrument {
-    name: [u8; 21],
+    // [u8;21]
+    name: String,
     global_zone: *mut InstrumentZone,
     zone: *mut InstrumentZone,
 }
@@ -703,7 +704,7 @@ unsafe fn new_fluid_inst() -> *mut Instrument {
         log::error!("Out of memory",);
         return 0 as *mut Instrument;
     }
-    (*inst).name = [0; 21];
+    (*inst).name = String::new();
     (*inst).global_zone = 0 as *mut InstrumentZone;
     (*inst).zone = 0 as *mut InstrumentZone;
     return inst;
@@ -744,16 +745,9 @@ unsafe fn fluid_inst_import_sfont(
     let mut count: i32;
 
     if new_inst.header.name.len() > 0 {
-        let cstr = CString::new(new_inst.header.name.clone()).unwrap();
-        libc::strcpy(
-            (*inst).name.as_mut_ptr() as _,
-            cstr.as_c_str().as_ptr() as _,
-        );
+        (*inst).name = new_inst.header.name.clone();
     } else {
-        libc::strcpy(
-            (*inst).name.as_mut_ptr() as _,
-            b"<untitled>\x00" as *const u8 as *const i8,
-        );
+        (*inst).name = "<untitled>".into();
     }
 
     count = 0 as i32;
