@@ -438,8 +438,7 @@ impl Synth {
                 .unwrap_or_default();
 
             let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
-            if let Some(mut preset) = preset {
-                preset.sfont = sfont;
+            if let Some(preset) = preset {
                 return Some(preset);
             }
         }

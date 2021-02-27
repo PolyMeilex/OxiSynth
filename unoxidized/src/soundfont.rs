@@ -12,7 +12,7 @@ pub fn load(path: &Path) -> Result<SoundFont, ()> {
 #[derive(Copy, Clone)]
 pub struct Preset {
     data: *mut DefaultPreset,
-    pub sfont: *const SoundFont,
+    pub sfont_id: u32,
 }
 
 pub struct SoundFont {

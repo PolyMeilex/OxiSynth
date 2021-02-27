@@ -279,7 +279,7 @@ impl Synth {
             }
         }
         sfont_id = if let Some(preset) = &preset {
-            unsafe { (*preset.sfont).id }
+            preset.sfont_id
         } else {
             0
         };

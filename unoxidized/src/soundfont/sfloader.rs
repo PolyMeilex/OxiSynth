@@ -217,7 +217,7 @@ impl SoundFont {
 
             if let Some(defpreset) = defpreset {
                 let preset = Preset {
-                    sfont: self,
+                    sfont_id: self.id,
                     data: defpreset as *mut _,
                 };
 
