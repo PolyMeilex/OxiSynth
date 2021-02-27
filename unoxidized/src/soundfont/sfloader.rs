@@ -232,7 +232,7 @@ impl SoundFont {
 impl Drop for SoundFont {
     fn drop(&mut self) {
         let sfont = &mut self.data;
-        for sample in (*sfont).sample.iter() {
+        for sample in sfont.sample.iter() {
             if sample.refcount != 0 as i32 as u32 {
                 return;
             }
@@ -246,7 +246,7 @@ impl Drop for SoundFont {
         let mut preset = sfont.preset;
         while !preset.is_null() {
             unsafe {
-                (*sfont).preset = (*preset).next;
+                sfont.preset = (*preset).next;
                 delete_fluid_defpreset(preset);
                 preset = sfont.preset
             }
