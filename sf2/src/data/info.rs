@@ -131,8 +131,8 @@ impl SFInfo {
 
         SFInfo {
             version: version.unwrap(),
-            sound_engine: sound_engine.unwrap(),
-            bank_name: bank_name.unwrap(),
+            sound_engine: sound_engine.unwrap_or_default(),
+            bank_name: bank_name.unwrap_or_default(),
 
             rom_name,
             rom_version,
