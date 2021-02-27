@@ -151,7 +151,7 @@ dependencies = [
  "env_logger",
  "nom",
  "riff",
- "sf2",
+ "soundfont-rs",
  "unoxidized",
 ]
 
@@ -192,7 +192,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 
 [[package]]
-name = "sf2"
+name = "soundfont-rs"
 version = "0.1.0"
 dependencies = [
  "riff",
@@ -236,7 +236,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "sf2",
+ "soundfont-rs",
 ]
 
 [[package]]

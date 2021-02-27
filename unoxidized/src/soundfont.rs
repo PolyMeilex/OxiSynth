@@ -1,5 +1,6 @@
 use crate::sfloader::DefaultPreset;
 use crate::sfloader::DefaultSoundFont;
+use soundfont_rs as sf2;
 
 pub struct SoundFontLoader {}
 

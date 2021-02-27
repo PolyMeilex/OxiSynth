@@ -1,3 +1,5 @@
+use soundfont_rs as sf2;
+
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
