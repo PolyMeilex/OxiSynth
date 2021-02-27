@@ -12,7 +12,7 @@ fn synth_sf2() {
 
     let settings = fluid::Settings::default();
 
-    let mut synth = fluid::Synth::new(settings).unwrap();
+    let mut synth = fluid::Synth::new(settings);
 
     synth.sfload("./testdata/sin.sf2", true).unwrap();
 

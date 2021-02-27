@@ -13,7 +13,7 @@ mod write;
 pub use self::tuning::TuningIter;
 pub use self::write::IsSamples;
 
-use crate::{engine, Error, Result, Settings};
+use crate::{engine, Settings};
 
 /**
 The synth object
@@ -42,10 +42,9 @@ impl Synth {
 
     As soon as the synthesizer is created, it will start playing.
      */
-    pub fn new(settings: Settings) -> Result<Self> {
-        match engine::synth::Synth::new(settings) {
-            Ok(handle) => return Ok(Synth { handle }),
-            Err(_) => return Err(Error::Alloc),
+    pub fn new(settings: Settings) -> Self {
+        Synth {
+            handle: engine::synth::Synth::new(settings),
         }
     }
 
@@ -75,7 +74,7 @@ mod test {
 
         let settings = Settings::default();
 
-        let mut synth = Synth::new(settings).unwrap();
+        let mut synth = Synth::new(settings);
 
         synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
 

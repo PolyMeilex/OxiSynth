@@ -9,7 +9,6 @@ use crate::soundfont::Preset;
 use crate::soundfont::Sample;
 use crate::soundfont::SoundFont;
 use crate::synth::Synth;
-use crate::voice::fluid_voice_add_mod;
 use crate::voice::fluid_voice_gen_incr;
 use crate::voice::fluid_voice_gen_set;
 use crate::voice::FluidVoiceAddMod;
@@ -321,7 +320,7 @@ impl Preset {
                             if fluid_inst_zone_inside_range(inst_zone, key, vel)
                                 && !sample.is_null()
                             {
-                                let voice_id = synth.alloc_voice(sample, chan, key, vel);
+                                let voice_id = synth.alloc_voice(&mut *sample, chan, key, vel);
 
                                 if let Some(voice_id) = voice_id {
                                     i = 0 as i32;
@@ -375,8 +374,7 @@ impl Preset {
                                     while i < mod_list_count {
                                         mod_0 = mod_list[i as usize];
                                         if !mod_0.is_null() {
-                                            fluid_voice_add_mod(
-                                                &mut synth.voices[voice_id.0],
+                                            synth.voices[voice_id.0].add_mod(
                                                 mod_0.as_ref().unwrap(),
                                                 FLUID_VOICE_OVERWRITE as i32,
                                             );
@@ -452,8 +450,7 @@ impl Preset {
                                     while i < mod_list_count {
                                         mod_0 = mod_list[i as usize];
                                         if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
-                                            fluid_voice_add_mod(
-                                                &mut synth.voices[voice_id.0],
+                                            synth.voices[voice_id.0].add_mod(
                                                 mod_0.as_ref().unwrap(),
                                                 FLUID_VOICE_ADD as i32,
                                             );

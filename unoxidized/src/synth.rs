@@ -19,9 +19,7 @@ use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
-use super::voice::fluid_voice_add_mod;
 use super::voice::fluid_voice_get_channel;
-use super::voice::fluid_voice_init;
 use super::voice::fluid_voice_kill_excl;
 use super::voice::fluid_voice_modulate;
 use super::voice::fluid_voice_modulate_all;
@@ -29,7 +27,6 @@ use super::voice::fluid_voice_noteoff;
 use super::voice::fluid_voice_off;
 use super::voice::fluid_voice_start;
 use super::voice::fluid_voice_write;
-use super::voice::new_fluid_voice;
 use super::voice::FluidVoiceAddMod;
 use super::voice::Voice;
 use super::{
@@ -40,64 +37,67 @@ use super::{
 static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub const FLUID_OK: C2RustUnnamed = 0;
+
 #[derive(Copy, Clone)]
 pub struct BankOffset {
     pub sfont_id: u32,
     pub offset: u32,
 }
-pub const FLUID_SYNTH_STOPPED: SynthStatus = 3;
-pub const FLUID_FAILED: C2RustUnnamed = -1;
-pub const FLUID_SYNTH_PLAYING: SynthStatus = 1;
-pub type IntUpdateFn = Option<unsafe fn(_: *mut libc::c_void, _: &str, _: i32) -> i32>;
-pub const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
-pub const FLUID_VOICE_ON: VoiceStatus = 1;
-pub type NumUpdateFn = Option<unsafe fn(_: *mut libc::c_void, _: &str, _: f64) -> i32>;
-pub const GEN_PITCH: GenType = 59;
-pub const FLUID_MOD_POSITIVE: ModFlags = 0;
-pub const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-pub const FLUID_MOD_LINEAR: ModFlags = 0;
-pub const FLUID_MOD_GC: ModFlags = 0;
-pub const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
-pub const FLUID_MOD_BIPOLAR: ModFlags = 2;
-pub const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-pub const GEN_CHORUSSEND: GenType = 15;
-pub const FLUID_MOD_CC: ModFlags = 16;
-pub const GEN_REVERBSEND: GenType = 16;
-pub const GEN_ATTENUATION: GenType = 48;
-pub const FLUID_MOD_NEGATIVE: ModFlags = 1;
-pub const FLUID_MOD_CONCAVE: ModFlags = 4;
-pub const GEN_PAN: GenType = 17;
-pub const GEN_VIBLFOTOPITCH: GenType = 6;
-pub const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
-pub const GEN_FILTERFC: GenType = 8;
-pub const FLUID_MOD_SWITCH: ModFlags = 12;
-pub const FLUID_MOD_VELOCITY: ModSrc = 2;
-pub const FLUID_VOICE_OFF: VoiceStatus = 3;
-pub const FLUID_VOICE_CLEAN: VoiceStatus = 0;
-pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
-pub const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
-pub const GEN_LAST: GenType = 60;
-pub const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
-pub const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
-pub const GEN_EXCLUSIVECLASS: GenType = 57;
-pub type ModFlags = u32;
-pub type ModSrc = u32;
-pub type GenType = u32;
-pub type C2RustUnnamed = i32;
+
+type ModFlags = u32;
+type ModSrc = u32;
+type GenType = u32;
+type C2RustUnnamed = i32;
+
+const FLUID_SYNTH_STOPPED: SynthStatus = 3;
+const FLUID_FAILED: C2RustUnnamed = -1;
+const FLUID_SYNTH_PLAYING: SynthStatus = 1;
+const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
+const FLUID_VOICE_ON: VoiceStatus = 1;
+const GEN_PITCH: GenType = 59;
+const FLUID_MOD_POSITIVE: ModFlags = 0;
+const FLUID_MOD_UNIPOLAR: ModFlags = 0;
+const FLUID_MOD_LINEAR: ModFlags = 0;
+const FLUID_MOD_GC: ModFlags = 0;
+const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
+const GEN_CHORUSSEND: GenType = 15;
+const FLUID_MOD_CC: ModFlags = 16;
+const GEN_REVERBSEND: GenType = 16;
+const GEN_ATTENUATION: GenType = 48;
+const FLUID_MOD_NEGATIVE: ModFlags = 1;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const GEN_PAN: GenType = 17;
+const GEN_VIBLFOTOPITCH: GenType = 6;
+const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
+const GEN_FILTERFC: GenType = 8;
+const FLUID_MOD_SWITCH: ModFlags = 12;
+const FLUID_MOD_VELOCITY: ModSrc = 2;
+const FLUID_VOICE_OFF: VoiceStatus = 3;
+const FLUID_VOICE_CLEAN: VoiceStatus = 0;
+const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
+const GEN_LAST: GenType = 60;
+const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
+const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
+const GEN_EXCLUSIVECLASS: GenType = 57;
+
 #[derive(Copy, Clone)]
-pub struct ReverbModelPreset {
+struct ReverbModelPreset {
     pub name: *mut i8,
     pub roomsize: f32,
     pub damp: f32,
     pub width: f32,
     pub level: f32,
 }
-pub type VoiceStatus = u32;
-pub type VoiceEnvelopeIndex = u32;
-pub type SynthStatus = u32;
+
+type VoiceStatus = u32;
+type VoiceEnvelopeIndex = u32;
+type SynthStatus = u32;
+
 static mut FLUID_SYNTH_INITIALIZED: i32 = 0 as i32;
 
-pub static mut DEFAULT_VEL2ATT_MOD: Mod = Mod {
+static mut DEFAULT_VEL2ATT_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -107,7 +107,7 @@ pub static mut DEFAULT_VEL2ATT_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
+static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -117,7 +117,7 @@ pub static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
+static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -127,7 +127,7 @@ pub static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
+static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -137,7 +137,7 @@ pub static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_ATT_MOD: Mod = Mod {
+static mut DEFAULT_ATT_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -147,7 +147,7 @@ pub static mut DEFAULT_ATT_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_PAN_MOD: Mod = Mod {
+static mut DEFAULT_PAN_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -157,7 +157,7 @@ pub static mut DEFAULT_PAN_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_EXPR_MOD: Mod = Mod {
+static mut DEFAULT_EXPR_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -167,7 +167,7 @@ pub static mut DEFAULT_EXPR_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_REVERB_MOD: Mod = Mod {
+static mut DEFAULT_REVERB_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -177,7 +177,7 @@ pub static mut DEFAULT_REVERB_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_CHORUS_MOD: Mod = Mod {
+static mut DEFAULT_CHORUS_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -187,7 +187,7 @@ pub static mut DEFAULT_CHORUS_MOD: Mod = Mod {
     next: 0 as *const Mod as *mut Mod,
 };
 
-pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
+static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
     dest: 0,
     src1: 0,
     flags1: 0,
@@ -226,149 +226,126 @@ pub struct Synth {
 }
 
 impl Synth {
-    pub fn new(mut settings: Settings) -> Result<Self, &'static str> {
+    pub fn new(mut settings: Settings) -> Self {
         unsafe {
             if FLUID_SYNTH_INITIALIZED == 0 as i32 {
                 Synth::init();
             }
-
-            let min_note_length_ticks = (settings.synth.min_note_length as f64
-                * settings.synth.sample_rate
-                / 1000.0) as u32;
-
-            if settings.synth.midi_channels % 16 != 0 {
-                log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
-                let n = settings.synth.midi_channels / 16;
-                let midi_channels = (n + 1) * 16;
-                settings.synth.midi_channels = midi_channels;
-            }
-
-            if settings.synth.audio_channels < 1 {
-                log::warn!("Requested number of audio channels is smaller than 1. Changing this setting to 1.");
-                settings.synth.audio_channels = 1;
-            } else if settings.synth.audio_channels > 128 {
-                log::warn!("Requested number of audio channels is too big ({}). Limiting this setting to 128.", settings.synth.audio_channels);
-                settings.synth.audio_channels = 128;
-            }
-
-            if settings.synth.audio_groups < 1 {
-                log::warn!("Requested number of audio groups is smaller than 1. Changing this setting to 1.");
-                settings.synth.audio_groups = 1;
-            } else if settings.synth.audio_groups > 128 {
-                log::warn!("Requested number of audio groups is too big ({}). Limiting this setting to 128.", settings.synth.audio_groups);
-                settings.synth.audio_groups = 128;
-            }
-
-            if settings.synth.effects_channels != 2 {
-                log::warn!(
-                    "Invalid number of effects channels ({}).Setting effects channels to 2.",
-                    settings.synth.effects_channels
-                );
-                settings.synth.effects_channels = 2;
-            }
-
-            let nbuf = {
-                let nbuf = settings.synth.audio_channels;
-                if settings.synth.audio_groups > nbuf {
-                    settings.synth.audio_groups
-                } else {
-                    nbuf
-                }
-            };
-
-            let mut synth = Self {
-                state: FLUID_SYNTH_PLAYING,
-                ticks: 0,
-                sfont: Vec::new(),
-                sfont_id: 0 as _,
-                bank_offsets: Vec::new(),
-                gain: settings.synth.gain,
-                channel: Vec::new(),
-                nvoice: 0 as _,
-                voices: Vec::new(),
-                noteid: 0,
-                storeid: 0 as _,
-                nbuf,
-                left_buf: Vec::new(),
-                right_buf: Vec::new(),
-                fx_left_buf: Vec::new(),
-                fx_right_buf: Vec::new(),
-                reverb: ReverbModel::new(),
-                chorus: Chorus::new(44100f32),
-                cur: 0 as _,
-                dither_index: 0 as _,
-                tuning: Vec::new(),
-                cur_tuning: None,
-                min_note_length_ticks,
-
-                settings,
-            };
-
-            // settings.register_num(
-            //     "synth.gain",
-            //     0.2f32 as f64,
-            //     0.0f32 as f64,
-            //     10.0f32 as f64,
-            //     0 as i32,
-            //     ::std::mem::transmute::<
-            //         Option<unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32>,
-            //         NumUpdateFn,
-            //     >(Some(
-            //         Synth::update_gain as unsafe fn(_: &mut Synth, _: &str, _: f64) -> i32,
-            //     )),
-            //     &mut synth as *mut Self as *mut libc::c_void,
-            // );
-            // settings.register_int(
-            //     "synth.polyphony",
-            //     synth.polyphony,
-            //     16 as i32,
-            //     4096 as i32,
-            //     0 as i32,
-            //     ::std::mem::transmute::<
-            //         Option<unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32>,
-            //         IntUpdateFn,
-            //     >(Some(
-            //         Synth::update_polyphony as unsafe fn(_: &mut Synth, _: &str, _: i32) -> i32,
-            //     )),
-            //     &mut synth as *mut Self as *mut libc::c_void,
-            // );
-
-            for i in 0..synth.settings.synth.midi_channels {
-                synth.channel.push(Channel::new(&synth, i));
-            }
-
-            synth.nvoice = synth.settings.synth.polyphony;
-            for _ in 0..synth.nvoice {
-                synth
-                    .voices
-                    .push(new_fluid_voice(synth.settings.synth.sample_rate as f32));
-            }
-
-            synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
-            synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
-            synth
-                .fx_left_buf
-                .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
-            synth
-                .fx_right_buf
-                .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
-            synth.cur = 64 as i32;
-            synth.dither_index = 0 as i32;
-            synth.reverb = ReverbModel::new();
-            synth.set_reverb_params(0.2f32 as f64, 0.0f32 as f64, 0.5f32 as f64, 0.9f32 as f64);
-            synth.chorus = Chorus::new(synth.settings.synth.sample_rate as f32);
-            if synth.settings.synth.drums_channel_active {
-                synth.bank_select(9, 128 as i32 as u32);
-            }
-
-            return Ok(synth);
         }
+
+        let min_note_length_ticks =
+            (settings.synth.min_note_length as f64 * settings.synth.sample_rate / 1000.0) as u32;
+
+        if settings.synth.midi_channels % 16 != 0 {
+            log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
+            let n = settings.synth.midi_channels / 16;
+            let midi_channels = (n + 1) * 16;
+            settings.synth.midi_channels = midi_channels;
+        }
+
+        if settings.synth.audio_channels < 1 {
+            log::warn!(
+                "Requested number of audio channels is smaller than 1. Changing this setting to 1."
+            );
+            settings.synth.audio_channels = 1;
+        } else if settings.synth.audio_channels > 128 {
+            log::warn!(
+                "Requested number of audio channels is too big ({}). Limiting this setting to 128.",
+                settings.synth.audio_channels
+            );
+            settings.synth.audio_channels = 128;
+        }
+
+        if settings.synth.audio_groups < 1 {
+            log::warn!(
+                "Requested number of audio groups is smaller than 1. Changing this setting to 1."
+            );
+            settings.synth.audio_groups = 1;
+        } else if settings.synth.audio_groups > 128 {
+            log::warn!(
+                "Requested number of audio groups is too big ({}). Limiting this setting to 128.",
+                settings.synth.audio_groups
+            );
+            settings.synth.audio_groups = 128;
+        }
+
+        if settings.synth.effects_channels != 2 {
+            log::warn!(
+                "Invalid number of effects channels ({}).Setting effects channels to 2.",
+                settings.synth.effects_channels
+            );
+            settings.synth.effects_channels = 2;
+        }
+
+        let nbuf = {
+            let nbuf = settings.synth.audio_channels;
+            if settings.synth.audio_groups > nbuf {
+                settings.synth.audio_groups
+            } else {
+                nbuf
+            }
+        };
+
+        let mut synth = Self {
+            state: FLUID_SYNTH_PLAYING,
+            ticks: 0,
+            sfont: Vec::new(),
+            sfont_id: 0 as _,
+            bank_offsets: Vec::new(),
+            gain: settings.synth.gain,
+            channel: Vec::new(),
+            nvoice: settings.synth.polyphony,
+            voices: Vec::new(),
+            noteid: 0,
+            storeid: 0 as _,
+            nbuf,
+            left_buf: Vec::new(),
+            right_buf: Vec::new(),
+            fx_left_buf: Vec::new(),
+            fx_right_buf: Vec::new(),
+            reverb: ReverbModel::new(),
+            chorus: Chorus::new(settings.synth.sample_rate as f32),
+            cur: 64,
+            dither_index: 0,
+            tuning: Vec::new(),
+            cur_tuning: None,
+            min_note_length_ticks,
+
+            settings,
+        };
+
+        for i in 0..synth.settings.synth.midi_channels {
+            synth.channel.push(Channel::new(&synth, i));
+        }
+
+        for _ in 0..synth.nvoice {
+            synth
+                .voices
+                .push(Voice::new(synth.settings.synth.sample_rate as f32));
+        }
+
+        synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
+        synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
+        synth
+            .fx_left_buf
+            .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
+        synth
+            .fx_right_buf
+            .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
+
+        synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
+
+        if synth.settings.synth.drums_channel_active {
+            synth.bank_select(9, 128);
+        }
+
+        synth
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.settings.synth.sample_rate = sample_rate as f64;
         for i in 0..self.nvoice {
-            self.voices[i as usize] = new_fluid_voice(self.settings.synth.sample_rate as f32);
+            self.voices[i as usize] = Voice::new(self.settings.synth.sample_rate as f32);
         }
         self.chorus.delete();
         self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
@@ -596,7 +573,7 @@ impl Synth {
 
     pub(crate) unsafe fn alloc_voice(
         &mut self,
-        sample: *mut Sample,
+        sample: &mut Sample,
         chan: u8,
         key: u8,
         vel: i32,
@@ -646,8 +623,7 @@ impl Synth {
             channel = &mut self.channel[chan as usize];
 
             let voice = &mut self.voices[voice_id.0];
-            if fluid_voice_init(
-                voice,
+            voice.init(
                 sample,
                 channel,
                 key,
@@ -655,37 +631,18 @@ impl Synth {
                 self.storeid,
                 self.ticks,
                 self.gain as f32,
-            ) != FLUID_OK as i32
-            {
-                log::warn!("Failed to initialize voice",);
-                return None;
-            }
-            fluid_voice_add_mod(voice, &mut DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(
-                voice,
-                &mut DEFAULT_VEL2FILTER_MOD,
-                FLUID_VOICE_DEFAULT as i32,
             );
-            fluid_voice_add_mod(
-                voice,
-                &mut DEFAULT_AT2VIBLFO_MOD,
-                FLUID_VOICE_DEFAULT as i32,
-            );
-            fluid_voice_add_mod(
-                voice,
-                &mut DEFAULT_MOD2VIBLFO_MOD,
-                FLUID_VOICE_DEFAULT as i32,
-            );
-            fluid_voice_add_mod(voice, &mut DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(voice, &mut DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(voice, &mut DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(voice, &mut DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(voice, &mut DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT as i32);
-            fluid_voice_add_mod(
-                voice,
-                &mut DEFAULT_PITCH_BEND_MOD,
-                FLUID_VOICE_DEFAULT as i32,
-            );
+
+            voice.add_mod(&mut DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_VEL2FILTER_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_AT2VIBLFO_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_MOD2VIBLFO_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&mut DEFAULT_PITCH_BEND_MOD, FLUID_VOICE_DEFAULT as i32);
 
             Some(voice_id)
         } else {

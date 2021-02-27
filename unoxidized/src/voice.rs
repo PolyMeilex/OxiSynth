@@ -17,6 +17,89 @@ use super::gen::{self, Gen};
 use super::modulator::Mod;
 use super::soundfont::Sample;
 
+pub type Phase = u64;
+pub type ModFlags = u32;
+pub const FLUID_MOD_CC: ModFlags = 16;
+pub const FLUID_MOD_BIPOLAR: ModFlags = 2;
+pub type ModSrc = u32;
+pub const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
+pub type GenType = u32;
+pub const GEN_PITCH: GenType = 59;
+pub const GEN_OVERRIDEROOTKEY: GenType = 58;
+pub const GEN_EXCLUSIVECLASS: GenType = 57;
+pub const GEN_SCALETUNE: GenType = 56;
+pub const GEN_SAMPLEMODE: GenType = 54;
+pub const GEN_FINETUNE: GenType = 52;
+pub const GEN_COARSETUNE: GenType = 51;
+pub const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
+pub const GEN_ATTENUATION: GenType = 48;
+pub const GEN_VELOCITY: GenType = 47;
+pub const GEN_KEYNUM: GenType = 46;
+pub const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
+pub const GEN_KEYTOVOLENVDECAY: GenType = 40;
+pub const GEN_KEYTOVOLENVHOLD: GenType = 39;
+pub const GEN_VOLENVRELEASE: GenType = 38;
+pub const GEN_VOLENVSUSTAIN: GenType = 37;
+pub const GEN_VOLENVDECAY: GenType = 36;
+pub const GEN_VOLENVHOLD: GenType = 35;
+pub const GEN_VOLENVATTACK: GenType = 34;
+pub const GEN_VOLENVDELAY: GenType = 33;
+pub const GEN_KEYTOMODENVDECAY: GenType = 32;
+pub const GEN_KEYTOMODENVHOLD: GenType = 31;
+pub const GEN_MODENVRELEASE: GenType = 30;
+pub const GEN_MODENVSUSTAIN: GenType = 29;
+pub const GEN_MODENVDECAY: GenType = 28;
+pub const GEN_MODENVHOLD: GenType = 27;
+pub const GEN_MODENVATTACK: GenType = 26;
+pub const GEN_MODENVDELAY: GenType = 25;
+pub const GEN_VIBLFOFREQ: GenType = 24;
+pub const GEN_VIBLFODELAY: GenType = 23;
+pub const GEN_MODLFOFREQ: GenType = 22;
+pub const GEN_MODLFODELAY: GenType = 21;
+pub const GEN_PAN: GenType = 17;
+pub const GEN_REVERBSEND: GenType = 16;
+pub const GEN_CHORUSSEND: GenType = 15;
+pub const GEN_MODLFOTOVOL: GenType = 13;
+pub const GEN_ENDADDRCOARSEOFS: GenType = 12;
+pub const GEN_MODENVTOFILTERFC: GenType = 11;
+pub const GEN_MODLFOTOFILTERFC: GenType = 10;
+pub const GEN_FILTERQ: GenType = 9;
+pub const GEN_FILTERFC: GenType = 8;
+pub const GEN_MODENVTOPITCH: GenType = 7;
+pub const GEN_VIBLFOTOPITCH: GenType = 6;
+pub const GEN_MODLFOTOPITCH: GenType = 5;
+pub const GEN_STARTADDRCOARSEOFS: GenType = 4;
+pub const GEN_ENDLOOPADDROFS: GenType = 3;
+pub const GEN_STARTLOOPADDROFS: GenType = 2;
+pub const GEN_ENDADDROFS: GenType = 1;
+pub const GEN_STARTADDROFS: GenType = 0;
+pub type GenFlags = u32;
+pub const GEN_ABS_NRPN: GenFlags = 2;
+pub const GEN_SET: GenFlags = 1;
+pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
+pub const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
+pub const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
+pub const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
+pub const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
+pub type FluidVoiceAddMod = u32;
+pub const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
+pub const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
+pub const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
+pub const FLUID_VOICE_ON: VoiceStatus = 1;
+pub const FLUID_OK: i32 = 0;
+pub type VoiceStatus = u32;
+pub const FLUID_VOICE_OFF: VoiceStatus = 3;
+pub const FLUID_VOICE_CLEAN: VoiceStatus = 0;
+pub type VoiceEnvelopeIndex = u32;
+pub const FLUID_VOICE_ENVFINISHED: VoiceEnvelopeIndex = 6;
+pub const FLUID_VOICE_ENVSUSTAIN: VoiceEnvelopeIndex = 4;
+pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
+pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
+pub const FLUID_UNLOOPED: LoopMode = 0;
+pub const SUSTAIN_SWITCH: MidiControlChange = 64;
+pub type MidiControlChange = u32;
+pub type LoopMode = u32;
+
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub usize);
 
@@ -113,252 +196,223 @@ pub struct EnvData {
     pub min: f32,
     pub max: f32,
 }
-pub type Phase = u64;
-pub type ModFlags = u32;
-pub const FLUID_MOD_CC: ModFlags = 16;
-pub const FLUID_MOD_BIPOLAR: ModFlags = 2;
-pub type ModSrc = u32;
-pub const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-pub type GenType = u32;
-pub const GEN_PITCH: GenType = 59;
-pub const GEN_OVERRIDEROOTKEY: GenType = 58;
-pub const GEN_EXCLUSIVECLASS: GenType = 57;
-pub const GEN_SCALETUNE: GenType = 56;
-pub const GEN_SAMPLEMODE: GenType = 54;
-pub const GEN_FINETUNE: GenType = 52;
-pub const GEN_COARSETUNE: GenType = 51;
-pub const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
-pub const GEN_ATTENUATION: GenType = 48;
-pub const GEN_VELOCITY: GenType = 47;
-pub const GEN_KEYNUM: GenType = 46;
-pub const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
-pub const GEN_KEYTOVOLENVDECAY: GenType = 40;
-pub const GEN_KEYTOVOLENVHOLD: GenType = 39;
-pub const GEN_VOLENVRELEASE: GenType = 38;
-pub const GEN_VOLENVSUSTAIN: GenType = 37;
-pub const GEN_VOLENVDECAY: GenType = 36;
-pub const GEN_VOLENVHOLD: GenType = 35;
-pub const GEN_VOLENVATTACK: GenType = 34;
-pub const GEN_VOLENVDELAY: GenType = 33;
-pub const GEN_KEYTOMODENVDECAY: GenType = 32;
-pub const GEN_KEYTOMODENVHOLD: GenType = 31;
-pub const GEN_MODENVRELEASE: GenType = 30;
-pub const GEN_MODENVSUSTAIN: GenType = 29;
-pub const GEN_MODENVDECAY: GenType = 28;
-pub const GEN_MODENVHOLD: GenType = 27;
-pub const GEN_MODENVATTACK: GenType = 26;
-pub const GEN_MODENVDELAY: GenType = 25;
-pub const GEN_VIBLFOFREQ: GenType = 24;
-pub const GEN_VIBLFODELAY: GenType = 23;
-pub const GEN_MODLFOFREQ: GenType = 22;
-pub const GEN_MODLFODELAY: GenType = 21;
-pub const GEN_PAN: GenType = 17;
-pub const GEN_REVERBSEND: GenType = 16;
-pub const GEN_CHORUSSEND: GenType = 15;
-pub const GEN_MODLFOTOVOL: GenType = 13;
-pub const GEN_ENDADDRCOARSEOFS: GenType = 12;
-pub const GEN_MODENVTOFILTERFC: GenType = 11;
-pub const GEN_MODLFOTOFILTERFC: GenType = 10;
-pub const GEN_FILTERQ: GenType = 9;
-pub const GEN_FILTERFC: GenType = 8;
-pub const GEN_MODENVTOPITCH: GenType = 7;
-pub const GEN_VIBLFOTOPITCH: GenType = 6;
-pub const GEN_MODLFOTOPITCH: GenType = 5;
-pub const GEN_STARTADDRCOARSEOFS: GenType = 4;
-pub const GEN_ENDLOOPADDROFS: GenType = 3;
-pub const GEN_STARTLOOPADDROFS: GenType = 2;
-pub const GEN_ENDADDROFS: GenType = 1;
-pub const GEN_STARTADDROFS: GenType = 0;
-pub type GenFlags = u32;
-pub const GEN_ABS_NRPN: GenFlags = 2;
-pub const GEN_SET: GenFlags = 1;
-pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
-pub const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
-pub const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
-pub const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
-pub const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
-pub type FluidVoiceAddMod = u32;
-pub const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
-pub const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
-pub const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
-pub const FLUID_VOICE_ON: VoiceStatus = 1;
-pub const FLUID_OK: i32 = 0;
-pub type VoiceStatus = u32;
-pub const FLUID_VOICE_OFF: VoiceStatus = 3;
-pub const FLUID_VOICE_CLEAN: VoiceStatus = 0;
-pub type VoiceEnvelopeIndex = u32;
-pub const FLUID_VOICE_ENVFINISHED: VoiceEnvelopeIndex = 6;
-pub const FLUID_VOICE_ENVSUSTAIN: VoiceEnvelopeIndex = 4;
-pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
-pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
-pub const FLUID_UNLOOPED: LoopMode = 0;
-pub const SUSTAIN_SWITCH: MidiControlChange = 64;
-pub type MidiControlChange = u32;
-pub type LoopMode = u32;
 
-pub fn new_fluid_voice(output_rate: f32) -> Voice {
-    let mut volenv_data = [EnvData::default(); 7];
-    {
-        let sustain = &mut volenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
+impl Voice {
+    pub fn new(output_rate: f32) -> Voice {
+        let mut volenv_data = [EnvData::default(); 7];
+        {
+            let sustain = &mut volenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
 
-        sustain.count = 0xffffffff as u32;
-        sustain.coeff = 1.0f32;
-        sustain.incr = 0.0f32;
-        sustain.min = -1.0f32;
-        sustain.max = 2.0f32;
+            sustain.count = 0xffffffff as u32;
+            sustain.coeff = 1.0f32;
+            sustain.incr = 0.0f32;
+            sustain.min = -1.0f32;
+            sustain.max = 2.0f32;
 
-        let finished = &mut volenv_data[FLUID_VOICE_ENVFINISHED as usize];
-        finished.count = 0xffffffff as u32;
-        finished.coeff = 0.0f32;
-        finished.incr = 0.0f32;
-        finished.min = -1.0f32;
-        finished.max = 1.0f32;
+            let finished = &mut volenv_data[FLUID_VOICE_ENVFINISHED as usize];
+            finished.count = 0xffffffff as u32;
+            finished.coeff = 0.0f32;
+            finished.incr = 0.0f32;
+            finished.min = -1.0f32;
+            finished.max = 1.0f32;
+        }
+        let mut modenv_data = [EnvData::default(); 7];
+        {
+            let sustain = &mut modenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
+            sustain.count = 0xffffffff as u32;
+            sustain.coeff = 1.0f32;
+            sustain.incr = 0.0f32;
+            sustain.min = -1.0f32;
+            sustain.max = 2.0f32;
+
+            let finished = &mut modenv_data[FLUID_VOICE_ENVFINISHED as usize];
+            finished.count = 0xffffffff as u32;
+            finished.coeff = 0.0f32;
+            finished.incr = 0.0f32;
+            finished.min = -1.0f32;
+            finished.max = 1.0f32;
+        }
+
+        Voice {
+            id: 0,
+            status: FLUID_VOICE_CLEAN as i32 as u8,
+            chan: 0xff,
+            key: 0,
+            vel: 0,
+            channel: 0 as *mut Channel,
+            gen: [Gen::default(); 60],
+            mod_0: [Mod::default(); 64],
+            mod_count: 0,
+            has_looped: 0,
+            sample: std::ptr::null_mut(),
+            check_sample_sanity_flag: 0,
+            output_rate,
+            start_time: 0,
+            ticks: 0,
+            noteoff_ticks: 0,
+            amp: 0.0,
+            phase: 0 as Phase,
+            phase_incr: 0.0,
+            amp_incr: 0.0,
+            dsp_buf: std::ptr::null_mut(),
+            pitch: 0.0,
+            attenuation: 0.0,
+            min_attenuation_c_b: 0.0,
+            root_pitch: 0.0,
+            start: 0,
+            end: 0,
+            loopstart: 0,
+            loopend: 0,
+            synth_gain: 0.0,
+            volenv_data: volenv_data,
+            volenv_count: 0,
+            volenv_section: 0,
+            volenv_val: 0.0,
+            amplitude_that_reaches_noise_floor_nonloop: 0.0,
+            amplitude_that_reaches_noise_floor_loop: 0.0,
+            modenv_data: modenv_data,
+            modenv_count: 0,
+            modenv_section: 0,
+            modenv_val: 0.0,
+            modenv_to_fc: 0.0,
+            modenv_to_pitch: 0.0,
+            modlfo_val: 0.0,
+            modlfo_delay: 0,
+            modlfo_incr: 0.0,
+            modlfo_to_fc: 0.0,
+            modlfo_to_pitch: 0.0,
+            modlfo_to_vol: 0.0,
+            viblfo_val: 0.0,
+            viblfo_delay: 0,
+            viblfo_incr: 0.0,
+            viblfo_to_pitch: 0.0,
+            fres: 0.0,
+            last_fres: 0.0,
+            q_lin: 0.0,
+            filter_gain: 0.0,
+            hist1: 0.0,
+            hist2: 0.0,
+            filter_startup: 0,
+            b02: 0.0,
+            b1: 0.0,
+            a1: 0.0,
+            a2: 0.0,
+            b02_incr: 0.0,
+            b1_incr: 0.0,
+            a1_incr: 0.0,
+            a2_incr: 0.0,
+            filter_coeff_incr_count: 0,
+            pan: 0.0,
+            amp_left: 0.0,
+            amp_right: 0.0,
+            reverb_send: 0.0,
+            amp_reverb: 0.0,
+            chorus_send: 0.0,
+            amp_chorus: 0.0,
+            interp_method: InterpMethod::None,
+            debug: 0,
+        }
     }
-    let mut modenv_data = [EnvData::default(); 7];
-    {
-        let sustain = &mut modenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
-        sustain.count = 0xffffffff as u32;
-        sustain.coeff = 1.0f32;
-        sustain.incr = 0.0f32;
-        sustain.min = -1.0f32;
-        sustain.max = 2.0f32;
 
-        let finished = &mut modenv_data[FLUID_VOICE_ENVFINISHED as usize];
-        finished.count = 0xffffffff as u32;
-        finished.coeff = 0.0f32;
-        finished.incr = 0.0f32;
-        finished.min = -1.0f32;
-        finished.max = 1.0f32;
+    pub unsafe fn init(
+        &mut self,
+        sample: *mut Sample,
+        channel: *mut Channel,
+        key: u8,
+        vel: i32,
+        id: u32,
+        start_time: u32,
+        gain: f32,
+    ) {
+        self.id = id;
+        self.chan = channel.as_ref().unwrap().get_num() as u8;
+        self.key = key as u8;
+        self.vel = vel as u8;
+        self.channel = channel;
+        self.mod_count = 0 as i32;
+        self.sample = sample;
+        self.start_time = start_time;
+        self.ticks = 0 as i32 as u32;
+        self.noteoff_ticks = 0 as i32 as u32;
+        self.debug = 0 as i32;
+        self.has_looped = 0 as i32;
+        self.last_fres = -(1 as i32) as f32;
+        self.filter_startup = 1 as i32;
+        self.interp_method = self.channel.as_ref().unwrap().get_interp_method();
+        self.volenv_count = 0 as i32 as u32;
+        self.volenv_section = 0 as i32;
+        self.volenv_val = 0.0f32;
+        self.amp = 0.0f32;
+        self.modenv_count = 0 as i32 as u32;
+        self.modenv_section = 0 as i32;
+        self.modenv_val = 0.0f32;
+        self.modlfo_val = 0.0f32;
+        self.viblfo_val = 0.0f32;
+        self.hist1 = 0 as i32 as f32;
+        self.hist2 = 0 as i32 as f32;
+        self.gen = gen::gen_init(&*channel);
+        self.synth_gain = gain;
+        if (self.synth_gain as f64) < 0.0000001f64 {
+            self.synth_gain = 0.0000001f32
+        }
+        self.amplitude_that_reaches_noise_floor_nonloop =
+            (0.00003f64 / self.synth_gain as f64) as f32;
+        self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
+        (*self.sample).refcount = (*self.sample).refcount.wrapping_add(1);
     }
 
-    Voice {
-        id: 0,
-        status: FLUID_VOICE_CLEAN as i32 as u8,
-        chan: 0xff,
-        key: 0,
-        vel: 0,
-        channel: 0 as *mut Channel,
-        gen: [Gen::default(); 60],
-        mod_0: [Mod::default(); 64],
-        mod_count: 0,
-        has_looped: 0,
-        sample: std::ptr::null_mut(),
-        check_sample_sanity_flag: 0,
-        output_rate: output_rate,
-        start_time: 0,
-        ticks: 0,
-        noteoff_ticks: 0,
-        amp: 0.0,
-        phase: 0 as Phase,
-        phase_incr: 0.0,
-        amp_incr: 0.0,
-        dsp_buf: std::ptr::null_mut(),
-        pitch: 0.0,
-        attenuation: 0.0,
-        min_attenuation_c_b: 0.0,
-        root_pitch: 0.0,
-        start: 0,
-        end: 0,
-        loopstart: 0,
-        loopend: 0,
-        synth_gain: 0.0,
-        volenv_data: volenv_data,
-        volenv_count: 0,
-        volenv_section: 0,
-        volenv_val: 0.0,
-        amplitude_that_reaches_noise_floor_nonloop: 0.0,
-        amplitude_that_reaches_noise_floor_loop: 0.0,
-        modenv_data: modenv_data,
-        modenv_count: 0,
-        modenv_section: 0,
-        modenv_val: 0.0,
-        modenv_to_fc: 0.0,
-        modenv_to_pitch: 0.0,
-        modlfo_val: 0.0,
-        modlfo_delay: 0,
-        modlfo_incr: 0.0,
-        modlfo_to_fc: 0.0,
-        modlfo_to_pitch: 0.0,
-        modlfo_to_vol: 0.0,
-        viblfo_val: 0.0,
-        viblfo_delay: 0,
-        viblfo_incr: 0.0,
-        viblfo_to_pitch: 0.0,
-        fres: 0.0,
-        last_fres: 0.0,
-        q_lin: 0.0,
-        filter_gain: 0.0,
-        hist1: 0.0,
-        hist2: 0.0,
-        filter_startup: 0,
-        b02: 0.0,
-        b1: 0.0,
-        a1: 0.0,
-        a2: 0.0,
-        b02_incr: 0.0,
-        b1_incr: 0.0,
-        a1_incr: 0.0,
-        a2_incr: 0.0,
-        filter_coeff_incr_count: 0,
-        pan: 0.0,
-        amp_left: 0.0,
-        amp_right: 0.0,
-        reverb_send: 0.0,
-        amp_reverb: 0.0,
-        chorus_send: 0.0,
-        amp_chorus: 0.0,
-        interp_method: InterpMethod::None,
-        debug: 0,
+    pub unsafe fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
+        let mut i;
+        if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
+            && (mod_0.src1 as i32 != 0 as i32
+                && mod_0.src1 as i32 != 2 as i32
+                && mod_0.src1 as i32 != 3 as i32
+                && mod_0.src1 as i32 != 10 as i32
+                && mod_0.src1 as i32 != 13 as i32
+                && mod_0.src1 as i32 != 14 as i32
+                && mod_0.src1 as i32 != 16 as i32)
+        {
+            log::warn!(
+                "Ignoring invalid controller, using non-CC source {}.",
+                mod_0.src1 as i32
+            );
+            return;
+        }
+        if mode == FLUID_VOICE_ADD as i32 {
+            i = 0 as i32;
+            while i < self.mod_count {
+                if self.mod_0[i as usize].test_identity(mod_0) != 0 {
+                    //		printf("Adding modulator...\n");
+                    self.mod_0[i as usize].amount += (*mod_0).amount;
+                    return;
+                }
+                i += 1
+            }
+        } else if mode == FLUID_VOICE_OVERWRITE as i32 {
+            i = 0 as i32;
+            while i < self.mod_count {
+                if self
+                    .mod_0
+                    .as_mut_ptr()
+                    .offset(i as isize)
+                    .as_ref()
+                    .unwrap()
+                    .test_identity(mod_0)
+                    != 0
+                {
+                    //		printf("Replacing modulator...amount is %f\n",mod->amount);
+                    self.mod_0[i as usize].amount = (*mod_0).amount;
+                    return;
+                }
+                i += 1
+            }
+        }
+        if self.mod_count < 64 as i32 {
+            let fresh7 = self.mod_count;
+            self.mod_count = self.mod_count + 1;
+            *self.mod_0.as_mut_ptr().offset(fresh7 as isize) = mod_0.clone();
+        };
     }
-}
-
-pub unsafe fn fluid_voice_init(
-    voice: *mut Voice,
-    sample: *mut Sample,
-    channel: *mut Channel,
-    key: u8,
-    vel: i32,
-    id: u32,
-    start_time: u32,
-    gain: f32,
-) -> i32 {
-    (*voice).id = id;
-    (*voice).chan = channel.as_ref().unwrap().get_num() as u8;
-    (*voice).key = key as u8;
-    (*voice).vel = vel as u8;
-    (*voice).channel = channel;
-    (*voice).mod_count = 0 as i32;
-    (*voice).sample = sample;
-    (*voice).start_time = start_time;
-    (*voice).ticks = 0 as i32 as u32;
-    (*voice).noteoff_ticks = 0 as i32 as u32;
-    (*voice).debug = 0 as i32;
-    (*voice).has_looped = 0 as i32;
-    (*voice).last_fres = -(1 as i32) as f32;
-    (*voice).filter_startup = 1 as i32;
-    (*voice).interp_method = (*voice).channel.as_ref().unwrap().get_interp_method();
-    (*voice).volenv_count = 0 as i32 as u32;
-    (*voice).volenv_section = 0 as i32;
-    (*voice).volenv_val = 0.0f32;
-    (*voice).amp = 0.0f32;
-    (*voice).modenv_count = 0 as i32 as u32;
-    (*voice).modenv_section = 0 as i32;
-    (*voice).modenv_val = 0.0f32;
-    (*voice).modlfo_val = 0.0f32;
-    (*voice).viblfo_val = 0.0f32;
-    (*voice).hist1 = 0 as i32 as f32;
-    (*voice).hist2 = 0 as i32 as f32;
-    (*voice).gen = gen::gen_init(&*channel);
-    (*voice).synth_gain = gain;
-    if ((*voice).synth_gain as f64) < 0.0000001f64 {
-        (*voice).synth_gain = 0.0000001f32
-    }
-    (*voice).amplitude_that_reaches_noise_floor_nonloop =
-        (0.00003f64 / (*voice).synth_gain as f64) as f32;
-    (*voice).amplitude_that_reaches_noise_floor_loop =
-        (0.00003f64 / (*voice).synth_gain as f64) as f32;
-    (*(*voice).sample).refcount = (*(*voice).sample).refcount.wrapping_add(1);
-    return FLUID_OK as i32;
 }
 
 pub unsafe fn fluid_voice_gen_set(mut voice: *mut Voice, i: i32, val: f32) {
@@ -1467,7 +1521,7 @@ pub unsafe fn fluid_voice_modulate_all(voice: &mut Voice) -> i32 {
         gen = mod_0.as_ref().unwrap().get_dest();
         modval = 0.0f32;
         k = 0 as i32;
-        while k < (*voice).mod_count {
+        while k < voice.mod_count {
             if voice.mod_0[k as usize].dest as i32 == gen {
                 modval += voice
                     .mod_0
@@ -1560,59 +1614,6 @@ pub fn fluid_voice_off(voice: &mut Voice) {
         }
         voice.sample = 0 as *mut Sample
     }
-}
-
-pub unsafe fn fluid_voice_add_mod(voice: &mut Voice, mod_0: &Mod, mode: i32) {
-    let mut i;
-    if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
-        && (mod_0.src1 as i32 != 0 as i32
-            && mod_0.src1 as i32 != 2 as i32
-            && mod_0.src1 as i32 != 3 as i32
-            && mod_0.src1 as i32 != 10 as i32
-            && mod_0.src1 as i32 != 13 as i32
-            && mod_0.src1 as i32 != 14 as i32
-            && mod_0.src1 as i32 != 16 as i32)
-    {
-        log::warn!(
-            "Ignoring invalid controller, using non-CC source {}.",
-            mod_0.src1 as i32
-        );
-        return;
-    }
-    if mode == FLUID_VOICE_ADD as i32 {
-        i = 0 as i32;
-        while i < voice.mod_count {
-            if voice.mod_0[i as usize].test_identity(mod_0) != 0 {
-                //		printf("Adding modulator...\n");
-                voice.mod_0[i as usize].amount += (*mod_0).amount;
-                return;
-            }
-            i += 1
-        }
-    } else if mode == FLUID_VOICE_OVERWRITE as i32 {
-        i = 0 as i32;
-        while i < voice.mod_count {
-            if voice
-                .mod_0
-                .as_mut_ptr()
-                .offset(i as isize)
-                .as_ref()
-                .unwrap()
-                .test_identity(mod_0)
-                != 0
-            {
-                //		printf("Replacing modulator...amount is %f\n",mod->amount);
-                voice.mod_0[i as usize].amount = (*mod_0).amount;
-                return;
-            }
-            i += 1
-        }
-    }
-    if voice.mod_count < 64 as i32 {
-        let fresh7 = (*voice).mod_count;
-        voice.mod_count = (*voice).mod_count + 1;
-        *voice.mod_0.as_mut_ptr().offset(fresh7 as isize) = mod_0.clone();
-    };
 }
 
 pub unsafe fn fluid_voice_get_lower_boundary_for_attenuation(voice: *mut Voice) -> f32 {

@@ -217,105 +217,107 @@ impl Channel {
     }
 
     pub fn cc(&mut self, synth: &mut Synth, num: i32, value: i32) -> i32 {
-        unsafe {
-            self.cc[num as usize] = value as u8;
-            match num {
-                64 => {
-                    if value < 64 as i32 {
+        self.cc[num as usize] = value as u8;
+        match num {
+            64 => {
+                if value < 64 as i32 {
+                    unsafe {
                         synth.damp_voices(self.channum);
                     }
                 }
-                0 => {
-                    if self.channum == 9 && synth.settings.synth.drums_channel_active {
-                        return FLUID_OK as i32;
-                    }
-                    self.bank_msb = (value & 0x7f as i32) as u8;
-                    self.set_banknum((value & 0x7f as i32) as u32);
+            }
+            0 => {
+                if self.channum == 9 && synth.settings.synth.drums_channel_active {
+                    return FLUID_OK as i32;
                 }
-                32 => {
-                    if self.channum == 9 && synth.settings.synth.drums_channel_active {
-                        return FLUID_OK as i32;
-                    }
-                    self.set_banknum(
-                        (value as u32 & 0x7f as i32 as u32)
-                            .wrapping_add((self.bank_msb as u32) << 7 as i32),
-                    );
+                self.bank_msb = (value & 0x7f as i32) as u8;
+                self.set_banknum((value & 0x7f as i32) as u32);
+            }
+            32 => {
+                if self.channum == 9 && synth.settings.synth.drums_channel_active {
+                    return FLUID_OK as i32;
                 }
-                123 => {
-                    synth.all_notes_off(self.channum);
-                }
-                120 => {
-                    synth.all_sounds_off(self.channum);
-                }
-                121 => {
-                    self.init_ctrl(1 as i32);
+                self.set_banknum(
+                    (value as u32 & 0x7f as i32 as u32)
+                        .wrapping_add((self.bank_msb as u32) << 7 as i32),
+                );
+            }
+            123 => {
+                synth.all_notes_off(self.channum);
+            }
+            120 => unsafe {
+                synth.all_sounds_off(self.channum);
+            },
+            121 => {
+                self.init_ctrl(1 as i32);
+                unsafe {
                     synth.modulate_voices_all(self.channum);
                 }
-                6 => {
-                    let data: i32 =
-                        (value << 7 as i32) + self.cc[DATA_ENTRY_LSB as i32 as usize] as i32;
-                    if self.nrpn_active != 0 {
-                        if self.cc[NRPN_MSB as i32 as usize] as i32 == 120 as i32
-                            && (self.cc[NRPN_LSB as i32 as usize] as i32) < 100 as i32
-                        {
-                            if (self.nrpn_select as i32) < GEN_LAST as i32 {
-                                let val: f32 = fluid_gen_scale_nrpn(self.nrpn_select, data);
-                                let param = std::mem::transmute(self.nrpn_select as u32);
-                                synth.set_gen(self.channum, param, val).unwrap();
-                            }
-                            self.nrpn_select = 0
+            }
+            6 => {
+                let data: i32 =
+                    (value << 7 as i32) + self.cc[DATA_ENTRY_LSB as i32 as usize] as i32;
+                if self.nrpn_active != 0 {
+                    if self.cc[NRPN_MSB as i32 as usize] as i32 == 120 as i32
+                        && (self.cc[NRPN_LSB as i32 as usize] as i32) < 100 as i32
+                    {
+                        if (self.nrpn_select as i32) < GEN_LAST as i32 {
+                            let val: f32 = fluid_gen_scale_nrpn(self.nrpn_select, data);
+                            let param = unsafe { std::mem::transmute(self.nrpn_select as u32) };
+                            synth.set_gen(self.channum, param, val).unwrap();
                         }
-                    } else if self.cc[RPN_MSB as i32 as usize] as i32 == 0 as i32 {
-                        match self.cc[RPN_LSB as i32 as usize] as i32 {
-                            0 => {
-                                self.pitch_wheel_sens(synth, value);
-                            }
-                            1 => {
-                                synth
-                                    .set_gen(
-                                        self.channum,
-                                        GenParam::FineTune,
-                                        ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
-                                    )
-                                    .unwrap();
-                            }
-                            2 => {
-                                synth
-                                    .set_gen(
-                                        self.channum,
-                                        GenParam::CoarseTune,
-                                        (value - 64 as i32) as f32,
-                                    )
-                                    .unwrap();
-                            }
-                            3 | 4 | 5 | _ => {}
-                        }
+                        self.nrpn_select = 0
                     }
-                }
-                99 => {
-                    self.cc[NRPN_LSB as i32 as usize] = 0;
-                    self.nrpn_select = 0 as _;
-                    self.nrpn_active = 1 as _
-                }
-                98 => {
-                    if self.cc[NRPN_MSB as i32 as usize] as i32 == 120 as i32 {
-                        if value == 100 as i32 {
-                            self.nrpn_select = (self.nrpn_select as i32 + 100 as i32) as i16
-                        } else if value == 101 as i32 {
-                            self.nrpn_select = (self.nrpn_select as i32 + 1000 as i32) as i16
-                        } else if value == 102 as i32 {
-                            self.nrpn_select = (self.nrpn_select as i32 + 10000 as i32) as i16
-                        } else if value < 100 as i32 {
-                            self.nrpn_select = (self.nrpn_select as i32 + value) as i16
+                } else if self.cc[RPN_MSB as i32 as usize] as i32 == 0 as i32 {
+                    match self.cc[RPN_LSB as i32 as usize] as i32 {
+                        0 => {
+                            self.pitch_wheel_sens(synth, value);
                         }
+                        1 => {
+                            synth
+                                .set_gen(
+                                    self.channum,
+                                    GenParam::FineTune,
+                                    ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
+                                )
+                                .unwrap();
+                        }
+                        2 => {
+                            synth
+                                .set_gen(
+                                    self.channum,
+                                    GenParam::CoarseTune,
+                                    (value - 64 as i32) as f32,
+                                )
+                                .unwrap();
+                        }
+                        3 | 4 | 5 | _ => {}
                     }
-                    self.nrpn_active = 1 as i32 as i16
-                }
-                101 | 100 => self.nrpn_active = 0 as i32 as i16,
-                _ => {
-                    synth.modulate_voices(self.channum, 1 as i32, num);
                 }
             }
+            99 => {
+                self.cc[NRPN_LSB as i32 as usize] = 0;
+                self.nrpn_select = 0 as _;
+                self.nrpn_active = 1 as _
+            }
+            98 => {
+                if self.cc[NRPN_MSB as i32 as usize] as i32 == 120 as i32 {
+                    if value == 100 as i32 {
+                        self.nrpn_select = (self.nrpn_select as i32 + 100 as i32) as i16
+                    } else if value == 101 as i32 {
+                        self.nrpn_select = (self.nrpn_select as i32 + 1000 as i32) as i16
+                    } else if value == 102 as i32 {
+                        self.nrpn_select = (self.nrpn_select as i32 + 10000 as i32) as i16
+                    } else if value < 100 as i32 {
+                        self.nrpn_select = (self.nrpn_select as i32 + value) as i16
+                    }
+                }
+                self.nrpn_active = 1 as i32 as i16
+            }
+            101 | 100 => self.nrpn_active = 0 as i32 as i16,
+            _ => unsafe {
+                synth.modulate_voices(self.channum, 1 as i32, num);
+            },
         }
         return FLUID_OK as i32;
     }
@@ -328,28 +330,25 @@ impl Channel {
         };
     }
 
-    pub fn pressure(&mut self, synth: &mut Synth, val: i32) -> i32 {
+    pub fn pressure(&mut self, synth: &mut Synth, val: i32) {
         self.channel_pressure = val as i16;
         unsafe {
             synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_CHANNELPRESSURE as i32);
         }
-        return FLUID_OK as i32;
     }
 
-    pub fn pitch_bend(&mut self, synth: &mut Synth, val: i32) -> i32 {
+    pub fn pitch_bend(&mut self, synth: &mut Synth, val: i32) {
         self.pitch_bend = val as i16;
         unsafe {
             synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEEL as i32);
         }
-        return FLUID_OK as i32;
     }
 
-    pub fn pitch_wheel_sens(&mut self, synth: &mut Synth, val: i32) -> i32 {
+    pub fn pitch_wheel_sens(&mut self, synth: &mut Synth, val: i32) {
         self.pitch_wheel_sensitivity = val as i16;
         unsafe {
             synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEELSENS as i32);
         }
-        return FLUID_OK as i32;
     }
 
     pub fn get_num(&self) -> u8 {
@@ -361,16 +360,15 @@ impl Channel {
     }
 
     pub fn get_interp_method(&self) -> InterpMethod {
-        return self.interp_method;
+        self.interp_method
     }
 
     pub fn get_sfontnum(&self) -> u32 {
-        return self.sfontnum;
+        self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: u32) -> i32 {
+    pub fn set_sfontnum(&mut self, sfontnum: u32) {
         self.sfontnum = sfontnum;
-        return FLUID_OK as i32;
     }
 }
 

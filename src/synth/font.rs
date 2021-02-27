@@ -116,7 +116,7 @@ mod test {
 
     #[test]
     fn font_and_preset() {
-        let mut synth = Synth::new(Settings::default()).unwrap();
+        let mut synth = Synth::new(Settings::default());
 
         assert_eq!(synth.sfcount(), 0);
 
