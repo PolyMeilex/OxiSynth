@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::Synth;
 use crate::synth::GEN_LAST;
 use crate::voice::fluid_voice_set_param;
@@ -16,9 +18,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan as u8 {
-                unsafe {
-                    fluid_voice_set_param(voice, param as u16, value, 0 as i32);
-                }
+                fluid_voice_set_param(voice, param as u16, value, 0 as i32);
             }
             i += 1
         }

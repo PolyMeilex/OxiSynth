@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::BankOffset;
 use crate::synth::InterpMethod;
 use crate::synth::Preset;
@@ -13,7 +15,7 @@ impl Synth {
     /**
     Set the master gain
      */
-    pub unsafe fn set_gain(&mut self, mut gain: f64) {
+    pub fn set_gain(&mut self, mut gain: f64) {
         let mut i;
         gain = if gain < 0.0 {
             0.0
@@ -45,7 +47,7 @@ impl Synth {
     /**
     Set the polyphony limit (FluidSynth >= 1.0.6)
      */
-    pub unsafe fn set_polyphony(&mut self, polyphony: i32) -> i32 {
+    pub fn set_polyphony(&mut self, polyphony: i32) -> i32 {
         let mut i;
         if polyphony < 1 as i32 || polyphony > self.nvoice {
             return FLUID_FAILED as i32;
@@ -67,8 +69,8 @@ impl Synth {
     /**
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
-    pub unsafe fn get_polyphony(&self) -> i32 {
-        return self.settings.synth.polyphony;
+    pub fn get_polyphony(&self) -> u32 {
+        self.settings.synth.polyphony as u32
     }
 
     /**
@@ -88,7 +90,7 @@ impl Synth {
     /**
      * Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`)
      */
-    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) -> i32 {
+    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) {
         if let Some(chan) = chan {
             let ch = self
                 .channel
@@ -108,8 +110,6 @@ impl Synth {
                 ch.set_interp_method(interp_method);
             }
         }
-
-        return FLUID_OK as i32;
     }
 
     /**

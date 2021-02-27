@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::ChorusMode;
 use crate::synth::Synth;
 

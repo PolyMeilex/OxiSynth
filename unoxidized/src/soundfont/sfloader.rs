@@ -3,8 +3,7 @@ use soundfont_rs as sf2;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
-use crate::gen::fluid_gen_set_default_values;
-use crate::gen::Gen;
+use crate::gen::{self, Gen};
 use crate::modulator::Mod;
 use crate::soundfont::Preset;
 use crate::soundfont::Sample;
@@ -623,23 +622,20 @@ unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
 }
 
 unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
-    let mut zone: *mut PresetZone;
-    zone = libc::malloc(::std::mem::size_of::<PresetZone>() as libc::size_t) as *mut PresetZone;
-    if zone.is_null() {
-        log::error!("Out of memory",);
-        return 0 as *mut PresetZone;
-    }
-    libc::memset(zone as _, 0, std::mem::size_of::<PresetZone>() as _);
-    (*zone).next = 0 as *mut PresetZone;
-    (*zone).name = name.to_vec();
-    (*zone).inst = 0 as *mut Instrument;
-    (*zone).keylo = 0;
-    (*zone).keyhi = 128;
-    (*zone).vello = 0 as i32;
-    (*zone).velhi = 128 as i32;
-    fluid_gen_set_default_values(&mut *(*zone).gen.as_mut_ptr().offset(0 as i32 as isize));
-    (*zone).mod_0 = 0 as *mut Mod;
-    return zone;
+    let zone = PresetZone {
+        next: 0 as *mut PresetZone,
+        name: name.to_vec(),
+        inst: 0 as *mut Instrument,
+        keylo: 0,
+        keyhi: 128,
+        vello: 0 as i32,
+        velhi: 128 as i32,
+
+        gen: gen::get_default_values(),
+        mod_0: 0 as *mut Mod,
+    };
+
+    Box::into_raw(Box::new(zone))
 }
 
 unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
@@ -903,7 +899,7 @@ unsafe fn new_fluid_inst_zone(name: &[u8]) -> *mut InstrumentZone {
     (*zone).keyhi = 128;
     (*zone).vello = 0 as i32;
     (*zone).velhi = 128 as i32;
-    fluid_gen_set_default_values(&mut *(*zone).gen.as_mut_ptr().offset(0 as i32 as isize));
+    (*zone).gen = gen::get_default_values();
     (*zone).mod_0 = 0 as *mut Mod;
     return zone;
 }

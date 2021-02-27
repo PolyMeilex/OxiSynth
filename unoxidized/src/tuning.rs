@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 #[derive(Clone)]
 pub struct Tuning {
     name: Vec<u8>,

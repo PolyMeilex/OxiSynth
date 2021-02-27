@@ -1,14 +1,4 @@
-pub type SettingsType = i32;
-pub const FLUID_SET_TYPE: SettingsType = 3;
-pub const FLUID_STR_TYPE: SettingsType = 2;
-pub const FLUID_INT_TYPE: SettingsType = 1;
-pub const FLUID_NUM_TYPE: SettingsType = 0;
-pub const FLUID_NO_TYPE: SettingsType = -1;
-
-pub struct Range<T> {
-    pub min: T,
-    pub max: T,
-}
+#![forbid(unsafe_code)]
 
 pub struct SynthSettings {
     pub verbose: bool,

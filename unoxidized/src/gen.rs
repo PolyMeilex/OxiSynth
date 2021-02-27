@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use super::channel::Channel;
 
 /**
@@ -138,7 +140,7 @@ pub enum GenParam {
     Last = 60,
 }
 
-#[derive(Copy, Default, Clone)]
+#[derive(Copy, Default, Debug, PartialEq, Clone)]
 pub struct Gen {
     pub(crate) flags: u8,
     pub(crate) val: f64,
@@ -160,7 +162,7 @@ pub struct GenInfo {
 }
 pub type C2RustUnnamed = i32;
 
-pub static mut GEN_INFO: [GenInfo; 60] = [
+pub static GEN_INFO: [GenInfo; 60] = [
     GenInfo {
         num: GenParam::StartAddrOfs as i8,
         init: 1,
@@ -643,34 +645,33 @@ pub static mut GEN_INFO: [GenInfo; 60] = [
     },
 ];
 
-pub unsafe fn fluid_gen_set_default_values(gen: *mut Gen) -> i32 {
-    let mut i: i32;
-    i = 0 as i32;
-    while i < GenParam::Last as i32 {
-        (*gen.offset(i as isize)).flags = GEN_UNUSED as i32 as u8;
-        (*gen.offset(i as isize)).mod_0 = 0.0f64;
-        (*gen.offset(i as isize)).nrpn = 0.0f64;
-        (*gen.offset(i as isize)).val = GEN_INFO[i as usize].def as f64;
-        i += 1
+pub fn get_default_values() -> [Gen; 60] {
+    let mut out = [Gen::default(); 60];
+
+    for (id, gen) in out.iter_mut().enumerate() {
+        gen.flags = GEN_UNUSED as i32 as u8;
+        gen.mod_0 = 0.0;
+        gen.nrpn = 0.0;
+        gen.val = GEN_INFO[id].def as f64;
     }
-    return FLUID_OK as i32;
+
+    out
 }
 
-pub unsafe fn fluid_gen_init(gen: *mut Gen, channel: *mut Channel) -> i32 {
-    let mut i: i32;
-    fluid_gen_set_default_values(gen);
-    i = 0 as i32;
-    while i < GenParam::Last as i32 {
-        (*gen.offset(i as isize)).nrpn = (*channel).gen[i as usize] as f64;
-        if (*channel).gen_abs[i as usize] != 0 {
-            (*gen.offset(i as isize)).flags = GEN_ABS_NRPN as i32 as u8
+pub fn gen_init(channel: &Channel) -> [Gen; 60] {
+    let mut out = get_default_values();
+
+    for (id, gen) in out.iter_mut().enumerate() {
+        gen.nrpn = channel.gen[id] as f64;
+        if channel.gen_abs[id] != 0 {
+            gen.flags = GEN_ABS_NRPN as i32 as u8
         }
-        i += 1
     }
-    return FLUID_OK as i32;
+
+    out
 }
 
-pub unsafe fn fluid_gen_scale_nrpn(gen: i16, data: i32) -> f32 {
+pub fn fluid_gen_scale_nrpn(gen: i16, data: i32) -> f32 {
     let mut value: f32 = data as f32 - 8192.0f32;
     value = if value < -(8192 as i32) as f32 {
         -(8192 as i32) as f32
@@ -679,5 +680,5 @@ pub unsafe fn fluid_gen_scale_nrpn(gen: i16, data: i32) -> f32 {
     } else {
         value
     };
-    return value * GEN_INFO[gen as usize].nrpn_scale as f32;
+    value * GEN_INFO[gen as usize].nrpn_scale as f32
 }

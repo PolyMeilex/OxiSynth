@@ -10,9 +10,7 @@ impl Synth {
     Set the master gain
      */
     pub fn set_gain(&mut self, gain: f64) {
-        unsafe {
-            self.handle.set_gain(gain);
-        }
+        self.handle.set_gain(gain)
     }
 
     /**
@@ -26,14 +24,14 @@ impl Synth {
     Set the polyphony limit (FluidSynth >= 1.0.6)
      */
     pub fn set_polyphony(&mut self, polyphony: u32) -> Status {
-        Synth::zero_ok(unsafe { self.handle.set_polyphony(polyphony as _) })
+        Synth::zero_ok(self.handle.set_polyphony(polyphony as _))
     }
 
     /**
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
     pub fn get_polyphony(&self) -> u32 {
-        unsafe { self.handle.get_polyphony() as _ }
+        self.handle.get_polyphony()
     }
 
     /**
@@ -51,8 +49,7 @@ impl Synth {
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */
-    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) -> Status {
-        // let chan = if let Some(chan) = chan { chan as _ } else { -1 };
-        Synth::zero_ok(self.handle.set_interp_method(chan, interp_method))
+    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) {
+        self.handle.set_interp_method(chan, interp_method)
     }
 }

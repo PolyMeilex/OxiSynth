@@ -13,8 +13,7 @@ use super::dsp_float::fluid_dsp_float_interpolate_4th_order;
 use super::dsp_float::fluid_dsp_float_interpolate_7th_order;
 use super::dsp_float::fluid_dsp_float_interpolate_linear;
 use super::dsp_float::fluid_dsp_float_interpolate_none;
-use super::gen::fluid_gen_init;
-use super::gen::Gen;
+use super::gen::{self, Gen};
 use super::modulator::Mod;
 use super::soundfont::Sample;
 
@@ -349,10 +348,7 @@ pub unsafe fn fluid_voice_init(
     (*voice).viblfo_val = 0.0f32;
     (*voice).hist1 = 0 as i32 as f32;
     (*voice).hist2 = 0 as i32 as f32;
-    fluid_gen_init(
-        &mut *(*voice).gen.as_mut_ptr().offset(0 as i32 as isize),
-        channel,
-    );
+    (*voice).gen = gen::gen_init(&*channel);
     (*voice).synth_gain = gain;
     if ((*voice).synth_gain as f64) < 0.0000001f64 {
         (*voice).synth_gain = 0.0000001f32
@@ -1550,18 +1546,20 @@ pub unsafe fn fluid_voice_kill_excl(voice: &mut Voice) -> i32 {
     return FLUID_OK as i32;
 }
 
-pub unsafe fn fluid_voice_off(voice: &mut Voice) -> i32 {
+pub fn fluid_voice_off(voice: &mut Voice) {
     voice.chan = 0xff as i32 as u8;
     voice.volenv_section = FLUID_VOICE_ENVFINISHED as i32;
     voice.volenv_count = 0 as i32 as u32;
     voice.modenv_section = FLUID_VOICE_ENVFINISHED as i32;
     voice.modenv_count = 0 as i32 as u32;
     voice.status = FLUID_VOICE_OFF as i32 as u8;
+
     if !voice.sample.is_null() {
-        (*voice.sample).refcount = (*voice.sample).refcount.wrapping_sub(1);
+        unsafe {
+            (*voice.sample).refcount = (*voice.sample).refcount.wrapping_sub(1);
+        }
         voice.sample = 0 as *mut Sample
     }
-    return FLUID_OK as i32;
 }
 
 pub unsafe fn fluid_voice_add_mod(voice: &mut Voice, mod_0: &Mod, mode: i32) {
@@ -1741,23 +1739,20 @@ pub unsafe fn fluid_voice_check_sample_sanity(voice: &mut Voice) {
     voice.check_sample_sanity_flag = 0 as i32;
 }
 
-pub unsafe fn fluid_voice_set_param(
-    mut voice: &mut Voice,
-    gen: u16,
-    nrpn_value: f32,
-    abs: i32,
-) -> i32 {
+pub fn fluid_voice_set_param(mut voice: &mut Voice, gen: u16, nrpn_value: f32, abs: i32) {
     voice.gen[gen as usize].nrpn = nrpn_value as f64;
     voice.gen[gen as usize].flags = if abs != 0 {
         GEN_ABS_NRPN as i32
     } else {
         GEN_SET as i32
     } as u8;
-    fluid_voice_update_param(voice, gen as _);
-    return FLUID_OK as i32;
+
+    unsafe {
+        fluid_voice_update_param(voice, gen as _);
+    }
 }
 
-pub unsafe fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f64) {
+pub fn fluid_voice_set_gain(voice: &mut Voice, mut gain: f64) {
     if gain < 0.0000001 {
         gain = 0.0000001;
     }

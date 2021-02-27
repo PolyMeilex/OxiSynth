@@ -925,15 +925,13 @@ impl Synth {
 
 impl Drop for Synth {
     fn drop(&mut self) {
-        unsafe {
-            self.state = FLUID_SYNTH_STOPPED as i32 as u32;
-            for voice in self.voices.iter_mut() {
-                fluid_voice_off(voice);
-            }
-            self.bank_offsets.clear();
-            self.voices.clear();
-            self.chorus.delete();
+        self.state = FLUID_SYNTH_STOPPED as i32 as u32;
+        for voice in self.voices.iter_mut() {
+            fluid_voice_off(voice);
         }
+        self.bank_offsets.clear();
+        self.voices.clear();
+        self.chorus.delete();
     }
 }
 
