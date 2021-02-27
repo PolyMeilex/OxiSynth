@@ -469,8 +469,6 @@ impl Preset {
     }
 }
 
-static mut PRESET_CALLBACK: Option<unsafe fn(_: u32, _: u32, _: &str) -> ()> = None;
-
 impl DefaultSoundFont {
     unsafe fn load(&mut self, file: &Path) -> Result<(), ()> {
         unsafe fn fluid_defsfont_add_preset(
@@ -591,13 +589,6 @@ impl DefaultSoundFont {
                 let preset = Box::into_raw(Box::new(preset));
 
                 fluid_defsfont_add_preset(self, &mut *preset);
-                if PRESET_CALLBACK.is_some() {
-                    PRESET_CALLBACK.expect("non-null function pointer")(
-                        (*preset).bank,
-                        (*preset).num,
-                        &(*preset).name,
-                    );
-                }
             } else {
                 return Err(());
             }
