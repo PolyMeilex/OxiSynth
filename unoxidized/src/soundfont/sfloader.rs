@@ -67,15 +67,11 @@ pub(super) struct DefaultSoundFont {
 
 impl DefaultSoundFont {
     fn get_sample(&mut self, s: &[u8]) -> Option<&mut Sample> {
-        for sample in self.sample.iter_mut() {
+        self.sample.iter_mut().find(|sample| {
             let name_a = CString::new(sample.name.clone()).unwrap();
             let name_b = unsafe { CStr::from_ptr(s.as_ptr() as _) };
-
-            if name_a.as_c_str() == name_b {
-                return Some(sample);
-            }
-        }
-        return None;
+            name_a.as_c_str() == name_b
+        })
     }
 }
 
@@ -120,13 +116,12 @@ impl DefaultPreset {
         preset.bank = sfpreset.header.bank as u32;
         preset.num = sfpreset.header.preset as u32;
 
-        let mut count = 0 as i32;
-        for sfzone in sfpreset.zones.iter() {
+        for (id, sfzone) in sfpreset.zones.iter().enumerate() {
             let mut zone_name: [u8; 256] = [0; 256];
 
             libc::strcpy(
                 zone_name.as_mut_ptr() as _,
-                CString::new(format!("{}/{}", sfpreset.header.name, count))
+                CString::new(format!("{}/{}", sfpreset.header.name, id))
                     .unwrap()
                     .as_c_str()
                     .as_ptr(),
@@ -138,7 +133,7 @@ impl DefaultPreset {
             if fluid_preset_zone_import_sfont(sf2, zone, sfzone, sfont) != FLUID_OK as i32 {
                 return Err(());
             }
-            if count == 0 as i32 && (*zone).inst.is_null() {
+            if id == 0 && (*zone).inst.is_null() {
                 preset.global_zone = zone;
             } else {
                 // fluid_defpreset_add_zone
@@ -150,9 +145,9 @@ impl DefaultPreset {
                     preset.zone = zone
                 }
             }
-            count += 1
         }
-        return Ok(preset);
+
+        Ok(preset)
     }
 }
 
