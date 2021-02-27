@@ -1,7 +1,10 @@
+#![forbid(unsafe_code)]
+
 use super::channel::Channel;
 use super::conv::fluid_concave;
 use super::conv::fluid_convex;
 use super::voice::Voice;
+
 pub type ModFlags = u32;
 pub const FLUID_MOD_CC: ModFlags = 16;
 pub const FLUID_MOD_GC: ModFlags = 0;
@@ -13,7 +16,14 @@ pub const FLUID_MOD_POSITIVE: ModFlags = 0;
 pub type ModSrc = u32;
 pub const FLUID_MOD_VELOCITY: ModSrc = 2;
 pub type GenType = u32;
+
 pub const GEN_FILTERFC: GenType = 8;
+
+const FLUID_MOD_CONVEX: ModFlags = 8;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+
+use soundfont_rs::data::modulator::SFModulator;
 
 #[derive(Copy)]
 pub struct Mod {
@@ -24,6 +34,124 @@ pub struct Mod {
     pub(crate) flags2: u8,
     pub(crate) amount: f64,
     pub(crate) next: *mut Mod,
+}
+
+impl From<&SFModulator> for Mod {
+    fn from(mod_src: &SFModulator) -> Self {
+        // Amount
+        let mut amount = mod_src.amount as f64;
+
+        // Source
+        let src1 = (mod_src.src & 127) as u8;
+        let flags1 = {
+            let mut flags1 = 0u8;
+
+            // Bit 7: CC flag SF 2.01 section 8.2.1 page 50
+            if mod_src.src & 1 << 7 != 0 {
+                flags1 |= FLUID_MOD_CC as u8;
+            } else {
+                flags1 |= FLUID_MOD_GC as u8;
+            }
+
+            // Bit 8: D flag SF 2.01 section 8.2.2 page 51
+            if mod_src.src & 1 << 8 != 0 {
+                flags1 |= FLUID_MOD_NEGATIVE as u8;
+            } else {
+                flags1 |= FLUID_MOD_POSITIVE as u8;
+            }
+
+            // Bit 9: P flag SF 2.01 section 8.2.3 page 51
+            if mod_src.src & 1 << 9 != 0 {
+                flags1 |= FLUID_MOD_BIPOLAR as u8;
+            } else {
+                flags1 |= FLUID_MOD_UNIPOLAR as u8;
+            }
+
+            // modulator source types: SF2.01 section 8.2.1 page 52
+            let mut type_0 = mod_src.src >> 10;
+            type_0 &= 63; // type is a 6-bit value
+            if type_0 == 0 {
+                flags1 |= FLUID_MOD_LINEAR as u8;
+            } else if type_0 == 1 {
+                flags1 |= FLUID_MOD_CONCAVE as u8;
+            } else if type_0 == 2 {
+                flags1 |= FLUID_MOD_CONVEX as u8;
+            } else if type_0 == 3 {
+                flags1 |= FLUID_MOD_SWITCH as u8;
+            } else {
+                /* This shouldn't happen - unknown type!
+                 * Deactivate the modulator by setting the amount to 0. */
+                amount = 0.0;
+            }
+            flags1
+        };
+
+        // Dest
+        let dest = mod_src.dest as u8; // index of controlled generator
+        let src2 = (mod_src.amt_src & 127) as u8; // index of source 2, seven-bit value, SF2.01 section 8.2, p.50
+
+        // Amount source
+        let flags2 = {
+            let mut flags2 = 0;
+            // Bit 7: CC flag SF 2.01 section 8.2.1 page 50
+            if mod_src.amt_src & 1 << 7 != 0 {
+                flags2 |= FLUID_MOD_CC as u8;
+            } else {
+                flags2 |= FLUID_MOD_GC as u8;
+            }
+
+            // Bit 8: D flag SF 2.01 section 8.2.2 page 51
+            if mod_src.amt_src & 1 << 8 != 0 {
+                flags2 |= FLUID_MOD_NEGATIVE as u8;
+            } else {
+                flags2 |= FLUID_MOD_POSITIVE as u8;
+            }
+
+            // Bit 9: P flag SF 2.01 section 8.2.3 page 51
+            if mod_src.amt_src as i32 & (1 as i32) << 9 as i32 != 0 {
+                flags2 |= FLUID_MOD_BIPOLAR as u8;
+            } else {
+                flags2 |= FLUID_MOD_UNIPOLAR as u8;
+            }
+
+            // modulator source types: SF2.01 section 8.2.1 page 52
+            let mut type_0 = mod_src.amt_src >> 10;
+            type_0 &= 63; // type is a 6-bit value
+            if type_0 == 0 {
+                flags2 |= FLUID_MOD_LINEAR as u8;
+            } else if type_0 == 1 {
+                flags2 |= FLUID_MOD_CONCAVE as u8;
+            } else if type_0 == 2 {
+                flags2 |= FLUID_MOD_CONVEX as u8;
+            } else if type_0 == 3 {
+                flags2 |= FLUID_MOD_SWITCH as u8;
+            } else {
+                /* This shouldn't happen - unknown type!
+                 * Deactivate the modulator by setting the amount to 0. */
+                amount = 0.0;
+            }
+            flags2
+        };
+
+        // Transform
+
+        /* SF2.01 only uses the 'linear' transform (0).
+         * Deactivate the modulator by setting the amount to 0 in any other case.
+         */
+        if mod_src.transform as i32 != 0 as i32 {
+            amount = 0.0;
+        }
+
+        Mod {
+            next: 0 as *mut Mod,
+            src1,
+            amount,
+            flags1,
+            dest, // index of controlled generator
+            src2, // index of source 2, seven-bit value, SF2.01 section 8.2, p.50
+            flags2,
+        }
+    }
 }
 
 impl Clone for Mod {
@@ -55,44 +183,38 @@ impl Default for Mod {
 }
 
 impl Mod {
-    pub fn new() -> *mut Mod {
-        return Box::into_raw(Box::new(Mod {
+    pub fn new() -> Mod {
+        Mod {
             dest: 0,
             src1: 0,
             flags1: 0,
             src2: 0,
             flags2: 0,
-            amount: 0f64,
+            amount: 0.0,
             next: 0 as _,
-        }));
-    }
-
-    pub fn delete(&mut self) {
-        unsafe {
-            Box::from_raw(self);
         }
     }
 
-    pub unsafe fn set_source1(&mut self, src: i32, flags: i32) {
+    pub fn set_source1(&mut self, src: i32, flags: i32) {
         self.src1 = src as u8;
         self.flags1 = flags as u8;
     }
 
-    pub unsafe fn set_source2(&mut self, src: i32, flags: i32) {
+    pub fn set_source2(&mut self, src: i32, flags: i32) {
         self.src2 = src as u8;
         self.flags2 = flags as u8;
     }
 
-    pub unsafe fn set_dest(&mut self, dest: i32) {
+    pub fn set_dest(&mut self, dest: i32) {
         self.dest = dest as u8;
     }
 
-    pub unsafe fn set_amount(&mut self, amount: f64) {
+    pub fn set_amount(&mut self, amount: f64) {
         self.amount = amount;
     }
 
     pub fn get_dest(&self) -> i32 {
-        return self.dest as i32;
+        self.dest as i32
     }
 
     pub fn get_value(&mut self, chan: &mut Channel, voice: &mut Voice) -> f32 {

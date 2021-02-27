@@ -125,13 +125,11 @@ impl DefaultPreset {
                     .as_c_str()
                     .as_ptr(),
             );
-            let zone = new_fluid_preset_zone(&zone_name);
-            if zone.is_null() {
-                return Err(());
-            }
-            if fluid_preset_zone_import_sfont(sf2, zone, sfzone, sfont) != FLUID_OK as i32 {
-                return Err(());
-            }
+
+            let mut zone = Box::into_raw(Box::new(PresetZone::new(&zone_name)));
+
+            fluid_preset_zone_import_sfont(sf2, zone, sfzone, sfont)?;
+
             if id == 0 && (*zone).inst.is_null() {
                 preset.global_zone = zone;
             } else {
@@ -163,6 +161,23 @@ struct PresetZone {
     gen: [Gen; 60],
     mod_0: *mut Mod,
 }
+
+impl PresetZone {
+    fn new(name: &[u8]) -> PresetZone {
+        PresetZone {
+            next: 0 as *mut PresetZone,
+            name: name.to_vec(),
+            inst: 0 as *mut Instrument,
+            keylo: 0,
+            keyhi: 128,
+            vello: 0 as i32,
+            velhi: 128 as i32,
+            gen: gen::get_default_values(),
+            mod_0: 0 as *mut Mod,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 struct Instrument {
@@ -621,23 +636,6 @@ unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
     return err;
 }
 
-unsafe fn new_fluid_preset_zone(name: &[u8]) -> *mut PresetZone {
-    let zone = PresetZone {
-        next: 0 as *mut PresetZone,
-        name: name.to_vec(),
-        inst: 0 as *mut Instrument,
-        keylo: 0,
-        keyhi: 128,
-        vello: 0 as i32,
-        velhi: 128 as i32,
-
-        gen: gen::get_default_values(),
-        mod_0: 0 as *mut Mod,
-    };
-
-    Box::into_raw(Box::new(zone))
-}
-
 unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
     let mut mod_0: *mut Mod;
     let mut tmp: *mut Mod;
@@ -645,7 +643,8 @@ unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
     while !mod_0.is_null() {
         tmp = mod_0;
         mod_0 = (*mod_0).next;
-        tmp.as_mut().unwrap().delete();
+
+        Box::from_raw(tmp);
     }
     if !(*zone).inst.is_null() {
         delete_fluid_inst((*zone).inst);
@@ -659,9 +658,7 @@ unsafe fn fluid_preset_zone_import_sfont(
     mut zone: *mut PresetZone,
     sfzone: &sf2::Zone,
     sfont: &mut DefaultSoundFont,
-) -> i32 {
-    let mut count: i32;
-    count = 0 as i32;
+) -> Result<(), ()> {
     for sfgen in sfzone
         .gen_list
         .iter()
@@ -678,108 +675,43 @@ unsafe fn fluid_preset_zone_import_sfont(
                 (*zone).gen[sfgen.ty as usize].flags = GEN_SET as u8;
             }
         }
-
-        count += 1
     }
 
     if let Some(inst) = sfzone.instrument() {
         (*zone).inst = new_fluid_inst();
         if (*zone).inst.is_null() {
             log::error!("Out of memory");
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if fluid_inst_import_sfont(sf2, (*zone).inst, &sf2.instruments[*inst as usize], sfont)
             != FLUID_OK as i32
         {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
     }
 
-    count = 0 as i32;
-    for mod_src in sfzone.mod_list.iter() {
-        let mut mod_dest: *mut Mod = Mod::new();
-        let mut type_0: i32;
-        if mod_dest.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        (*mod_dest).next = 0 as *mut Mod;
-        (*mod_dest).amount = mod_src.amount as f64;
-        (*mod_dest).src1 = (mod_src.src as i32 & 127 as i32) as u8;
-        (*mod_dest).flags1 = 0 as i32 as u8;
-        if mod_src.src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CC as i32) as u8
-        } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_GC as i32) as u8
-        }
-        if mod_src.src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
-        } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_POSITIVE as i32) as u8
-        }
-        if mod_src.src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
-        } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
-        }
-        type_0 = mod_src.src as i32 >> 10 as i32;
-        type_0 &= 63 as i32;
-        if type_0 == 0 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_LINEAR as i32) as u8
-        } else if type_0 == 1 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CONCAVE as i32) as u8
-        } else if type_0 == 2 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CONVEX as i32) as u8
-        } else if type_0 == 3 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_SWITCH as i32) as u8
-        } else {
-            (*mod_dest).amount = 0 as i32 as f64
-        }
-        (*mod_dest).dest = mod_src.dest as u8;
-        (*mod_dest).src2 = (mod_src.amt_src as i32 & 127 as i32) as u8;
-        (*mod_dest).flags2 = 0 as i32 as u8;
-        if mod_src.amt_src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CC as i32) as u8
-        } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_GC as i32) as u8
-        }
-        if mod_src.amt_src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
-        } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_POSITIVE as i32) as u8
-        }
-        if mod_src.amt_src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
-        } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
-        }
-        type_0 = mod_src.amt_src as i32 >> 10 as i32;
-        type_0 &= 63 as i32;
-        if type_0 == 0 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_LINEAR as i32) as u8
-        } else if type_0 == 1 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CONCAVE as i32) as u8
-        } else if type_0 == 2 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CONVEX as i32) as u8
-        } else if type_0 == 3 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_SWITCH as i32) as u8
-        } else {
-            (*mod_dest).amount = 0 as i32 as f64
-        }
-        if mod_src.transform as i32 != 0 as i32 {
-            (*mod_dest).amount = 0 as i32 as f64
-        }
-        if count == 0 as i32 {
+    // Import the modulators (only SF2.1 and higher)
+    for (id, mod_src) in sfzone.mod_list.iter().enumerate() {
+        let mod_dest = Mod::from(mod_src);
+        let mod_dest: *mut Mod = Box::into_raw(Box::new(mod_dest));
+
+        /* Store the new modulator in the zone The order of modulators
+         * will make a difference, at least in an instrument context: The
+         * second modulator overwrites the first one, if they only differ
+         * in amount. */
+        if id == 0 {
             (*zone).mod_0 = mod_dest
         } else {
             let mut last_mod: *mut Mod = (*zone).mod_0;
+            // Find the end of the list
             while !(*last_mod).next.is_null() {
                 last_mod = (*last_mod).next
             }
             (*last_mod).next = mod_dest
         }
-        count += 1
     }
-    return FLUID_OK as i32;
+
+    Ok(())
 }
 
 unsafe fn new_fluid_inst() -> *mut Instrument {
@@ -911,7 +843,8 @@ unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
     while !mod_0.is_null() {
         tmp = mod_0;
         mod_0 = (*mod_0).next;
-        tmp.as_mut().unwrap().delete();
+
+        Box::from_raw(tmp);
     }
     libc::free(zone as *mut libc::c_void);
     return FLUID_OK as i32;
@@ -960,77 +893,78 @@ unsafe fn fluid_inst_zone_import_sfont(
     count = 0 as i32;
     for new_mod in new_zone.mod_list.iter() {
         let mut type_0: i32;
-        let mut mod_dest: *mut Mod;
-        mod_dest = Mod::new();
-        if mod_dest.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        (*mod_dest).next = 0 as *mut Mod;
-        (*mod_dest).amount = new_mod.amount as f64;
-        (*mod_dest).src1 = (new_mod.src as i32 & 127 as i32) as u8;
-        (*mod_dest).flags1 = 0 as i32 as u8;
+
+        let mut mod_dest = Mod::new();
+
+        (mod_dest).next = 0 as *mut Mod;
+        (mod_dest).amount = new_mod.amount as f64;
+        (mod_dest).src1 = (new_mod.src as i32 & 127 as i32) as u8;
+        (mod_dest).flags1 = 0 as i32 as u8;
         if new_mod.src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CC as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CC as i32) as u8
         } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_GC as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_GC as i32) as u8
         }
         if new_mod.src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
         } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_POSITIVE as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_POSITIVE as i32) as u8
         }
         if new_mod.src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
         } else {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
         }
         type_0 = new_mod.src as i32 >> 10 as i32;
         type_0 &= 63 as i32;
         if type_0 == 0 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_LINEAR as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_LINEAR as i32) as u8
         } else if type_0 == 1 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CONCAVE as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CONCAVE as i32) as u8
         } else if type_0 == 2 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_CONVEX as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_CONVEX as i32) as u8
         } else if type_0 == 3 as i32 {
-            (*mod_dest).flags1 = ((*mod_dest).flags1 as i32 | FLUID_MOD_SWITCH as i32) as u8
+            (mod_dest).flags1 = ((mod_dest).flags1 as i32 | FLUID_MOD_SWITCH as i32) as u8
         } else {
-            (*mod_dest).amount = 0 as i32 as f64
+            (mod_dest).amount = 0 as i32 as f64
         }
-        (*mod_dest).dest = new_mod.dest as u8;
-        (*mod_dest).src2 = (new_mod.amt_src as i32 & 127 as i32) as u8;
-        (*mod_dest).flags2 = 0 as i32 as u8;
+        (mod_dest).dest = new_mod.dest as u8;
+        (mod_dest).src2 = (new_mod.amt_src as i32 & 127 as i32) as u8;
+        (mod_dest).flags2 = 0 as i32 as u8;
         if new_mod.amt_src as i32 & (1 as i32) << 7 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CC as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CC as i32) as u8
         } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_GC as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_GC as i32) as u8
         }
         if new_mod.amt_src as i32 & (1 as i32) << 8 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_NEGATIVE as i32) as u8
         } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_POSITIVE as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_POSITIVE as i32) as u8
         }
         if new_mod.amt_src as i32 & (1 as i32) << 9 as i32 != 0 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_BIPOLAR as i32) as u8
         } else {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_UNIPOLAR as i32) as u8
         }
         type_0 = new_mod.amt_src as i32 >> 10 as i32;
         type_0 &= 63 as i32;
         if type_0 == 0 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_LINEAR as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_LINEAR as i32) as u8
         } else if type_0 == 1 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CONCAVE as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CONCAVE as i32) as u8
         } else if type_0 == 2 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_CONVEX as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_CONVEX as i32) as u8
         } else if type_0 == 3 as i32 {
-            (*mod_dest).flags2 = ((*mod_dest).flags2 as i32 | FLUID_MOD_SWITCH as i32) as u8
+            (mod_dest).flags2 = ((mod_dest).flags2 as i32 | FLUID_MOD_SWITCH as i32) as u8
         } else {
-            (*mod_dest).amount = 0 as i32 as f64
+            (mod_dest).amount = 0 as i32 as f64
         }
         if new_mod.transform as i32 != 0 as i32 {
-            (*mod_dest).amount = 0 as i32 as f64
+            (mod_dest).amount = 0 as i32 as f64
         }
+
+        let mod_dest = Box::into_raw(Box::new(mod_dest));
+
         if count == 0 as i32 {
             (*zone).mod_0 = mod_dest
         } else {
