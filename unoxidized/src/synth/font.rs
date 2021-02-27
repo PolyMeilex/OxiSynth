@@ -1,3 +1,4 @@
+use crate::soundfont;
 use crate::synth::SoundFont;
 use crate::synth::Synth;
 
@@ -5,7 +6,7 @@ use std::path::Path;
 
 impl Synth {
     pub fn sfload(&mut self, filename: &Path, reset_presets: bool) -> Result<u32, ()> {
-        let sfont = self.loader.load(filename);
+        let sfont = soundfont::load(filename);
 
         match sfont {
             Ok(mut sfont) => {
@@ -52,7 +53,7 @@ impl Synth {
         if let Ok(_) = self.sfunload(id, false) {
             let sfont = &self.sfont[index];
             let filename = sfont.get_name();
-            match self.loader.load(filename) {
+            match soundfont::load(filename) {
                 Ok(mut sfont) => {
                     sfont.id = id;
                     self.sfont.insert(index, sfont);

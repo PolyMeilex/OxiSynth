@@ -9,7 +9,6 @@ use crate::modulator::Mod;
 use crate::soundfont::Preset;
 use crate::soundfont::Sample;
 use crate::soundfont::SoundFont;
-use crate::soundfont::SoundFontLoader;
 use crate::synth::Synth;
 use crate::voice::fluid_voice_add_mod;
 use crate::voice::fluid_voice_gen_incr;
@@ -189,17 +188,11 @@ type ModFlags = u32;
 type GenType = u32;
 type GenFlags = u32;
 
-impl SoundFontLoader {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn load(&mut self, filename: &Path) -> Result<SoundFont, ()> {
-        DefaultSoundFont::load(filename).map(|defsfont| SoundFont {
-            data: defsfont,
-            id: 0,
-        })
-    }
+pub fn load(filename: &Path) -> Result<SoundFont, ()> {
+    DefaultSoundFont::load(filename).map(|defsfont| SoundFont {
+        data: defsfont,
+        id: 0,
+    })
 }
 
 impl SoundFont {

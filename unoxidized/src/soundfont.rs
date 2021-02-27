@@ -3,8 +3,11 @@ mod sfloader;
 use sfloader::DefaultPreset;
 use sfloader::DefaultSoundFont;
 use soundfont_rs as sf2;
+use std::path::Path;
 
-pub struct SoundFontLoader {}
+pub fn load(path: &Path) -> Result<SoundFont, ()> {
+    sfloader::load(path)
+}
 
 #[derive(Copy, Clone)]
 pub struct Preset {

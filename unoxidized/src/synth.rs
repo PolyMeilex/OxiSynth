@@ -18,7 +18,6 @@ use super::settings::Settings;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
-use super::soundfont::SoundFontLoader;
 use super::tuning::Tuning;
 use super::voice::fluid_voice_add_mod;
 use super::voice::fluid_voice_get_channel;
@@ -201,7 +200,6 @@ pub static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
 pub struct Synth {
     state: u32,
     ticks: u32,
-    loader: SoundFontLoader,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
@@ -281,7 +279,6 @@ impl Synth {
             let mut synth = Self {
                 state: FLUID_SYNTH_PLAYING,
                 ticks: 0,
-                loader: SoundFontLoader::new(),
                 sfont: Vec::new(),
                 sfont_id: 0 as _,
                 bank_offsets: Vec::new(),
