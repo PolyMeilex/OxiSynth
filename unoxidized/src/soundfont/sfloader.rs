@@ -19,17 +19,50 @@ use std::{
     ffi::{CStr, CString},
     path::Path,
 };
+
+const FLUID_MOD_SWITCH: ModFlags = 12;
+const FLUID_MOD_CONVEX: ModFlags = 8;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const FLUID_MOD_LINEAR: ModFlags = 0;
+const FLUID_MOD_UNIPOLAR: ModFlags = 0;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+const FLUID_MOD_POSITIVE: ModFlags = 0;
+const FLUID_MOD_NEGATIVE: ModFlags = 1;
+const FLUID_MOD_GC: ModFlags = 0;
+const FLUID_MOD_CC: ModFlags = 16;
+const GEN_SET: GenFlags = 1;
+const GEN_VELOCITY: u32 = 47;
+const GEN_KEYNUM: u32 = 46;
+const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
+const GEN_OVERRIDEROOTKEY: GenType = 58;
+const GEN_EXCLUSIVECLASS: GenType = 57;
+const GEN_SAMPLEMODE: GenType = 54;
+const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
+const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
+const GEN_ENDADDRCOARSEOFS: GenType = 12;
+const GEN_STARTADDRCOARSEOFS: GenType = 4;
+const GEN_ENDLOOPADDROFS: GenType = 3;
+const GEN_STARTLOOPADDROFS: GenType = 2;
+const GEN_ENDADDROFS: GenType = 1;
+const GEN_STARTADDROFS: GenType = 0;
+const GEN_LAST: GenType = 60;
+const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
+type ModFlags = u32;
+type GenType = u32;
+type GenFlags = u32;
+
 const FLUID_OK: i32 = 0;
 const FLUID_FAILED: i32 = -1;
+
 #[derive(Clone)]
 #[repr(C)]
-pub struct DefaultSoundFont {
-    pub filename: PathBuf,
-    pub samplepos: u64,
-    pub samplesize: u32,
-    pub sampledata: *mut i16,
-    pub sample: Vec<Sample>,
-    pub preset: *mut DefaultPreset,
+pub(super) struct DefaultSoundFont {
+    filename: PathBuf,
+    samplepos: u64,
+    samplesize: u32,
+    pub(super) sampledata: *mut i16,
+    sample: Vec<Sample>,
+    preset: *mut DefaultPreset,
 }
 
 impl DefaultSoundFont {
@@ -48,7 +81,7 @@ impl DefaultSoundFont {
 
 #[derive(Clone)]
 #[repr(C)]
-pub struct DefaultPreset {
+pub(super) struct DefaultPreset {
     next: *mut DefaultPreset,
     sfont: *mut DefaultSoundFont,
     // [u8;21]
@@ -157,38 +190,7 @@ struct InstrumentZone {
     mod_0: *mut Mod,
 }
 
-const FLUID_MOD_SWITCH: ModFlags = 12;
-const FLUID_MOD_CONVEX: ModFlags = 8;
-const FLUID_MOD_CONCAVE: ModFlags = 4;
-const FLUID_MOD_LINEAR: ModFlags = 0;
-const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
-const FLUID_MOD_POSITIVE: ModFlags = 0;
-const FLUID_MOD_NEGATIVE: ModFlags = 1;
-const FLUID_MOD_GC: ModFlags = 0;
-const FLUID_MOD_CC: ModFlags = 16;
-const GEN_SET: GenFlags = 1;
-const GEN_VELOCITY: u32 = 47;
-const GEN_KEYNUM: u32 = 46;
-const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
-const GEN_OVERRIDEROOTKEY: GenType = 58;
-const GEN_EXCLUSIVECLASS: GenType = 57;
-const GEN_SAMPLEMODE: GenType = 54;
-const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
-const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
-const GEN_ENDADDRCOARSEOFS: GenType = 12;
-const GEN_STARTADDRCOARSEOFS: GenType = 4;
-const GEN_ENDLOOPADDROFS: GenType = 3;
-const GEN_STARTLOOPADDROFS: GenType = 2;
-const GEN_ENDADDROFS: GenType = 1;
-const GEN_STARTADDROFS: GenType = 0;
-const GEN_LAST: GenType = 60;
-const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
-type ModFlags = u32;
-type GenType = u32;
-type GenFlags = u32;
-
-pub fn load(filename: &Path) -> Result<SoundFont, ()> {
+pub(super) fn load(filename: &Path) -> Result<SoundFont, ()> {
     DefaultSoundFont::load(filename).map(|defsfont| SoundFont {
         data: defsfont,
         id: 0,
@@ -229,26 +231,25 @@ impl SoundFont {
 
 impl Drop for SoundFont {
     fn drop(&mut self) {
-        unsafe fn delete_fluid_defsfont(sfont: &mut DefaultSoundFont) -> i32 {
-            let mut preset: *mut DefaultPreset;
-            for sample in (*sfont).sample.iter() {
-                if sample.refcount != 0 as i32 as u32 {
-                    return -(1 as i32);
-                }
+        let sfont = &mut self.data;
+        for sample in (*sfont).sample.iter() {
+            if sample.refcount != 0 as i32 as u32 {
+                return;
             }
-            if !sfont.sampledata.is_null() {
+        }
+        if !sfont.sampledata.is_null() {
+            unsafe {
                 libc::free(sfont.sampledata as *mut libc::c_void);
             }
-            preset = (*sfont).preset;
-            while !preset.is_null() {
+        }
+
+        let mut preset = sfont.preset;
+        while !preset.is_null() {
+            unsafe {
                 (*sfont).preset = (*preset).next;
                 delete_fluid_defpreset(preset);
                 preset = sfont.preset
             }
-            return FLUID_OK as i32;
-        }
-        unsafe {
-            delete_fluid_defsfont(&mut self.data);
         }
     }
 }
