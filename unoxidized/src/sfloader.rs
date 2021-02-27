@@ -567,7 +567,7 @@ impl DefaultSoundFont {
         // TODO: Remove unwrap().
         self.filename = file.to_owned();
 
-        let mut file = std::fs::File::open("./testdata/test.sf2").unwrap();
+        let mut file = std::fs::File::open(&self.filename).unwrap();
 
         let data = sf2::data::SFData::load(&mut file);
         let mut sf2 = sf2::SoundFont2::from_data(data);
