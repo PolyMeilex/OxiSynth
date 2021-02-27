@@ -9,7 +9,6 @@ pub mod gen;
 pub mod modulator;
 pub mod reverb;
 pub mod settings;
-pub mod sfloader;
 pub mod soundfont;
 pub mod synth;
 pub mod tuning;

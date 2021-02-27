@@ -3,18 +3,18 @@ use soundfont_rs as sf2;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
-use super::gen::fluid_gen_set_default_values;
-use super::gen::Gen;
-use super::modulator::Mod;
-use super::soundfont::Preset;
-use super::soundfont::Sample;
-use super::soundfont::SoundFont;
-use super::soundfont::SoundFontLoader;
-use super::synth::Synth;
-use super::voice::fluid_voice_add_mod;
-use super::voice::fluid_voice_gen_incr;
-use super::voice::fluid_voice_gen_set;
-use super::voice::FluidVoiceAddMod;
+use crate::gen::fluid_gen_set_default_values;
+use crate::gen::Gen;
+use crate::modulator::Mod;
+use crate::soundfont::Preset;
+use crate::soundfont::Sample;
+use crate::soundfont::SoundFont;
+use crate::soundfont::SoundFontLoader;
+use crate::synth::Synth;
+use crate::voice::fluid_voice_add_mod;
+use crate::voice::fluid_voice_gen_incr;
+use crate::voice::fluid_voice_gen_set;
+use crate::voice::FluidVoiceAddMod;
 use std::slice::from_raw_parts_mut;
 use std::{
     ffi::{CStr, CString},

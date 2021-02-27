@@ -1,17 +1,19 @@
-use crate::sfloader::DefaultPreset;
-use crate::sfloader::DefaultSoundFont;
+mod sfloader;
+
+use sfloader::DefaultPreset;
+use sfloader::DefaultSoundFont;
 use soundfont_rs as sf2;
 
 pub struct SoundFontLoader {}
 
 #[derive(Copy, Clone)]
 pub struct Preset {
-    pub data: *mut DefaultPreset,
+    data: *mut DefaultPreset,
     pub sfont: *const SoundFont,
 }
 
 pub struct SoundFont {
-    pub data: DefaultSoundFont,
+    data: DefaultSoundFont,
     pub id: u32,
 }
 
@@ -35,7 +37,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    pub fn import_sfont(
+    fn import_sfont(
         sfsample: &sf2::data::SFSampleHeader,
         sfont: &DefaultSoundFont,
     ) -> Result<Sample, ()> {
@@ -73,7 +75,7 @@ impl Sample {
         return Ok(sample);
     }
 
-    pub unsafe fn optimize_sample(&mut self) {
+    unsafe fn optimize_sample(&mut self) {
         let mut peak_max: i16 = 0 as i32 as i16;
         let mut peak_min: i16 = 0 as i32 as i16;
         let mut peak;
