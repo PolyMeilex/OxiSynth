@@ -14,10 +14,7 @@ use crate::voice::fluid_voice_gen_incr;
 use crate::voice::fluid_voice_gen_set;
 use crate::voice::FluidVoiceAddMod;
 use std::slice::from_raw_parts_mut;
-use std::{
-    ffi::{CStr, CString},
-    path::Path,
-};
+use std::{ffi::CString, path::Path};
 
 const GEN_SET: GenFlags = 1;
 const GEN_VELOCITY: u32 = 47;
@@ -54,12 +51,8 @@ pub(super) struct DefaultSoundFont {
 }
 
 impl DefaultSoundFont {
-    fn get_sample(&mut self, s: &[u8]) -> Option<&mut Sample> {
-        self.sample.iter_mut().find(|sample| {
-            let name_a = CString::new(sample.name.clone()).unwrap();
-            let name_b = unsafe { CStr::from_ptr(s.as_ptr() as _) };
-            name_a.as_c_str() == name_b
-        })
+    fn get_sample(&mut self, name: &str) -> Option<&mut Sample> {
+        self.sample.iter_mut().find(|sample| name == &sample.name)
     }
 }
 
@@ -117,7 +110,7 @@ impl DefaultPreset {
 
             let mut zone = Box::into_raw(Box::new(PresetZone::new(&zone_name)));
 
-            fluid_preset_zone_import_sfont(sf2, zone, sfzone, sfont)?;
+            fluid_preset_zone_import_sfont(sf2, &mut *zone, sfzone, sfont)?;
 
             if id == 0 && (*zone).inst.is_null() {
                 preset.global_zone = zone;
@@ -644,7 +637,7 @@ unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
 
 unsafe fn fluid_preset_zone_import_sfont(
     sf2: &sf2::SoundFont2,
-    mut zone: *mut PresetZone,
+    zone: &mut PresetZone,
     sfzone: &sf2::Zone,
     sfont: &mut DefaultSoundFont,
 ) -> Result<(), ()> {
@@ -656,23 +649,23 @@ unsafe fn fluid_preset_zone_import_sfont(
         match sfgen.ty {
             sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
                 let amount = sfgen.amount.as_range().unwrap();
-                (*zone).keylo = amount.low;
-                (*zone).keyhi = amount.high;
+                zone.keylo = amount.low;
+                zone.keyhi = amount.high;
             }
             _ => {
-                (*zone).gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
-                (*zone).gen[sfgen.ty as usize].flags = GEN_SET as u8;
+                zone.gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
+                zone.gen[sfgen.ty as usize].flags = GEN_SET as u8;
             }
         }
     }
 
     if let Some(inst) = sfzone.instrument() {
-        (*zone).inst = new_fluid_inst();
-        if (*zone).inst.is_null() {
+        zone.inst = new_fluid_inst();
+        if zone.inst.is_null() {
             log::error!("Out of memory");
             return Err(());
         }
-        if fluid_inst_import_sfont(sf2, (*zone).inst, &sf2.instruments[*inst as usize], sfont)
+        if fluid_inst_import_sfont(sf2, zone.inst, &sf2.instruments[*inst as usize], sfont)
             != FLUID_OK as i32
         {
             return Err(());
@@ -689,7 +682,7 @@ unsafe fn fluid_preset_zone_import_sfont(
          * second modulator overwrites the first one, if they only differ
          * in amount. */
         if id == 0 {
-            (*zone).mod_0 = mod_dest
+            zone.mod_0 = mod_dest
         } else {
             let mut last_mod: *mut Mod = (*zone).mod_0;
             // Find the end of the list
@@ -778,7 +771,7 @@ unsafe fn fluid_inst_import_sfont(
         if zone.is_null() {
             return FLUID_FAILED as i32;
         }
-        if fluid_inst_zone_import_sfont(sf2, zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
+        if fluid_inst_zone_import_sfont(sf2, &mut *zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
         if count == 0 as i32 && (*zone).sample.is_null() {
@@ -841,7 +834,7 @@ unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
 
 unsafe fn fluid_inst_zone_import_sfont(
     sf2: &sf2::SoundFont2,
-    mut zone: *mut InstrumentZone,
+    zone: &mut InstrumentZone,
     new_zone: &sf2::Zone,
     sfont: &mut DefaultSoundFont,
 ) -> i32 {
@@ -856,12 +849,12 @@ unsafe fn fluid_inst_zone_import_sfont(
         match new_gen.ty {
             sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
                 let amount = new_gen.amount.as_range().unwrap();
-                (*zone).keylo = amount.low;
-                (*zone).keyhi = amount.high;
+                zone.keylo = amount.low;
+                zone.keyhi = amount.high;
             }
             _ => {
-                (*zone).gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
-                (*zone).gen[new_gen.ty as usize].flags = GEN_SET as u8;
+                zone.gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
+                zone.gen[new_gen.ty as usize].flags = GEN_SET as u8;
             }
         }
 
@@ -870,11 +863,9 @@ unsafe fn fluid_inst_zone_import_sfont(
     if let Some(sample_id) = new_zone.sample() {
         let sample = sf2.sample_headers.get(*sample_id as usize).unwrap();
 
-        let name = CString::new(sample.name.clone()).unwrap();
+        zone.sample = sfont.get_sample(&sample.name).unwrap() as *mut _;
 
-        (*zone).sample = sfont.get_sample(name.as_c_str().to_bytes()).unwrap() as *mut _;
-
-        if (*zone).sample.is_null() {
+        if zone.sample.is_null() {
             log::error!("Couldn't find sample name",);
             return FLUID_FAILED as i32;
         }
@@ -888,7 +879,7 @@ unsafe fn fluid_inst_zone_import_sfont(
          * The order of modulators will make a difference, at least in an instrument context:
          * The second modulator overwrites the first one, if they only differ in amount. */
         if count == 0 as i32 {
-            (*zone).mod_0 = mod_dest
+            zone.mod_0 = mod_dest
         } else {
             let mut last_mod: *mut Mod = (*zone).mod_0;
             while !(*last_mod).next.is_null() {
