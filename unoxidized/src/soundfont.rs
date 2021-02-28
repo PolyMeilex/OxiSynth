@@ -31,7 +31,6 @@ pub struct Sample {
     pub data: *mut i16,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
-    pub refcount: u32,
 }
 
 impl Sample {
@@ -54,7 +53,6 @@ impl Sample {
 
             amplitude_that_reaches_noise_floor_is_valid: 0,
             amplitude_that_reaches_noise_floor: 0.0,
-            refcount: 0,
         };
 
         if (sample.sampletype & 0x10 as i32) != 0 {

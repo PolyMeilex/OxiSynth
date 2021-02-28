@@ -10,6 +10,7 @@ pub mod tuning;
 pub mod write;
 
 use crate::voice::VoiceId;
+use std::rc::Rc;
 
 use super::chorus::Chorus;
 use super::modulator::Mod;
@@ -565,7 +566,7 @@ impl Synth {
 
     pub(crate) unsafe fn alloc_voice(
         &mut self,
-        sample: &mut Sample,
+        sample: Rc<Sample>,
         chan: u8,
         key: u8,
         vel: i32,

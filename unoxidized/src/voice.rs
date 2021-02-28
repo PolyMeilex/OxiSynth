@@ -16,6 +16,7 @@ use super::dsp_float::fluid_dsp_float_interpolate_none;
 use super::gen::{self, Gen};
 use super::modulator::Mod;
 use super::soundfont::Sample;
+use std::rc::Rc;
 
 pub type Phase = u64;
 pub type ModFlags = u32;
@@ -120,7 +121,7 @@ pub struct Voice {
     mod_0: [Mod; 64],
     mod_count: i32,
     pub(crate) has_looped: i32,
-    pub(crate) sample: *mut Sample,
+    pub(crate) sample: Option<Rc<Sample>>,
     check_sample_sanity_flag: i32,
     output_rate: f32,
     pub(crate) start_time: u32,
@@ -244,7 +245,7 @@ impl Voice {
             mod_0: [Mod::default(); 64],
             mod_count: 0,
             has_looped: 0,
-            sample: std::ptr::null_mut(),
+            sample: None,
             check_sample_sanity_flag: 0,
             output_rate,
             start_time: 0,
@@ -316,7 +317,7 @@ impl Voice {
 
     pub(crate) unsafe fn init(
         &mut self,
-        sample: *mut Sample,
+        sample: Rc<Sample>,
         channel: *mut Channel,
         key: u8,
         vel: i32,
@@ -330,7 +331,7 @@ impl Voice {
         self.vel = vel as u8;
         self.channel = channel;
         self.mod_count = 0 as i32;
-        self.sample = sample;
+        self.sample = Some(sample);
         self.start_time = start_time;
         self.ticks = 0 as i32 as u32;
         self.noteoff_ticks = 0 as i32 as u32;
@@ -358,7 +359,6 @@ impl Voice {
         self.amplitude_that_reaches_noise_floor_nonloop =
             (0.00003f64 / self.synth_gain as f64) as f32;
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
-        (*self.sample).refcount = (*self.sample).refcount.wrapping_add(1);
     }
 
     pub(crate) unsafe fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
@@ -573,11 +573,8 @@ impl Voice {
         self.modenv_section = FLUID_VOICE_ENVFINISHED as i32;
         self.modenv_count = 0 as i32 as u32;
         self.status = FLUID_VOICE_OFF as i32 as u8;
-        if !self.sample.is_null() {
-            unsafe {
-                (*self.sample).refcount = (*self.sample).refcount.wrapping_sub(1);
-            }
-            self.sample = 0 as *mut Sample
+        if self.sample.is_some() {
+            self.sample = None;
         }
     }
 
@@ -807,15 +804,17 @@ impl Voice {
                 //FIXME: use flag instead of -1
                 if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 as f64 {
                     self.root_pitch = (self.gen[GenParam::OverrideRootKey as usize].val * 100.0
-                        - (*self.sample).pitchadj as f64)
+                        - self.sample.as_ref().unwrap().pitchadj as f64)
                         as f32
                 } else {
-                    self.root_pitch =
-                        (*self.sample).origpitch as f32 * 100.0 - (*self.sample).pitchadj as f32
+                    self.root_pitch = self.sample.as_ref().unwrap().origpitch as f32 * 100.0
+                        - self.sample.as_ref().unwrap().pitchadj as f32
                 }
                 self.root_pitch = fluid_ct2hz(self.root_pitch);
-                if !self.sample.is_null() {
-                    self.root_pitch *= self.output_rate / (*self.sample).samplerate as f32
+
+                if self.sample.is_some() {
+                    self.root_pitch *=
+                        self.output_rate / self.sample.as_ref().unwrap().samplerate as f32
                 }
             }
 
@@ -1058,8 +1057,11 @@ impl Voice {
              * move the loop start point forward => valid again.
              */
             GenParam::StartAddrOfs | GenParam::StartAddrCoarseOfs => {
-                if !self.sample.is_null() {
-                    self.start = (*self.sample)
+                if self.sample.is_some() {
+                    self.start = self
+                        .sample
+                        .as_ref()
+                        .unwrap()
                         .start
                         .wrapping_add(gen_sum!(GenParam::StartAddrOfs) as u32)
                         .wrapping_add(32768 * gen_sum!(GenParam::StartAddrCoarseOfs) as u32)
@@ -1069,8 +1071,11 @@ impl Voice {
             }
 
             GenParam::EndAddrOfs | GenParam::EndAddrCoarseOfs => {
-                if !self.sample.is_null() {
-                    self.end = (*self.sample)
+                if self.sample.is_some() {
+                    self.end = self
+                        .sample
+                        .as_ref()
+                        .unwrap()
                         .end
                         .wrapping_add(gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
                         .wrapping_add(32768 * gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
@@ -1080,8 +1085,11 @@ impl Voice {
             }
 
             GenParam::StartLoopAddrOfs | GenParam::StartLoopAddrCoarseOfs => {
-                if !self.sample.is_null() {
-                    self.loopstart = (*self.sample)
+                if self.sample.is_some() {
+                    self.loopstart = self
+                        .sample
+                        .as_ref()
+                        .unwrap()
                         .loopstart
                         .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
                         .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
@@ -1091,8 +1099,11 @@ impl Voice {
             }
 
             GenParam::EndLoopAddrOfs | GenParam::EndLoopAddrCoarseOfs => {
-                if !self.sample.is_null() {
-                    self.loopend = (*self.sample)
+                if self.sample.is_some() {
+                    self.loopend = self
+                        .sample
+                        .as_ref()
+                        .unwrap()
                         .loopend
                         .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
                         .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
@@ -1309,10 +1320,10 @@ impl Voice {
     }
 
     pub unsafe fn check_sample_sanity(&mut self) {
-        let min_index_nonloop: i32 = (*self.sample).start as i32;
-        let max_index_nonloop: i32 = (*self.sample).end as i32;
-        let min_index_loop: i32 = (*self.sample).start as i32 + 0 as i32;
-        let max_index_loop: i32 = (*self.sample).end as i32 - 0 as i32 + 1 as i32;
+        let min_index_nonloop: i32 = (self.sample.as_ref().unwrap()).start as i32;
+        let max_index_nonloop: i32 = (self.sample.as_ref().unwrap()).end as i32;
+        let min_index_loop: i32 = (self.sample.as_ref().unwrap()).start as i32 + 0 as i32;
+        let max_index_loop: i32 = (self.sample.as_ref().unwrap()).end as i32 - 0 as i32 + 1 as i32;
         if self.check_sample_sanity_flag == 0 {
             return;
         }
@@ -1357,13 +1368,23 @@ impl Voice {
             if self.loopend < self.loopstart + 2 as i32 {
                 self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
             }
-            if self.loopstart >= (*self.sample).loopstart as i32
-                && self.loopend <= (*self.sample).loopend as i32
+            if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
+                && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
             {
-                if (*self.sample).amplitude_that_reaches_noise_floor_is_valid != 0 {
-                    self.amplitude_that_reaches_noise_floor_loop =
-                        ((*self.sample).amplitude_that_reaches_noise_floor / self.synth_gain as f64)
-                            as f32
+                if self
+                    .sample
+                    .as_ref()
+                    .unwrap()
+                    .amplitude_that_reaches_noise_floor_is_valid
+                    != 0
+                {
+                    self.amplitude_that_reaches_noise_floor_loop = (self
+                        .sample
+                        .as_ref()
+                        .unwrap()
+                        .amplitude_that_reaches_noise_floor
+                        / self.synth_gain as f64)
+                        as f32
                 } else {
                     self.amplitude_that_reaches_noise_floor_loop =
                         self.amplitude_that_reaches_noise_floor_nonloop
@@ -1438,7 +1459,7 @@ impl Voice {
         {
             return FLUID_OK as i32;
         }
-        if voice.sample.is_null() {
+        if voice.sample.is_none() {
             voice.off();
             return FLUID_OK as i32;
         }

@@ -1,4 +1,5 @@
 use soundfont_rs as sf2;
+use std::rc::Rc;
 
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
@@ -43,13 +44,16 @@ pub(super) struct DefaultSoundFont {
     samplepos: u64,
     samplesize: u32,
     pub(super) sampledata: *mut i16,
-    sample: Vec<Sample>,
+    sample: Vec<Rc<Sample>>,
     preset: *mut DefaultPreset,
 }
 
 impl DefaultSoundFont {
-    fn get_sample(&mut self, name: &str) -> Option<&mut Sample> {
-        self.sample.iter_mut().find(|sample| name == &sample.name)
+    fn get_sample(&mut self, name: &str) -> Option<Rc<Sample>> {
+        self.sample
+            .iter()
+            .find(|sample| name == &sample.name)
+            .map(|s| s.clone())
     }
 }
 
@@ -163,7 +167,7 @@ struct Instrument {
 struct InstrumentZone {
     next: *mut InstrumentZone,
     name: String,
-    sample: *mut Sample,
+    sample: Option<Rc<Sample>>,
     keylo: u8,
     keyhi: u8,
     vello: i32,
@@ -177,7 +181,7 @@ impl InstrumentZone {
         InstrumentZone {
             next: 0 as *mut InstrumentZone,
             name: name,
-            sample: 0 as *mut Sample,
+            sample: None,
             keylo: 0,
             keyhi: 128,
             vello: 0,
@@ -230,11 +234,6 @@ impl SoundFont {
 impl Drop for SoundFont {
     fn drop(&mut self) {
         let sfont = &mut self.data;
-        for sample in sfont.sample.iter() {
-            if sample.refcount != 0 as i32 as u32 {
-                return;
-            }
-        }
         if !sfont.sampledata.is_null() {
             unsafe {
                 libc::free(sfont.sampledata as *mut libc::c_void);
@@ -313,16 +312,21 @@ impl Preset {
                         let inst_zone = &mut (*inst_zone_raw);
 
                         // make sure this instrument zone has a valid sample
-                        let sample = inst_zone.sample;
-                        if sample.is_null() || fluid_sample_in_rom(&*sample) != 0 {
+                        let sample = &inst_zone.sample;
+                        if sample.is_none() || fluid_sample_in_rom(&sample.as_ref().unwrap()) != 0 {
                             inst_zone_raw = inst_zone.next;
                         } else {
                             // check if the note falls into the key and velocity range of this instrument
                             if fluid_inst_zone_inside_range(inst_zone, key, vel)
-                                && !sample.is_null()
+                                && !sample.is_none()
                             {
                                 // this is a good zone. allocate a new synthesis process and initialize it
-                                let voice_id = synth.alloc_voice(&mut *sample, chan, key, vel);
+                                let voice_id = synth.alloc_voice(
+                                    sample.as_ref().unwrap().clone(),
+                                    chan,
+                                    key,
+                                    vel,
+                                );
 
                                 if let Some(voice_id) = voice_id {
                                     // Instrument level, generators
@@ -570,7 +574,7 @@ impl DefaultSoundFont {
                 sample.optimize_sample();
             }
 
-            defsfont.sample.push(sample);
+            defsfont.sample.push(Rc::new(sample));
         }
 
         for sfpreset in sf2.presets.iter() {
@@ -825,7 +829,7 @@ unsafe fn fluid_inst_import_sfont(
         if fluid_inst_zone_import_sfont(sf2, &mut zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
             return FLUID_FAILED as i32;
         }
-        if count == 0 as i32 && zone.sample.is_null() {
+        if count == 0 as i32 && zone.sample.is_none() {
             inst.global_zone = Box::into_raw(Box::new(zone));
         } else {
             // fluid_inst_add_zone
@@ -889,9 +893,9 @@ unsafe fn fluid_inst_zone_import_sfont(
     if let Some(sample_id) = new_zone.sample() {
         let sample = sf2.sample_headers.get(*sample_id as usize).unwrap();
 
-        zone.sample = sfont.get_sample(&sample.name).unwrap() as *mut _;
+        zone.sample = sfont.get_sample(&sample.name);
 
-        if zone.sample.is_null() {
+        if zone.sample.is_none() {
             log::error!("Couldn't find sample name",);
             return FLUID_FAILED as i32;
         }
