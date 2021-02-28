@@ -66,8 +66,8 @@ pub(super) struct DefaultPreset {
     name: String,
     bank: u32,
     num: u32,
-    global_zone: *mut PresetZone,
-    zone: *mut PresetZone,
+    global_zone: Option<PresetZone>,
+    zones: Vec<PresetZone>,
 }
 
 impl DefaultPreset {
@@ -82,8 +82,8 @@ impl DefaultPreset {
             name: String::new(),
             bank: 0 as i32 as u32,
             num: 0 as i32 as u32,
-            global_zone: 0 as *mut PresetZone,
-            zone: 0 as *mut PresetZone,
+            global_zone: None,
+            zones: Vec::new(),
         };
 
         if sfpreset.header.name.len() != 0 {
@@ -102,19 +102,10 @@ impl DefaultPreset {
             let name = format!("{}/{}", sfpreset.header.name, id);
             let zone = PresetZone::import_sfont(name, sf2, sfzone, sfont)?;
 
-            let zone = Box::into_raw(Box::new(zone));
-
-            if id == 0 && (*zone).inst.is_null() {
-                preset.global_zone = zone;
+            if id == 0 && zone.inst.is_null() {
+                preset.global_zone = Some(zone);
             } else {
-                // fluid_defpreset_add_zone
-                if preset.zone.is_null() {
-                    (*zone).next = 0 as *mut PresetZone;
-                    preset.zone = zone
-                } else {
-                    (*zone).next = preset.zone;
-                    preset.zone = zone
-                }
+                preset.zones.push(zone);
             }
         }
 
@@ -125,7 +116,6 @@ impl DefaultPreset {
 #[derive(Clone)]
 #[repr(C)]
 struct PresetZone {
-    next: *mut PresetZone,
     name: String,
     inst: *mut Instrument,
     keylo: u8,
@@ -144,7 +134,6 @@ impl PresetZone {
         sfont: &mut DefaultSoundFont,
     ) -> Result<Self, ()> {
         let mut zone = Self {
-            next: 0 as *mut PresetZone,
             name,
             inst: 0 as *mut Instrument,
             keylo: 0,
@@ -387,15 +376,10 @@ impl Preset {
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
-            let mut global_preset_zone = if (*preset).global_zone.is_null() {
-                None
-            } else {
-                Some(&mut *(*preset).global_zone)
-            };
+            let mut global_preset_zone = &mut (*preset).global_zone;
 
             // run thru all the zones of this preset
-            let mut preset_zone = (*preset).zone;
-            while !preset_zone.is_null() {
+            for preset_zone in (*preset).zones.iter_mut() {
                 // check if the note falls into the key and velocity range of this preset
                 if fluid_preset_zone_inside_range(&*preset_zone, key, vel) {
                     let inst = &mut *(*preset_zone).inst;
@@ -614,7 +598,6 @@ impl Preset {
                         }
                     }
                 }
-                preset_zone = (*preset_zone).next
             }
             return FLUID_OK as i32;
         }
@@ -752,33 +735,11 @@ impl DefaultSoundFont {
     }
 }
 
-unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
-    let mut err: i32 = FLUID_OK as i32;
-    let mut zone: *mut PresetZone;
-    if !(*preset).global_zone.is_null() {
-        if delete_fluid_preset_zone((*preset).global_zone) != FLUID_OK as i32 {
-            err = FLUID_FAILED as i32
-        }
-        (*preset).global_zone = 0 as *mut PresetZone
-    }
-    zone = (*preset).zone;
-    while !zone.is_null() {
-        (*preset).zone = (*zone).next;
-        if delete_fluid_preset_zone(zone) != FLUID_OK as i32 {
-            err = FLUID_FAILED as i32
-        }
-        zone = (*preset).zone
-    }
+unsafe fn delete_fluid_defpreset(preset: *mut DefaultPreset) -> i32 {
+    let err: i32 = FLUID_OK as i32;
+
     libc::free(preset as *mut libc::c_void);
     return err;
-}
-
-unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
-    if !(*zone).inst.is_null() {
-        delete_fluid_inst((*zone).inst);
-    }
-    libc::free(zone as *mut libc::c_void);
-    return FLUID_OK as i32;
 }
 
 unsafe fn new_fluid_inst() -> *mut Instrument {
@@ -792,12 +753,6 @@ unsafe fn new_fluid_inst() -> *mut Instrument {
     (*inst).global_zone = None;
     (*inst).zones = Vec::new();
     return inst;
-}
-
-unsafe fn delete_fluid_inst(mut inst: *mut Instrument) {
-    (*inst).global_zone = None;
-
-    libc::free(inst as *mut libc::c_void);
 }
 
 unsafe fn fluid_inst_import_sfont(
