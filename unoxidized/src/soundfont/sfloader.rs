@@ -102,7 +102,7 @@ impl DefaultPreset {
             let name = format!("{}/{}", sfpreset.header.name, id);
             let zone = PresetZone::import_sfont(name, sf2, sfzone, sfont)?;
 
-            if id == 0 && zone.inst.is_null() {
+            if id == 0 && zone.inst.is_none() {
                 preset.global_zone = Some(zone);
             } else {
                 preset.zones.push(zone);
@@ -117,7 +117,7 @@ impl DefaultPreset {
 #[repr(C)]
 struct PresetZone {
     name: String,
-    inst: *mut Instrument,
+    inst: Option<Instrument>,
     keylo: u8,
     keyhi: u8,
     vello: i32,
@@ -135,7 +135,7 @@ impl PresetZone {
     ) -> Result<Self, ()> {
         let mut zone = Self {
             name,
-            inst: 0 as *mut Instrument,
+            inst: None,
             keylo: 0,
             keyhi: 128,
             vello: 0 as i32,
@@ -162,21 +162,16 @@ impl PresetZone {
                 }
             }
         }
-        if let Some(inst) = sfzone.instrument() {
-            zone.inst = new_fluid_inst();
-            if zone.inst.is_null() {
-                log::error!("Out of memory");
-                return Err(());
-            }
-            if fluid_inst_import_sfont(
-                sf2,
-                &mut *zone.inst,
-                &sf2.instruments[*inst as usize],
-                sfont,
-            ) != FLUID_OK as i32
+        if let Some(id) = sfzone.instrument() {
+            let mut inst = Instrument::new();
+
+            if fluid_inst_import_sfont(sf2, &mut inst, &sf2.instruments[*id as usize], sfont)
+                != FLUID_OK as i32
             {
                 return Err(());
             }
+
+            zone.inst = Some(inst);
         }
         // Import the modulators (only SF2.1 and higher)
         for mod_src in sfzone.mod_list.iter() {
@@ -201,6 +196,17 @@ struct Instrument {
     global_zone: Option<InstrumentZone>,
     zones: Vec<InstrumentZone>,
 }
+
+impl Instrument {
+    fn new() -> Self {
+        Self {
+            name: String::new(),
+            global_zone: None,
+            zones: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone)]
 #[repr(C)]
 struct InstrumentZone {
@@ -381,8 +387,8 @@ impl Preset {
             // run thru all the zones of this preset
             for preset_zone in (*preset).zones.iter_mut() {
                 // check if the note falls into the key and velocity range of this preset
-                if fluid_preset_zone_inside_range(&*preset_zone, key, vel) {
-                    let inst = &mut *(*preset_zone).inst;
+                if fluid_preset_zone_inside_range(preset_zone, key, vel) {
+                    let inst = preset_zone.inst.as_mut().unwrap();
 
                     let mut global_inst_zone = &mut inst.global_zone;
 
@@ -740,19 +746,6 @@ unsafe fn delete_fluid_defpreset(preset: *mut DefaultPreset) -> i32 {
 
     libc::free(preset as *mut libc::c_void);
     return err;
-}
-
-unsafe fn new_fluid_inst() -> *mut Instrument {
-    let mut inst: *mut Instrument =
-        libc::malloc(::std::mem::size_of::<Instrument>() as libc::size_t) as *mut Instrument;
-    if inst.is_null() {
-        log::error!("Out of memory",);
-        return 0 as *mut Instrument;
-    }
-    (*inst).name = String::new();
-    (*inst).global_zone = None;
-    (*inst).zones = Vec::new();
-    return inst;
 }
 
 unsafe fn fluid_inst_import_sfont(
