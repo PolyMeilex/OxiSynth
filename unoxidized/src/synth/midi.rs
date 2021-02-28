@@ -1,5 +1,4 @@
 use crate::synth::Synth;
-use crate::synth::FLUID_FAILED;
 use crate::synth::FLUID_MOD_KEYPRESSURE;
 use crate::synth::FLUID_OK;
 use crate::voice::fluid_voice_modulate;

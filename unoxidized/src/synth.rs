@@ -336,7 +336,7 @@ impl Synth {
         synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
 
         if synth.settings.synth.drums_channel_active {
-            synth.bank_select(9, 128);
+            synth.bank_select(9, 128).ok();
         }
 
         synth
