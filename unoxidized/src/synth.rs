@@ -97,7 +97,6 @@ static mut DEFAULT_VEL2ATT_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
@@ -107,7 +106,6 @@ static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
@@ -117,7 +115,6 @@ static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
@@ -127,7 +124,6 @@ static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_ATT_MOD: Mod = Mod {
@@ -137,7 +133,6 @@ static mut DEFAULT_ATT_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_PAN_MOD: Mod = Mod {
@@ -147,7 +142,6 @@ static mut DEFAULT_PAN_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_EXPR_MOD: Mod = Mod {
@@ -157,7 +151,6 @@ static mut DEFAULT_EXPR_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_REVERB_MOD: Mod = Mod {
@@ -167,7 +160,6 @@ static mut DEFAULT_REVERB_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_CHORUS_MOD: Mod = Mod {
@@ -177,7 +169,6 @@ static mut DEFAULT_CHORUS_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
@@ -187,7 +178,6 @@ static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
     src2: 0,
     flags2: 0,
     amount: 0.,
-    next: 0 as *const Mod as *mut Mod,
 };
 
 pub struct Synth {

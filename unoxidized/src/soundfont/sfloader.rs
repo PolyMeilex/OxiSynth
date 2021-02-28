@@ -133,7 +133,7 @@ struct PresetZone {
     vello: i32,
     velhi: i32,
     gen: [Gen; 60],
-    mod_0: *mut Mod,
+    mods: Vec<Mod>,
 }
 
 impl PresetZone {
@@ -152,7 +152,7 @@ impl PresetZone {
             vello: 0 as i32,
             velhi: 128 as i32,
             gen: gen::get_default_values(),
-            mod_0: 0 as *mut Mod,
+            mods: Vec::new(),
         };
 
         for sfgen in sfzone
@@ -190,23 +190,14 @@ impl PresetZone {
             }
         }
         // Import the modulators (only SF2.1 and higher)
-        for (id, mod_src) in sfzone.mod_list.iter().enumerate() {
+        for mod_src in sfzone.mod_list.iter() {
             let mod_dest = Mod::from(mod_src);
-            let mod_dest: *mut Mod = Box::into_raw(Box::new(mod_dest));
+
             /* Store the new modulator in the zone The order of modulators
              * will make a difference, at least in an instrument context: The
              * second modulator overwrites the first one, if they only differ
              * in amount. */
-            if id == 0 {
-                zone.mod_0 = mod_dest
-            } else {
-                let mut last_mod: *mut Mod = zone.mod_0;
-                // Find the end of the list
-                while !(*last_mod).next.is_null() {
-                    last_mod = (*last_mod).next
-                }
-                (*last_mod).next = mod_dest
-            }
+            zone.mods.push(mod_dest);
         }
 
         Ok(zone)
@@ -232,7 +223,7 @@ struct InstrumentZone {
     vello: i32,
     velhi: i32,
     gen: [Gen; 60],
-    mod_0: *mut Mod,
+    mods: Vec<Mod>,
 }
 
 impl InstrumentZone {
@@ -277,23 +268,14 @@ impl InstrumentZone {
             None
         };
 
-        let mut mod_0 = 0 as *mut Mod;
+        let mut mods = Vec::new();
 
-        for (id, new_mod) in new_zone.mod_list.iter().enumerate() {
+        for new_mod in new_zone.mod_list.iter() {
             let mod_dest = Mod::from(new_mod);
-            let mod_dest = Box::into_raw(Box::new(mod_dest));
             /* Store the new modulator in the zone
              * The order of modulators will make a difference, at least in an instrument context:
              * The second modulator overwrites the first one, if they only differ in amount. */
-            if id == 0 {
-                mod_0 = mod_dest
-            } else {
-                let mut last_mod: *mut Mod = mod_0;
-                while !(*last_mod).next.is_null() {
-                    last_mod = (*last_mod).next
-                }
-                (*last_mod).next = mod_dest
-            }
+            mods.push(mod_dest);
         }
 
         Ok(InstrumentZone {
@@ -305,7 +287,7 @@ impl InstrumentZone {
             vello: 0,
             velhi: 128,
             gen,
-            mod_0,
+            mods,
         })
     }
 }
@@ -405,7 +387,7 @@ impl Preset {
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
-            let global_preset_zone = if (*preset).global_zone.is_null() {
+            let mut global_preset_zone = if (*preset).global_zone.is_null() {
                 None
             } else {
                 Some(&mut *(*preset).global_zone)
@@ -418,7 +400,7 @@ impl Preset {
                 if fluid_preset_zone_inside_range(&*preset_zone, key, vel) {
                     let inst = &*(*preset_zone).inst;
 
-                    let global_inst_zone = if inst.global_zone.is_null() {
+                    let mut global_inst_zone = if inst.global_zone.is_null() {
                         None
                     } else {
                         Some(&mut *inst.global_zone)
@@ -476,12 +458,9 @@ impl Preset {
                                     /* global instrument zone, modulators: Put them all into a
                                      * list. */
                                     let mut mod_list_count = 0;
-                                    if let Some(global_inst_zone) = &global_inst_zone {
-                                        let mut mod_0 = global_inst_zone.mod_0;
-                                        while !mod_0.is_null() {
-                                            mod_list[mod_list_count] = mod_0;
-                                            mod_0 = (*mod_0).next;
-
+                                    if let Some(global_inst_zone) = &mut global_inst_zone {
+                                        for m in global_inst_zone.mods.iter_mut() {
+                                            mod_list[mod_list_count] = m;
                                             mod_list_count += 1;
                                         }
                                     }
@@ -490,8 +469,7 @@ impl Preset {
                                      * Replace modulators with the same definition in the list:
                                      * SF 2.01 page 69, 'bullet' 8
                                      */
-                                    let mut mod_0 = inst_zone.mod_0;
-                                    while !mod_0.is_null() {
+                                    for m in inst_zone.mods.iter_mut() {
                                         /* 'Identical' modulators will be deleted by setting their
                                          *  list entry to NULL.  The list length is known, NULL
                                          *  entries will be ignored later.  SF2.01 section 9.5.1
@@ -499,7 +477,7 @@ impl Preset {
                                         let mut i = 0;
                                         while i < mod_list_count {
                                             if !mod_list[i].is_null()
-                                                && mod_0.as_ref().unwrap().test_identity(
+                                                && m.test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
                                                 ) != 0
                                             {
@@ -509,8 +487,7 @@ impl Preset {
                                         }
 
                                         /* Finally add the new modulator to to the list. */
-                                        mod_list[mod_list_count] = mod_0;
-                                        mod_0 = (*mod_0).next;
+                                        mod_list[mod_list_count] = m;
 
                                         mod_list_count += 1;
                                     }
@@ -581,12 +558,9 @@ impl Preset {
                                     /* Global preset zone, modulators: put them all into a
                                      * list. */
                                     let mut mod_list_count = 0;
-                                    if let Some(global_preset_zone) = &global_preset_zone {
-                                        mod_0 = global_preset_zone.mod_0;
-                                        while !mod_0.is_null() {
-                                            mod_list[mod_list_count] = mod_0;
-                                            mod_0 = (*mod_0).next;
-
+                                    if let Some(global_preset_zone) = &mut global_preset_zone {
+                                        for m in global_preset_zone.mods.iter_mut() {
+                                            mod_list[mod_list_count] = m;
                                             mod_list_count += 1;
                                         }
                                     }
@@ -594,12 +568,11 @@ impl Preset {
                                     /* Process the modulators of the local preset zone.  Kick
                                      * out all identical modulators from the global preset zone
                                      * (SF 2.01 page 69, second-last bullet) */
-                                    let mut mod_0 = (*preset_zone).mod_0;
-                                    while !mod_0.is_null() {
+                                    for m in (*preset_zone).mods.iter_mut() {
                                         let mut i = 0;
                                         while i < mod_list_count {
                                             if !mod_list[i].is_null()
-                                                && mod_0.as_ref().unwrap().test_identity(
+                                                && m.test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
                                                 ) != 0
                                             {
@@ -609,8 +582,7 @@ impl Preset {
                                         }
 
                                         /* Finally add the new modulator to the list. */
-                                        mod_list[mod_list_count] = mod_0;
-                                        mod_0 = (*mod_0).next;
+                                        mod_list[mod_list_count] = m;
 
                                         mod_list_count += 1;
                                     }
@@ -618,15 +590,15 @@ impl Preset {
                                     // Add preset modulators (global / local) to the voice.
                                     let mut i = 0;
                                     while i < mod_list_count {
-                                        mod_0 = mod_list[i];
-                                        if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
+                                        let m = mod_list[i];
+                                        if !m.is_null() && (*m).amount != 0.0 {
                                             // disabled modulators can be skipped.
 
                                             /* Preset modulators -add- to existing instrument /
                                              * default modulators.  SF2.01 page 70 first bullet on
                                              * page */
                                             synth.voices[voice_id.0].add_mod(
-                                                mod_0.as_ref().unwrap(),
+                                                m.as_ref().unwrap(),
                                                 FLUID_VOICE_ADD as i32,
                                             );
                                         }
@@ -810,15 +782,6 @@ unsafe fn delete_fluid_defpreset(mut preset: *mut DefaultPreset) -> i32 {
 }
 
 unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
-    let mut mod_0: *mut Mod;
-    let mut tmp: *mut Mod;
-    mod_0 = (*zone).mod_0;
-    while !mod_0.is_null() {
-        tmp = mod_0;
-        mod_0 = (*mod_0).next;
-
-        Box::from_raw(tmp);
-    }
     if !(*zone).inst.is_null() {
         delete_fluid_inst((*zone).inst);
     }
@@ -898,15 +861,6 @@ unsafe fn fluid_inst_import_sfont(
 }
 
 unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
-    let mut mod_0: *mut Mod;
-    let mut tmp: *mut Mod;
-    mod_0 = (*zone).mod_0;
-    while !mod_0.is_null() {
-        tmp = mod_0;
-        mod_0 = (*mod_0).next;
-
-        Box::from_raw(tmp);
-    }
     libc::free(zone as *mut libc::c_void);
     return FLUID_OK as i32;
 }

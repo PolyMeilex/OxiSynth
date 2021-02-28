@@ -33,7 +33,6 @@ pub struct Mod {
     pub(crate) src2: u8,
     pub(crate) flags2: u8,
     pub(crate) amount: f64,
-    pub(crate) next: *mut Mod,
 }
 
 impl From<&SFModulator> for Mod {
@@ -143,7 +142,6 @@ impl From<&SFModulator> for Mod {
         }
 
         Mod {
-            next: 0 as *mut Mod,
             src1,
             amount,
             flags1,
@@ -163,7 +161,6 @@ impl Clone for Mod {
             src2: self.src2,
             flags2: self.flags2,
             amount: self.amount,
-            next: 0 as _,
         }
     }
 }
@@ -177,7 +174,6 @@ impl Default for Mod {
             src2: 0,
             flags2: 0,
             amount: 0.0,
-            next: std::ptr::null_mut(),
         }
     }
 }
@@ -191,7 +187,6 @@ impl Mod {
             src2: 0,
             flags2: 0,
             amount: 0.0,
-            next: 0 as _,
         }
     }
 
