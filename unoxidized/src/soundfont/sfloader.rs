@@ -355,14 +355,14 @@ impl Preset {
 
                                     /* global instrument zone, modulators: Put them all into a
                                      * list. */
-                                    let mut mod_list_count = 0 as i32;
+                                    let mut mod_list_count = 0;
                                     if let Some(global_inst_zone) = &global_inst_zone {
                                         let mut mod_0 = global_inst_zone.mod_0;
                                         while !mod_0.is_null() {
-                                            let fresh2 = mod_list_count;
-                                            mod_list_count = mod_list_count + 1;
-                                            mod_list[fresh2 as usize] = mod_0;
-                                            mod_0 = (*mod_0).next
+                                            mod_list[mod_list_count] = mod_0;
+                                            mod_0 = (*mod_0).next;
+
+                                            mod_list_count += 1;
                                         }
                                     }
 
@@ -378,21 +378,21 @@ impl Preset {
                                          *  page 69, 'bullet' 3 defines 'identical'.  */
                                         let mut i = 0;
                                         while i < mod_list_count {
-                                            if !mod_list[i as usize].is_null()
+                                            if !mod_list[i].is_null()
                                                 && mod_0.as_ref().unwrap().test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
                                                 ) != 0
                                             {
-                                                mod_list[i as usize] = 0 as *mut Mod
+                                                mod_list[i] = 0 as *mut Mod
                                             }
                                             i += 1
                                         }
-                                        let fresh3 = mod_list_count;
-                                        mod_list_count = mod_list_count + 1;
 
                                         /* Finally add the new modulator to to the list. */
-                                        mod_list[fresh3 as usize] = mod_0;
-                                        mod_0 = (*mod_0).next
+                                        mod_list[mod_list_count] = mod_0;
+                                        mod_0 = (*mod_0).next;
+
+                                        mod_list_count += 1;
                                     }
 
                                     // Add instrument modulators (global / local) to the voice.
@@ -414,22 +414,22 @@ impl Preset {
 
                                     /* Preset level, generators */
                                     let mut i = 0;
-                                    while i < GEN_LAST as i32 {
+                                    while i < GEN_LAST {
                                         /* SF 2.01 section 8.5 page 58: If some generators are
                                          * encountered at preset level, they should be ignored */
-                                        if i != GEN_STARTADDROFS as i32
-                                            && i != GEN_ENDADDROFS as i32
-                                            && i != GEN_STARTLOOPADDROFS as i32
-                                            && i != GEN_ENDLOOPADDROFS as i32
-                                            && i != GEN_STARTADDRCOARSEOFS as i32
-                                            && i != GEN_ENDADDRCOARSEOFS as i32
-                                            && i != GEN_STARTLOOPADDRCOARSEOFS as i32
-                                            && i != GEN_KEYNUM as i32
-                                            && i != GEN_VELOCITY as i32
-                                            && i != GEN_ENDLOOPADDRCOARSEOFS as i32
-                                            && i != GEN_SAMPLEMODE as i32
-                                            && i != GEN_EXCLUSIVECLASS as i32
-                                            && i != GEN_OVERRIDEROOTKEY as i32
+                                        if i != GEN_STARTADDROFS
+                                            && i != GEN_ENDADDROFS
+                                            && i != GEN_STARTLOOPADDROFS
+                                            && i != GEN_ENDLOOPADDROFS
+                                            && i != GEN_STARTADDRCOARSEOFS
+                                            && i != GEN_ENDADDRCOARSEOFS
+                                            && i != GEN_STARTLOOPADDRCOARSEOFS
+                                            && i != GEN_KEYNUM
+                                            && i != GEN_VELOCITY
+                                            && i != GEN_ENDLOOPADDRCOARSEOFS
+                                            && i != GEN_SAMPLEMODE
+                                            && i != GEN_EXCLUSIVECLASS
+                                            && i != GEN_OVERRIDEROOTKEY
                                         {
                                             /* SF 2.01 section 9.4 'bullet' 9: A generator in a
                                              * local preset zone supersedes a global preset zone
@@ -463,14 +463,14 @@ impl Preset {
 
                                     /* Global preset zone, modulators: put them all into a
                                      * list. */
-                                    let mut mod_list_count = 0 as i32;
+                                    let mut mod_list_count = 0;
                                     if !global_preset_zone.is_null() {
                                         mod_0 = (*global_preset_zone).mod_0;
                                         while !mod_0.is_null() {
-                                            let fresh4 = mod_list_count;
-                                            mod_list_count = mod_list_count + 1;
-                                            mod_list[fresh4 as usize] = mod_0;
-                                            mod_0 = (*mod_0).next
+                                            mod_list[mod_list_count] = mod_0;
+                                            mod_0 = (*mod_0).next;
+
+                                            mod_list_count += 1;
                                         }
                                     }
 
@@ -481,28 +481,27 @@ impl Preset {
                                     while !mod_0.is_null() {
                                         let mut i = 0;
                                         while i < mod_list_count {
-                                            if !mod_list[i as usize].is_null()
+                                            if !mod_list[i].is_null()
                                                 && mod_0.as_ref().unwrap().test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
                                                 ) != 0
                                             {
-                                                mod_list[i as usize] = 0 as *mut Mod
+                                                mod_list[i] = 0 as *mut Mod
                                             }
                                             i += 1
                                         }
 
-                                        let fresh5 = mod_list_count;
-                                        mod_list_count = mod_list_count + 1;
-
                                         /* Finally add the new modulator to the list. */
-                                        mod_list[fresh5 as usize] = mod_0;
-                                        mod_0 = (*mod_0).next
+                                        mod_list[mod_list_count] = mod_0;
+                                        mod_0 = (*mod_0).next;
+
+                                        mod_list_count += 1;
                                     }
 
                                     // Add preset modulators (global / local) to the voice.
                                     let mut i = 0;
                                     while i < mod_list_count {
-                                        mod_0 = mod_list[i as usize];
+                                        mod_0 = mod_list[i];
                                         if !mod_0.is_null() && (*mod_0).amount != 0 as i32 as f64 {
                                             // disabled modulators can be skipped.
 

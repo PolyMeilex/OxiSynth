@@ -420,7 +420,7 @@ pub unsafe fn fluid_voice_gen_set(mut voice: *mut Voice, i: i32, val: f32) {
     (*voice).gen[i as usize].flags = GEN_SET as i32 as u8;
 }
 
-pub unsafe fn fluid_voice_gen_incr(mut voice: *mut Voice, i: i32, val: f32) {
+pub unsafe fn fluid_voice_gen_incr(mut voice: *mut Voice, i: u32, val: f32) {
     (*voice).gen[i as usize].val += val as f64;
     (*voice).gen[i as usize].flags = GEN_SET as i32 as u8;
 }
