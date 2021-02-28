@@ -99,12 +99,10 @@ impl DefaultPreset {
         preset.num = sfpreset.header.preset as u32;
 
         for (id, sfzone) in sfpreset.zones.iter().enumerate() {
-            let mut zone = Box::into_raw(Box::new(PresetZone::new(format!(
-                "{}/{}",
-                sfpreset.header.name, id
-            ))));
+            let name = format!("{}/{}", sfpreset.header.name, id);
+            let zone = PresetZone::import_sfont(name, sf2, sfzone, sfont)?;
 
-            fluid_preset_zone_import_sfont(sf2, &mut *zone, sfzone, sfont)?;
+            let zone = Box::into_raw(Box::new(zone));
 
             if id == 0 && (*zone).inst.is_null() {
                 preset.global_zone = zone;
@@ -139,8 +137,13 @@ struct PresetZone {
 }
 
 impl PresetZone {
-    fn new(name: String) -> PresetZone {
-        PresetZone {
+    unsafe fn import_sfont(
+        name: String,
+        sf2: &sf2::SoundFont2,
+        sfzone: &sf2::Zone,
+        sfont: &mut DefaultSoundFont,
+    ) -> Result<Self, ()> {
+        let mut zone = Self {
             next: 0 as *mut PresetZone,
             name,
             inst: 0 as *mut Instrument,
@@ -150,7 +153,63 @@ impl PresetZone {
             velhi: 128 as i32,
             gen: gen::get_default_values(),
             mod_0: 0 as *mut Mod,
+        };
+
+        for sfgen in sfzone
+            .gen_list
+            .iter()
+            .filter(|g| g.ty != sf2::data::SFGeneratorType::Instrument)
+        {
+            match sfgen.ty {
+                sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
+                    let amount = sfgen.amount.as_range().unwrap();
+                    zone.keylo = amount.low;
+                    zone.keyhi = amount.high;
+                }
+                _ => {
+                    // FIXME: some generators have an unsigned word amount value but i don't know which ones
+                    zone.gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
+                    zone.gen[sfgen.ty as usize].flags = GEN_SET as u8;
+                }
+            }
         }
+        if let Some(inst) = sfzone.instrument() {
+            zone.inst = new_fluid_inst();
+            if zone.inst.is_null() {
+                log::error!("Out of memory");
+                return Err(());
+            }
+            if fluid_inst_import_sfont(
+                sf2,
+                &mut *zone.inst,
+                &sf2.instruments[*inst as usize],
+                sfont,
+            ) != FLUID_OK as i32
+            {
+                return Err(());
+            }
+        }
+        // Import the modulators (only SF2.1 and higher)
+        for (id, mod_src) in sfzone.mod_list.iter().enumerate() {
+            let mod_dest = Mod::from(mod_src);
+            let mod_dest: *mut Mod = Box::into_raw(Box::new(mod_dest));
+            /* Store the new modulator in the zone The order of modulators
+             * will make a difference, at least in an instrument context: The
+             * second modulator overwrites the first one, if they only differ
+             * in amount. */
+            if id == 0 {
+                zone.mod_0 = mod_dest
+            } else {
+                let mut last_mod: *mut Mod = zone.mod_0;
+                // Find the end of the list
+                while !(*last_mod).next.is_null() {
+                    last_mod = (*last_mod).next
+                }
+                (*last_mod).next = mod_dest
+            }
+        }
+
+        Ok(zone)
     }
 }
 
@@ -765,72 +824,6 @@ unsafe fn delete_fluid_preset_zone(zone: *mut PresetZone) -> i32 {
     }
     libc::free(zone as *mut libc::c_void);
     return FLUID_OK as i32;
-}
-
-unsafe fn fluid_preset_zone_import_sfont(
-    sf2: &sf2::SoundFont2,
-    zone: &mut PresetZone,
-    sfzone: &sf2::Zone,
-    sfont: &mut DefaultSoundFont,
-) -> Result<(), ()> {
-    for sfgen in sfzone
-        .gen_list
-        .iter()
-        .filter(|g| g.ty != sf2::data::SFGeneratorType::Instrument)
-    {
-        match sfgen.ty {
-            sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
-                let amount = sfgen.amount.as_range().unwrap();
-                zone.keylo = amount.low;
-                zone.keyhi = amount.high;
-            }
-            _ => {
-                // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                zone.gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
-                zone.gen[sfgen.ty as usize].flags = GEN_SET as u8;
-            }
-        }
-    }
-
-    if let Some(inst) = sfzone.instrument() {
-        zone.inst = new_fluid_inst();
-        if zone.inst.is_null() {
-            log::error!("Out of memory");
-            return Err(());
-        }
-        if fluid_inst_import_sfont(
-            sf2,
-            &mut *zone.inst,
-            &sf2.instruments[*inst as usize],
-            sfont,
-        ) != FLUID_OK as i32
-        {
-            return Err(());
-        }
-    }
-
-    // Import the modulators (only SF2.1 and higher)
-    for (id, mod_src) in sfzone.mod_list.iter().enumerate() {
-        let mod_dest = Mod::from(mod_src);
-        let mod_dest: *mut Mod = Box::into_raw(Box::new(mod_dest));
-
-        /* Store the new modulator in the zone The order of modulators
-         * will make a difference, at least in an instrument context: The
-         * second modulator overwrites the first one, if they only differ
-         * in amount. */
-        if id == 0 {
-            zone.mod_0 = mod_dest
-        } else {
-            let mut last_mod: *mut Mod = (*zone).mod_0;
-            // Find the end of the list
-            while !(*last_mod).next.is_null() {
-                last_mod = (*last_mod).next
-            }
-            (*last_mod).next = mod_dest
-        }
-    }
-
-    Ok(())
 }
 
 unsafe fn new_fluid_inst() -> *mut Instrument {
