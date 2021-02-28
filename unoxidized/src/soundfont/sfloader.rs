@@ -210,7 +210,7 @@ struct Instrument {
     // [u8;21]
     name: String,
     global_zone: Option<InstrumentZone>,
-    zone: *mut InstrumentZone,
+    zones: Vec<InstrumentZone>,
 }
 #[derive(Clone)]
 #[repr(C)]
@@ -403,15 +403,12 @@ impl Preset {
                     let mut global_inst_zone = &mut inst.global_zone;
 
                     // run thru all the zones of this instrument
-                    let mut inst_zone_raw = inst.zone;
-                    while !inst_zone_raw.is_null() {
-                        let inst_zone = &mut (*inst_zone_raw);
-
+                    for inst_zone in inst.zones.iter_mut() {
                         // make sure this instrument zone has a valid sample
                         let sample = &inst_zone.sample;
-                        if sample.is_none() || fluid_sample_in_rom(&sample.as_ref().unwrap()) != 0 {
-                            inst_zone_raw = inst_zone.next;
-                        } else {
+                        if !(sample.is_none()
+                            || fluid_sample_in_rom(&sample.as_ref().unwrap()) != 0)
+                        {
                             // check if the note falls into the key and velocity range of this instrument
                             if fluid_inst_zone_inside_range(inst_zone, key, vel)
                                 && !sample.is_none()
@@ -614,7 +611,6 @@ impl Preset {
                                     return FLUID_FAILED as i32;
                                 }
                             }
-                            inst_zone_raw = inst_zone.next;
                         }
                     }
                 }
@@ -794,26 +790,14 @@ unsafe fn new_fluid_inst() -> *mut Instrument {
     }
     (*inst).name = String::new();
     (*inst).global_zone = None;
-    (*inst).zone = 0 as *mut InstrumentZone;
+    (*inst).zones = Vec::new();
     return inst;
 }
 
-unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
-    let mut zone: *mut InstrumentZone;
-    let mut err: i32 = FLUID_OK as i32;
-
+unsafe fn delete_fluid_inst(mut inst: *mut Instrument) {
     (*inst).global_zone = None;
 
-    zone = (*inst).zone;
-    while !zone.is_null() {
-        (*inst).zone = (*zone).next;
-        if delete_fluid_inst_zone(zone) != FLUID_OK as i32 {
-            err = FLUID_FAILED as i32
-        }
-        zone = (*inst).zone
-    }
     libc::free(inst as *mut libc::c_void);
-    return err;
 }
 
 unsafe fn fluid_inst_import_sfont(
@@ -822,38 +806,22 @@ unsafe fn fluid_inst_import_sfont(
     new_inst: &sf2::Instrument,
     sfont: &mut DefaultSoundFont,
 ) -> i32 {
-    let mut count: i32;
-
     if new_inst.header.name.len() > 0 {
         inst.name = new_inst.header.name.clone();
     } else {
         inst.name = "<untitled>".into();
     }
 
-    count = 0 as i32;
-    for new_zone in new_inst.zones.iter() {
-        let name = format!("{}/{}", new_inst.header.name, count);
+    for (id, new_zone) in new_inst.zones.iter().enumerate() {
+        let name = format!("{}/{}", new_inst.header.name, id);
 
-        let mut zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont).unwrap();
+        let zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont).unwrap();
 
-        if count == 0 as i32 && zone.sample.is_none() {
+        if id == 0 && zone.sample.is_none() {
             inst.global_zone = Some(zone);
         } else {
-            // fluid_inst_add_zone
-            if inst.zone.is_null() {
-                zone.next = 0 as *mut InstrumentZone;
-                inst.zone = Box::into_raw(Box::new(zone));
-            } else {
-                zone.next = (*inst).zone;
-                inst.zone = Box::into_raw(Box::new(zone));
-            }
+            inst.zones.push(zone);
         }
-        count += 1
     }
-    return FLUID_OK as i32;
-}
-
-unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
-    libc::free(zone as *mut libc::c_void);
     return FLUID_OK as i32;
 }
