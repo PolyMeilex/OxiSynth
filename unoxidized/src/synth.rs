@@ -562,7 +562,6 @@ impl Synth {
         vel: i32,
     ) -> Option<VoiceId> {
         let mut voice_id: Option<VoiceId> = None;
-        let channel;
 
         let mut i = 0;
         while i < self.settings.synth.polyphony as usize {
@@ -603,7 +602,7 @@ impl Synth {
                 );
             }
 
-            channel = &mut self.channel[chan as usize];
+            let channel = &mut self.channel[chan as usize];
 
             let voice = &mut self.voices[voice_id.0];
             voice.init(

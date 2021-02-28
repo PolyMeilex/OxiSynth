@@ -315,10 +315,10 @@ impl Voice {
         }
     }
 
-    pub(crate) unsafe fn init(
+    pub(crate) fn init(
         &mut self,
         sample: Rc<Sample>,
-        channel: *mut Channel,
+        channel: &mut Channel,
         key: u8,
         vel: i32,
         id: u32,
@@ -326,9 +326,10 @@ impl Voice {
         gain: f32,
     ) {
         self.id = id;
-        self.chan = channel.as_ref().unwrap().get_num() as u8;
+        self.chan = channel.get_num();
         self.key = key as u8;
         self.vel = vel as u8;
+        self.interp_method = channel.get_interp_method();
         self.channel = channel;
         self.mod_count = 0 as i32;
         self.sample = Some(sample);
@@ -339,7 +340,6 @@ impl Voice {
         self.has_looped = 0 as i32;
         self.last_fres = -(1 as i32) as f32;
         self.filter_startup = 1 as i32;
-        self.interp_method = self.channel.as_ref().unwrap().get_interp_method();
         self.volenv_count = 0 as i32 as u32;
         self.volenv_section = 0 as i32;
         self.volenv_val = 0.0f32;
