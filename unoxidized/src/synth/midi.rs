@@ -96,18 +96,18 @@ impl Synth {
     /**
     Send a control change message.
      */
-    pub unsafe fn cc(&mut self, chan: u8, num: i32, val: i32) -> i32 {
+    pub unsafe fn cc(&mut self, chan: u8, num: i32, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if num < 0 as i32 || num >= 128 as i32 {
             log::warn!("Ctrl out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if val < 0 as i32 || val >= 128 as i32 {
             log::warn!("Value out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if self.settings.synth.verbose {
             log::info!("cc\t{}\t{}\t{}", chan, num, val);
@@ -119,7 +119,8 @@ impl Synth {
             num,
             val,
         );
-        return FLUID_OK as i32;
+
+        Ok(())
     }
 
     /**
@@ -138,7 +139,7 @@ impl Synth {
         }
     }
 
-    pub fn all_notes_off(&mut self, chan: u8) -> i32 {
+    pub fn all_notes_off(&mut self, chan: u8) {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -152,10 +153,9 @@ impl Synth {
             }
             i += 1
         }
-        return FLUID_OK as i32;
     }
 
-    pub unsafe fn all_sounds_off(&mut self, chan: u8) -> i32 {
+    pub unsafe fn all_sounds_off(&mut self, chan: u8) {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -167,16 +167,15 @@ impl Synth {
             }
             i += 1
         }
-        return FLUID_OK as i32;
     }
 
     /**
     Send a pitch bend message.
      */
-    pub unsafe fn pitch_bend(&mut self, chan: u8, val: i32) -> i32 {
+    pub unsafe fn pitch_bend(&mut self, chan: u8, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if self.settings.synth.verbose {
             log::info!("pitchb\t{}\t{}", chan, val);
@@ -185,7 +184,8 @@ impl Synth {
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
             .pitch_bend(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
+
+        Ok(())
     }
 
     /**
@@ -204,10 +204,10 @@ impl Synth {
     /**
     Set the pitch wheel sensitivity.
      */
-    pub unsafe fn pitch_wheel_sens(&mut self, chan: u8, val: i32) -> i32 {
+    pub unsafe fn pitch_wheel_sens(&mut self, chan: u8, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if self.settings.synth.verbose {
             log::info!("pitchsens\t{}\t{}", chan, val);
@@ -216,25 +216,26 @@ impl Synth {
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
             .pitch_wheel_sens(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
+
+        return Ok(());
     }
 
     /**
     Get the pitch wheel sensitivity.
      */
-    pub unsafe fn get_pitch_wheel_sens(&self, chan: u8, pval: *mut i32) -> i32 {
+    pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            Err(())
+        } else {
+            Ok(self.channel[chan as usize].pitch_wheel_sensitivity as u32)
         }
-        *pval = self.channel[chan as usize].pitch_wheel_sensitivity as i32;
-        return FLUID_OK as i32;
     }
 
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, chan: u8, prognum: i32) -> i32 {
+    pub fn program_change(&mut self, chan: u8, prognum: i32) -> Result<(), ()> {
         let mut preset;
         let banknum;
         let sfont_id;
@@ -243,7 +244,7 @@ impl Synth {
         if prognum < 0 as i32 || prognum >= 128 as i32 || chan >= self.settings.synth.midi_channels
         {
             log::error!("Index out of range (chan={}, prog={})", chan, prognum);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         banknum = self.channel[chan as usize].get_banknum();
         self.channel[chan as usize].set_prognum(prognum);
@@ -285,16 +286,17 @@ impl Synth {
         };
         self.channel[chan as usize].set_sfontnum(sfont_id);
         self.channel[chan as usize].set_preset(preset);
-        return FLUID_OK as i32;
+
+        Ok(())
     }
 
     /**
     Set channel pressure
      */
-    pub unsafe fn channel_pressure(&mut self, chan: u8, val: i32) -> i32 {
+    pub unsafe fn channel_pressure(&mut self, chan: u8, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if self.settings.synth.verbose {
             log::info!("channelpressure\t{}\t{}", chan, val);
@@ -303,19 +305,20 @@ impl Synth {
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
             .pressure(synth_ptr.as_mut().unwrap(), val);
-        return FLUID_OK as i32;
+
+        Ok(())
     }
 
     /**
     Set key pressure (aftertouch)
      */
-    pub unsafe fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> i32 {
+    pub unsafe fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> Result<(), ()> {
         let mut result: i32 = FLUID_OK as i32;
         if key < 0 as i32 || key > 127 as i32 {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if val < 0 as i32 || val > 127 as i32 {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if self.settings.synth.verbose {
             log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
@@ -333,29 +336,34 @@ impl Synth {
             }
             i += 1
         }
-        return result;
+
+        if result == FLUID_OK {
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
     /**
     Select a bank.
      */
-    pub fn bank_select(&mut self, chan: u8, bank: u32) -> i32 {
+    pub fn bank_select(&mut self, chan: u8, bank: u32) -> Result<(), ()> {
         if chan < self.settings.synth.midi_channels {
             self.channel[chan as usize].set_banknum(bank);
-            return FLUID_OK as i32;
+            return Ok(());
         }
-        return FLUID_FAILED as i32;
+        Err(())
     }
 
     /**
     Select a sfont.
      */
-    pub unsafe fn sfont_select(&mut self, chan: u8, sfont_id: u32) -> i32 {
+    pub fn sfont_select(&mut self, chan: u8, sfont_id: u32) -> Result<(), ()> {
         if chan < self.settings.synth.midi_channels {
             self.channel[chan as usize].set_sfontnum(sfont_id);
-            return FLUID_OK as i32;
+            return Ok(());
         }
-        return FLUID_FAILED as i32;
+        Err(())
     }
 
     /**
@@ -364,18 +372,18 @@ impl Synth {
     allows any preset to be selected and circumvents preset masking
     due to previously loaded SoundFonts on the SoundFont stack.
      */
-    pub unsafe fn program_select(
+    pub fn program_select(
         &mut self,
         chan: u8,
         sfont_id: u32,
         bank_num: u32,
         preset_num: u32,
-    ) -> i32 {
+    ) -> Result<(), ()> {
         let preset;
         let channel;
         if chan >= self.settings.synth.midi_channels {
             log::error!("Channel number out of range (chan={})", chan);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         preset = self.get_preset(sfont_id, bank_num, preset_num);
         if preset.is_none() {
@@ -385,35 +393,32 @@ impl Synth {
                 preset_num,
                 sfont_id
             );
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         channel = &mut self.channel[chan as usize];
         channel.set_sfontnum(sfont_id);
         channel.set_banknum(bank_num);
         channel.set_prognum(preset_num as i32);
         channel.set_preset(preset);
-        return FLUID_OK as i32;
+
+        Ok(())
     }
 
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub unsafe fn get_program(
-        &self,
-        chan: u8,
-        sfont_id: *mut u32,
-        bank_num: *mut u32,
-        preset_num: *mut u32,
-    ) -> i32 {
-        let channel;
+    pub fn get_program(&self, chan: u8) -> Result<(u32, u32, u32), ()> {
         if chan < self.settings.synth.midi_channels {
-            channel = &self.channel[chan as usize];
-            *sfont_id = channel.get_sfontnum();
-            *bank_num = channel.get_banknum();
-            *preset_num = channel.get_prognum() as u32;
-            return FLUID_OK as i32;
+            let channel = &self.channel[chan as usize];
+
+            Ok((
+                channel.get_sfontnum(),
+                channel.get_banknum(),
+                channel.get_prognum() as u32,
+            ))
+        } else {
+            Err(())
         }
-        return FLUID_FAILED as i32;
     }
 
     /**
@@ -421,13 +426,13 @@ impl Synth {
 
     This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
      */
-    pub fn program_reset(&mut self) -> i32 {
+    pub fn program_reset(&mut self) {
         let mut i = 0;
         while i < self.settings.synth.midi_channels {
-            self.program_change(i, self.channel[i as usize].get_prognum());
+            self.program_change(i, self.channel[i as usize].get_prognum())
+                .ok();
             i += 1
         }
-        return FLUID_OK as i32;
     }
 
     /**
@@ -435,7 +440,7 @@ impl Synth {
 
     A reset turns all the notes off and resets the controller values.
      */
-    pub unsafe fn system_reset(&mut self) -> i32 {
+    pub unsafe fn system_reset(&mut self) {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
@@ -455,6 +460,5 @@ impl Synth {
         }
         self.chorus.reset();
         self.reverb.reset();
-        return FLUID_OK as i32;
     }
 }
