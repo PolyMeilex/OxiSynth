@@ -361,7 +361,7 @@ impl Preset {
 
     pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: u8, vel: i32) -> i32 {
         unsafe fn fluid_defpreset_noteon(
-            preset: *mut DefaultPreset,
+            preset: &mut DefaultPreset,
             synth: &mut Synth,
             chan: u8,
             key: u8,
@@ -382,10 +382,10 @@ impl Preset {
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
-            let mut global_preset_zone = &mut (*preset).global_zone;
+            let mut global_preset_zone = &mut preset.global_zone;
 
             // run thru all the zones of this preset
-            for preset_zone in (*preset).zones.iter_mut() {
+            for preset_zone in preset.zones.iter_mut() {
                 // check if the note falls into the key and velocity range of this preset
                 if fluid_preset_zone_inside_range(preset_zone, key, vel) {
                     let inst = preset_zone.inst.as_mut().unwrap();
@@ -515,11 +515,9 @@ impl Preset {
                                              * local preset zone supersedes a global preset zone
                                              * generator.  The effect is -added- to the destination
                                              * summing node -> voice_gen_incr */
-                                            if (*preset_zone).gen[i as usize].flags != 0 {
-                                                synth.voices[voice_id.0].gen_incr(
-                                                    i,
-                                                    (*preset_zone).gen[i as usize].val,
-                                                );
+                                            if preset_zone.gen[i as usize].flags != 0 {
+                                                synth.voices[voice_id.0]
+                                                    .gen_incr(i, preset_zone.gen[i as usize].val);
                                             } else if let Some(global_preset_zone) =
                                                 &global_preset_zone
                                             {
@@ -551,7 +549,7 @@ impl Preset {
                                     /* Process the modulators of the local preset zone.  Kick
                                      * out all identical modulators from the global preset zone
                                      * (SF 2.01 page 69, second-last bullet) */
-                                    for m in (*preset_zone).mods.iter_mut() {
+                                    for m in preset_zone.mods.iter_mut() {
                                         let mut i = 0;
                                         while i < mod_list_count {
                                             if !mod_list[i].is_null()
@@ -608,7 +606,7 @@ impl Preset {
             return FLUID_OK as i32;
         }
 
-        unsafe { fluid_defpreset_noteon(self.data, synth, chan, key, vel) }
+        unsafe { fluid_defpreset_noteon(&mut *self.data, synth, chan, key, vel) }
     }
 }
 
