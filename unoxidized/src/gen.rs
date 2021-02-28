@@ -645,6 +645,9 @@ pub static GEN_INFO: [GenInfo; 60] = [
     },
 ];
 
+/// Flag the generators as unused.
+///
+/// This also sets the generator values to default, but they will be overwritten anyway, if used.
 pub fn get_default_values() -> [Gen; 60] {
     let mut out = [Gen::default(); 60];
 
