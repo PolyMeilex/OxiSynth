@@ -524,7 +524,7 @@ impl Synth {
                 if voice.status as i32 == FLUID_VOICE_CLEAN as i32
                     || voice.status as i32 == FLUID_VOICE_OFF as i32
                 {
-                    return Some(id.into());
+                    return Some(VoiceId(id));
                 }
                 this_voice_prio = 10000.0f32;
                 if voice.chan as i32 == 0xff as i32 {
@@ -548,7 +548,7 @@ impl Synth {
         if let Some(id) = best_voice_index {
             let voice = &mut self.voices[id];
             voice.off();
-            Some(id.into())
+            Some(VoiceId(id))
         } else {
             None
         }
@@ -568,7 +568,7 @@ impl Synth {
             if self.voices[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
                 || self.voices[i as usize].status as i32 == FLUID_VOICE_OFF as i32
             {
-                voice_id = Some(i.into());
+                voice_id = Some(VoiceId(i));
                 break;
             } else {
                 i += 1

@@ -104,12 +104,6 @@ pub type LoopMode = u32;
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub usize);
 
-impl From<usize> for VoiceId {
-    fn from(v: usize) -> Self {
-        Self(v)
-    }
-}
-
 pub struct Voice {
     pub(crate) id: u32,
     pub(crate) status: u8,

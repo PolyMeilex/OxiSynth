@@ -31,6 +31,8 @@ impl Default for InterpMethod {
     }
 }
 
+pub struct ChannelId(pub usize);
+
 #[derive(Clone)]
 pub struct Channel {
     pub(crate) channum: u8,
