@@ -6,8 +6,6 @@ use crate::synth::Preset;
 use crate::synth::Synth;
 use crate::synth::FLUID_FAILED;
 use crate::synth::FLUID_OK;
-use crate::voice::fluid_voice_off;
-use crate::voice::fluid_voice_set_gain;
 use crate::voice::FLUID_VOICE_ON;
 use crate::voice::FLUID_VOICE_SUSTAINED;
 
@@ -31,7 +29,7 @@ impl Synth {
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                fluid_voice_set_gain(voice, gain);
+                voice.set_gain(gain);
             }
             i += 1
         }
@@ -58,7 +56,7 @@ impl Synth {
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                fluid_voice_off(voice);
+                voice.off();
             }
             i += 1
         }

@@ -9,8 +9,6 @@ use crate::soundfont::Preset;
 use crate::soundfont::Sample;
 use crate::soundfont::SoundFont;
 use crate::synth::Synth;
-use crate::voice::fluid_voice_gen_incr;
-use crate::voice::fluid_voice_gen_set;
 use crate::voice::FluidVoiceAddMod;
 use std::path::Path;
 use std::slice::from_raw_parts_mut;
@@ -290,7 +288,11 @@ impl Preset {
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
-            let global_preset_zone = (*preset).global_zone;
+            let global_preset_zone = if (*preset).global_zone.is_null() {
+                None
+            } else {
+                Some(&mut *(*preset).global_zone)
+            };
 
             // run thru all the zones of this preset
             let mut preset_zone = (*preset).zone;
@@ -332,17 +334,13 @@ impl Preset {
                                          * global instrument zone generator.  Both cases supersede
                                          * the default generator -> voice_gen_set */
                                         if inst_zone.gen[i as usize].flags != 0 {
-                                            fluid_voice_gen_set(
-                                                &mut synth.voices[voice_id.0],
-                                                i,
-                                                inst_zone.gen[i as usize].val as f32,
-                                            );
+                                            synth.voices[voice_id.0]
+                                                .gen_set(i, inst_zone.gen[i as usize].val);
                                         } else if let Some(global_inst_zone) = &global_inst_zone {
                                             if global_inst_zone.gen[i as usize].flags as i32 != 0 {
-                                                fluid_voice_gen_set(
-                                                    &mut synth.voices[voice_id.0],
+                                                synth.voices[voice_id.0].gen_set(
                                                     i,
-                                                    global_inst_zone.gen[i as usize].val as f32,
+                                                    global_inst_zone.gen[i as usize].val,
                                                 );
                                             }
                                         } else {
@@ -436,22 +434,19 @@ impl Preset {
                                              * generator.  The effect is -added- to the destination
                                              * summing node -> voice_gen_incr */
                                             if (*preset_zone).gen[i as usize].flags != 0 {
-                                                fluid_voice_gen_incr(
-                                                    &mut synth.voices[voice_id.0],
+                                                synth.voices[voice_id.0].gen_incr(
                                                     i,
-                                                    (*preset_zone).gen[i as usize].val as f32,
+                                                    (*preset_zone).gen[i as usize].val,
                                                 );
-                                            } else if !global_preset_zone.is_null()
-                                                && (*global_preset_zone).gen[i as usize].flags
-                                                    as i32
-                                                    != 0
+                                            } else if let Some(global_preset_zone) =
+                                                &global_preset_zone
                                             {
-                                                fluid_voice_gen_incr(
-                                                    &mut synth.voices[voice_id.0],
-                                                    i,
-                                                    (*global_preset_zone).gen[i as usize].val
-                                                        as f32,
-                                                );
+                                                if global_preset_zone.gen[i as usize].flags != 0 {
+                                                    synth.voices[voice_id.0].gen_incr(
+                                                        i,
+                                                        global_preset_zone.gen[i as usize].val,
+                                                    );
+                                                }
                                             } else {
                                                 /* The generator has not been defined in this preset
                                                  * Do nothing, leave it unchanged.
@@ -464,8 +459,8 @@ impl Preset {
                                     /* Global preset zone, modulators: put them all into a
                                      * list. */
                                     let mut mod_list_count = 0;
-                                    if !global_preset_zone.is_null() {
-                                        mod_0 = (*global_preset_zone).mod_0;
+                                    if let Some(global_preset_zone) = &global_preset_zone {
+                                        mod_0 = global_preset_zone.mod_0;
                                         while !mod_0.is_null() {
                                             mod_list[mod_list_count] = mod_0;
                                             mod_0 = (*mod_0).next;

@@ -1,9 +1,6 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_MOD_KEYPRESSURE;
 use crate::synth::FLUID_OK;
-use crate::voice::fluid_voice_modulate;
-use crate::voice::fluid_voice_noteoff;
-use crate::voice::fluid_voice_off;
 use crate::voice::FLUID_VOICE_CLEAN;
 use crate::voice::FLUID_VOICE_ENVRELEASE;
 use crate::voice::FLUID_VOICE_OFF;
@@ -82,9 +79,7 @@ impl Synth {
                         used_voices
                     );
                 }
-                unsafe {
-                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
-                }
+                voice.noteoff(self.min_note_length_ticks);
                 status = Ok(());
             }
             i += 1
@@ -146,9 +141,7 @@ impl Synth {
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan == chan
             {
-                unsafe {
-                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
-                }
+                voice.noteoff(self.min_note_length_ticks);
             }
             i += 1
         }
@@ -162,7 +155,7 @@ impl Synth {
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
                 && voice.chan == chan
             {
-                fluid_voice_off(voice);
+                voice.off();
             }
             i += 1
         }
@@ -328,7 +321,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.key as i32 == key {
-                result = fluid_voice_modulate(voice, 0 as i32, FLUID_MOD_KEYPRESSURE as i32);
+                result = voice.modulate(0 as i32, FLUID_MOD_KEYPRESSURE as i32);
                 if result != FLUID_OK as i32 {
                     break;
                 }
@@ -446,7 +439,7 @@ impl Synth {
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                fluid_voice_off(voice);
+                voice.off();
             }
             i += 1
         }

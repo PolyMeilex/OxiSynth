@@ -19,14 +19,6 @@ use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
-use super::voice::fluid_voice_get_channel;
-use super::voice::fluid_voice_kill_excl;
-use super::voice::fluid_voice_modulate;
-use super::voice::fluid_voice_modulate_all;
-use super::voice::fluid_voice_noteoff;
-use super::voice::fluid_voice_off;
-use super::voice::fluid_voice_start;
-use super::voice::fluid_voice_write;
 use super::voice::FluidVoiceAddMod;
 use super::voice::Voice;
 use super::{
@@ -357,7 +349,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
-                fluid_voice_noteoff(voice, self.min_note_length_ticks);
+                voice.noteoff(self.min_note_length_ticks);
             }
             i += 1
         }
@@ -369,7 +361,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan {
-                fluid_voice_modulate(voice, is_cc, ctrl);
+                voice.modulate(is_cc, ctrl);
             }
             i += 1
         }
@@ -381,7 +373,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan {
-                fluid_voice_modulate_all(voice);
+                voice.modulate_all();
             }
             i += 1
         }
@@ -476,11 +468,11 @@ impl Synth {
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                auchan = fluid_voice_get_channel(voice).as_ref().unwrap().get_num();
+                auchan = voice.get_channel().as_ref().unwrap().get_num();
                 auchan %= self.settings.synth.audio_groups as u8;
                 left_buf = self.left_buf[auchan as usize].as_mut_ptr();
                 right_buf = self.right_buf[auchan as usize].as_mut_ptr();
-                fluid_voice_write(
+                Voice::write(
                     voice,
                     self.min_note_length_ticks,
                     left_buf,
@@ -564,7 +556,7 @@ impl Synth {
 
         if let Some(id) = best_voice_index {
             let voice = &mut self.voices[id];
-            fluid_voice_off(voice);
+            voice.off();
             Some(id.into())
         } else {
             None
@@ -687,7 +679,7 @@ impl Synth {
                         != excl_class)
                     {
                         if !(existing_voice.id == new_voice.id) {
-                            fluid_voice_kill_excl(&mut self.voices[i as usize]);
+                            self.voices[i as usize].kill_excl();
                         }
                     }
                 }
@@ -698,7 +690,7 @@ impl Synth {
 
     pub(crate) unsafe fn start_voice(&mut self, voice_id: VoiceId) {
         self.kill_by_exclusive_class(voice_id);
-        fluid_voice_start(&mut self.voices[voice_id.0]);
+        self.voices[voice_id.0].start();
     }
 
     pub(crate) fn release_voice_on_same_note(&mut self, chan: u8, key: u8) {
@@ -711,9 +703,7 @@ impl Synth {
                 && voice.key == key
                 && voice.id != self.noteid
             {
-                unsafe {
-                    fluid_voice_noteoff(voice, self.min_note_length_ticks);
-                }
+                voice.noteoff(self.min_note_length_ticks);
             }
             i += 1
         }
@@ -884,7 +874,7 @@ impl Drop for Synth {
     fn drop(&mut self) {
         self.state = FLUID_SYNTH_STOPPED as i32 as u32;
         for voice in self.voices.iter_mut() {
-            fluid_voice_off(voice);
+            voice.off();
         }
         self.bank_offsets.clear();
         self.voices.clear();
