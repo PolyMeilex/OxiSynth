@@ -209,7 +209,7 @@ impl PresetZone {
 struct Instrument {
     // [u8;21]
     name: String,
-    global_zone: *mut InstrumentZone,
+    global_zone: Option<InstrumentZone>,
     zone: *mut InstrumentZone,
 }
 #[derive(Clone)]
@@ -398,13 +398,9 @@ impl Preset {
             while !preset_zone.is_null() {
                 // check if the note falls into the key and velocity range of this preset
                 if fluid_preset_zone_inside_range(&*preset_zone, key, vel) {
-                    let inst = &*(*preset_zone).inst;
+                    let inst = &mut *(*preset_zone).inst;
 
-                    let mut global_inst_zone = if inst.global_zone.is_null() {
-                        None
-                    } else {
-                        Some(&mut *inst.global_zone)
-                    };
+                    let mut global_inst_zone = &mut inst.global_zone;
 
                     // run thru all the zones of this instrument
                     let mut inst_zone_raw = inst.zone;
@@ -797,7 +793,7 @@ unsafe fn new_fluid_inst() -> *mut Instrument {
         return 0 as *mut Instrument;
     }
     (*inst).name = String::new();
-    (*inst).global_zone = 0 as *mut InstrumentZone;
+    (*inst).global_zone = None;
     (*inst).zone = 0 as *mut InstrumentZone;
     return inst;
 }
@@ -805,12 +801,9 @@ unsafe fn new_fluid_inst() -> *mut Instrument {
 unsafe fn delete_fluid_inst(mut inst: *mut Instrument) -> i32 {
     let mut zone: *mut InstrumentZone;
     let mut err: i32 = FLUID_OK as i32;
-    if !(*inst).global_zone.is_null() {
-        if delete_fluid_inst_zone((*inst).global_zone) != FLUID_OK as i32 {
-            err = FLUID_FAILED as i32
-        }
-        (*inst).global_zone = 0 as *mut InstrumentZone
-    }
+
+    (*inst).global_zone = None;
+
     zone = (*inst).zone;
     while !zone.is_null() {
         (*inst).zone = (*zone).next;
@@ -844,7 +837,7 @@ unsafe fn fluid_inst_import_sfont(
         let mut zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont).unwrap();
 
         if count == 0 as i32 && zone.sample.is_none() {
-            inst.global_zone = Box::into_raw(Box::new(zone));
+            inst.global_zone = Some(zone);
         } else {
             // fluid_inst_add_zone
             if inst.zone.is_null() {
