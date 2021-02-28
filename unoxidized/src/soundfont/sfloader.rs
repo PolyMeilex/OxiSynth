@@ -177,18 +177,77 @@ struct InstrumentZone {
 }
 
 impl InstrumentZone {
-    fn new(name: String) -> InstrumentZone {
-        InstrumentZone {
+    unsafe fn import_sfont(
+        name: String,
+        sf2: &sf2::SoundFont2,
+        new_zone: &sf2::Zone,
+        sfont: &mut DefaultSoundFont,
+    ) -> Result<InstrumentZone, ()> {
+        let mut keylo = 0;
+        let mut keyhi = 128;
+        let mut gen = gen::get_default_values();
+
+        for new_gen in new_zone
+            .gen_list
+            .iter()
+            .filter(|g| g.ty != sf2::data::SFGeneratorType::SampleID)
+        {
+            match new_gen.ty {
+                sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
+                    let amount = new_gen.amount.as_range().unwrap();
+                    keylo = amount.low;
+                    keyhi = amount.high;
+                }
+                _ => {
+                    // FIXME: some generators have an unsigned word amount value but i don't know which ones
+                    gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
+                    gen[new_gen.ty as usize].flags = GEN_SET as u8;
+                }
+            }
+        }
+
+        let sample = if let Some(sample_id) = new_zone.sample() {
+            let sample = sf2.sample_headers.get(*sample_id as usize).unwrap();
+            let sample = sfont.get_sample(&sample.name);
+            if sample.is_none() {
+                log::error!("Couldn't find sample name",);
+                return Err(());
+            }
+            sample
+        } else {
+            None
+        };
+
+        let mut mod_0 = 0 as *mut Mod;
+
+        for (id, new_mod) in new_zone.mod_list.iter().enumerate() {
+            let mod_dest = Mod::from(new_mod);
+            let mod_dest = Box::into_raw(Box::new(mod_dest));
+            /* Store the new modulator in the zone
+             * The order of modulators will make a difference, at least in an instrument context:
+             * The second modulator overwrites the first one, if they only differ in amount. */
+            if id == 0 {
+                mod_0 = mod_dest
+            } else {
+                let mut last_mod: *mut Mod = mod_0;
+                while !(*last_mod).next.is_null() {
+                    last_mod = (*last_mod).next
+                }
+                (*last_mod).next = mod_dest
+            }
+        }
+
+        Ok(InstrumentZone {
             next: 0 as *mut InstrumentZone,
             name: name,
-            sample: None,
-            keylo: 0,
-            keyhi: 128,
+            sample,
+            keylo,
+            keyhi,
             vello: 0,
             velhi: 128,
-            gen: gen::get_default_values(),
-            mod_0: 0 as *mut Mod,
-        }
+            gen,
+            mod_0,
+        })
     }
 }
 
@@ -824,11 +883,10 @@ unsafe fn fluid_inst_import_sfont(
 
     count = 0 as i32;
     for new_zone in new_inst.zones.iter() {
-        let mut zone = InstrumentZone::new(format!("{}/{}", new_inst.header.name, count));
+        let name = format!("{}/{}", new_inst.header.name, count);
 
-        if fluid_inst_zone_import_sfont(sf2, &mut zone, new_zone, &mut *sfont) != FLUID_OK as i32 {
-            return FLUID_FAILED as i32;
-        }
+        let mut zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont).unwrap();
+
         if count == 0 as i32 && zone.sample.is_none() {
             inst.global_zone = Box::into_raw(Box::new(zone));
         } else {
@@ -857,67 +915,5 @@ unsafe fn delete_fluid_inst_zone(zone: *mut InstrumentZone) -> i32 {
         Box::from_raw(tmp);
     }
     libc::free(zone as *mut libc::c_void);
-    return FLUID_OK as i32;
-}
-
-unsafe fn fluid_inst_zone_import_sfont(
-    sf2: &sf2::SoundFont2,
-    zone: &mut InstrumentZone,
-    new_zone: &sf2::Zone,
-    sfont: &mut DefaultSoundFont,
-) -> i32 {
-    let mut count: i32;
-    count = 0 as i32;
-
-    for new_gen in new_zone
-        .gen_list
-        .iter()
-        .filter(|g| g.ty != sf2::data::SFGeneratorType::SampleID)
-    {
-        match new_gen.ty {
-            sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
-                let amount = new_gen.amount.as_range().unwrap();
-                zone.keylo = amount.low;
-                zone.keyhi = amount.high;
-            }
-            _ => {
-                // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                zone.gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
-                zone.gen[new_gen.ty as usize].flags = GEN_SET as u8;
-            }
-        }
-
-        count += 1
-    }
-
-    if let Some(sample_id) = new_zone.sample() {
-        let sample = sf2.sample_headers.get(*sample_id as usize).unwrap();
-
-        zone.sample = sfont.get_sample(&sample.name);
-
-        if zone.sample.is_none() {
-            log::error!("Couldn't find sample name",);
-            return FLUID_FAILED as i32;
-        }
-    }
-    count = 0 as i32;
-    for new_mod in new_zone.mod_list.iter() {
-        let mod_dest = Mod::from(new_mod);
-        let mod_dest = Box::into_raw(Box::new(mod_dest));
-
-        /* Store the new modulator in the zone
-         * The order of modulators will make a difference, at least in an instrument context:
-         * The second modulator overwrites the first one, if they only differ in amount. */
-        if count == 0 as i32 {
-            zone.mod_0 = mod_dest
-        } else {
-            let mut last_mod: *mut Mod = (*zone).mod_0;
-            while !(*last_mod).next.is_null() {
-                last_mod = (*last_mod).next
-            }
-            (*last_mod).next = mod_dest
-        }
-        count += 1
-    }
     return FLUID_OK as i32;
 }
