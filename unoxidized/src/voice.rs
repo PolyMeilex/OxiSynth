@@ -695,599 +695,617 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
+    /// Purpose:
+    ///
+    /// The value of a generator (gen) has changed.  (The different
+    /// generators are listed in fluidlite.h, or in SF2.01 page 48-49)
+    /// Now the dependent 'voice' parameters are calculated.
+    ///
+    /// fluid_voice_update_param can be called during the setup of the
+    /// voice (to calculate the initial value for a voice parameter), or
+    /// during its operation (a generator has been changed due to
+    /// real-time parameter modifications like pitch-bend).
+    ///
+    /// Note: The generator holds three values: The base value .val, an
+    /// offset caused by modulators .mod, and an offset caused by the
+    /// NRPN system. _GEN(voice, generator_enumerator) returns the sum
+    /// of all three.
     pub unsafe fn update_param(&mut self, gen: i32) {
-        let mut q_d_b;
-        let mut x;
-        let mut y;
-        let mut count;
-        // Alternate attenuation scale used by EMU10K1 cards when setting the attenuation at the preset or instrument level within the SoundFont bank.
-        static mut ALT_ATTENUATION_SCALE: f32 = 0.4f32;
-        let current_block_195: u64;
-        match gen as u32 {
-            17 => {
-                self.pan = self.gen[GEN_PAN as i32 as usize].val as f32
-                    + self.gen[GEN_PAN as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_PAN as i32 as usize].nrpn as f32;
-                self.amp_left = fluid_pan(self.pan, 1 as i32) * self.synth_gain / 32768.0f32;
-                self.amp_right = fluid_pan(self.pan, 0 as i32) * self.synth_gain / 32768.0f32;
-                current_block_195 = 5267916556966421873;
+        macro_rules! gen_sum {
+            ($id: expr) => {{
+                let Gen {
+                    val, mod_0, nrpn, ..
+                } = &self.gen[$id as usize];
+
+                (val + mod_0 + nrpn) as f32
+            }};
+        }
+
+        if gen < 0 && gen > 60 {
+            log::error!("Unknown Generator: {}", gen);
+            return;
+        }
+
+        use gen::GenParam;
+        let gen: GenParam = std::mem::transmute(gen);
+
+        match gen {
+            GenParam::Pan => {
+                // range checking is done in the fluid_pan function
+                self.pan = gen_sum!(GenParam::Pan);
+
+                self.amp_left = fluid_pan(self.pan, 1) * self.synth_gain / 32768.0;
+                self.amp_right = fluid_pan(self.pan, 0) * self.synth_gain / 32768.0;
             }
-            48 => {
-                self.attenuation = self.gen[GEN_ATTENUATION as i32 as usize].val as f32
-                    * ALT_ATTENUATION_SCALE
-                    + self.gen[GEN_ATTENUATION as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_ATTENUATION as i32 as usize].nrpn as f32;
-                self.attenuation = if (self.attenuation as f64) < 0.0f64 {
-                    0.0f64
-                } else if self.attenuation as f64 > 1440.0f64 {
-                    1440.0f64
+
+            GenParam::Attenuation => {
+                // Alternate attenuation scale used by EMU10K1 cards when setting the attenuation at the preset or instrument level within the SoundFont bank.
+                static ALT_ATTENUATION_SCALE: f64 = 0.4;
+
+                self.attenuation =
+                    (self.gen[GenParam::Attenuation as usize].val * ALT_ATTENUATION_SCALE
+                        + self.gen[GenParam::Attenuation as usize].mod_0
+                        + self.gen[GenParam::Attenuation as usize].nrpn) as f32;
+
+                /* Range: SF2.01 section 8.1.3 # 48
+                 * Motivation for range checking:
+                 * OHPiano.SF2 sets initial attenuation to a whooping -96 dB */
+                self.attenuation = if self.attenuation < 0.0 {
+                    0.0
+                } else if self.attenuation > 1440.0 {
+                    1440.0
                 } else {
-                    self.attenuation as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.attenuation
+                };
             }
-            59 | 51 | 52 => {
-                self.pitch = self.gen[GEN_PITCH as i32 as usize].val as f32
-                    + self.gen[GEN_PITCH as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_PITCH as i32 as usize].nrpn as f32
-                    + 100.0f32
-                        * (self.gen[GEN_COARSETUNE as i32 as usize].val as f32
-                            + self.gen[GEN_COARSETUNE as i32 as usize].mod_0 as f32
-                            + self.gen[GEN_COARSETUNE as i32 as usize].nrpn as f32)
-                    + (self.gen[GEN_FINETUNE as i32 as usize].val as f32
-                        + self.gen[GEN_FINETUNE as i32 as usize].mod_0 as f32
-                        + self.gen[GEN_FINETUNE as i32 as usize].nrpn as f32);
-                current_block_195 = 5267916556966421873;
+            /* The pitch is calculated from three different generators.
+             * Read comment in fluidlite.h about GEN_PITCH.
+             */
+            GenParam::Pitch | GenParam::CoarseTune | GenParam::FineTune => {
+                /* The testing for allowed range is done in 'fluid_ct2hz' */
+
+                self.pitch = gen_sum!(GenParam::Pitch)
+                    + 100.0 * gen_sum!(GenParam::CoarseTune)
+                    + gen_sum!(GenParam::FineTune);
             }
-            16 => {
-                self.reverb_send = (self.gen[GEN_REVERBSEND as i32 as usize].val as f32
-                    + self.gen[GEN_REVERBSEND as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_REVERBSEND as i32 as usize].nrpn as f32)
-                    / 1000.0f32;
-                self.reverb_send = if (self.reverb_send as f64) < 0.0f64 {
-                    0.0f64
-                } else if self.reverb_send as f64 > 1.0f64 {
-                    1.0f64
+
+            GenParam::ReverbSend => {
+                /* The generator unit is 'tenths of a percent'. */
+                self.reverb_send = gen_sum!(GenParam::ReverbSend) / 1000.0;
+
+                self.reverb_send = if self.reverb_send < 0.0 {
+                    0.0
+                } else if self.reverb_send > 1.0 {
+                    1.0
                 } else {
-                    self.reverb_send as f64
-                } as f32;
-                self.amp_reverb = self.reverb_send * self.synth_gain / 32768.0f32;
-                current_block_195 = 5267916556966421873;
+                    self.reverb_send
+                };
+                self.amp_reverb = self.reverb_send * self.synth_gain / 32768.0;
             }
-            15 => {
-                self.chorus_send = (self.gen[GEN_CHORUSSEND as i32 as usize].val as f32
-                    + self.gen[GEN_CHORUSSEND as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_CHORUSSEND as i32 as usize].nrpn as f32)
-                    / 1000.0f32;
-                self.chorus_send = if (self.chorus_send as f64) < 0.0f64 {
-                    0.0f64
-                } else if self.chorus_send as f64 > 1.0f64 {
-                    1.0f64
+
+            GenParam::ChorusSend => {
+                /* The generator unit is 'tenths of a percent'. */
+                self.chorus_send = gen_sum!(GenParam::ChorusSend) / 1000.0;
+
+                self.chorus_send = if self.chorus_send < 0.0 {
+                    0.0
+                } else if self.chorus_send > 1.0 {
+                    1.0
                 } else {
-                    self.chorus_send as f64
-                } as f32;
-                self.amp_chorus = self.chorus_send * self.synth_gain / 32768.0f32;
-                current_block_195 = 5267916556966421873;
+                    self.chorus_send
+                };
+                self.amp_chorus = self.chorus_send * self.synth_gain / 32768.0;
             }
-            58 => {
-                if self.gen[GEN_OVERRIDEROOTKEY as i32 as usize].val > -(1 as i32) as f64 {
-                    //FIXME: use flag instead of -1
+
+            GenParam::OverrideRootKey => {
+                /* This is a non-realtime parameter. Therefore the .mod part of the generator
+                 * can be neglected.
+                 * NOTE: origpitch sets MIDI root note while pitchadj is a fine tuning amount
+                 * which offsets the original rate.  This means that the fine tuning is
+                 * inverted with respect to the root note (so subtract it, not add).
+                 */
+                //FIXME: use flag instead of -1
+                if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 as f64 {
+                    self.root_pitch = (self.gen[GenParam::OverrideRootKey as usize].val * 100.0
+                        - (*self.sample).pitchadj as f64)
+                        as f32
+                } else {
                     self.root_pitch =
-                        (self.gen[GEN_OVERRIDEROOTKEY as i32 as usize].val * 100.0f32 as f64
-                            - (*self.sample).pitchadj as f64) as f32
-                } else {
-                    self.root_pitch =
-                        (*self.sample).origpitch as f32 * 100.0f32 - (*self.sample).pitchadj as f32
+                        (*self.sample).origpitch as f32 * 100.0 - (*self.sample).pitchadj as f32
                 }
                 self.root_pitch = fluid_ct2hz(self.root_pitch);
                 if !self.sample.is_null() {
                     self.root_pitch *= self.output_rate / (*self.sample).samplerate as f32
                 }
-                current_block_195 = 5267916556966421873;
             }
-            8 => {
-                self.fres = (*self).gen[GEN_FILTERFC as i32 as usize].val as f32
-                    + self.gen[GEN_FILTERFC as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_FILTERFC as i32 as usize].nrpn as f32;
-                self.last_fres = -1.0f32;
-                current_block_195 = 5267916556966421873;
+
+            GenParam::FilterFc => {
+                /* The resonance frequency is converted from absolute cents to
+                 * midicents .val and .mod are both used, this permits real-time
+                 * modulation.  The allowed range is tested in the 'fluid_ct2hz'
+                 * function [PH,20021214]
+                 */
+                self.fres = gen_sum!(GenParam::FilterFc);
+                /* The synthesis loop will have to recalculate the filter
+                 * coefficients. */
+                self.last_fres = -1.0;
             }
-            9 => {
-                q_d_b = ((self.gen[GEN_FILTERQ as i32 as usize].val as f32
-                    + self.gen[GEN_FILTERQ as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_FILTERQ as i32 as usize].nrpn as f32)
-                    / 10.0f32) as f64;
-                q_d_b = if q_d_b < 0.0f32 as f64 {
-                    0.0f32 as f64
-                } else if q_d_b > 96.0f32 as f64 {
-                    96.0f32 as f64
+
+            GenParam::FilterQ => {
+                /* The generator contains 'centibels' (1/10 dB) => divide by 10 to
+                 * obtain dB */
+                let q_db = gen_sum!(GenParam::FilterQ) / 10.0;
+                /* Range: SF2.01 section 8.1.3 # 8 (convert from cB to dB => /10) */
+                let mut q_db = if q_db < 0.0 {
+                    0.0
+                } else if q_db > 96.0 {
+                    96.0
                 } else {
-                    q_d_b
+                    q_db
                 };
-                q_d_b -= 3.01f32 as f64;
-                self.q_lin = f64::powf(10.0f32 as f64, q_d_b / 20.0f32 as f64) as f32;
-                self.filter_gain = (1.0f64 / f64::sqrt(self.q_lin as f64)) as f32;
-                self.last_fres = -1.0f32;
-                current_block_195 = 5267916556966421873;
+                /* Short version: Modify the Q definition in a way, that a Q of 0
+                 * dB leads to no resonance hump in the freq. response.
+                 *
+                 * Long version: From SF2.01, page 39, item 9 (initialFilterQ):
+                 * "The gain at the cutoff frequency may be less than zero when
+                 * zero is specified".  Assume q_dB=0 / q_lin=1: If we would leave
+                 * q as it is, then this results in a 3 dB hump slightly below
+                 * fc. At fc, the gain is exactly the DC gain (0 dB).  What is
+                 * (probably) meant here is that the filter does not show a
+                 * resonance hump for q_dB=0. In this case, the corresponding
+                 * q_lin is 1/sqrt(2)=0.707.  The filter should have 3 dB of
+                 * attenuation at fc now.  In this case Q_dB is the height of the
+                 * resonance peak not over the DC gain, but over the frequency
+                 * response of a non-resonant filter.  This idea is implemented as
+                 * follows: */
+                q_db -= 3.01;
+
+                /* The 'sound font' Q is defined in dB. The filter needs a linear
+                q. Convert. */
+                self.q_lin = f32::powf(10.0, q_db / 20.0);
+                /* SF 2.01 page 59:
+                 *
+                 *  The SoundFont specs ask for a gain reduction equal to half the
+                 *  height of the resonance peak (Q).  For example, for a 10 dB
+                 *  resonance peak, the gain is reduced by 5 dB.  This is done by
+                 *  multiplying the total gain with sqrt(1/Q).  `Sqrt' divides dB
+                 *  by 2 (100 lin = 40 dB, 10 lin = 20 dB, 3.16 lin = 10 dB etc)
+                 *  The gain is later factored into the 'b' coefficients
+                 *  (numerator of the filter equation).  This gain factor depends
+                 *  only on Q, so this is the right place to calculate it.
+                 */
+                self.filter_gain = 1.0 / f32::sqrt(self.q_lin);
+
+                /* The synthesis loop will have to recalculate the filter coefficients. */
+                self.last_fres = -1.0;
             }
-            5 => {
-                self.modlfo_to_pitch = self.gen[GEN_MODLFOTOPITCH as i32 as usize].val as f32
-                    + self.gen[GEN_MODLFOTOPITCH as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODLFOTOPITCH as i32 as usize].nrpn as f32;
-                self.modlfo_to_pitch = if (self.modlfo_to_pitch as f64) < -12000.0f64 {
-                    -12000.0f64
-                } else if self.modlfo_to_pitch as f64 > 12000.0f64 {
-                    12000.0f64
+
+            GenParam::ModLfoToPitch => {
+                self.modlfo_to_pitch = gen_sum!(GenParam::ModLfoToPitch);
+
+                self.modlfo_to_pitch = if self.modlfo_to_pitch < -12000.0 {
+                    -12000.0
+                } else if self.modlfo_to_pitch > 12000.0 {
+                    12000.0
                 } else {
-                    self.modlfo_to_pitch as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.modlfo_to_pitch
+                };
             }
-            13 => {
-                self.modlfo_to_vol = self.gen[GEN_MODLFOTOVOL as i32 as usize].val as f32
-                    + self.gen[GEN_MODLFOTOVOL as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODLFOTOVOL as i32 as usize].nrpn as f32;
-                self.modlfo_to_vol = if (self.modlfo_to_vol as f64) < -960.0f64 {
-                    -960.0f64
-                } else if self.modlfo_to_vol as f64 > 960.0f64 {
-                    960.0f64
+
+            GenParam::ModLfoToVol => {
+                self.modlfo_to_vol = gen_sum!(GenParam::ModLfoToVol);
+
+                self.modlfo_to_vol = if self.modlfo_to_vol < -960.0 {
+                    -960.0
+                } else if self.modlfo_to_vol > 960.0 {
+                    960.0
                 } else {
-                    self.modlfo_to_vol as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.modlfo_to_vol
+                };
             }
-            10 => {
-                self.modlfo_to_fc = self.gen[GEN_MODLFOTOFILTERFC as i32 as usize].val as f32
-                    + self.gen[GEN_MODLFOTOFILTERFC as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODLFOTOFILTERFC as i32 as usize].nrpn as f32;
-                self.modlfo_to_fc = if self.modlfo_to_fc < -(12000 as i32) as f32 {
-                    -(12000 as i32) as f32
-                } else if self.modlfo_to_fc > 12000 as i32 as f32 {
-                    12000 as i32 as f32
+
+            GenParam::ModLfoToFilterFc => {
+                self.modlfo_to_fc = gen_sum!(GenParam::ModLfoToFilterFc);
+
+                self.modlfo_to_fc = if self.modlfo_to_fc < -12000.0 {
+                    -12000.0
+                } else if self.modlfo_to_fc > 12000.0 {
+                    12000.0
                 } else {
                     self.modlfo_to_fc
                 };
-                current_block_195 = 5267916556966421873;
             }
-            21 => {
-                x = self.gen[GEN_MODLFODELAY as i32 as usize].val as f32
-                    + self.gen[GEN_MODLFODELAY as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODLFODELAY as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 5000.0f32 {
-                    5000.0f32
+
+            GenParam::ModLfoDelay => {
+                let val = gen_sum!(GenParam::ModLfoDelay);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 5000.0 {
+                    5000.0
                 } else {
-                    x
+                    val
                 };
-                self.modlfo_delay = (self.output_rate * fluid_tc2sec_delay(x)) as u32;
-                current_block_195 = 5267916556966421873;
+                self.modlfo_delay = (self.output_rate * fluid_tc2sec_delay(val)) as u32;
             }
-            22 => {
-                x = self.gen[GEN_MODLFOFREQ as i32 as usize].val as f32
-                    + self.gen[GEN_MODLFOFREQ as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODLFOFREQ as i32 as usize].nrpn as f32;
-                x = if x < -16000.0f32 {
-                    -16000.0f32
-                } else if x > 4500.0f32 {
-                    4500.0f32
+
+            GenParam::ModLfoFreq => {
+                /* - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
+                 * - the delay into a sample delay
+                 */
+                let val = gen_sum!(GenParam::ModLfoFreq);
+
+                let val = if val < -16000.0 {
+                    -16000.0
+                } else if val > 4500.0 {
+                    4500.0
                 } else {
-                    x
+                    val
                 };
-                self.modlfo_incr = 4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / self.output_rate;
-                current_block_195 = 5267916556966421873;
+                self.modlfo_incr = 4.0 * 64.0 * fluid_act2hz(val) / self.output_rate;
             }
-            24 => {
-                x = self.gen[GEN_VIBLFOFREQ as i32 as usize].val as f32
-                    + self.gen[GEN_VIBLFOFREQ as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VIBLFOFREQ as i32 as usize].nrpn as f32;
-                x = if x < -16000.0f32 {
-                    -16000.0f32
-                } else if x > 4500.0f32 {
-                    4500.0f32
+
+            GenParam::VibLfoFreq => {
+                /* vib lfo
+                 *
+                 * - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
+                 * - the delay into a sample delay
+                 */
+                let freq = gen_sum!(GenParam::VibLfoFreq);
+
+                let freq = if freq < -16000.0 {
+                    -16000.0
+                } else if freq > 4500.0 {
+                    4500.0
                 } else {
-                    x
+                    freq
                 };
-                self.viblfo_incr = 4.0f32 * 64 as i32 as f32 * fluid_act2hz(x) / self.output_rate;
-                current_block_195 = 5267916556966421873;
+                self.viblfo_incr = 4.0 * 64.0 * fluid_act2hz(freq) / self.output_rate;
             }
-            23 => {
-                x = self.gen[GEN_VIBLFODELAY as i32 as usize].val as f32
-                    + self.gen[GEN_VIBLFODELAY as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VIBLFODELAY as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 5000.0f32 {
-                    5000.0f32
+
+            GenParam::VibLfoDelay => {
+                let val = gen_sum!(GenParam::VibLfoDelay);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 5000.0 {
+                    5000.0
                 } else {
-                    x
+                    val
                 };
-                self.viblfo_delay = (self.output_rate * fluid_tc2sec_delay(x)) as u32;
-                current_block_195 = 5267916556966421873;
+                self.viblfo_delay = (self.output_rate * fluid_tc2sec_delay(val)) as u32;
             }
-            6 => {
-                self.viblfo_to_pitch = self.gen[GEN_VIBLFOTOPITCH as i32 as usize].val as f32
-                    + self.gen[GEN_VIBLFOTOPITCH as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VIBLFOTOPITCH as i32 as usize].nrpn as f32;
-                self.viblfo_to_pitch = if (self.viblfo_to_pitch as f64) < -12000.0f64 {
-                    -12000.0f64
-                } else if self.viblfo_to_pitch as f64 > 12000.0f64 {
-                    12000.0f64
+
+            GenParam::VibLfoToPitch => {
+                self.viblfo_to_pitch = gen_sum!(GenParam::VibLfoToPitch);
+
+                self.viblfo_to_pitch = if self.viblfo_to_pitch < -12000.0 {
+                    -12000.0
+                } else if self.viblfo_to_pitch > 12000.0 {
+                    12000.0
                 } else {
-                    self.viblfo_to_pitch as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.viblfo_to_pitch
+                };
             }
-            46 => {
-                x = self.gen[GEN_KEYNUM as i32 as usize].val as f32
-                    + self.gen[GEN_KEYNUM as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_KEYNUM as i32 as usize].nrpn as f32;
-                if x >= 0 as i32 as f32 {
-                    self.key = x as u8
+
+            GenParam::KeyNum => {
+                /* GEN_KEYNUM: SF2.01 page 46, item 46
+                 *
+                 * If this generator is active, it forces the key number to its
+                 * value.  Non-realtime controller.
+                 *
+                 * There is a flag, which should indicate, whether a generator is
+                 * enabled or not.  But here we rely on the default value of -1.
+                 * */
+                let val = gen_sum!(GenParam::KeyNum);
+
+                if val >= 0.0 {
+                    self.key = val as u8;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            47 => {
-                x = self.gen[GEN_VELOCITY as i32 as usize].val as f32
-                    + self.gen[GEN_VELOCITY as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VELOCITY as i32 as usize].nrpn as f32;
-                if x > 0 as i32 as f32 {
-                    self.vel = x as u8
+
+            GenParam::Velocity => {
+                /* GEN_VELOCITY: SF2.01 page 46, item 47
+                 *
+                 * If this generator is active, it forces the velocity to its
+                 * value. Non-realtime controller.
+                 *
+                 * There is a flag, which should indicate, whether a generator is
+                 * enabled or not. But here we rely on the default value of -1.  */
+                let val = gen_sum!(GenParam::Velocity);
+                if val > 0.0 {
+                    self.vel = val as u8;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            7 => {
-                self.modenv_to_pitch = self.gen[GEN_MODENVTOPITCH as i32 as usize].val as f32
-                    + self.gen[GEN_MODENVTOPITCH as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODENVTOPITCH as i32 as usize].nrpn as f32;
-                self.modenv_to_pitch = if (self.modenv_to_pitch as f64) < -12000.0f64 {
-                    -12000.0f64
-                } else if self.modenv_to_pitch as f64 > 12000.0f64 {
-                    12000.0f64
+
+            GenParam::ModEnvToPitch => {
+                self.modenv_to_pitch = gen_sum!(GenParam::ModEnvToPitch);
+
+                self.modenv_to_pitch = if self.modenv_to_pitch < -12000.0 {
+                    -12000.0
+                } else if self.modenv_to_pitch > 12000.0 {
+                    12000.0
                 } else {
-                    self.modenv_to_pitch as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.modenv_to_pitch
+                };
             }
-            11 => {
-                self.modenv_to_fc = self.gen[GEN_MODENVTOFILTERFC as i32 as usize].val as f32
-                    + self.gen[GEN_MODENVTOFILTERFC as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODENVTOFILTERFC as i32 as usize].nrpn as f32;
-                self.modenv_to_fc = if (self.modenv_to_fc as f64) < -12000.0f64 {
-                    -12000.0f64
-                } else if self.modenv_to_fc as f64 > 12000.0f64 {
-                    12000.0f64
+
+            GenParam::ModEnvToFilterFc => {
+                self.modenv_to_fc = gen_sum!(GenParam::ModEnvToFilterFc);
+
+                /* Range: SF2.01 section 8.1.3 # 1
+                 * Motivation for range checking:
+                 * Filter is reported to make funny noises now and then
+                 */
+                self.modenv_to_fc = if self.modenv_to_fc < -12000.0 {
+                    -12000.0
+                } else if self.modenv_to_fc > 12000.0 {
+                    12000.0
                 } else {
-                    self.modenv_to_fc as f64
-                } as f32;
-                current_block_195 = 5267916556966421873;
+                    self.modenv_to_fc
+                };
             }
-            0 | 4 => {
+
+            /* sample start and ends points
+             *
+             * Range checking is initiated via the
+             * voice->check_sample_sanity flag,
+             * because it is impossible to check here:
+             * During the voice setup, all modulators are processed, while
+             * the voice is inactive. Therefore, illegal settings may
+             * occur during the setup (for example: First move the loop
+             * end point ahead of the loop start point => invalid, then
+             * move the loop start point forward => valid again.
+             */
+            GenParam::StartAddrOfs | GenParam::StartAddrCoarseOfs => {
                 if !self.sample.is_null() {
                     self.start = (*self.sample)
                         .start
-                        .wrapping_add(
-                            (self.gen[GEN_STARTADDROFS as i32 as usize].val as f32
-                                + self.gen[GEN_STARTADDROFS as i32 as usize].mod_0 as f32
-                                + self.gen[GEN_STARTADDROFS as i32 as usize].nrpn as f32)
-                                as i32 as u32,
-                        )
-                        .wrapping_add(
-                            (32768 as i32
-                                * (self.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].val as f32
-                                    + self.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].mod_0 as f32
-                                    + self.gen[GEN_STARTADDRCOARSEOFS as i32 as usize].nrpn as f32)
-                                    as i32) as u32,
-                        ) as i32;
-                    self.check_sample_sanity_flag = (1 as i32) << 0 as i32
+                        .wrapping_add(gen_sum!(GenParam::StartAddrOfs) as u32)
+                        .wrapping_add(32768 * gen_sum!(GenParam::StartAddrCoarseOfs) as u32)
+                        as i32;
+                    self.check_sample_sanity_flag = 1 << 0;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            1 | 12 => {
+
+            GenParam::EndAddrOfs | GenParam::EndAddrCoarseOfs => {
                 if !self.sample.is_null() {
                     self.end = (*self.sample)
                         .end
-                        .wrapping_add(
-                            (self.gen[GEN_ENDADDROFS as i32 as usize].val as f32
-                                + self.gen[GEN_ENDADDROFS as i32 as usize].mod_0 as f32
-                                + self.gen[GEN_ENDADDROFS as i32 as usize].nrpn as f32)
-                                as i32 as u32,
-                        )
-                        .wrapping_add(
-                            (32768 as i32
-                                * (self.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].val as f32
-                                    + self.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].mod_0 as f32
-                                    + self.gen[GEN_ENDADDRCOARSEOFS as i32 as usize].nrpn as f32)
-                                    as i32) as u32,
-                        ) as i32;
-                    self.check_sample_sanity_flag = (1 as i32) << 0 as i32
+                        .wrapping_add(gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
+                        .wrapping_add(32768 * gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
+                        as i32;
+                    self.check_sample_sanity_flag = 1 << 0;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            2 | 45 => {
+
+            GenParam::StartLoopAddrOfs | GenParam::StartLoopAddrCoarseOfs => {
                 if !self.sample.is_null() {
                     self.loopstart = (*self.sample)
                         .loopstart
-                        .wrapping_add(
-                            (self.gen[GEN_STARTLOOPADDROFS as i32 as usize].val as f32
-                                + self.gen[GEN_STARTLOOPADDROFS as i32 as usize].mod_0 as f32
-                                + self.gen[GEN_STARTLOOPADDROFS as i32 as usize].nrpn as f32)
-                                as i32 as u32,
-                        )
-                        .wrapping_add(
-                            (32768 as i32
-                                * (self.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].val as f32
-                                    + self.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].mod_0
-                                        as f32
-                                    + self.gen[GEN_STARTLOOPADDRCOARSEOFS as i32 as usize].nrpn
-                                        as f32) as i32) as u32,
-                        ) as i32;
-                    self.check_sample_sanity_flag = (1 as i32) << 0 as i32
+                        .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
+                        .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
+                        as i32;
+                    self.check_sample_sanity_flag = 1 << 0;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            3 | 50 => {
+
+            GenParam::EndLoopAddrOfs | GenParam::EndLoopAddrCoarseOfs => {
                 if !self.sample.is_null() {
                     self.loopend = (*self.sample)
                         .loopend
-                        .wrapping_add(
-                            (self.gen[GEN_ENDLOOPADDROFS as i32 as usize].val as f32
-                                + self.gen[GEN_ENDLOOPADDROFS as i32 as usize].mod_0 as f32
-                                + self.gen[GEN_ENDLOOPADDROFS as i32 as usize].nrpn as f32)
-                                as i32 as u32,
-                        )
-                        .wrapping_add(
-                            (32768 as i32
-                                * (self.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].val as f32
-                                    + self.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].mod_0
-                                        as f32
-                                    + self.gen[GEN_ENDLOOPADDRCOARSEOFS as i32 as usize].nrpn
-                                        as f32) as i32) as u32,
-                        ) as i32;
-                    self.check_sample_sanity_flag = (1 as i32) << 0 as i32
+                        .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
+                        .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
+                        as i32;
+                    self.check_sample_sanity_flag = 1 << 0;
                 }
-                current_block_195 = 5267916556966421873;
             }
-            33 => {
-                x = self.gen[GEN_VOLENVDELAY as i32 as usize].val as f32
-                    + self.gen[GEN_VOLENVDELAY as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VOLENVDELAY as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 5000.0f32 {
-                    5000.0f32
+
+            /* volume envelope
+             *
+             * - delay and hold times are converted to absolute number of samples
+             * - sustain is converted to its absolute value
+             * - attack, decay and release are converted to their increment per sample
+             */
+            GenParam::VolEnvDelay => {
+                let val = gen_sum!(GenParam::VolEnvDelay);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 5000.0 {
+                    5000.0
                 } else {
-                    x
+                    val
                 };
-                count = (self.output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
-                current_block_195 = 5267916556966421873;
+
+                let count = (self.output_rate * fluid_tc2sec_delay(val) / 64.0) as u32;
+                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].count = count;
+                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].coeff = 0.0;
+                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].incr = 0.0;
+                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].min = -1.0;
+                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].max = 1.0;
             }
-            34 => {
-                x = self.gen[GEN_VOLENVATTACK as i32 as usize].val as f32
-                    + self.gen[GEN_VOLENVATTACK as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VOLENVATTACK as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 8000.0f32 {
-                    8000.0f32
+
+            GenParam::VolEnvAttack => {
+                let val = gen_sum!(GenParam::VolEnvAttack);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 8000.0 {
+                    8000.0
                 } else {
-                    x
+                    val
                 };
-                count = (1 as i32 as u32).wrapping_add(
-                    (self.output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
-                );
-                self.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
-                    (1.0f32) / count as f32
-                } else {
-                    0.0f32
-                };
-                self.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
-                current_block_195 = 5267916556966421873;
+
+                let count = (1 as u32)
+                    .wrapping_add((self.output_rate * fluid_tc2sec_attack(val) / 64.0) as u32);
+                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].count = count;
+                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].coeff = 1.0;
+                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].incr =
+                    if count != 0 { 1.0 / count as f32 } else { 0.0 };
+                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].min = -1.0;
+                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].max = 1.0;
             }
-            35 | 39 => {
-                count = self.calculate_hold_decay_buffers(
+
+            GenParam::VolEnvHold | GenParam::KeyToVolEnvHold => {
+                let count = self.calculate_hold_decay_buffers(
                     GEN_VOLENVHOLD as i32,
                     GEN_KEYTOVOLENVHOLD as i32,
-                    0 as i32,
+                    0,
                 ) as u32;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
-                current_block_195 = 5267916556966421873;
+                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
+                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].coeff = 1.0;
+                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].incr = 0.0;
+                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].min = -1.0;
+                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].max = 2.0;
             }
-            36 => {
-                current_block_195 = 16592787104725195690;
-            }
-            37 | 40 => {
-                current_block_195 = 16592787104725195690;
-            }
-            38 => {
-                x = self.gen[GEN_VOLENVRELEASE as i32 as usize].val as f32
-                    + self.gen[GEN_VOLENVRELEASE as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_VOLENVRELEASE as i32 as usize].nrpn as f32;
-                x = if x < -7200.0f32 {
-                    -7200.0f32
-                } else if x > 8000.0f32 {
-                    8000.0f32
-                } else {
-                    x
-                };
-                count = (1 as i32 as u32).wrapping_add(
-                    (self.output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
-                );
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
-                    (-1.0f32) / count as f32
-                } else {
-                    0.0f32
-                };
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 1.0f32;
-                current_block_195 = 5267916556966421873;
-            }
-            25 => {
-                x = self.gen[GEN_MODENVDELAY as i32 as usize].val as f32
-                    + self.gen[GEN_MODENVDELAY as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODENVDELAY as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 5000.0f32 {
-                    5000.0f32
-                } else {
-                    x
-                };
-                self.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].count =
-                    (self.output_rate * fluid_tc2sec_delay(x) / 64 as i32 as f32) as u32;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].coeff = 0.0f32;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].incr = 0.0f32;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].min = -1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as i32 as usize].max = 1.0f32;
-                current_block_195 = 5267916556966421873;
-            }
-            26 => {
-                x = self.gen[GEN_MODENVATTACK as i32 as usize].val as f32
-                    + self.gen[GEN_MODENVATTACK as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODENVATTACK as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 8000.0f32 {
-                    8000.0f32
-                } else {
-                    x
-                };
-                count = (1 as i32 as u32).wrapping_add(
-                    (self.output_rate * fluid_tc2sec_attack(x) / 64 as i32 as f32) as u32,
-                );
-                self.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].coeff = 1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].incr = if count != 0 {
-                    (1.0f32) / count as f32
-                } else {
-                    0.0f32
-                };
-                self.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].min = -1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as i32 as usize].max = 1.0f32;
-                current_block_195 = 5267916556966421873;
-            }
-            27 | 31 => {
-                count = self.calculate_hold_decay_buffers(
-                    GEN_MODENVHOLD as i32,
-                    GEN_KEYTOMODENVHOLD as i32,
-                    0 as i32,
-                ) as u32;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].coeff = 1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].incr = 0.0f32;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].min = -1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as i32 as usize].max = 2.0f32;
-                current_block_195 = 5267916556966421873;
-            }
-            28 => {
-                current_block_195 = 9635119298622998056;
-            }
-            29 | 32 => {
-                current_block_195 = 9635119298622998056;
-            }
-            30 => {
-                x = self.gen[GEN_MODENVRELEASE as i32 as usize].val as f32
-                    + self.gen[GEN_MODENVRELEASE as i32 as usize].mod_0 as f32
-                    + self.gen[GEN_MODENVRELEASE as i32 as usize].nrpn as f32;
-                x = if x < -12000.0f32 {
-                    -12000.0f32
-                } else if x > 8000.0f32 {
-                    8000.0f32
-                } else {
-                    x
-                };
-                count = (1 as i32 as u32).wrapping_add(
-                    (self.output_rate * fluid_tc2sec_release(x) / 64 as i32 as f32) as u32,
-                );
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].coeff = 1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].incr = if count != 0 {
-                    (-1.0f32 / count as f32) as f64
-                } else {
-                    0.0f64
-                }
-                    as f32;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].min = 0.0f32;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as i32 as usize].max = 2.0f32;
-                current_block_195 = 5267916556966421873;
-            }
-            _ => {
-                current_block_195 = 5267916556966421873;
-            }
-        }
-        match current_block_195 {
-            9635119298622998056 => {
-                count = self.calculate_hold_decay_buffers(
-                    GEN_MODENVDECAY as i32,
-                    GEN_KEYTOMODENVDECAY as i32,
-                    1 as i32,
-                ) as u32;
-                y = 1.0f32
-                    - 0.001f32
-                        * (self.gen[GEN_MODENVSUSTAIN as i32 as usize].val as f32
-                            + self.gen[GEN_MODENVSUSTAIN as i32 as usize].mod_0 as f32
-                            + self.gen[GEN_MODENVSUSTAIN as i32 as usize].nrpn as f32);
-                y = if y < 0.0f32 {
-                    0.0f32
-                } else if y > 1.0f32 {
-                    1.0f32
+
+            GenParam::VolEnvDecay | GenParam::VolEnvSustain | GenParam::KeyToVolEnvDecay => {
+                let y = 1.0 - 0.001 * gen_sum!(GenParam::VolEnvSustain);
+
+                let y = if y < 0.0 {
+                    0.0
+                } else if y > 1.0 {
+                    1.0
                 } else {
                     y
                 };
-                self.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
-                    (-1.0f32) / count as f32
-                } else {
-                    0.0f32
-                };
-                self.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
-            }
-            16592787104725195690 => {
-                y = 1.0f32
-                    - 0.001f32
-                        * (self.gen[GEN_VOLENVSUSTAIN as i32 as usize].val as f32
-                            + self.gen[GEN_VOLENVSUSTAIN as i32 as usize].mod_0 as f32
-                            + self.gen[GEN_VOLENVSUSTAIN as i32 as usize].nrpn as f32);
-                y = if y < 0.0f32 {
-                    0.0f32
-                } else if y > 1.0f32 {
-                    1.0f32
-                } else {
-                    y
-                };
-                count = self.calculate_hold_decay_buffers(
+
+                let count = self.calculate_hold_decay_buffers(
                     GEN_VOLENVDECAY as i32,
                     GEN_KEYTOVOLENVDECAY as i32,
-                    1 as i32,
+                    1,
                 ) as u32;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].coeff = 1.0f32;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].incr = if count != 0 {
-                    (-1.0f32) / count as f32
+
+                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].count = count;
+                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].coeff = 1.0;
+                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].incr =
+                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
+                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].min = y;
+                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].max = 2.0;
+            }
+
+            GenParam::VolEnvRelease => {
+                let val = gen_sum!(GenParam::VolEnvRelease);
+
+                let val = if val < -7200.0 {
+                    -7200.0
+                } else if val > 8000.0 {
+                    8000.0
                 } else {
-                    0.0f32
+                    val
                 };
-                self.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].min = y;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as i32 as usize].max = 2.0f32
+
+                let count = (1 as u32)
+                    .wrapping_add((self.output_rate * fluid_tc2sec_release(val) / 64.0) as u32);
+                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].count = count;
+                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].coeff = 1.0;
+                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].incr =
+                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
+                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].min = 0.0;
+                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].max = 1.0;
+            }
+
+            GenParam::ModEnvDelay => {
+                let val = gen_sum!(GenParam::ModEnvDelay);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 5000.0 {
+                    5000.0
+                } else {
+                    val
+                };
+
+                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].count =
+                    (self.output_rate * fluid_tc2sec_delay(val) / 64.0) as u32;
+                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].coeff = 0.0;
+                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].incr = 0.0;
+                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].min = -1.0;
+                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].max = 1.0;
+            }
+
+            GenParam::ModEnvAttack => {
+                let val = gen_sum!(GenParam::ModEnvAttack);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 8000.0 {
+                    8000.0
+                } else {
+                    val
+                };
+
+                let count = (1 as u32)
+                    .wrapping_add((self.output_rate * fluid_tc2sec_attack(val) / 64.0) as u32);
+                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].count = count;
+                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].coeff = 1.0;
+                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].incr =
+                    if count != 0 { 1.0 / count as f32 } else { 0.0 };
+                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].min = -1.0;
+                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].max = 1.0;
+            }
+
+            GenParam::ModEnvHold | GenParam::KeyToModEnvHold => {
+                let count = self.calculate_hold_decay_buffers(
+                    GEN_MODENVHOLD as i32,
+                    GEN_KEYTOMODENVHOLD as i32,
+                    0,
+                ) as u32;
+                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
+                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].coeff = 1.0;
+                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].incr = 0.0;
+                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].min = -1.0;
+                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].max = 2.0;
+            }
+
+            GenParam::ModEnvDecay | GenParam::ModEnvSustain | GenParam::KeyToModEnvDecay => {
+                let count = self.calculate_hold_decay_buffers(
+                    GEN_MODENVDECAY as i32,
+                    GEN_KEYTOMODENVDECAY as i32,
+                    1,
+                ) as u32;
+
+                let y = 1.0 - 0.001 * gen_sum!(GenParam::ModEnvSustain);
+
+                let y = if y < 0.0 {
+                    0.0
+                } else if y > 1.0 {
+                    1.0
+                } else {
+                    y
+                };
+
+                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].count = count;
+                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].coeff = 1.0;
+                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].incr =
+                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
+                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].min = y;
+                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].max = 2.0;
+            }
+
+            GenParam::ModEnvRelease => {
+                let val = gen_sum!(GenParam::ModEnvRelease);
+
+                let val = if val < -12000.0 {
+                    -12000.0
+                } else if val > 8000.0 {
+                    8000.0
+                } else {
+                    val
+                };
+
+                let count = (1 as u32)
+                    .wrapping_add((self.output_rate * fluid_tc2sec_release(val) / 64.0) as u32);
+                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].count = count;
+                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].coeff = 1.0;
+                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].incr =
+                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
+                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].min = 0.0;
+                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].max = 2.0;
             }
             _ => {}
-        };
+        }
     }
 
     pub unsafe fn check_sample_sanity(&mut self) {
