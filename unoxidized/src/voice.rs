@@ -469,10 +469,10 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) unsafe fn modulate(&mut self, cc: i32, ctrl: i32) -> i32 {
+    pub(crate) fn modulate(&mut self, cc: i32, ctrl: i32) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
-            let mod_0 = &mut self.mod_0[i as usize];
+            let mod_0 = &mut self.mod_0[i];
             if mod_0.src1 as i32 == ctrl
                 && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0 as i32
                 && cc != 0 as i32
@@ -487,12 +487,14 @@ impl Voice {
                         && cc == 0 as i32)
             {
                 let gen = mod_0.get_dest();
-                let mut modval = 0.0f32;
+                let mut modval = 0.0;
 
                 let mut k = 0;
                 while k < self.mod_count {
                     if self.mod_0[k].dest as i32 == gen {
-                        modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self);
+                        unsafe {
+                            modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self);
+                        }
                     }
                     k += 1
                 }
@@ -622,18 +624,18 @@ impl Voice {
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i];
             let modval: f32 = mod_0.get_value(self.channel.as_ref().unwrap(), self);
-            let dest_gen_index: i32 = mod_0.dest as i32;
-            let mut dest_gen = &mut self.gen[dest_gen_index as usize];
+            let dest_gen_index = mod_0.dest as usize;
+            let mut dest_gen = &mut self.gen[dest_gen_index];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
         if !(*self.channel).tuning.is_none() {
             let tuning = (*self.channel).tuning.as_ref().unwrap();
-            self.gen[GEN_PITCH as i32 as usize].val = tuning.pitch[60 as i32 as usize]
-                + self.gen[GEN_SCALETUNE as i32 as usize].val / 100.0f32 as f64
-                    * (tuning.pitch[self.key as usize] - tuning.pitch[60 as i32 as usize])
+            self.gen[GEN_PITCH as usize].val = tuning.pitch[60 as i32 as usize]
+                + self.gen[GEN_SCALETUNE as usize].val / 100.0f32 as f64
+                    * (tuning.pitch[self.key as usize] - tuning.pitch[60])
         } else {
-            self.gen[GEN_PITCH as i32 as usize].val = self.gen[GEN_SCALETUNE as i32 as usize].val
+            self.gen[GEN_PITCH as usize].val = self.gen[GEN_SCALETUNE as usize].val
                 * (self.key as i32 as f32 - 60.0f32) as f64
                 + (100.0f32 * 60.0f32) as f64
         }
