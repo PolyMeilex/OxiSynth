@@ -12,7 +12,7 @@ pub struct SynthSettings {
     /// Def: 256
     /// Min: 16
     /// Max: 4096
-    pub polyphony: i32,
+    pub polyphony: u16,
     /// Def: 16
     /// Min: 16
     /// Max: 256

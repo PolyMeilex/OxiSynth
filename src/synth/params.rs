@@ -1,4 +1,4 @@
-use crate::{Status, Synth};
+use crate::Synth;
 
 use crate::engine::channel::InterpMethod;
 
@@ -21,10 +21,10 @@ impl Synth {
     }
 
     /**
-    Set the polyphony limit (FluidSynth >= 1.0.6)
+    Set the polyphony limit
      */
-    pub fn set_polyphony(&mut self, polyphony: u32) -> Status {
-        Synth::zero_ok(self.handle.set_polyphony(polyphony as _))
+    pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), ()> {
+        self.handle.set_polyphony(polyphony)
     }
 
     /**

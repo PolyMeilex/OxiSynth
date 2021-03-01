@@ -13,25 +13,22 @@ impl Synth {
     /**
     Set the master gain
      */
-    pub fn set_gain(&mut self, mut gain: f64) {
-        let mut i;
-        gain = if gain < 0.0 {
+    pub fn set_gain(&mut self, gain: f64) {
+        self.gain = if gain < 0.0 {
             0.0
         } else if gain > 10.0 {
             10.0
         } else {
             gain
         };
-        self.gain = gain;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
+
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
                 voice.set_gain(gain);
             }
-            i += 1
         }
     }
 
@@ -43,25 +40,26 @@ impl Synth {
     }
 
     /**
-    Set the polyphony limit (FluidSynth >= 1.0.6)
+    Set the polyphony limit
      */
-    pub fn set_polyphony(&mut self, polyphony: i32) -> i32 {
-        let mut i;
-        if polyphony < 1 as i32 || polyphony > self.nvoice {
-            return FLUID_FAILED as i32;
-        }
-        i = polyphony;
-        while i < self.nvoice {
-            let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
-                voice.off();
-            }
-            i += 1
-        }
+    pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), ()> {
         self.settings.synth.polyphony = polyphony;
-        return FLUID_OK as i32;
+
+        let polyphony = polyphony as usize;
+
+        if polyphony < 1 || polyphony > self.voices.len() {
+            Err(())
+        } else {
+            for i in polyphony..self.voices.len() {
+                let voice = &mut self.voices[i as usize];
+                if voice.status as i32 == FLUID_VOICE_ON as i32
+                    || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
+                {
+                    voice.off();
+                }
+            }
+            Ok(())
+        }
     }
 
     /**

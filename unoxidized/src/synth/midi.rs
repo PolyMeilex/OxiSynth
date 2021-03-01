@@ -58,15 +58,12 @@ impl Synth {
             {
                 if self.settings.synth.verbose {
                     let mut used_voices: i32 = 0 as i32;
-                    let mut k;
-                    k = 0 as i32;
-                    while k < self.settings.synth.polyphony {
+                    for _ in 0..self.settings.synth.polyphony {
                         if !(voice.status as i32 == FLUID_VOICE_CLEAN as i32
                             || voice.status as i32 == FLUID_VOICE_OFF as i32)
                         {
                             used_voices += 1
                         }
-                        k += 1
                     }
                     log::info!(
                         "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
@@ -316,9 +313,7 @@ impl Synth {
             log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
         }
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
-        let mut i;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.key as i32 == key {
                 result = voice.modulate(0 as i32, FLUID_MOD_KEYPRESSURE as i32);
@@ -326,7 +321,6 @@ impl Synth {
                     break;
                 }
             }
-            i += 1
         }
 
         if result == FLUID_OK {

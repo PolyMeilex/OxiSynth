@@ -190,7 +190,6 @@ pub struct Synth {
     bank_offsets: Vec<BankOffset>,
     gain: f64,
     channel: Vec<Channel>,
-    nvoice: i32,
     pub(crate) voices: Vec<Voice>,
     noteid: u32,
     storeid: u32,
@@ -279,7 +278,6 @@ impl Synth {
             bank_offsets: Vec::new(),
             gain: settings.synth.gain,
             channel: Vec::new(),
-            nvoice: settings.synth.polyphony,
             voices: Vec::new(),
             noteid: 0,
             storeid: 0 as _,
@@ -303,7 +301,7 @@ impl Synth {
             synth.channel.push(Channel::new(&synth, i));
         }
 
-        for _ in 0..synth.nvoice {
+        for _ in 0..synth.settings.synth.polyphony {
             synth
                 .voices
                 .push(Voice::new(synth.settings.synth.sample_rate as f32));
@@ -329,7 +327,7 @@ impl Synth {
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.settings.synth.sample_rate = sample_rate as f64;
-        for i in 0..self.nvoice {
+        for i in 0..self.voices.len() {
             self.voices[i as usize] = Voice::new(self.settings.synth.sample_rate as f32);
         }
         self.chorus.delete();
@@ -337,14 +335,11 @@ impl Synth {
     }
 
     pub(crate) fn damp_voices(&mut self, chan: u8) -> i32 {
-        let mut i;
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
                 voice.noteoff(self.min_note_length_ticks);
             }
-            i += 1
         }
         return FLUID_OK as i32;
     }
