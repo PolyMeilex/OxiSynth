@@ -102,7 +102,7 @@ pub type MidiControlChange = u32;
 pub type LoopMode = u32;
 
 #[derive(Copy, Clone)]
-pub struct VoiceId(pub usize);
+pub struct VoiceId(pub(crate) usize);
 
 pub struct Voice {
     pub(crate) id: u32,

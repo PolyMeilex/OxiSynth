@@ -84,7 +84,7 @@ struct ReverbModelPreset {
     pub level: f32,
 }
 
-type VoiceStatus = u32;
+type VoiceStatus = u8;
 type VoiceEnvelopeIndex = u32;
 type SynthStatus = u32;
 
@@ -561,19 +561,14 @@ impl Synth {
         key: u8,
         vel: i32,
     ) -> Option<VoiceId> {
-        let mut voice_id: Option<VoiceId> = None;
+        let mut voice_id = self
+            .voices
+            .iter()
+            .take(self.settings.synth.polyphony as usize)
+            .enumerate()
+            .find(|(_, v)| v.status == FLUID_VOICE_CLEAN || v.status == FLUID_VOICE_OFF)
+            .map(|(id, _)| VoiceId(id));
 
-        let mut i = 0;
-        while i < self.settings.synth.polyphony as usize {
-            if self.voices[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
-                || self.voices[i as usize].status as i32 == FLUID_VOICE_OFF as i32
-            {
-                voice_id = Some(VoiceId(i));
-                break;
-            } else {
-                i += 1
-            }
-        }
         if voice_id.is_none() {
             voice_id = self.free_voice_by_kill()
         }
