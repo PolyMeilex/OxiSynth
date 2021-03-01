@@ -470,39 +470,29 @@ impl Voice {
     }
 
     pub(crate) unsafe fn modulate(&mut self, cc: i32, ctrl: i32) -> i32 {
-        let mut i;
-        let mut k;
-        let mut mod_0;
-        let mut gen;
-        let mut modval;
-        i = 0;
+        let mut i = 0;
         while i < self.mod_count {
-            mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
-            if (*mod_0).src1 as i32 == ctrl
-                && (*mod_0).flags1 as i32 & FLUID_MOD_CC as i32 != 0 as i32
+            let mod_0 = &mut self.mod_0[i as usize];
+            if mod_0.src1 as i32 == ctrl
+                && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0 as i32
                 && cc != 0 as i32
-                || (*mod_0).src1 as i32 == ctrl
-                    && (*mod_0).flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
+                || mod_0.src1 as i32 == ctrl
+                    && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
                     && cc == 0 as i32
-                || ((*mod_0).src2 as i32 == ctrl
-                    && (*mod_0).flags2 as i32 & FLUID_MOD_CC as i32 != 0 as i32
+                || (mod_0.src2 as i32 == ctrl
+                    && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0 as i32
                     && cc != 0 as i32
-                    || (*mod_0).src2 as i32 == ctrl
-                        && (*mod_0).flags2 as i32 & FLUID_MOD_CC as i32 == 0 as i32
+                    || mod_0.src2 as i32 == ctrl
+                        && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 == 0 as i32
                         && cc == 0 as i32)
             {
-                gen = mod_0.as_ref().unwrap().get_dest();
-                modval = 0.0f32;
-                k = 0;
+                let gen = mod_0.get_dest();
+                let mut modval = 0.0f32;
+
+                let mut k = 0;
                 while k < self.mod_count {
-                    if (*self).mod_0[k as usize].dest as i32 == gen {
-                        modval += self
-                            .mod_0
-                            .as_mut_ptr()
-                            .offset(k as isize)
-                            .as_mut()
-                            .unwrap()
-                            .get_value(self.channel.as_mut().unwrap(), self)
+                    if self.mod_0[k].dest as i32 == gen {
+                        modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self);
                     }
                     k += 1
                 }
@@ -671,6 +661,489 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
+    pub fn check_sample_sanity(&mut self) {
+        let min_index_nonloop: i32 = (self.sample.as_ref().unwrap()).start as i32;
+        let max_index_nonloop: i32 = (self.sample.as_ref().unwrap()).end as i32;
+        let min_index_loop: i32 = (self.sample.as_ref().unwrap()).start as i32 + 0 as i32;
+        let max_index_loop: i32 = (self.sample.as_ref().unwrap()).end as i32 - 0 as i32 + 1 as i32;
+        if self.check_sample_sanity_flag == 0 {
+            return;
+        }
+        if self.start < min_index_nonloop {
+            self.start = min_index_nonloop
+        } else if self.start > max_index_nonloop {
+            self.start = max_index_nonloop
+        }
+        if self.end < min_index_nonloop {
+            self.end = min_index_nonloop
+        } else if self.end > max_index_nonloop {
+            self.end = max_index_nonloop
+        }
+        if self.start > self.end {
+            let temp: i32 = self.start;
+            self.start = self.end;
+            self.end = temp
+        }
+        if self.start == self.end {
+            self.off();
+            return;
+        }
+        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                == FLUID_LOOP_DURING_RELEASE as i32
+        {
+            if self.loopstart < min_index_loop {
+                self.loopstart = min_index_loop
+            } else if self.loopstart > max_index_loop {
+                self.loopstart = max_index_loop
+            }
+            if self.loopend < min_index_loop {
+                self.loopend = min_index_loop
+            } else if self.loopend > max_index_loop {
+                self.loopend = max_index_loop
+            }
+            if self.loopstart > self.loopend {
+                let temp_0: i32 = self.loopstart;
+                self.loopstart = self.loopend;
+                self.loopend = temp_0
+            }
+            if self.loopend < self.loopstart + 2 as i32 {
+                self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+            }
+            if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
+                && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
+            {
+                if self
+                    .sample
+                    .as_ref()
+                    .unwrap()
+                    .amplitude_that_reaches_noise_floor_is_valid
+                    != 0
+                {
+                    self.amplitude_that_reaches_noise_floor_loop = (self
+                        .sample
+                        .as_ref()
+                        .unwrap()
+                        .amplitude_that_reaches_noise_floor
+                        / self.synth_gain as f64)
+                        as f32
+                } else {
+                    self.amplitude_that_reaches_noise_floor_loop =
+                        self.amplitude_that_reaches_noise_floor_nonloop
+                }
+            }
+        }
+        if self.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
+            if max_index_loop - min_index_loop < 2 as i32 {
+                if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                    == FLUID_LOOP_UNTIL_RELEASE as i32
+                    || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                        == FLUID_LOOP_DURING_RELEASE as i32
+                {
+                    self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+                }
+            }
+            self.phase = (self.start as u64) << 32 as i32
+        }
+        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+            && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                == FLUID_LOOP_DURING_RELEASE as i32
+        {
+            let index_in_sample: i32 = (self.phase >> 32 as i32) as u32 as i32;
+            if index_in_sample >= self.loopend {
+                self.phase = (self.loopstart as u64) << 32 as i32
+            }
+        }
+        self.check_sample_sanity_flag = 0 as i32;
+    }
+
+    pub fn set_param(&mut self, gen: u16, nrpn_value: f32, abs: i32) {
+        self.gen[gen as usize].nrpn = nrpn_value as f64;
+        self.gen[gen as usize].flags = if abs != 0 {
+            GEN_ABS_NRPN as i32
+        } else {
+            GEN_SET as i32
+        } as u8;
+        self.update_param(gen as _);
+    }
+
+    pub fn set_gain(&mut self, mut gain: f64) {
+        if gain < 0.0000001 {
+            gain = 0.0000001;
+        }
+        let gain = gain as f32;
+        self.synth_gain = gain;
+        self.amp_left = fluid_pan(self.pan, 1 as i32) * gain / 32768.0f32;
+        self.amp_right = fluid_pan(self.pan, 0 as i32) * gain / 32768.0f32;
+        self.amp_reverb = self.reverb_send * gain / 32768.0f32;
+        self.amp_chorus = self.chorus_send * gain / 32768.0f32;
+    }
+
+    pub unsafe fn write(
+        voice: &mut Voice,
+        min_note_length_ticks: u32,
+        dsp_left_buf: *mut f32,
+        dsp_right_buf: *mut f32,
+        dsp_reverb_buf: *mut f32,
+        dsp_chorus_buf: *mut f32,
+    ) -> i32 {
+        let current_block: u64;
+        let mut fres;
+        let target_amp;
+        let count;
+        let mut dsp_buf: [f32; 64] = [0.; 64];
+        let mut x;
+        if !(voice.status as i32 == FLUID_VOICE_ON as i32
+            || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
+        {
+            return FLUID_OK as i32;
+        }
+        if voice.sample.is_none() {
+            voice.off();
+            return FLUID_OK as i32;
+        }
+        if voice.noteoff_ticks != 0 as i32 as u32 && voice.ticks >= voice.noteoff_ticks {
+            voice.noteoff(min_note_length_ticks);
+        }
+        voice.check_sample_sanity();
+        let mut env_data = &mut *voice
+            .volenv_data
+            .as_mut_ptr()
+            .offset((*voice).volenv_section as isize) as *mut EnvData;
+        while (*voice).volenv_count >= (*env_data).count {
+            // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
+            if !env_data.is_null() && (*voice).volenv_section == FLUID_VOICE_ENVDECAY as i32 {
+                (*voice).volenv_val = (*env_data).min * (*env_data).coeff
+            }
+            (*voice).volenv_section += 1;
+            env_data = &mut *(*voice)
+                .volenv_data
+                .as_mut_ptr()
+                .offset((*voice).volenv_section as isize) as *mut EnvData;
+            (*voice).volenv_count = 0 as i32 as u32
+        }
+        x = (*env_data).coeff * (*voice).volenv_val + (*env_data).incr;
+        if x < (*env_data).min {
+            x = (*env_data).min;
+            (*voice).volenv_section += 1;
+            (*voice).volenv_count = 0 as i32 as u32
+        } else if x > (*env_data).max {
+            x = (*env_data).max;
+            (*voice).volenv_section += 1;
+            (*voice).volenv_count = 0 as i32 as u32
+        }
+        (*voice).volenv_val = x;
+        (*voice).volenv_count = (*voice).volenv_count.wrapping_add(1);
+        if (*voice).volenv_section == FLUID_VOICE_ENVFINISHED as i32 {
+            voice.off();
+            return FLUID_OK as i32;
+        }
+        env_data = &mut *(*voice)
+            .modenv_data
+            .as_mut_ptr()
+            .offset((*voice).modenv_section as isize) as *mut EnvData;
+        while (*voice).modenv_count >= (*env_data).count {
+            (*voice).modenv_section += 1;
+            env_data = &mut *(*voice)
+                .modenv_data
+                .as_mut_ptr()
+                .offset((*voice).modenv_section as isize) as *mut EnvData;
+            (*voice).modenv_count = 0 as i32 as u32
+        }
+        x = (*env_data).coeff * (*voice).modenv_val + (*env_data).incr;
+        if x < (*env_data).min {
+            x = (*env_data).min;
+            (*voice).modenv_section += 1;
+            (*voice).modenv_count = 0 as i32 as u32
+        } else if x > (*env_data).max {
+            x = (*env_data).max;
+            (*voice).modenv_section += 1;
+            (*voice).modenv_count = 0 as i32 as u32
+        }
+        (*voice).modenv_val = x;
+        (*voice).modenv_count = (*voice).modenv_count.wrapping_add(1);
+        if (*voice).ticks >= (*voice).modlfo_delay {
+            (*voice).modlfo_val += (*voice).modlfo_incr;
+            if (*voice).modlfo_val as f64 > 1.0f64 {
+                (*voice).modlfo_incr = -(*voice).modlfo_incr;
+                (*voice).modlfo_val = 2.0f32 - (*voice).modlfo_val
+            } else if ((*voice).modlfo_val as f64) < -1.0f64 {
+                (*voice).modlfo_incr = -(*voice).modlfo_incr;
+                (*voice).modlfo_val = -2.0f32 - (*voice).modlfo_val
+            }
+        }
+        if (*voice).ticks >= (*voice).viblfo_delay {
+            (*voice).viblfo_val += (*voice).viblfo_incr;
+            if (*voice).viblfo_val > 1.0f32 {
+                (*voice).viblfo_incr = -(*voice).viblfo_incr;
+                (*voice).viblfo_val = 2.0f32 - (*voice).viblfo_val
+            } else if ((*voice).viblfo_val as f64) < -1.0f64 {
+                (*voice).viblfo_incr = -(*voice).viblfo_incr;
+                (*voice).viblfo_val = -2.0f32 - (*voice).viblfo_val
+            }
+        }
+        if !((*voice).volenv_section == FLUID_VOICE_ENVDELAY as i32) {
+            if (*voice).volenv_section == FLUID_VOICE_ENVATTACK as i32 {
+                target_amp = fluid_atten2amp((*voice).attenuation)
+                    * fluid_cb2amp((*voice).modlfo_val * -(*voice).modlfo_to_vol)
+                    * (*voice).volenv_val;
+                current_block = 576355610076403033;
+            } else {
+                let amplitude_that_reaches_noise_floor;
+                let amp_max;
+                target_amp = fluid_atten2amp((*voice).attenuation)
+                    * fluid_cb2amp(
+                        960.0f32 * (1.0f32 - (*voice).volenv_val)
+                            + (*voice).modlfo_val * -(*voice).modlfo_to_vol,
+                    );
+                if (*voice).has_looped != 0 {
+                    amplitude_that_reaches_noise_floor =
+                        (*voice).amplitude_that_reaches_noise_floor_loop
+                } else {
+                    amplitude_that_reaches_noise_floor =
+                        (*voice).amplitude_that_reaches_noise_floor_nonloop
+                }
+                amp_max = fluid_atten2amp((*voice).min_attenuation_c_b) * (*voice).volenv_val;
+                if amp_max < amplitude_that_reaches_noise_floor {
+                    voice.off();
+                    current_block = 3632332525568699835;
+                } else {
+                    current_block = 576355610076403033;
+                }
+            }
+            match current_block {
+                3632332525568699835 => {}
+                _ => {
+                    (*voice).amp_incr = (target_amp - (*voice).amp) / 64 as i32 as f32;
+                    if !((*voice).amp == 0.0f32 && (*voice).amp_incr == 0.0f32) {
+                        (*voice).phase_incr = fluid_ct2hz_real(
+                            (*voice).pitch
+                                + (*voice).modlfo_val * (*voice).modlfo_to_pitch
+                                + (*voice).viblfo_val * (*voice).viblfo_to_pitch
+                                + (*voice).modenv_val * (*voice).modenv_to_pitch,
+                        ) / (*voice).root_pitch;
+                        if (*voice).phase_incr == 0 as i32 as f32 {
+                            (*voice).phase_incr = 1 as i32 as f32
+                        }
+                        fres = fluid_ct2hz(
+                            (*voice).fres
+                                + (*voice).modlfo_val * (*voice).modlfo_to_fc
+                                + (*voice).modenv_val * (*voice).modenv_to_fc,
+                        );
+                        if fres > 0.45f32 * (*voice).output_rate {
+                            fres = 0.45f32 * (*voice).output_rate
+                        } else if fres < 5 as i32 as f32 {
+                            fres = 5 as i32 as f32
+                        }
+                        if f64::abs((fres - (*voice).last_fres) as f64) > 0.01f64 {
+                            let omega: f32 = (2.0f64
+                                * std::f64::consts::PI
+                                * (fres / (*voice).output_rate) as f64)
+                                as f32;
+                            let sin_coeff: f32 = f64::sin(omega.into()) as f32;
+                            let cos_coeff: f32 = f64::cos(omega.into()) as f32;
+                            let alpha_coeff: f32 = sin_coeff / (2.0f32 * (*voice).q_lin);
+                            let a0_inv: f32 = 1.0f32 / (1.0f32 + alpha_coeff);
+                            let a1_temp: f32 = -2.0f32 * cos_coeff * a0_inv;
+                            let a2_temp: f32 = (1.0f32 - alpha_coeff) * a0_inv;
+                            let b1_temp: f32 = (1.0f32 - cos_coeff) * a0_inv * (*voice).filter_gain;
+                            let b02_temp: f32 = b1_temp * 0.5f32;
+                            if (*voice).filter_startup != 0 {
+                                (*voice).a1 = a1_temp;
+                                (*voice).a2 = a2_temp;
+                                (*voice).b02 = b02_temp;
+                                (*voice).b1 = b1_temp;
+                                (*voice).filter_coeff_incr_count = 0 as i32;
+                                (*voice).filter_startup = 0 as i32
+                            //       printf("Setting initial filter coefficients.\n");
+                            } else {
+                                (*voice).a1_incr = (a1_temp - (*voice).a1) / 64 as i32 as f32;
+                                (*voice).a2_incr = (a2_temp - (*voice).a2) / 64 as i32 as f32;
+                                (*voice).b02_incr = (b02_temp - (*voice).b02) / 64 as i32 as f32;
+                                (*voice).b1_incr = (b1_temp - (*voice).b1) / 64 as i32 as f32;
+                                (*voice).filter_coeff_incr_count = 64 as i32
+                            }
+                            (*voice).last_fres = fres
+                        }
+                        (*voice).dsp_buf = dsp_buf.as_mut_ptr();
+                        match (*voice).interp_method {
+                            InterpMethod::None => count = fluid_dsp_float_interpolate_none(voice),
+                            InterpMethod::Linear => {
+                                count = fluid_dsp_float_interpolate_linear(voice)
+                            }
+                            InterpMethod::FourthOrder => {
+                                count = fluid_dsp_float_interpolate_4th_order(voice)
+                            }
+                            InterpMethod::SeventhOrder => {
+                                count = fluid_dsp_float_interpolate_7th_order(voice)
+                            }
+                        }
+                        if count > 0 as i32 {
+                            Voice::effects(
+                                voice,
+                                count,
+                                dsp_left_buf,
+                                dsp_right_buf,
+                                dsp_reverb_buf,
+                                dsp_chorus_buf,
+                            );
+                        }
+                        if count < 64 as i32 {
+                            voice.off();
+                        }
+                    }
+                }
+            }
+        }
+        (*voice).ticks = (*voice).ticks.wrapping_add(64 as i32 as u32);
+        return FLUID_OK as i32;
+    }
+    //removed inline
+    #[inline]
+    unsafe fn effects(
+        mut voice: *mut Voice,
+        count: i32,
+        dsp_left_buf: *mut f32,
+        dsp_right_buf: *mut f32,
+        dsp_reverb_buf: *mut f32,
+        dsp_chorus_buf: *mut f32,
+    ) {
+        let mut dsp_hist1: f32 = (*voice).hist1;
+        let mut dsp_hist2: f32 = (*voice).hist2;
+        let mut dsp_a1: f32 = (*voice).a1;
+        let mut dsp_a2: f32 = (*voice).a2;
+        let mut dsp_b02: f32 = (*voice).b02;
+        let mut dsp_b1: f32 = (*voice).b1;
+        let dsp_a1_incr: f32 = (*voice).a1_incr;
+        let dsp_a2_incr: f32 = (*voice).a2_incr;
+        let dsp_b02_incr: f32 = (*voice).b02_incr;
+        let dsp_b1_incr: f32 = (*voice).b1_incr;
+        let mut dsp_filter_coeff_incr_count: i32 = (*voice).filter_coeff_incr_count;
+        let dsp_buf: *mut f32 = (*voice).dsp_buf;
+        let mut dsp_centernode;
+        let mut dsp_i;
+        let mut v;
+        if f64::abs(dsp_hist1 as f64) < 1e-20f64 {
+            dsp_hist1 = 0.0f32
+        }
+        if dsp_filter_coeff_incr_count > 0 as i32 {
+            dsp_i = 0 as i32;
+            while dsp_i < count {
+                dsp_centernode =
+                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                *dsp_buf.offset(dsp_i as isize) =
+                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+                dsp_hist2 = dsp_hist1;
+                dsp_hist1 = dsp_centernode;
+                let fresh0 = dsp_filter_coeff_incr_count;
+                dsp_filter_coeff_incr_count = dsp_filter_coeff_incr_count - 1;
+                if fresh0 > 0 as i32 {
+                    dsp_a1 += dsp_a1_incr;
+                    dsp_a2 += dsp_a2_incr;
+                    dsp_b02 += dsp_b02_incr;
+                    dsp_b1 += dsp_b1_incr
+                }
+                dsp_i += 1
+            }
+        } else {
+            dsp_i = 0 as i32;
+            while dsp_i < count {
+                dsp_centernode =
+                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                *dsp_buf.offset(dsp_i as isize) =
+                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+                dsp_hist2 = dsp_hist1;
+                dsp_hist1 = dsp_centernode;
+                dsp_i += 1
+            }
+        }
+        if -0.5f64 < (*voice).pan as f64 && ((*voice).pan as f64) < 0.5f64 {
+            dsp_i = 0 as i32;
+            while dsp_i < count {
+                v = (*voice).amp_left * *dsp_buf.offset(dsp_i as isize);
+                let ref mut fresh1 = *dsp_left_buf.offset(dsp_i as isize);
+                *fresh1 += v;
+                let ref mut fresh2 = *dsp_right_buf.offset(dsp_i as isize);
+                *fresh2 += v;
+                dsp_i += 1
+            }
+        } else {
+            if (*voice).amp_left as f64 != 0.0f64 {
+                dsp_i = 0 as i32;
+                while dsp_i < count {
+                    let ref mut fresh3 = *dsp_left_buf.offset(dsp_i as isize);
+                    *fresh3 += (*voice).amp_left * *dsp_buf.offset(dsp_i as isize);
+                    dsp_i += 1
+                }
+            }
+            if (*voice).amp_right as f64 != 0.0f64 {
+                dsp_i = 0 as i32;
+                while dsp_i < count {
+                    let ref mut fresh4 = *dsp_right_buf.offset(dsp_i as isize);
+                    *fresh4 += (*voice).amp_right * *dsp_buf.offset(dsp_i as isize);
+                    dsp_i += 1
+                }
+            }
+        }
+        if !dsp_reverb_buf.is_null() && (*voice).amp_reverb as f64 != 0.0f64 {
+            dsp_i = 0 as i32;
+            while dsp_i < count {
+                let ref mut fresh5 = *dsp_reverb_buf.offset(dsp_i as isize);
+                *fresh5 += (*voice).amp_reverb * *dsp_buf.offset(dsp_i as isize);
+                dsp_i += 1
+            }
+        }
+        if !dsp_chorus_buf.is_null() && (*voice).amp_chorus != 0 as i32 as f32 {
+            dsp_i = 0 as i32;
+            while dsp_i < count {
+                let ref mut fresh6 = *dsp_chorus_buf.offset(dsp_i as isize);
+                *fresh6 += (*voice).amp_chorus * *dsp_buf.offset(dsp_i as isize);
+                dsp_i += 1
+            }
+        }
+        (*voice).hist1 = dsp_hist1;
+        (*voice).hist2 = dsp_hist2;
+        (*voice).a1 = dsp_a1;
+        (*voice).a2 = dsp_a2;
+        (*voice).b02 = dsp_b02;
+        (*voice).b1 = dsp_b1;
+        (*voice).filter_coeff_incr_count = dsp_filter_coeff_incr_count;
+    }
+
+    pub fn calculate_hold_decay_buffers(
+        &mut self,
+        gen_base: i32,
+        gen_key2base: i32,
+        is_decay: i32,
+    ) -> i32 {
+        let mut timecents = (self.gen[gen_base as usize].val
+            + self.gen[gen_base as usize].mod_0
+            + self.gen[gen_base as usize].nrpn)
+            + (self.gen[gen_key2base as usize].val
+                + self.gen[gen_key2base as usize].mod_0
+                + self.gen[gen_key2base as usize].nrpn)
+                * (60.0 - self.key as f64);
+        if is_decay != 0 {
+            if timecents > 8000.0 {
+                timecents = 8000.0;
+            }
+        } else {
+            if timecents > 5000.0 {
+                timecents = 5000.0;
+            }
+            if timecents <= -32768.0 {
+                return 0;
+            }
+        }
+        if (timecents as f64) < -12000.0 {
+            timecents = -12000.0;
+        }
+        let seconds = fluid_tc2sec(timecents);
+        let buffers = ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32;
+        return buffers;
+    }
+
     /// Purpose:
     ///
     /// The value of a generator (gen) has changed.  (The different
@@ -686,7 +1159,7 @@ impl Voice {
     /// offset caused by modulators .mod, and an offset caused by the
     /// NRPN system. _GEN(voice, generator_enumerator) returns the sum
     /// of all three.
-    pub unsafe fn update_param(&mut self, gen: i32) {
+    pub fn update_param(&mut self, gen: i32) {
         macro_rules! gen_sum {
             ($id: expr) => {{
                 let Gen {
@@ -697,13 +1170,13 @@ impl Voice {
             }};
         }
 
-        if gen < 0 && gen > 60 {
+        use gen::GenParam;
+        let gen: GenParam = if gen < 0 && gen > 60 {
             log::error!("Unknown Generator: {}", gen);
             return;
-        }
-
-        use gen::GenParam;
-        let gen: GenParam = std::mem::transmute(gen);
+        } else {
+            unsafe { std::mem::transmute(gen) }
+        };
 
         match gen {
             GenParam::Pan => {
@@ -1296,490 +1769,5 @@ impl Voice {
             }
             _ => {}
         }
-    }
-
-    pub unsafe fn check_sample_sanity(&mut self) {
-        let min_index_nonloop: i32 = (self.sample.as_ref().unwrap()).start as i32;
-        let max_index_nonloop: i32 = (self.sample.as_ref().unwrap()).end as i32;
-        let min_index_loop: i32 = (self.sample.as_ref().unwrap()).start as i32 + 0 as i32;
-        let max_index_loop: i32 = (self.sample.as_ref().unwrap()).end as i32 - 0 as i32 + 1 as i32;
-        if self.check_sample_sanity_flag == 0 {
-            return;
-        }
-        if self.start < min_index_nonloop {
-            self.start = min_index_nonloop
-        } else if self.start > max_index_nonloop {
-            self.start = max_index_nonloop
-        }
-        if self.end < min_index_nonloop {
-            self.end = min_index_nonloop
-        } else if self.end > max_index_nonloop {
-            self.end = max_index_nonloop
-        }
-        if self.start > self.end {
-            let temp: i32 = self.start;
-            self.start = self.end;
-            self.end = temp
-        }
-        if self.start == self.end {
-            self.off();
-            return;
-        }
-        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                == FLUID_LOOP_DURING_RELEASE as i32
-        {
-            if self.loopstart < min_index_loop {
-                self.loopstart = min_index_loop
-            } else if self.loopstart > max_index_loop {
-                self.loopstart = max_index_loop
-            }
-            if self.loopend < min_index_loop {
-                self.loopend = min_index_loop
-            } else if self.loopend > max_index_loop {
-                self.loopend = max_index_loop
-            }
-            if self.loopstart > self.loopend {
-                let temp_0: i32 = self.loopstart;
-                self.loopstart = self.loopend;
-                self.loopend = temp_0
-            }
-            if self.loopend < self.loopstart + 2 as i32 {
-                self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
-            }
-            if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
-                && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
-            {
-                if self
-                    .sample
-                    .as_ref()
-                    .unwrap()
-                    .amplitude_that_reaches_noise_floor_is_valid
-                    != 0
-                {
-                    self.amplitude_that_reaches_noise_floor_loop = (self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .amplitude_that_reaches_noise_floor
-                        / self.synth_gain as f64)
-                        as f32
-                } else {
-                    self.amplitude_that_reaches_noise_floor_loop =
-                        self.amplitude_that_reaches_noise_floor_nonloop
-                }
-            }
-        }
-        if self.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
-            if max_index_loop - min_index_loop < 2 as i32 {
-                if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                    == FLUID_LOOP_UNTIL_RELEASE as i32
-                    || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                        == FLUID_LOOP_DURING_RELEASE as i32
-                {
-                    self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
-                }
-            }
-            self.phase = (self.start as u64) << 32 as i32
-        }
-        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-            && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                == FLUID_LOOP_DURING_RELEASE as i32
-        {
-            let index_in_sample: i32 = (self.phase >> 32 as i32) as u32 as i32;
-            if index_in_sample >= self.loopend {
-                self.phase = (self.loopstart as u64) << 32 as i32
-            }
-        }
-        self.check_sample_sanity_flag = 0 as i32;
-    }
-
-    pub fn set_param(&mut self, gen: u16, nrpn_value: f32, abs: i32) {
-        self.gen[gen as usize].nrpn = nrpn_value as f64;
-        self.gen[gen as usize].flags = if abs != 0 {
-            GEN_ABS_NRPN as i32
-        } else {
-            GEN_SET as i32
-        } as u8;
-        unsafe {
-            self.update_param(gen as _);
-        }
-    }
-
-    pub fn set_gain(&mut self, mut gain: f64) {
-        if gain < 0.0000001 {
-            gain = 0.0000001;
-        }
-        let gain = gain as f32;
-        self.synth_gain = gain;
-        self.amp_left = fluid_pan(self.pan, 1 as i32) * gain / 32768.0f32;
-        self.amp_right = fluid_pan(self.pan, 0 as i32) * gain / 32768.0f32;
-        self.amp_reverb = self.reverb_send * gain / 32768.0f32;
-        self.amp_chorus = self.chorus_send * gain / 32768.0f32;
-    }
-
-    pub unsafe fn write(
-        voice: &mut Voice,
-        min_note_length_ticks: u32,
-        dsp_left_buf: *mut f32,
-        dsp_right_buf: *mut f32,
-        dsp_reverb_buf: *mut f32,
-        dsp_chorus_buf: *mut f32,
-    ) -> i32 {
-        let current_block: u64;
-        let mut fres;
-        let target_amp;
-        let count;
-        let mut dsp_buf: [f32; 64] = [0.; 64];
-        let mut x;
-        if !(voice.status as i32 == FLUID_VOICE_ON as i32
-            || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-        {
-            return FLUID_OK as i32;
-        }
-        if voice.sample.is_none() {
-            voice.off();
-            return FLUID_OK as i32;
-        }
-        if voice.noteoff_ticks != 0 as i32 as u32 && voice.ticks >= voice.noteoff_ticks {
-            voice.noteoff(min_note_length_ticks);
-        }
-        voice.check_sample_sanity();
-        let mut env_data = &mut *voice
-            .volenv_data
-            .as_mut_ptr()
-            .offset((*voice).volenv_section as isize) as *mut EnvData;
-        while (*voice).volenv_count >= (*env_data).count {
-            // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
-            if !env_data.is_null() && (*voice).volenv_section == FLUID_VOICE_ENVDECAY as i32 {
-                (*voice).volenv_val = (*env_data).min * (*env_data).coeff
-            }
-            (*voice).volenv_section += 1;
-            env_data = &mut *(*voice)
-                .volenv_data
-                .as_mut_ptr()
-                .offset((*voice).volenv_section as isize) as *mut EnvData;
-            (*voice).volenv_count = 0 as i32 as u32
-        }
-        x = (*env_data).coeff * (*voice).volenv_val + (*env_data).incr;
-        if x < (*env_data).min {
-            x = (*env_data).min;
-            (*voice).volenv_section += 1;
-            (*voice).volenv_count = 0 as i32 as u32
-        } else if x > (*env_data).max {
-            x = (*env_data).max;
-            (*voice).volenv_section += 1;
-            (*voice).volenv_count = 0 as i32 as u32
-        }
-        (*voice).volenv_val = x;
-        (*voice).volenv_count = (*voice).volenv_count.wrapping_add(1);
-        if (*voice).volenv_section == FLUID_VOICE_ENVFINISHED as i32 {
-            voice.off();
-            return FLUID_OK as i32;
-        }
-        env_data = &mut *(*voice)
-            .modenv_data
-            .as_mut_ptr()
-            .offset((*voice).modenv_section as isize) as *mut EnvData;
-        while (*voice).modenv_count >= (*env_data).count {
-            (*voice).modenv_section += 1;
-            env_data = &mut *(*voice)
-                .modenv_data
-                .as_mut_ptr()
-                .offset((*voice).modenv_section as isize) as *mut EnvData;
-            (*voice).modenv_count = 0 as i32 as u32
-        }
-        x = (*env_data).coeff * (*voice).modenv_val + (*env_data).incr;
-        if x < (*env_data).min {
-            x = (*env_data).min;
-            (*voice).modenv_section += 1;
-            (*voice).modenv_count = 0 as i32 as u32
-        } else if x > (*env_data).max {
-            x = (*env_data).max;
-            (*voice).modenv_section += 1;
-            (*voice).modenv_count = 0 as i32 as u32
-        }
-        (*voice).modenv_val = x;
-        (*voice).modenv_count = (*voice).modenv_count.wrapping_add(1);
-        if (*voice).ticks >= (*voice).modlfo_delay {
-            (*voice).modlfo_val += (*voice).modlfo_incr;
-            if (*voice).modlfo_val as f64 > 1.0f64 {
-                (*voice).modlfo_incr = -(*voice).modlfo_incr;
-                (*voice).modlfo_val = 2.0f32 - (*voice).modlfo_val
-            } else if ((*voice).modlfo_val as f64) < -1.0f64 {
-                (*voice).modlfo_incr = -(*voice).modlfo_incr;
-                (*voice).modlfo_val = -2.0f32 - (*voice).modlfo_val
-            }
-        }
-        if (*voice).ticks >= (*voice).viblfo_delay {
-            (*voice).viblfo_val += (*voice).viblfo_incr;
-            if (*voice).viblfo_val > 1.0f32 {
-                (*voice).viblfo_incr = -(*voice).viblfo_incr;
-                (*voice).viblfo_val = 2.0f32 - (*voice).viblfo_val
-            } else if ((*voice).viblfo_val as f64) < -1.0f64 {
-                (*voice).viblfo_incr = -(*voice).viblfo_incr;
-                (*voice).viblfo_val = -2.0f32 - (*voice).viblfo_val
-            }
-        }
-        if !((*voice).volenv_section == FLUID_VOICE_ENVDELAY as i32) {
-            if (*voice).volenv_section == FLUID_VOICE_ENVATTACK as i32 {
-                target_amp = fluid_atten2amp((*voice).attenuation)
-                    * fluid_cb2amp((*voice).modlfo_val * -(*voice).modlfo_to_vol)
-                    * (*voice).volenv_val;
-                current_block = 576355610076403033;
-            } else {
-                let amplitude_that_reaches_noise_floor;
-                let amp_max;
-                target_amp = fluid_atten2amp((*voice).attenuation)
-                    * fluid_cb2amp(
-                        960.0f32 * (1.0f32 - (*voice).volenv_val)
-                            + (*voice).modlfo_val * -(*voice).modlfo_to_vol,
-                    );
-                if (*voice).has_looped != 0 {
-                    amplitude_that_reaches_noise_floor =
-                        (*voice).amplitude_that_reaches_noise_floor_loop
-                } else {
-                    amplitude_that_reaches_noise_floor =
-                        (*voice).amplitude_that_reaches_noise_floor_nonloop
-                }
-                amp_max = fluid_atten2amp((*voice).min_attenuation_c_b) * (*voice).volenv_val;
-                if amp_max < amplitude_that_reaches_noise_floor {
-                    voice.off();
-                    current_block = 3632332525568699835;
-                } else {
-                    current_block = 576355610076403033;
-                }
-            }
-            match current_block {
-                3632332525568699835 => {}
-                _ => {
-                    (*voice).amp_incr = (target_amp - (*voice).amp) / 64 as i32 as f32;
-                    if !((*voice).amp == 0.0f32 && (*voice).amp_incr == 0.0f32) {
-                        (*voice).phase_incr = fluid_ct2hz_real(
-                            (*voice).pitch
-                                + (*voice).modlfo_val * (*voice).modlfo_to_pitch
-                                + (*voice).viblfo_val * (*voice).viblfo_to_pitch
-                                + (*voice).modenv_val * (*voice).modenv_to_pitch,
-                        ) / (*voice).root_pitch;
-                        if (*voice).phase_incr == 0 as i32 as f32 {
-                            (*voice).phase_incr = 1 as i32 as f32
-                        }
-                        fres = fluid_ct2hz(
-                            (*voice).fres
-                                + (*voice).modlfo_val * (*voice).modlfo_to_fc
-                                + (*voice).modenv_val * (*voice).modenv_to_fc,
-                        );
-                        if fres > 0.45f32 * (*voice).output_rate {
-                            fres = 0.45f32 * (*voice).output_rate
-                        } else if fres < 5 as i32 as f32 {
-                            fres = 5 as i32 as f32
-                        }
-                        if f64::abs((fres - (*voice).last_fres) as f64) > 0.01f64 {
-                            let omega: f32 = (2.0f64
-                                * std::f64::consts::PI
-                                * (fres / (*voice).output_rate) as f64)
-                                as f32;
-                            let sin_coeff: f32 = f64::sin(omega.into()) as f32;
-                            let cos_coeff: f32 = f64::cos(omega.into()) as f32;
-                            let alpha_coeff: f32 = sin_coeff / (2.0f32 * (*voice).q_lin);
-                            let a0_inv: f32 = 1.0f32 / (1.0f32 + alpha_coeff);
-                            let a1_temp: f32 = -2.0f32 * cos_coeff * a0_inv;
-                            let a2_temp: f32 = (1.0f32 - alpha_coeff) * a0_inv;
-                            let b1_temp: f32 = (1.0f32 - cos_coeff) * a0_inv * (*voice).filter_gain;
-                            let b02_temp: f32 = b1_temp * 0.5f32;
-                            if (*voice).filter_startup != 0 {
-                                (*voice).a1 = a1_temp;
-                                (*voice).a2 = a2_temp;
-                                (*voice).b02 = b02_temp;
-                                (*voice).b1 = b1_temp;
-                                (*voice).filter_coeff_incr_count = 0 as i32;
-                                (*voice).filter_startup = 0 as i32
-                            //       printf("Setting initial filter coefficients.\n");
-                            } else {
-                                (*voice).a1_incr = (a1_temp - (*voice).a1) / 64 as i32 as f32;
-                                (*voice).a2_incr = (a2_temp - (*voice).a2) / 64 as i32 as f32;
-                                (*voice).b02_incr = (b02_temp - (*voice).b02) / 64 as i32 as f32;
-                                (*voice).b1_incr = (b1_temp - (*voice).b1) / 64 as i32 as f32;
-                                (*voice).filter_coeff_incr_count = 64 as i32
-                            }
-                            (*voice).last_fres = fres
-                        }
-                        (*voice).dsp_buf = dsp_buf.as_mut_ptr();
-                        match (*voice).interp_method {
-                            InterpMethod::None => count = fluid_dsp_float_interpolate_none(voice),
-                            InterpMethod::Linear => {
-                                count = fluid_dsp_float_interpolate_linear(voice)
-                            }
-                            InterpMethod::FourthOrder => {
-                                count = fluid_dsp_float_interpolate_4th_order(voice)
-                            }
-                            InterpMethod::SeventhOrder => {
-                                count = fluid_dsp_float_interpolate_7th_order(voice)
-                            }
-                        }
-                        if count > 0 as i32 {
-                            Voice::effects(
-                                voice,
-                                count,
-                                dsp_left_buf,
-                                dsp_right_buf,
-                                dsp_reverb_buf,
-                                dsp_chorus_buf,
-                            );
-                        }
-                        if count < 64 as i32 {
-                            voice.off();
-                        }
-                    }
-                }
-            }
-        }
-        (*voice).ticks = (*voice).ticks.wrapping_add(64 as i32 as u32);
-        return FLUID_OK as i32;
-    }
-    //removed inline
-    #[inline]
-    unsafe fn effects(
-        mut voice: *mut Voice,
-        count: i32,
-        dsp_left_buf: *mut f32,
-        dsp_right_buf: *mut f32,
-        dsp_reverb_buf: *mut f32,
-        dsp_chorus_buf: *mut f32,
-    ) {
-        let mut dsp_hist1: f32 = (*voice).hist1;
-        let mut dsp_hist2: f32 = (*voice).hist2;
-        let mut dsp_a1: f32 = (*voice).a1;
-        let mut dsp_a2: f32 = (*voice).a2;
-        let mut dsp_b02: f32 = (*voice).b02;
-        let mut dsp_b1: f32 = (*voice).b1;
-        let dsp_a1_incr: f32 = (*voice).a1_incr;
-        let dsp_a2_incr: f32 = (*voice).a2_incr;
-        let dsp_b02_incr: f32 = (*voice).b02_incr;
-        let dsp_b1_incr: f32 = (*voice).b1_incr;
-        let mut dsp_filter_coeff_incr_count: i32 = (*voice).filter_coeff_incr_count;
-        let dsp_buf: *mut f32 = (*voice).dsp_buf;
-        let mut dsp_centernode;
-        let mut dsp_i;
-        let mut v;
-        if f64::abs(dsp_hist1 as f64) < 1e-20f64 {
-            dsp_hist1 = 0.0f32
-        }
-        if dsp_filter_coeff_incr_count > 0 as i32 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                dsp_centernode =
-                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                *dsp_buf.offset(dsp_i as isize) =
-                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
-                dsp_hist2 = dsp_hist1;
-                dsp_hist1 = dsp_centernode;
-                let fresh0 = dsp_filter_coeff_incr_count;
-                dsp_filter_coeff_incr_count = dsp_filter_coeff_incr_count - 1;
-                if fresh0 > 0 as i32 {
-                    dsp_a1 += dsp_a1_incr;
-                    dsp_a2 += dsp_a2_incr;
-                    dsp_b02 += dsp_b02_incr;
-                    dsp_b1 += dsp_b1_incr
-                }
-                dsp_i += 1
-            }
-        } else {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                dsp_centernode =
-                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                *dsp_buf.offset(dsp_i as isize) =
-                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
-                dsp_hist2 = dsp_hist1;
-                dsp_hist1 = dsp_centernode;
-                dsp_i += 1
-            }
-        }
-        if -0.5f64 < (*voice).pan as f64 && ((*voice).pan as f64) < 0.5f64 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                v = (*voice).amp_left * *dsp_buf.offset(dsp_i as isize);
-                let ref mut fresh1 = *dsp_left_buf.offset(dsp_i as isize);
-                *fresh1 += v;
-                let ref mut fresh2 = *dsp_right_buf.offset(dsp_i as isize);
-                *fresh2 += v;
-                dsp_i += 1
-            }
-        } else {
-            if (*voice).amp_left as f64 != 0.0f64 {
-                dsp_i = 0 as i32;
-                while dsp_i < count {
-                    let ref mut fresh3 = *dsp_left_buf.offset(dsp_i as isize);
-                    *fresh3 += (*voice).amp_left * *dsp_buf.offset(dsp_i as isize);
-                    dsp_i += 1
-                }
-            }
-            if (*voice).amp_right as f64 != 0.0f64 {
-                dsp_i = 0 as i32;
-                while dsp_i < count {
-                    let ref mut fresh4 = *dsp_right_buf.offset(dsp_i as isize);
-                    *fresh4 += (*voice).amp_right * *dsp_buf.offset(dsp_i as isize);
-                    dsp_i += 1
-                }
-            }
-        }
-        if !dsp_reverb_buf.is_null() && (*voice).amp_reverb as f64 != 0.0f64 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                let ref mut fresh5 = *dsp_reverb_buf.offset(dsp_i as isize);
-                *fresh5 += (*voice).amp_reverb * *dsp_buf.offset(dsp_i as isize);
-                dsp_i += 1
-            }
-        }
-        if !dsp_chorus_buf.is_null() && (*voice).amp_chorus != 0 as i32 as f32 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                let ref mut fresh6 = *dsp_chorus_buf.offset(dsp_i as isize);
-                *fresh6 += (*voice).amp_chorus * *dsp_buf.offset(dsp_i as isize);
-                dsp_i += 1
-            }
-        }
-        (*voice).hist1 = dsp_hist1;
-        (*voice).hist2 = dsp_hist2;
-        (*voice).a1 = dsp_a1;
-        (*voice).a2 = dsp_a2;
-        (*voice).b02 = dsp_b02;
-        (*voice).b1 = dsp_b1;
-        (*voice).filter_coeff_incr_count = dsp_filter_coeff_incr_count;
-    }
-
-    pub fn calculate_hold_decay_buffers(
-        &mut self,
-        gen_base: i32,
-        gen_key2base: i32,
-        is_decay: i32,
-    ) -> i32 {
-        let mut timecents = (self.gen[gen_base as usize].val
-            + self.gen[gen_base as usize].mod_0
-            + self.gen[gen_base as usize].nrpn)
-            + (self.gen[gen_key2base as usize].val
-                + self.gen[gen_key2base as usize].mod_0
-                + self.gen[gen_key2base as usize].nrpn)
-                * (60.0 - self.key as f64);
-        if is_decay != 0 {
-            if timecents > 8000.0 {
-                timecents = 8000.0;
-            }
-        } else {
-            if timecents > 5000.0 {
-                timecents = 5000.0;
-            }
-            if timecents <= -32768.0 {
-                return 0;
-            }
-        }
-        if (timecents as f64) < -12000.0 {
-            timecents = -12000.0;
-        }
-        let seconds = fluid_tc2sec(timecents);
-        let buffers = ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32;
-        return buffers;
     }
 }

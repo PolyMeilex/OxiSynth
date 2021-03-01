@@ -223,9 +223,7 @@ impl Channel {
         match num {
             64 => {
                 if value < 64 as i32 {
-                    unsafe {
-                        synth.damp_voices(self.channum);
-                    }
+                    synth.damp_voices(self.channum);
                 }
             }
             0 => {

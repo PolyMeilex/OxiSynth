@@ -334,7 +334,7 @@ impl Synth {
         self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
     }
 
-    pub(crate) unsafe fn damp_voices(&mut self, chan: u8) -> i32 {
+    pub(crate) fn damp_voices(&mut self, chan: u8) -> i32 {
         let mut i;
         i = 0 as i32;
         while i < self.settings.synth.polyphony {

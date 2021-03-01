@@ -212,7 +212,7 @@ impl Mod {
         self.dest as i32
     }
 
-    pub fn get_value(&mut self, chan: &mut Channel, voice: &mut Voice) -> f32 {
+    pub fn get_value(&self, chan: &Channel, voice: &Voice) -> f32 {
         let mut v1: f32;
         let mut v2: f32 = 1.0f32;
         let mut range1: f32 = 127.0f32;
