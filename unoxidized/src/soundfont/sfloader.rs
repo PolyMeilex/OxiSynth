@@ -360,25 +360,21 @@ impl Preset {
     }
 
     pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: u8, vel: i32) -> i32 {
-        unsafe fn fluid_defpreset_noteon(
-            preset: &mut DefaultPreset,
-            synth: &mut Synth,
-            chan: u8,
-            key: u8,
-            vel: i32,
-        ) -> i32 {
-            fn fluid_preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
-                zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
-            }
+        fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
+            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+        }
 
-            fn fluid_inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: i32) -> bool {
-                zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
-            }
+        fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: i32) -> bool {
+            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+        }
 
-            fn fluid_sample_in_rom(sample: &Sample) -> i32 {
-                // sampletype & FLUID_SAMPLETYPE_ROM
-                sample.sampletype & 0x8000
-            }
+        fn sample_in_rom(sample: &Sample) -> i32 {
+            // sampletype & FLUID_SAMPLETYPE_ROM
+            sample.sampletype & 0x8000
+        }
+
+        unsafe {
+            let preset = &mut *self.data;
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
@@ -387,7 +383,7 @@ impl Preset {
             // run thru all the zones of this preset
             for preset_zone in preset.zones.iter_mut() {
                 // check if the note falls into the key and velocity range of this preset
-                if fluid_preset_zone_inside_range(preset_zone, key, vel) {
+                if preset_zone_inside_range(preset_zone, key, vel) {
                     let inst = preset_zone.inst.as_mut().unwrap();
 
                     let mut global_inst_zone = &mut inst.global_zone;
@@ -396,13 +392,9 @@ impl Preset {
                     for inst_zone in inst.zones.iter_mut() {
                         // make sure this instrument zone has a valid sample
                         let sample = &inst_zone.sample;
-                        if !(sample.is_none()
-                            || fluid_sample_in_rom(&sample.as_ref().unwrap()) != 0)
-                        {
+                        if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap()) != 0) {
                             // check if the note falls into the key and velocity range of this instrument
-                            if fluid_inst_zone_inside_range(inst_zone, key, vel)
-                                && !sample.is_none()
-                            {
+                            if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
                                 // this is a good zone. allocate a new synthesis process and initialize it
                                 let voice_id = synth.alloc_voice(
                                     sample.as_ref().unwrap().clone(),
@@ -601,10 +593,9 @@ impl Preset {
                     }
                 }
             }
+
             return FLUID_OK as i32;
         }
-
-        unsafe { fluid_defpreset_noteon(&mut *self.data, synth, chan, key, vel) }
     }
 }
 
