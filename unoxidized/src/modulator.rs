@@ -412,22 +412,19 @@ impl Mod {
         return self.amount as f32 * v1 * v2;
     }
 
-    pub fn test_identity(&self, mod2: &Mod) -> i32 {
+    pub fn test_identity(&self, mod2: &Mod) -> bool {
         if self.dest as i32 != mod2.dest as i32 {
-            return 0 as i32;
+            false
+        } else if self.src1 as i32 != mod2.src1 as i32 {
+            false
+        } else if self.src2 as i32 != mod2.src2 as i32 {
+            false
+        } else if self.flags1 as i32 != mod2.flags1 as i32 {
+            false
+        } else if self.flags2 as i32 != mod2.flags2 as i32 {
+            false
+        } else {
+            true
         }
-        if self.src1 as i32 != mod2.src1 as i32 {
-            return 0 as i32;
-        }
-        if self.src2 as i32 != mod2.src2 as i32 {
-            return 0 as i32;
-        }
-        if self.flags1 as i32 != mod2.flags1 as i32 {
-            return 0 as i32;
-        }
-        if self.flags2 as i32 != mod2.flags2 as i32 {
-            return 0 as i32;
-        }
-        return 1 as i32;
     }
 }

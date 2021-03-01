@@ -462,7 +462,7 @@ impl Preset {
                                             if !mod_list[i].is_null()
                                                 && m.test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
-                                                ) != 0
+                                                )
                                             {
                                                 mod_list[i] = 0 as *mut Mod
                                             }
@@ -555,7 +555,7 @@ impl Preset {
                                             if !mod_list[i].is_null()
                                                 && m.test_identity(
                                                     mod_list[i as usize].as_ref().unwrap(),
-                                                ) != 0
+                                                )
                                             {
                                                 mod_list[i] = 0 as *mut Mod
                                             }

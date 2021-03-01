@@ -113,7 +113,7 @@ pub struct Voice {
     channel: *mut Channel,
     pub(crate) gen: [Gen; 60],
     mod_0: [Mod; 64],
-    mod_count: i32,
+    mod_count: usize,
     pub(crate) has_looped: i32,
     pub(crate) sample: Option<Rc<Sample>>,
     check_sample_sanity_flag: i32,
@@ -325,7 +325,7 @@ impl Voice {
         self.vel = vel as u8;
         self.interp_method = channel.get_interp_method();
         self.channel = channel;
-        self.mod_count = 0 as i32;
+        self.mod_count = 0;
         self.sample = Some(sample);
         self.start_time = start_time;
         self.ticks = 0 as i32 as u32;
@@ -355,8 +355,7 @@ impl Voice {
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
     }
 
-    pub(crate) unsafe fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
-        let mut i;
+    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
         if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
             && (mod_0.src1 as i32 != 0 as i32
                 && mod_0.src1 as i32 != 2 as i32
@@ -373,38 +372,24 @@ impl Voice {
             return;
         }
         if mode == FLUID_VOICE_ADD as i32 {
-            i = 0 as i32;
-            while i < self.mod_count {
-                if self.mod_0[i as usize].test_identity(mod_0) != 0 {
-                    //		printf("Adding modulator...\n");
-                    self.mod_0[i as usize].amount += (*mod_0).amount;
+            for m in self.mod_0.iter_mut().take(self.mod_count) {
+                if m.test_identity(mod_0) {
+                    m.amount += mod_0.amount;
                     return;
                 }
-                i += 1
             }
         } else if mode == FLUID_VOICE_OVERWRITE as i32 {
-            i = 0 as i32;
-            while i < self.mod_count {
-                if self
-                    .mod_0
-                    .as_mut_ptr()
-                    .offset(i as isize)
-                    .as_ref()
-                    .unwrap()
-                    .test_identity(mod_0)
-                    != 0
-                {
-                    //		printf("Replacing modulator...amount is %f\n",mod->amount);
-                    self.mod_0[i as usize].amount = (*mod_0).amount;
+            for m in self.mod_0.iter_mut().take(self.mod_count) {
+                if m.test_identity(mod_0) {
+                    m.amount = mod_0.amount;
                     return;
                 }
-                i += 1
             }
         }
-        if self.mod_count < 64 as i32 {
+        if self.mod_count < 64 {
             let fresh7 = self.mod_count;
             self.mod_count = self.mod_count + 1;
-            *self.mod_0.as_mut_ptr().offset(fresh7 as isize) = mod_0.clone();
+            self.mod_0[fresh7 as usize] = mod_0.clone();
         };
     }
 
@@ -490,7 +475,7 @@ impl Voice {
         let mut mod_0;
         let mut gen;
         let mut modval;
-        i = 0 as i32;
+        i = 0;
         while i < self.mod_count {
             mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
             if (*mod_0).src1 as i32 == ctrl
@@ -508,7 +493,7 @@ impl Voice {
             {
                 gen = mod_0.as_ref().unwrap().get_dest();
                 modval = 0.0f32;
-                k = 0 as i32;
+                k = 0;
                 while k < self.mod_count {
                     if (*self).mod_0[k as usize].dest as i32 == gen {
                         modval += self
@@ -535,12 +520,12 @@ impl Voice {
         let mut k;
         let mut gen;
         let mut modval;
-        i = 0 as i32;
+        i = 0;
         while i < self.mod_count {
             mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
             gen = mod_0.as_ref().unwrap().get_dest();
             modval = 0.0f32;
-            k = 0 as i32;
+            k = 0;
             while k < self.mod_count {
                 if self.mod_0[k as usize].dest as i32 == gen {
                     modval += self
@@ -581,7 +566,7 @@ impl Voice {
         let mut mod_0;
         let mut possible_att_reduction_c_b: f32 = 0 as i32 as f32;
         let mut lower_bound;
-        i = 0 as i32;
+        i = 0;
         while i < self.mod_count {
             mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
             if (*mod_0).dest as i32 == GEN_ATTENUATION as i32
@@ -654,7 +639,7 @@ impl Voice {
             GEN_PITCH as i32,
             -(1 as i32),
         ];
-        i = 0 as i32;
+        i = 0;
         while i < self.mod_count {
             let mod_0: *mut Mod = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
             let modval: f32 = mod_0
@@ -677,7 +662,7 @@ impl Voice {
                 * (self.key as i32 as f32 - 60.0f32) as f64
                 + (100.0f32 * 60.0f32) as f64
         }
-        i = 0 as i32;
+        i = 0;
         while list_of_generators_to_initialize[i as usize] != -(1 as i32) {
             self.update_param(list_of_generators_to_initialize[i as usize]);
             i += 1
