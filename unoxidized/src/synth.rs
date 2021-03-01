@@ -283,7 +283,7 @@ impl Synth {
             .free_voice_by_kill(self.settings.synth.polyphony, self.noteid)
     }
 
-    pub(crate) unsafe fn alloc_voice(
+    pub(crate) fn alloc_voice(
         &mut self,
         sample: Rc<Sample>,
         chan: u8,
@@ -391,7 +391,7 @@ impl Synth {
         }
     }
 
-    pub(crate) unsafe fn start_voice(&mut self, voice_id: VoiceId) {
+    pub(crate) fn start_voice(&mut self, voice_id: VoiceId) {
         self.kill_by_exclusive_class(voice_id);
         self.voices[voice_id.0].start();
     }

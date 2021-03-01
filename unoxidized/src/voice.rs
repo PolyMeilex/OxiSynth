@@ -440,8 +440,10 @@ impl Voice {
         self.update_param(GEN_MODENVRELEASE as i32);
     }
 
-    pub(crate) unsafe fn start(&mut self) {
-        self.calculate_runtime_synthesis_parameters();
+    pub(crate) fn start(&mut self) {
+        unsafe {
+            self.calculate_runtime_synthesis_parameters();
+        }
         self.check_sample_sanity_flag = (1 as i32) << 1 as i32;
         self.status = VoiceStatus::On;
     }
