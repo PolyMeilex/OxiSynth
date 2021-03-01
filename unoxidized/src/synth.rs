@@ -205,7 +205,7 @@ pub struct Synth {
     cur_tuning: Option<Tuning>,
     pub(crate) min_note_length_ticks: u32,
 
-    pub settings: Settings,
+    pub(crate) settings: Settings,
 }
 
 impl Synth {
