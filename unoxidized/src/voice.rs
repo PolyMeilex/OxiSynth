@@ -18,79 +18,85 @@ use super::modulator::Mod;
 use super::soundfont::Sample;
 use std::rc::Rc;
 
-pub type Phase = u64;
-pub type ModFlags = u32;
-pub const FLUID_MOD_CC: ModFlags = 16;
-pub const FLUID_MOD_BIPOLAR: ModFlags = 2;
-pub type ModSrc = u32;
-pub const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-pub type GenType = u32;
-pub const GEN_PITCH: GenType = 59;
-pub const GEN_OVERRIDEROOTKEY: GenType = 58;
-pub const GEN_EXCLUSIVECLASS: GenType = 57;
-pub const GEN_SCALETUNE: GenType = 56;
-pub const GEN_SAMPLEMODE: GenType = 54;
-pub const GEN_FINETUNE: GenType = 52;
-pub const GEN_COARSETUNE: GenType = 51;
-pub const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
-pub const GEN_ATTENUATION: GenType = 48;
-pub const GEN_VELOCITY: GenType = 47;
-pub const GEN_KEYNUM: GenType = 46;
-pub const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
-pub const GEN_KEYTOVOLENVDECAY: GenType = 40;
-pub const GEN_KEYTOVOLENVHOLD: GenType = 39;
-pub const GEN_VOLENVRELEASE: GenType = 38;
-pub const GEN_VOLENVSUSTAIN: GenType = 37;
-pub const GEN_VOLENVDECAY: GenType = 36;
-pub const GEN_VOLENVHOLD: GenType = 35;
-pub const GEN_VOLENVATTACK: GenType = 34;
-pub const GEN_VOLENVDELAY: GenType = 33;
-pub const GEN_KEYTOMODENVDECAY: GenType = 32;
-pub const GEN_KEYTOMODENVHOLD: GenType = 31;
-pub const GEN_MODENVRELEASE: GenType = 30;
-pub const GEN_MODENVSUSTAIN: GenType = 29;
-pub const GEN_MODENVDECAY: GenType = 28;
-pub const GEN_MODENVHOLD: GenType = 27;
-pub const GEN_MODENVATTACK: GenType = 26;
-pub const GEN_MODENVDELAY: GenType = 25;
-pub const GEN_VIBLFOFREQ: GenType = 24;
-pub const GEN_VIBLFODELAY: GenType = 23;
-pub const GEN_MODLFOFREQ: GenType = 22;
-pub const GEN_MODLFODELAY: GenType = 21;
-pub const GEN_PAN: GenType = 17;
-pub const GEN_REVERBSEND: GenType = 16;
-pub const GEN_CHORUSSEND: GenType = 15;
-pub const GEN_MODLFOTOVOL: GenType = 13;
-pub const GEN_ENDADDRCOARSEOFS: GenType = 12;
-pub const GEN_MODENVTOFILTERFC: GenType = 11;
-pub const GEN_MODLFOTOFILTERFC: GenType = 10;
-pub const GEN_FILTERQ: GenType = 9;
-pub const GEN_FILTERFC: GenType = 8;
-pub const GEN_MODENVTOPITCH: GenType = 7;
-pub const GEN_VIBLFOTOPITCH: GenType = 6;
-pub const GEN_MODLFOTOPITCH: GenType = 5;
-pub const GEN_STARTADDRCOARSEOFS: GenType = 4;
-pub const GEN_ENDLOOPADDROFS: GenType = 3;
-pub const GEN_STARTLOOPADDROFS: GenType = 2;
-pub const GEN_ENDADDROFS: GenType = 1;
-pub const GEN_STARTADDROFS: GenType = 0;
-pub type GenFlags = u32;
-pub const GEN_ABS_NRPN: GenFlags = 2;
-pub const GEN_SET: GenFlags = 1;
-pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
-pub const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
-pub const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
-pub const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
-pub const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
+type Phase = u64;
+type ModFlags = u32;
+const FLUID_MOD_CC: ModFlags = 16;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+type ModSrc = u32;
+const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
+type GenType = u32;
+const GEN_PITCH: GenType = 59;
+const GEN_OVERRIDEROOTKEY: GenType = 58;
+const GEN_EXCLUSIVECLASS: GenType = 57;
+const GEN_SCALETUNE: GenType = 56;
+const GEN_SAMPLEMODE: GenType = 54;
+
+// const GEN_FINETUNE: GenType = 52;
+// const GEN_COARSETUNE: GenType = 51;
+// const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
+const GEN_ATTENUATION: GenType = 48;
+const GEN_VELOCITY: GenType = 47;
+const GEN_KEYNUM: GenType = 46;
+// const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
+const GEN_KEYTOVOLENVDECAY: GenType = 40;
+const GEN_KEYTOVOLENVHOLD: GenType = 39;
+const GEN_VOLENVRELEASE: GenType = 38;
+// const GEN_VOLENVSUSTAIN: GenType = 37;
+const GEN_VOLENVDECAY: GenType = 36;
+const GEN_VOLENVHOLD: GenType = 35;
+const GEN_VOLENVATTACK: GenType = 34;
+const GEN_VOLENVDELAY: GenType = 33;
+const GEN_KEYTOMODENVDECAY: GenType = 32;
+const GEN_KEYTOMODENVHOLD: GenType = 31;
+const GEN_MODENVRELEASE: GenType = 30;
+// const GEN_MODENVSUSTAIN: GenType = 29;
+const GEN_MODENVDECAY: GenType = 28;
+const GEN_MODENVHOLD: GenType = 27;
+const GEN_MODENVATTACK: GenType = 26;
+const GEN_MODENVDELAY: GenType = 25;
+const GEN_VIBLFOFREQ: GenType = 24;
+const GEN_VIBLFODELAY: GenType = 23;
+const GEN_MODLFOFREQ: GenType = 22;
+const GEN_MODLFODELAY: GenType = 21;
+const GEN_PAN: GenType = 17;
+const GEN_REVERBSEND: GenType = 16;
+const GEN_CHORUSSEND: GenType = 15;
+const GEN_MODLFOTOVOL: GenType = 13;
+// const GEN_ENDADDRCOARSEOFS: GenType = 12;
+const GEN_MODENVTOFILTERFC: GenType = 11;
+const GEN_MODLFOTOFILTERFC: GenType = 10;
+const GEN_FILTERQ: GenType = 9;
+const GEN_FILTERFC: GenType = 8;
+const GEN_MODENVTOPITCH: GenType = 7;
+const GEN_VIBLFOTOPITCH: GenType = 6;
+const GEN_MODLFOTOPITCH: GenType = 5;
+// const GEN_STARTADDRCOARSEOFS: GenType = 4;
+const GEN_ENDLOOPADDROFS: GenType = 3;
+const GEN_STARTLOOPADDROFS: GenType = 2;
+const GEN_ENDADDROFS: GenType = 1;
+const GEN_STARTADDROFS: GenType = 0;
+type GenFlags = u32;
+const GEN_ABS_NRPN: GenFlags = 2;
+const GEN_SET: GenFlags = 1;
+
+const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
+const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
+const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
+const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
+const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
+
 pub type FluidVoiceAddMod = u32;
-pub const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
-pub const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
-pub const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
-pub const FLUID_VOICE_ON: VoiceStatus = 1;
-pub const FLUID_OK: i32 = 0;
+const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
+const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
+
+const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
+const FLUID_VOICE_ON: VoiceStatus = 1;
+
+const FLUID_OK: i32 = 0;
+
 pub type VoiceStatus = u8;
-pub const FLUID_VOICE_OFF: VoiceStatus = 3;
-pub const FLUID_VOICE_CLEAN: VoiceStatus = 0;
+const FLUID_VOICE_OFF: VoiceStatus = 3;
+const FLUID_VOICE_CLEAN: VoiceStatus = 0;
 pub type VoiceEnvelopeIndex = u32;
 pub const FLUID_VOICE_ENVFINISHED: VoiceEnvelopeIndex = 6;
 pub const FLUID_VOICE_ENVSUSTAIN: VoiceEnvelopeIndex = 4;
@@ -355,8 +361,16 @@ impl Voice {
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
     }
 
-    pub(crate) fn available(&self) -> bool {
+    pub(crate) fn is_available(&self) -> bool {
         self.status == FLUID_VOICE_CLEAN || self.status == FLUID_VOICE_OFF
+    }
+
+    pub(crate) fn is_on(&self) -> bool {
+        self.status == FLUID_VOICE_ON && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+    }
+
+    pub(crate) fn is_playing(&self) -> bool {
+        self.status == FLUID_VOICE_ON || self.status == FLUID_VOICE_SUSTAINED
     }
 
     pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
@@ -440,7 +454,7 @@ impl Voice {
             return FLUID_OK as i32;
         }
         if !self.channel.is_null()
-            && unsafe { &mut *self.channel }.cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
+            && unsafe { &*self.channel }.cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
         {
             self.status = FLUID_VOICE_SUSTAINED as i32 as u8
         } else {

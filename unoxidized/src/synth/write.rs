@@ -1,8 +1,6 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_SYNTH_PLAYING;
 use crate::synth::RAND_TABLE;
-use crate::voice::FLUID_VOICE_ON;
-use crate::voice::FLUID_VOICE_SUSTAINED;
 
 impl Synth {
     unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
@@ -42,9 +40,7 @@ impl Synth {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
+            if voice.is_playing() {
                 /* The output associated with a MIDI channel is wrapped around
                  * using the number of audio groups as modulo divider.  This is
                  * typically the number of output channels on the 'sound card',

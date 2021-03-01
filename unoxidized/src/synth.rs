@@ -48,7 +48,6 @@ const FLUID_SYNTH_STOPPED: SynthStatus = 3;
 const FLUID_FAILED: C2RustUnnamed = -1;
 const FLUID_SYNTH_PLAYING: SynthStatus = 1;
 const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
-const FLUID_VOICE_ON: VoiceStatus = 1;
 const GEN_PITCH: GenType = 59;
 const FLUID_MOD_POSITIVE: ModFlags = 0;
 const FLUID_MOD_UNIPOLAR: ModFlags = 0;
@@ -69,8 +68,6 @@ const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
 const GEN_FILTERFC: GenType = 8;
 const FLUID_MOD_SWITCH: ModFlags = 12;
 const FLUID_MOD_VELOCITY: ModSrc = 2;
-const FLUID_VOICE_OFF: VoiceStatus = 3;
-const FLUID_VOICE_CLEAN: VoiceStatus = 0;
 const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
@@ -414,9 +411,7 @@ impl Synth {
                 .take(self.settings.synth.polyphony as usize)
                 .enumerate()
             {
-                if voice.status as i32 == FLUID_VOICE_CLEAN as i32
-                    || voice.status as i32 == FLUID_VOICE_OFF as i32
-                {
+                if voice.is_available() {
                     return Some(VoiceId(id));
                 }
                 this_voice_prio = 10000.0f32;
@@ -460,7 +455,7 @@ impl Synth {
             .iter()
             .take(self.settings.synth.polyphony as usize)
             .enumerate()
-            .find(|(_, v)| v.available())
+            .find(|(_, v)| v.is_available())
             .map(|(id, _)| VoiceId(id));
 
         if voice_id.is_none() {
@@ -470,14 +465,10 @@ impl Synth {
         if let Some(voice_id) = voice_id {
             if self.settings.synth.verbose {
                 let mut k = 0;
-                let mut i = 0;
-                while i < self.settings.synth.polyphony {
-                    if !(self.voices[i as usize].status as i32 == FLUID_VOICE_CLEAN as i32
-                        || self.voices[i as usize].status as i32 == FLUID_VOICE_OFF as i32)
-                    {
+                for i in 0..self.settings.synth.polyphony {
+                    if !self.voices[i as usize].is_available() {
                         k += 1
                     }
-                    i += 1
                 }
                 log::info!(
                     "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
@@ -541,9 +532,7 @@ impl Synth {
                 let new_voice = &self.voices[new_voice.0];
                 let existing_voice = &self.voices[i as usize];
 
-                if existing_voice.status as i32 == FLUID_VOICE_ON as i32
-                    || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-                {
+                if existing_voice.is_playing() {
                     if !(existing_voice.chan as i32 != new_voice.chan as i32) {
                         if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
                             + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
@@ -570,8 +559,7 @@ impl Synth {
         let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if (voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
+            if voice.is_playing()
                 && voice.chan == chan
                 && voice.key == key
                 && voice.id != self.noteid

@@ -4,10 +4,6 @@ use crate::synth::BankOffset;
 use crate::synth::InterpMethod;
 use crate::synth::Preset;
 use crate::synth::Synth;
-use crate::synth::FLUID_FAILED;
-use crate::synth::FLUID_OK;
-use crate::voice::FLUID_VOICE_ON;
-use crate::voice::FLUID_VOICE_SUSTAINED;
 
 impl Synth {
     /**
@@ -24,9 +20,7 @@ impl Synth {
 
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
+            if voice.is_playing() {
                 voice.set_gain(gain);
             }
         }
@@ -52,9 +46,7 @@ impl Synth {
         } else {
             for i in polyphony..self.voices.len() {
                 let voice = &mut self.voices[i as usize];
-                if voice.status as i32 == FLUID_VOICE_ON as i32
-                    || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-                {
+                if voice.is_playing() {
                     voice.off();
                 }
             }

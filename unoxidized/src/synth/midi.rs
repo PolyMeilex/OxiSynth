@@ -1,11 +1,6 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_MOD_KEYPRESSURE;
 use crate::synth::FLUID_OK;
-use crate::voice::FLUID_VOICE_CLEAN;
-use crate::voice::FLUID_VOICE_ENVRELEASE;
-use crate::voice::FLUID_VOICE_OFF;
-use crate::voice::FLUID_VOICE_ON;
-use crate::voice::FLUID_VOICE_SUSTAINED;
 
 impl Synth {
     /**
@@ -47,21 +42,14 @@ impl Synth {
     Send a noteoff message.
      */
     pub fn noteoff(&mut self, chan: u8, key: u8) -> Result<(), ()> {
-        let mut i = 0;
         let mut status = Err(());
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                && voice.volenv_section < FLUID_VOICE_ENVRELEASE as i32
-                && voice.chan == chan
-                && voice.key == key
-            {
+            if voice.is_on() && voice.chan == chan && voice.key == key {
                 if self.settings.synth.verbose {
                     let mut used_voices: i32 = 0 as i32;
                     for _ in 0..self.settings.synth.polyphony {
-                        if !(voice.status as i32 == FLUID_VOICE_CLEAN as i32
-                            || voice.status as i32 == FLUID_VOICE_OFF as i32)
-                        {
+                        if !voice.is_available() {
                             used_voices += 1
                         }
                     }
@@ -79,7 +67,6 @@ impl Synth {
                 voice.noteoff(self.min_note_length_ticks);
                 status = Ok(());
             }
-            i += 1
         }
         return status;
     }
@@ -131,30 +118,20 @@ impl Synth {
     }
 
     pub fn all_notes_off(&mut self, chan: u8) {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if (voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && voice.chan == chan
-            {
+            if voice.is_playing() && voice.chan == chan {
                 voice.noteoff(self.min_note_length_ticks);
             }
-            i += 1
         }
     }
 
     pub unsafe fn all_sounds_off(&mut self, chan: u8) {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if (voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-                && voice.chan == chan
-            {
+            if voice.is_playing() && voice.chan == chan {
                 voice.off();
             }
-            i += 1
         }
     }
 
@@ -425,24 +402,22 @@ impl Synth {
     Send a reset.
 
     A reset turns all the notes off and resets the controller values.
+
+    Purpose:
+    Respond to the MIDI command 'system reset' (0xFF, big red 'panic' button)
      */
     pub unsafe fn system_reset(&mut self) {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.status as i32 == FLUID_VOICE_ON as i32
-                || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
+            if voice.is_playing() {
                 voice.off();
             }
-            i += 1
         }
-        let mut i = 0;
-        while i < self.settings.synth.midi_channels {
+
+        for i in 0..self.settings.synth.midi_channels {
             // TODO: double borrow
             let synth_ptr = self as *mut Synth;
             synth_ptr.as_mut().unwrap().channel[i as usize].reset(synth_ptr.as_mut().unwrap());
-            i += 1
         }
         self.chorus.reset();
         self.reverb.reset();
