@@ -10,6 +10,7 @@ pub mod tuning;
 pub mod write;
 
 use crate::voice::VoiceId;
+use crate::voice::VoiceStatus;
 use std::rc::Rc;
 
 use super::chorus::Chorus;
@@ -47,7 +48,7 @@ type C2RustUnnamed = i32;
 const FLUID_SYNTH_STOPPED: SynthStatus = 3;
 const FLUID_FAILED: C2RustUnnamed = -1;
 const FLUID_SYNTH_PLAYING: SynthStatus = 1;
-const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
+
 const GEN_PITCH: GenType = 59;
 const FLUID_MOD_POSITIVE: ModFlags = 0;
 const FLUID_MOD_UNIPOLAR: ModFlags = 0;
@@ -83,7 +84,6 @@ struct ReverbModelPreset {
     pub level: f32,
 }
 
-type VoiceStatus = u8;
 type VoiceEnvelopeIndex = u32;
 type SynthStatus = u32;
 
@@ -334,7 +334,7 @@ impl Synth {
     pub(crate) fn damp_voices(&mut self, chan: u8) -> i32 {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.chan == chan && voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
+            if voice.chan == chan && voice.status == VoiceStatus::Sustained {
                 voice.noteoff(self.min_note_length_ticks);
             }
         }
@@ -418,7 +418,7 @@ impl Synth {
                 if voice.chan as i32 == 0xff as i32 {
                     this_voice_prio = (this_voice_prio as f64 - 2000.0f64) as f32
                 }
-                if voice.status as i32 == FLUID_VOICE_SUSTAINED as i32 {
+                if voice.status == VoiceStatus::Sustained {
                     this_voice_prio -= 1000 as i32 as f32
                 }
                 this_voice_prio -= self.noteid.wrapping_sub(voice.id) as f32;

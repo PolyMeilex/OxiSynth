@@ -89,14 +89,16 @@ pub type FluidVoiceAddMod = u32;
 const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
 const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
 
-const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
-const FLUID_VOICE_ON: VoiceStatus = 1;
-
 const FLUID_OK: i32 = 0;
 
-pub type VoiceStatus = u8;
-const FLUID_VOICE_OFF: VoiceStatus = 3;
-const FLUID_VOICE_CLEAN: VoiceStatus = 0;
+#[derive(PartialEq)]
+pub enum VoiceStatus {
+    Clean,
+    On,
+    Sustained,
+    Off,
+}
+
 pub type VoiceEnvelopeIndex = u32;
 pub const FLUID_VOICE_ENVFINISHED: VoiceEnvelopeIndex = 6;
 pub const FLUID_VOICE_ENVSUSTAIN: VoiceEnvelopeIndex = 4;
@@ -112,7 +114,7 @@ pub struct VoiceId(pub(crate) usize);
 
 pub struct Voice {
     pub(crate) id: u32,
-    pub(crate) status: u8,
+    pub(crate) status: VoiceStatus,
     pub(crate) chan: u8,
     pub(crate) key: u8,
     pub(crate) vel: u8,
@@ -236,7 +238,7 @@ impl Voice {
 
         Voice {
             id: 0,
-            status: FLUID_VOICE_CLEAN as i32 as u8,
+            status: VoiceStatus::Clean,
             chan: 0xff,
             key: 0,
             vel: 0,
@@ -362,15 +364,15 @@ impl Voice {
     }
 
     pub(crate) fn is_available(&self) -> bool {
-        self.status == FLUID_VOICE_CLEAN || self.status == FLUID_VOICE_OFF
+        self.status == VoiceStatus::Clean || self.status == VoiceStatus::Off
     }
 
     pub(crate) fn is_on(&self) -> bool {
-        self.status == FLUID_VOICE_ON && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+        self.status == VoiceStatus::On && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
     }
 
     pub(crate) fn is_playing(&self) -> bool {
-        self.status == FLUID_VOICE_ON || self.status == FLUID_VOICE_SUSTAINED
+        self.status == VoiceStatus::On || self.status == VoiceStatus::Sustained
     }
 
     pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
@@ -422,9 +424,7 @@ impl Voice {
     }
 
     pub(crate) fn kill_excl(&mut self) {
-        if !(self.status as i32 == FLUID_VOICE_ON as i32
-            || self.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-        {
+        if !self.is_playing() {
             return;
         }
         self.gen_set(GEN_EXCLUSIVECLASS as i32, 0.0);
@@ -443,7 +443,7 @@ impl Voice {
     pub(crate) unsafe fn start(&mut self) {
         self.calculate_runtime_synthesis_parameters();
         self.check_sample_sanity_flag = (1 as i32) << 1 as i32;
-        self.status = FLUID_VOICE_ON as i32 as u8;
+        self.status = VoiceStatus::On;
     }
 
     pub(crate) fn noteoff(&mut self, min_note_length_ticks: u32) -> i32 {
@@ -456,7 +456,7 @@ impl Voice {
         if !self.channel.is_null()
             && unsafe { &*self.channel }.cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
         {
-            self.status = FLUID_VOICE_SUSTAINED as i32 as u8
+            self.status = VoiceStatus::Sustained;
         } else {
             if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
                 if self.volenv_val > 0 as i32 as f32 {
@@ -554,7 +554,7 @@ impl Voice {
         self.volenv_count = 0 as i32 as u32;
         self.modenv_section = FLUID_VOICE_ENVFINISHED as i32;
         self.modenv_count = 0 as i32 as u32;
-        self.status = FLUID_VOICE_OFF as i32 as u8;
+        self.status = VoiceStatus::Off;
         if self.sample.is_some() {
             self.sample = None;
         }
@@ -798,9 +798,7 @@ impl Voice {
         let target_amp;
         let mut dsp_buf: [f32; 64] = [0.; 64];
         let mut x;
-        if !(self.status as i32 == FLUID_VOICE_ON as i32
-            || self.status as i32 == FLUID_VOICE_SUSTAINED as i32)
-        {
+        if !self.is_playing() {
             return FLUID_OK as i32;
         }
         if self.sample.is_none() {
