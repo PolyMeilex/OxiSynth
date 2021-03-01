@@ -49,11 +49,7 @@ impl VoicePool {
         }
     }
 
-    pub(crate) unsafe fn free_voice_by_kill(
-        &mut self,
-        polyphony: u16,
-        noteid: u32,
-    ) -> Option<VoiceId> {
+    pub(crate) fn free_voice_by_kill(&mut self, polyphony: u16, noteid: u32) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut best_voice_index: Option<usize> = None;
 

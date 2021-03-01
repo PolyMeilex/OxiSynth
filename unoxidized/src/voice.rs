@@ -375,7 +375,7 @@ impl Voice {
         self.status == VoiceStatus::On || self.status == VoiceStatus::Sustained
     }
 
-    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
+    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: u32) {
         if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
             && (mod_0.src1 as i32 != 0 as i32
                 && mod_0.src1 as i32 != 2 as i32
@@ -391,14 +391,14 @@ impl Voice {
             );
             return;
         }
-        if mode == FLUID_VOICE_ADD as i32 {
+        if mode == FLUID_VOICE_ADD {
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount += mod_0.amount;
                     return;
                 }
             }
-        } else if mode == FLUID_VOICE_OVERWRITE as i32 {
+        } else if mode == FLUID_VOICE_OVERWRITE {
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount = mod_0.amount;
@@ -1173,7 +1173,7 @@ impl Voice {
             log::error!("Unknown Generator: {}", gen);
             return;
         } else {
-            unsafe { std::mem::transmute(gen) }
+            unsafe { std::mem::transmute(gen as u8) }
         };
 
         match gen {

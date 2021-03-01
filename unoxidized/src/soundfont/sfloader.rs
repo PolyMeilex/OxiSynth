@@ -486,7 +486,7 @@ impl Preset {
                                              * modulators.  SF 2.01 page 69, 'bullet' 6 */
                                             synth.voices[voice_id.0].add_mod(
                                                 mod_0.as_ref().unwrap(),
-                                                FLUID_VOICE_OVERWRITE as i32,
+                                                FLUID_VOICE_OVERWRITE,
                                             );
                                         }
                                         i += 1
@@ -578,10 +578,8 @@ impl Preset {
                                             /* Preset modulators -add- to existing instrument /
                                              * default modulators.  SF2.01 page 70 first bullet on
                                              * page */
-                                            synth.voices[voice_id.0].add_mod(
-                                                m.as_ref().unwrap(),
-                                                FLUID_VOICE_ADD as i32,
-                                            );
+                                            synth.voices[voice_id.0]
+                                                .add_mod(m.as_ref().unwrap(), FLUID_VOICE_ADD);
                                         }
                                         i += 1
                                     }

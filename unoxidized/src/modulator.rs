@@ -28,11 +28,13 @@ use soundfont_rs::data::modulator::SFModulator;
 #[derive(Copy, PartialEq)]
 pub struct Mod {
     pub(crate) dest: u8,
+    pub(crate) amount: f64,
+
     pub(crate) src1: u8,
     pub(crate) flags1: u8,
+
     pub(crate) src2: u8,
     pub(crate) flags2: u8,
-    pub(crate) amount: f64,
 }
 
 impl From<&SFModulator> for Mod {

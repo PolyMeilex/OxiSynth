@@ -261,7 +261,7 @@ impl Channel {
                     {
                         if (self.nrpn_select as i32) < GEN_LAST as i32 {
                             let val: f32 = fluid_gen_scale_nrpn(self.nrpn_select, data);
-                            let param = unsafe { std::mem::transmute(self.nrpn_select as u32) };
+                            let param = unsafe { std::mem::transmute(self.nrpn_select as u8) };
                             synth.set_gen(self.channum, param, val).unwrap();
                         }
                         self.nrpn_select = 0

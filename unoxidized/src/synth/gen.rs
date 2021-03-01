@@ -29,7 +29,7 @@ impl Synth {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range");
             0.0
-        } else if (param as u32) >= GEN_LAST {
+        } else if (param as u8) >= GEN_LAST {
             log::warn!("Parameter number out of range");
             0.0
         } else {

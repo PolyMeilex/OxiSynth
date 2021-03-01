@@ -39,9 +39,9 @@ pub struct BankOffset {
     pub offset: u32,
 }
 
-type ModFlags = u32;
-type ModSrc = u32;
-type GenType = u32;
+type ModFlags = u8;
+type ModSrc = u8;
+type GenType = u8;
 type C2RustUnnamed = i32;
 
 const FLUID_SYNTH_STOPPED: SynthStatus = 3;
@@ -84,98 +84,6 @@ struct ReverbModelPreset {
 
 type SynthStatus = u32;
 
-static mut FLUID_SYNTH_INITIALIZED: i32 = 0 as i32;
-
-static mut DEFAULT_VEL2ATT_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_VEL2FILTER_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_ATT_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_PAN_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_EXPR_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_REVERB_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_CHORUS_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
-static mut DEFAULT_PITCH_BEND_MOD: Mod = Mod {
-    dest: 0,
-    src1: 0,
-    flags1: 0,
-    src2: 0,
-    flags2: 0,
-    amount: 0.,
-};
-
 pub struct Synth {
     state: u32,
     ticks: u32,
@@ -205,12 +113,6 @@ pub struct Synth {
 
 impl Synth {
     pub fn new(mut settings: Settings) -> Self {
-        unsafe {
-            if FLUID_SYNTH_INITIALIZED == 0 as i32 {
-                Synth::init();
-            }
-        }
-
         let min_note_length_ticks =
             (settings.synth.min_note_length as f32 * settings.synth.sample_rate / 1000.0) as u32;
 
@@ -376,7 +278,7 @@ impl Synth {
         return None;
     }
 
-    pub(crate) unsafe fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
+    pub(crate) fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
         self.voices
             .free_voice_by_kill(self.settings.synth.polyphony, self.noteid)
     }
@@ -434,16 +336,16 @@ impl Synth {
                 self.gain as f32,
             );
 
-            voice.add_mod(&mut DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_VEL2FILTER_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_AT2VIBLFO_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_MOD2VIBLFO_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT as i32);
-            voice.add_mod(&mut DEFAULT_PITCH_BEND_MOD, FLUID_VOICE_DEFAULT as i32);
+            voice.add_mod(&DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_VEL2FILTER_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_MOD2VIBLFO_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_PITCH_BEND_MOD, FLUID_VOICE_DEFAULT);
 
             Some(voice_id)
         } else {
@@ -551,123 +453,6 @@ impl Synth {
             chan += 1
         }
     }
-
-    unsafe fn init() {
-        FLUID_SYNTH_INITIALIZED += 1;
-        init_dither();
-        DEFAULT_VEL2ATT_MOD.set_source1(
-            FLUID_MOD_VELOCITY as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_CONCAVE as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_NEGATIVE as i32,
-        );
-        DEFAULT_VEL2ATT_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_VEL2ATT_MOD.set_dest(GEN_ATTENUATION as i32);
-        DEFAULT_VEL2ATT_MOD.set_amount(960.0f64);
-        DEFAULT_VEL2FILTER_MOD.set_source1(
-            FLUID_MOD_VELOCITY as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_NEGATIVE as i32,
-        );
-        DEFAULT_VEL2FILTER_MOD.set_source2(
-            FLUID_MOD_VELOCITY as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_SWITCH as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_VEL2FILTER_MOD.set_dest(GEN_FILTERFC as i32);
-        DEFAULT_VEL2FILTER_MOD.set_amount(-(2400 as i32) as f64);
-        DEFAULT_AT2VIBLFO_MOD.set_source1(
-            FLUID_MOD_CHANNELPRESSURE as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_AT2VIBLFO_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_AT2VIBLFO_MOD.set_dest(GEN_VIBLFOTOPITCH as i32);
-        DEFAULT_AT2VIBLFO_MOD.set_amount(50 as i32 as f64);
-        DEFAULT_MOD2VIBLFO_MOD.set_source1(
-            1 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_MOD2VIBLFO_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_MOD2VIBLFO_MOD.set_dest(GEN_VIBLFOTOPITCH as i32);
-        DEFAULT_MOD2VIBLFO_MOD.set_amount(50 as i32 as f64);
-        DEFAULT_ATT_MOD.set_source1(
-            7 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_CONCAVE as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_NEGATIVE as i32,
-        );
-        DEFAULT_ATT_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_ATT_MOD.set_dest(GEN_ATTENUATION as i32);
-        DEFAULT_ATT_MOD.set_amount(960.0f64);
-        DEFAULT_PAN_MOD.set_source1(
-            10 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_BIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_PAN_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_PAN_MOD.set_dest(GEN_PAN as i32);
-        DEFAULT_PAN_MOD.set_amount(500.0f64);
-        DEFAULT_EXPR_MOD.set_source1(
-            11 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_CONCAVE as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_NEGATIVE as i32,
-        );
-        DEFAULT_EXPR_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_EXPR_MOD.set_dest(GEN_ATTENUATION as i32);
-        DEFAULT_EXPR_MOD.set_amount(960.0f64);
-        DEFAULT_REVERB_MOD.set_source1(
-            91 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_REVERB_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_REVERB_MOD.set_dest(GEN_REVERBSEND as i32);
-        DEFAULT_REVERB_MOD.set_amount(200 as i32 as f64);
-        DEFAULT_CHORUS_MOD.set_source1(
-            93 as i32,
-            FLUID_MOD_CC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_CHORUS_MOD.set_source2(0 as i32, 0 as i32);
-        DEFAULT_CHORUS_MOD.set_dest(GEN_CHORUSSEND as i32);
-        DEFAULT_CHORUS_MOD.set_amount(200 as i32 as f64);
-        DEFAULT_PITCH_BEND_MOD.set_source1(
-            FLUID_MOD_PITCHWHEEL as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_BIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_PITCH_BEND_MOD.set_source2(
-            FLUID_MOD_PITCHWHEELSENS as i32,
-            FLUID_MOD_GC as i32
-                | FLUID_MOD_LINEAR as i32
-                | FLUID_MOD_UNIPOLAR as i32
-                | FLUID_MOD_POSITIVE as i32,
-        );
-        DEFAULT_PITCH_BEND_MOD.set_dest(GEN_PITCH as i32);
-        DEFAULT_PITCH_BEND_MOD.set_amount(12700.0f64);
-    }
 }
 
 impl Drop for Synth {
@@ -682,23 +467,133 @@ impl Drop for Synth {
     }
 }
 
-static mut RAND_TABLE: [[f32; 48000]; 2] = [[0.; 48000]; 2];
-unsafe fn init_dither() {
-    let mut d;
-    let mut dp;
-    let mut c;
-    let mut i;
-    c = 0 as i32;
-    while c < 2 as i32 {
-        dp = 0 as i32 as f32;
-        i = 0 as i32;
-        while i < 48000 as i32 - 1 as i32 {
-            d = libc::rand() as f32 / 2147483647 as i32 as f32 - 0.5f32;
-            RAND_TABLE[c as usize][i as usize] = d - dp;
-            dp = d;
-            i += 1
+lazy_static! {
+    static ref RAND_TABLE: [[f32; 48000]; 2] = {
+        let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
+
+        let mut c = 0;
+        while c < 2 {
+            let mut dp = 0.0;
+            let mut i = 0;
+            while i < 48000 - 1 {
+                let d = unsafe { libc::rand() as f32 / 2147483647.0 - 0.5 };
+                rand[c as usize][i] = d - dp;
+                dp = d;
+                i += 1
+            }
+            rand[c as usize][(48000 as i32 - 1 as i32) as usize] = 0 as i32 as f32 - dp;
+            c += 1
         }
-        RAND_TABLE[c as usize][(48000 as i32 - 1 as i32) as usize] = 0 as i32 as f32 - dp;
-        c += 1
-    }
+        rand
+    };
 }
+
+static DEFAULT_VEL2ATT_MOD: Mod = Mod {
+    dest: GEN_ATTENUATION,
+    amount: 960.0,
+
+    src1: FLUID_MOD_VELOCITY,
+    flags1: FLUID_MOD_GC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_VEL2FILTER_MOD: Mod = Mod {
+    dest: GEN_FILTERFC,
+    amount: -2400.0,
+
+    src1: FLUID_MOD_VELOCITY,
+    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
+
+    src2: FLUID_MOD_VELOCITY,
+    flags2: FLUID_MOD_GC | FLUID_MOD_SWITCH | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+};
+
+static DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
+    dest: GEN_VIBLFOTOPITCH,
+    amount: 50.0,
+
+    src1: FLUID_MOD_CHANNELPRESSURE,
+    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
+    dest: GEN_VIBLFOTOPITCH,
+    amount: 50.0,
+
+    src1: 1,
+    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_ATT_MOD: Mod = Mod {
+    dest: GEN_ATTENUATION,
+    amount: 960.0,
+
+    src1: 7,
+    flags1: FLUID_MOD_CC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_PAN_MOD: Mod = Mod {
+    amount: 500.0,
+    dest: GEN_PAN,
+
+    src1: 10,
+    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_EXPR_MOD: Mod = Mod {
+    amount: 960.0,
+    dest: GEN_ATTENUATION,
+
+    src1: 11,
+    flags1: FLUID_MOD_CC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_REVERB_MOD: Mod = Mod {
+    amount: 200.0,
+    dest: GEN_REVERBSEND,
+
+    src1: 91,
+    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_CHORUS_MOD: Mod = Mod {
+    amount: 200.0,
+    dest: GEN_CHORUSSEND,
+
+    src1: 93,
+    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: 0,
+    flags2: 0,
+};
+
+static DEFAULT_PITCH_BEND_MOD: Mod = Mod {
+    amount: 12700.0,
+    dest: GEN_PITCH,
+
+    src1: FLUID_MOD_PITCHWHEEL,
+    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
+
+    src2: FLUID_MOD_PITCHWHEELSENS,
+    flags2: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
+};
