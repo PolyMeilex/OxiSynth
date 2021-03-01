@@ -406,39 +406,20 @@ impl Synth {
     }
 
     pub(crate) unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
-        let byte_size: i32 = (64 as i32 as libc::size_t)
-            .wrapping_mul(::std::mem::size_of::<f32>() as libc::size_t)
-            as i32;
-
         // clean the audio buffers
         {
-            let mut i = 0;
-            while i < self.nbuf {
-                libc::memset(
-                    self.left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                    0 as i32,
-                    byte_size as libc::size_t,
-                );
-                libc::memset(
-                    self.right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                    0 as i32,
-                    byte_size as libc::size_t,
-                );
-                i += 1
+            for i in 0..self.nbuf {
+                self.left_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
+                self.right_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
             }
-            let mut i = 0;
-            while i < self.settings.synth.effects_channels {
-                libc::memset(
-                    self.fx_left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                    0 as i32,
-                    byte_size as libc::size_t,
-                );
-                libc::memset(
-                    self.fx_right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                    0 as i32,
-                    byte_size as libc::size_t,
-                );
-                i += 1
+
+            for i in 0..self.settings.synth.effects_channels {
+                self.fx_left_buf[i as usize]
+                    .iter_mut()
+                    .for_each(|v| *v = 0.0);
+                self.fx_right_buf[i as usize]
+                    .iter_mut()
+                    .for_each(|v| *v = 0.0);
             }
         }
 
@@ -519,7 +500,7 @@ impl Synth {
                     self.right_buf[0].as_mut_ptr(),
                 );
             }
-             /* send to chorus */
+            /* send to chorus */
             if !chorus_buf.is_null() {
                 self.chorus.process_mix(
                     chorus_buf,
