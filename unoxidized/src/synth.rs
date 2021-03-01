@@ -322,45 +322,28 @@ impl Synth {
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.settings.synth.sample_rate = sample_rate;
-        for i in 0..self.voices.len() {
-            self.voices[i as usize] = Voice::new(self.settings.synth.sample_rate as f32);
-        }
+        self.voices.set_sample_rate(sample_rate);
+
         self.chorus.delete();
-        self.chorus = Chorus::new(self.settings.synth.sample_rate as f32);
+        self.chorus = Chorus::new(sample_rate);
     }
 
-    pub(crate) fn damp_voices(&mut self, chan: u8) -> i32 {
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan == chan && voice.status == VoiceStatus::Sustained {
-                voice.noteoff(self.min_note_length_ticks);
-            }
-        }
-        return FLUID_OK as i32;
+    pub(crate) fn damp_voices(&mut self, chan: u8) {
+        self.voices.damp_voices(
+            chan,
+            self.settings.synth.polyphony,
+            self.min_note_length_ticks,
+        )
     }
 
-    pub(crate) unsafe fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan == chan {
-                voice.modulate(is_cc, ctrl);
-            }
-            i += 1
-        }
-        return FLUID_OK as i32;
+    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32) {
+        self.voices
+            .modulate_voices(chan, is_cc, ctrl, self.settings.synth.polyphony)
     }
 
-    pub(crate) unsafe fn modulate_voices_all(&mut self, chan: u8) -> i32 {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan == chan {
-                voice.modulate_all();
-            }
-            i += 1
-        }
-        return FLUID_OK as i32;
+    pub(crate) fn modulate_voices_all(&mut self, chan: u8) {
+        self.voices
+            .modulate_voices_all(chan, self.settings.synth.polyphony);
     }
 
     pub(crate) fn get_preset(
@@ -398,46 +381,8 @@ impl Synth {
     }
 
     pub(crate) unsafe fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
-        let mut best_prio: f32 = 999999.0f32;
-        let mut this_voice_prio;
-        let mut best_voice_index: Option<usize> = None;
-
-        {
-            for (id, voice) in self
-                .voices
-                .iter_mut()
-                .take(self.settings.synth.polyphony as usize)
-                .enumerate()
-            {
-                if voice.is_available() {
-                    return Some(VoiceId(id));
-                }
-                this_voice_prio = 10000.0f32;
-                if voice.chan as i32 == 0xff as i32 {
-                    this_voice_prio = (this_voice_prio as f64 - 2000.0f64) as f32
-                }
-                if voice.status == VoiceStatus::Sustained {
-                    this_voice_prio -= 1000 as i32 as f32
-                }
-                this_voice_prio -= self.noteid.wrapping_sub(voice.id) as f32;
-                if voice.volenv_section != FLUID_VOICE_ENVATTACK as i32 {
-                    this_voice_prio =
-                        (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
-                }
-                if this_voice_prio < best_prio {
-                    best_voice_index = Some(id);
-                    best_prio = this_voice_prio
-                }
-            }
-        }
-
-        if let Some(id) = best_voice_index {
-            let voice = &mut self.voices[id];
-            voice.off();
-            Some(VoiceId(id))
-        } else {
-            None
-        }
+        self.voices
+            .free_voice_by_kill(self.settings.synth.polyphony, self.noteid)
     }
 
     pub(crate) unsafe fn alloc_voice(

@@ -82,7 +82,7 @@ const GEN_SET: GenFlags = 1;
 const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
 const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
 const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
-const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
+pub(crate) const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
 const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
 
 pub type FluidVoiceAddMod = u32;
