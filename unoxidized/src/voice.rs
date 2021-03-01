@@ -551,31 +551,26 @@ impl Voice {
         self.channel
     }
 
-    unsafe fn get_lower_boundary_for_attenuation(&mut self) -> f32 {
-        let mut i;
-        let mut mod_0;
-        let mut possible_att_reduction_c_b: f32 = 0 as i32 as f32;
-        let mut lower_bound;
-        i = 0;
+    fn get_lower_boundary_for_attenuation(&mut self) -> f32 {
+        let mut possible_att_reduction_c_b: f32 = 0.0;
+        let mut i = 0;
         while i < self.mod_count {
-            mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
-            if (*mod_0).dest as i32 == GEN_ATTENUATION as i32
-                && ((*mod_0).flags1 as i32 & FLUID_MOD_CC as i32 != 0
-                    || (*mod_0).flags2 as i32 & FLUID_MOD_CC as i32 != 0)
+            let mod_0 = &self.mod_0[i as usize];
+            if mod_0.dest as i32 == GEN_ATTENUATION as i32
+                && (mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0
+                    || mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0)
             {
-                let current_val: f32 = mod_0
-                    .as_mut()
-                    .unwrap()
-                    .get_value(self.channel.as_mut().unwrap(), self);
-                let mut v: f32 = f64::abs((*mod_0).amount) as f32;
-                if (*mod_0).src1 as i32 == FLUID_MOD_PITCHWHEEL as i32
-                    || (*mod_0).flags1 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
-                    || (*mod_0).flags2 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
-                    || (*mod_0).amount < 0 as i32 as f64
+                let current_val: f32 =
+                    unsafe { mod_0.get_value(self.channel.as_ref().unwrap(), self) };
+                let mut v: f32 = f64::abs(mod_0.amount) as f32;
+                if mod_0.src1 as i32 == FLUID_MOD_PITCHWHEEL as i32
+                    || mod_0.flags1 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
+                    || mod_0.flags2 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
+                    || mod_0.amount < 0 as i32 as f64
                 {
                     v = (v as f64 * -1.0f64) as f32
                 } else {
-                    v = 0 as i32 as f32
+                    v = 0.0;
                 }
                 if current_val > v {
                     possible_att_reduction_c_b += current_val - v
@@ -583,15 +578,15 @@ impl Voice {
             }
             i += 1
         }
-        lower_bound = self.attenuation - possible_att_reduction_c_b;
-        if lower_bound < 0 as i32 as f32 {
-            lower_bound = 0 as i32 as f32
+        let mut lower_bound = self.attenuation - possible_att_reduction_c_b;
+        if lower_bound < 0.0 {
+            lower_bound = 0.0;
         }
-        return lower_bound;
+
+        lower_bound
     }
 
     unsafe fn calculate_runtime_synthesis_parameters(&mut self) -> i32 {
-        let mut i;
         let list_of_generators_to_initialize: [i32; 35] = [
             GEN_STARTADDROFS as i32,
             GEN_ENDADDROFS as i32,
@@ -629,17 +624,14 @@ impl Voice {
             GEN_PITCH as i32,
             -(1 as i32),
         ];
-        i = 0;
+
+        let mut i = 0;
         while i < self.mod_count {
-            let mod_0: *mut Mod = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
-            let modval: f32 = mod_0
-                .as_mut()
-                .unwrap()
-                .get_value(self.channel.as_mut().unwrap(), self);
-            let dest_gen_index: i32 = (*mod_0).dest as i32;
-            let mut dest_gen: *mut Gen =
-                &mut *self.gen.as_mut_ptr().offset(dest_gen_index as isize) as *mut Gen;
-            (*dest_gen).mod_0 += modval as f64;
+            let mod_0 = &self.mod_0[i];
+            let modval: f32 = mod_0.get_value(self.channel.as_ref().unwrap(), self);
+            let dest_gen_index: i32 = mod_0.dest as i32;
+            let mut dest_gen = &mut self.gen[dest_gen_index as usize];
+            dest_gen.mod_0 += modval as f64;
             i += 1
         }
         if !(*self.channel).tuning.is_none() {
