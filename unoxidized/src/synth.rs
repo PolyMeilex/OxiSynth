@@ -408,8 +408,6 @@ impl Synth {
     pub(crate) unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
         let mut i;
         let mut auchan;
-        let mut left_buf;
-        let mut right_buf;
         let reverb_buf;
         let chorus_buf;
         let byte_size: i32 = (64 as i32 as libc::size_t)
@@ -461,13 +459,12 @@ impl Synth {
             {
                 auchan = voice.get_channel().as_ref().unwrap().get_num();
                 auchan %= self.settings.synth.audio_groups as u8;
-                left_buf = self.left_buf[auchan as usize].as_mut_ptr();
-                right_buf = self.right_buf[auchan as usize].as_mut_ptr();
-                Voice::write(
-                    voice,
+                // left_buf = self.left_buf[auchan as usize].as_mut_ptr();
+                // right_buf = self.right_buf[auchan as usize].as_mut_ptr();
+                voice.write(
                     self.min_note_length_ticks,
-                    left_buf,
-                    right_buf,
+                    &mut self.left_buf[auchan as usize],
+                    &mut self.right_buf[auchan as usize],
                     reverb_buf,
                     chorus_buf,
                 );

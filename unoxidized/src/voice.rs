@@ -770,8 +770,8 @@ impl Voice {
     pub unsafe fn write(
         &mut self,
         min_note_length_ticks: u32,
-        dsp_left_buf: *mut f32,
-        dsp_right_buf: *mut f32,
+        dsp_left_buf: &mut [f32],
+        dsp_right_buf: &mut [f32],
         dsp_reverb_buf: *mut f32,
         dsp_chorus_buf: *mut f32,
     ) -> i32 {
@@ -989,8 +989,8 @@ impl Voice {
     unsafe fn effects(
         &mut self,
         count: i32,
-        dsp_left_buf: *mut f32,
-        dsp_right_buf: *mut f32,
+        dsp_left_buf: &mut [f32],
+        dsp_right_buf: &mut [f32],
         dsp_reverb_buf: *mut f32,
         dsp_chorus_buf: *mut f32,
     ) {
@@ -1047,9 +1047,9 @@ impl Voice {
             dsp_i = 0 as i32;
             while dsp_i < count {
                 v = (self).amp_left * *dsp_buf.offset(dsp_i as isize);
-                let ref mut fresh1 = *dsp_left_buf.offset(dsp_i as isize);
+                let fresh1 = &mut dsp_left_buf[dsp_i as usize];
                 *fresh1 += v;
-                let ref mut fresh2 = *dsp_right_buf.offset(dsp_i as isize);
+                let fresh2 = &mut dsp_right_buf[dsp_i as usize];
                 *fresh2 += v;
                 dsp_i += 1
             }
@@ -1057,7 +1057,7 @@ impl Voice {
             if (self).amp_left as f64 != 0.0f64 {
                 dsp_i = 0 as i32;
                 while dsp_i < count {
-                    let ref mut fresh3 = *dsp_left_buf.offset(dsp_i as isize);
+                    let fresh3 = &mut dsp_left_buf[dsp_i as usize];
                     *fresh3 += (self).amp_left * *dsp_buf.offset(dsp_i as isize);
                     dsp_i += 1
                 }
@@ -1065,8 +1065,8 @@ impl Voice {
             if (self).amp_right as f64 != 0.0f64 {
                 dsp_i = 0 as i32;
                 while dsp_i < count {
-                    let ref mut fresh4 = *dsp_right_buf.offset(dsp_i as isize);
-                    *fresh4 += (self).amp_right * *dsp_buf.offset(dsp_i as isize);
+                    let fresh4 = &mut dsp_right_buf[dsp_i as usize];
+                    *fresh4 += self.amp_right * *dsp_buf.offset(dsp_i as isize);
                     dsp_i += 1
                 }
             }
