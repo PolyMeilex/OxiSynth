@@ -504,27 +504,19 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) unsafe fn modulate_all(&mut self) -> i32 {
-        let mut mod_0;
-        let mut i;
-        let mut k;
-        let mut gen;
-        let mut modval;
-        i = 0;
+    pub(crate) fn modulate_all(&mut self) -> i32 {
+        let mut i = 0;
         while i < self.mod_count {
-            mod_0 = &mut *self.mod_0.as_mut_ptr().offset(i as isize) as *mut Mod;
-            gen = mod_0.as_ref().unwrap().get_dest();
-            modval = 0.0f32;
-            k = 0;
+            let mod_0 = &mut self.mod_0[i];
+            let gen = mod_0.get_dest();
+            let mut modval = 0.0f32;
+
+            let mut k = 0;
             while k < self.mod_count {
-                if self.mod_0[k as usize].dest as i32 == gen {
-                    modval += self
-                        .mod_0
-                        .as_mut_ptr()
-                        .offset(k as isize)
-                        .as_mut()
-                        .unwrap()
-                        .get_value(self.channel.as_mut().unwrap(), self)
+                if self.mod_0[k].dest as i32 == gen {
+                    unsafe {
+                        modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self)
+                    }
                 }
                 k += 1
             }
@@ -532,7 +524,8 @@ impl Voice {
             self.update_param(gen);
             i += 1
         }
-        return FLUID_OK as i32;
+
+        FLUID_OK
     }
 
     pub(crate) fn off(&mut self) {
