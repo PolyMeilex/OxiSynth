@@ -406,61 +406,79 @@ impl Synth {
     }
 
     pub(crate) unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
-        let mut i;
-        let mut auchan;
-        let reverb_buf;
-        let chorus_buf;
         let byte_size: i32 = (64 as i32 as libc::size_t)
             .wrapping_mul(::std::mem::size_of::<f32>() as libc::size_t)
             as i32;
-        i = 0 as i32;
-        while i < self.nbuf {
-            libc::memset(
-                self.left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                0 as i32,
-                byte_size as libc::size_t,
-            );
-            libc::memset(
-                self.right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                0 as i32,
-                byte_size as libc::size_t,
-            );
-            i += 1
+
+        // clean the audio buffers
+        {
+            let mut i = 0;
+            while i < self.nbuf {
+                libc::memset(
+                    self.left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
+                    0 as i32,
+                    byte_size as libc::size_t,
+                );
+                libc::memset(
+                    self.right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
+                    0 as i32,
+                    byte_size as libc::size_t,
+                );
+                i += 1
+            }
+            let mut i = 0;
+            while i < self.settings.synth.effects_channels {
+                libc::memset(
+                    self.fx_left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
+                    0 as i32,
+                    byte_size as libc::size_t,
+                );
+                libc::memset(
+                    self.fx_right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
+                    0 as i32,
+                    byte_size as libc::size_t,
+                );
+                i += 1
+            }
         }
-        i = 0 as i32;
-        while i < self.settings.synth.effects_channels {
-            libc::memset(
-                self.fx_left_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                0 as i32,
-                byte_size as libc::size_t,
-            );
-            libc::memset(
-                self.fx_right_buf[i as usize].as_mut_ptr() as *mut libc::c_void,
-                0 as i32,
-                byte_size as libc::size_t,
-            );
-            i += 1
-        }
-        reverb_buf = if self.settings.synth.reverb_active {
+
+        /* Set up the reverb / chorus buffers only, when the effect is
+         * enabled on synth level.  Nonexisting buffers are detected in the
+         * DSP loop. Not sending the reverb / chorus signal saves some time
+         * in that case. */
+        let reverb_buf = if self.settings.synth.reverb_active {
             self.fx_left_buf[0].as_mut_ptr()
         } else {
             0 as *mut f32
         };
-        chorus_buf = if self.settings.synth.chorus_active {
+        let chorus_buf = if self.settings.synth.chorus_active {
             self.fx_left_buf[1].as_mut_ptr()
         } else {
             0 as *mut f32
         };
-        i = 0 as i32;
+
+        /* call all playing synthesis processes */
+        let mut i = 0;
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.status as i32 == FLUID_VOICE_ON as i32
                 || voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
             {
-                auchan = voice.get_channel().as_ref().unwrap().get_num();
+                /* The output associated with a MIDI channel is wrapped around
+                 * using the number of audio groups as modulo divider.  This is
+                 * typically the number of output channels on the 'sound card',
+                 * as long as the LADSPA Fx unit is not used. In case of LADSPA
+                 * unit, think of it as subgroups on a mixer.
+                 *
+                 * For example: Assume that the number of groups is set to 2.
+                 * Then MIDI channel 1, 3, 5, 7 etc. go to output 1, channels 2,
+                 * 4, 6, 8 etc to output 2.  Or assume 3 groups: Then MIDI
+                 * channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
+                 * output 2, 3, 6, 9, 12 etc to output 3.
+                 */
+                let mut auchan = voice.get_channel().as_ref().unwrap().get_num();
                 auchan %= self.settings.synth.audio_groups as u8;
-                // left_buf = self.left_buf[auchan as usize].as_mut_ptr();
-                // right_buf = self.right_buf[auchan as usize].as_mut_ptr();
+
                 voice.write(
                     self.min_note_length_ticks,
                     &mut self.left_buf[auchan as usize],
@@ -471,7 +489,12 @@ impl Synth {
             }
             i += 1
         }
+
+        /* if multi channel output, don't mix the output of the chorus and
+        reverb in the final output. The effects outputs are send
+        separately. */
         if do_not_mix_fx_to_out != 0 {
+            /* send to reverb */
             if !reverb_buf.is_null() {
                 self.reverb.process_replace(
                     reverb_buf,
@@ -479,6 +502,7 @@ impl Synth {
                     self.fx_right_buf[0].as_mut_ptr(),
                 );
             }
+            /* send to chorus */
             if !chorus_buf.is_null() {
                 self.chorus.process_replace(
                     chorus_buf,
@@ -487,6 +511,7 @@ impl Synth {
                 );
             }
         } else {
+            /* send to reverb */
             if !reverb_buf.is_null() {
                 self.reverb.process_mix(
                     reverb_buf,
@@ -494,6 +519,7 @@ impl Synth {
                     self.right_buf[0].as_mut_ptr(),
                 );
             }
+             /* send to chorus */
             if !chorus_buf.is_null() {
                 self.chorus.process_mix(
                     chorus_buf,

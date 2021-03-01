@@ -778,7 +778,6 @@ impl Voice {
         let current_block: u64;
         let mut fres;
         let target_amp;
-        let count;
         let mut dsp_buf: [f32; 64] = [0.; 64];
         let mut x;
         if !(self.status as i32 == FLUID_VOICE_ON as i32
@@ -952,18 +951,16 @@ impl Voice {
                             self.last_fres = fres
                         }
                         self.dsp_buf = dsp_buf.as_mut_ptr();
-                        match self.interp_method {
-                            InterpMethod::None => count = fluid_dsp_float_interpolate_none(self),
-                            InterpMethod::Linear => {
-                                count = fluid_dsp_float_interpolate_linear(self)
-                            }
+                        let count = match self.interp_method {
+                            InterpMethod::None => fluid_dsp_float_interpolate_none(self),
+                            InterpMethod::Linear => fluid_dsp_float_interpolate_linear(self),
                             InterpMethod::FourthOrder => {
-                                count = fluid_dsp_float_interpolate_4th_order(self)
+                                fluid_dsp_float_interpolate_4th_order(self)
                             }
                             InterpMethod::SeventhOrder => {
-                                count = fluid_dsp_float_interpolate_7th_order(self)
+                                fluid_dsp_float_interpolate_7th_order(self)
                             }
-                        }
+                        };
                         if count > 0 as i32 {
                             self.effects(
                                 count,
