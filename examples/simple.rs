@@ -3,7 +3,7 @@ use std::{fs::File, io::Write, slice::from_raw_parts};
 
 fn main() {
     use env_logger::Env;
-    env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     synth_sf2();
 }
 

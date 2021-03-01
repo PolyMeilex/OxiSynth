@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 pub struct SynthSettings {
-    pub verbose: bool,
     pub dump: bool,
 
     pub reverb_active: bool,
@@ -46,7 +45,6 @@ pub struct SynthSettings {
 impl Default for SynthSettings {
     fn default() -> Self {
         Self {
-            verbose: false,
             dump: false,
 
             reverb_active: true,

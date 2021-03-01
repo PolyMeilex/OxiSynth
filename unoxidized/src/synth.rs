@@ -10,7 +10,6 @@ pub mod tuning;
 pub mod write;
 
 use crate::voice::VoiceId;
-use crate::voice::VoiceStatus;
 use crate::voice_pool::VoicePool;
 use std::rc::Rc;
 
@@ -23,7 +22,6 @@ use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
 use super::voice::FluidVoiceAddMod;
-use super::voice::Voice;
 use super::{
     channel::{Channel, InterpMethod},
     chorus::ChorusMode,
@@ -73,7 +71,6 @@ const FLUID_MOD_VELOCITY: ModSrc = 2;
 const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
-const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
 const GEN_EXCLUSIVECLASS: GenType = 57;
 
 #[derive(Copy, Clone)]
@@ -85,7 +82,6 @@ struct ReverbModelPreset {
     pub level: f32,
 }
 
-type VoiceEnvelopeIndex = u32;
 type SynthStatus = u32;
 
 static mut FLUID_SYNTH_INITIALIZED: i32 = 0 as i32;
@@ -406,24 +402,24 @@ impl Synth {
         }
 
         if let Some(voice_id) = voice_id {
-            if self.settings.synth.verbose {
-                let mut k = 0;
-                for i in 0..self.settings.synth.polyphony {
-                    if !self.voices[i as usize].is_available() {
-                        k += 1
+            log::trace!(
+                "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
+                chan,
+                key,
+                vel,
+                self.storeid,
+                self.ticks as f32 / 44100.0,
+                0.0,
+                {
+                    let mut k = 0;
+                    for i in 0..self.settings.synth.polyphony {
+                        if !self.voices[i as usize].is_available() {
+                            k += 1
+                        }
                     }
-                }
-                log::info!(
-                    "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                    chan,
-                    key,
-                    vel,
-                    self.storeid,
-                    (self.ticks as f32 / 44100.0f32) as f64,
-                    0.0f32 as f64,
                     k
-                );
-            }
+                }
+            );
 
             let channel = &mut self.channel[chan as usize];
 

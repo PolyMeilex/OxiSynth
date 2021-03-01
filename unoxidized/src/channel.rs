@@ -250,9 +250,7 @@ impl Channel {
             },
             121 => {
                 self.init_ctrl(1 as i32);
-                unsafe {
-                    synth.modulate_voices_all(self.channum);
-                }
+                synth.modulate_voices_all(self.channum);
             }
             6 => {
                 let data: i32 =
@@ -315,9 +313,9 @@ impl Channel {
                 self.nrpn_active = 1 as i32 as i16
             }
             101 | 100 => self.nrpn_active = 0 as i32 as i16,
-            _ => unsafe {
+            _ => {
                 synth.modulate_voices(self.channum, 1 as i32, num);
-            },
+            }
         }
         return FLUID_OK as i32;
     }
@@ -332,23 +330,17 @@ impl Channel {
 
     pub fn pressure(&mut self, synth: &mut Synth, val: i32) {
         self.channel_pressure = val as i16;
-        unsafe {
-            synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_CHANNELPRESSURE as i32);
-        }
+        synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_CHANNELPRESSURE as i32);
     }
 
     pub fn pitch_bend(&mut self, synth: &mut Synth, val: i32) {
         self.pitch_bend = val as i16;
-        unsafe {
-            synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEEL as i32);
-        }
+        synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEEL as i32);
     }
 
     pub fn pitch_wheel_sens(&mut self, synth: &mut Synth, val: i32) {
         self.pitch_wheel_sensitivity = val as i16;
-        unsafe {
-            synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEELSENS as i32);
-        }
+        synth.modulate_voices(self.channum, 0 as i32, FLUID_MOD_PITCHWHEELSENS as i32);
     }
 
     pub fn get_num(&self) -> u8 {

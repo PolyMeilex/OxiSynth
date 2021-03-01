@@ -15,19 +15,17 @@ impl Synth {
             return self.noteoff(chan, key);
         }
         if self.channel[chan as usize].preset.is_none() {
-            if self.settings.synth.verbose {
-                log::info!(
-                    "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
-                    chan,
-                    key,
-                    vel,
-                    0,
-                    (self.ticks as f32 / 44100.0f32),
-                    0.0f32,
-                    0,
-                    "channel has no preset"
-                );
-            }
+            log::trace!(
+                "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
+                chan,
+                key,
+                vel,
+                0,
+                (self.ticks as f32 / 44100.0f32),
+                0.0f32,
+                0,
+                "channel has no preset"
+            );
             return Err(());
         }
         self.release_voice_on_same_note(chan, key);
@@ -46,24 +44,24 @@ impl Synth {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_on() && voice.chan == chan && voice.key == key {
-                if self.settings.synth.verbose {
-                    let mut used_voices: i32 = 0 as i32;
-                    for _ in 0..self.settings.synth.polyphony {
-                        if !voice.is_available() {
-                            used_voices += 1
+                log::trace!(
+                    "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
+                    voice.chan,
+                    voice.key,
+                    0 as i32,
+                    voice.id,
+                    (voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0f32) as f64,
+                    (voice.ticks as f32 / 44100.0f32) as f64,
+                    {
+                        let mut used_voices: i32 = 0 as i32;
+                        for _ in 0..self.settings.synth.polyphony {
+                            if !voice.is_available() {
+                                used_voices += 1
+                            }
                         }
-                    }
-                    log::info!(
-                        "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                        voice.chan,
-                        voice.key,
-                        0 as i32,
-                        voice.id,
-                        (voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0f32) as f64,
-                        (voice.ticks as f32 / 44100.0f32) as f64,
                         used_voices
-                    );
-                }
+                    }
+                );
                 voice.noteoff(self.min_note_length_ticks);
                 status = Ok(());
             }
@@ -87,9 +85,9 @@ impl Synth {
             log::warn!("Value out of range",);
             return Err(());
         }
-        if self.settings.synth.verbose {
-            log::info!("cc\t{}\t{}\t{}", chan, num, val);
-        }
+
+        log::trace!("cc\t{}\t{}\t{}", chan, num, val);
+
         // TODO: double borrow
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize].cc(
@@ -143,9 +141,9 @@ impl Synth {
             log::warn!("Channel out of range",);
             return Err(());
         }
-        if self.settings.synth.verbose {
-            log::info!("pitchb\t{}\t{}", chan, val);
-        }
+
+        log::trace!("pitchb\t{}\t{}", chan, val);
+
         // TODO: double borrow
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
@@ -175,9 +173,9 @@ impl Synth {
             log::warn!("Channel out of range",);
             return Err(());
         }
-        if self.settings.synth.verbose {
-            log::info!("pitchsens\t{}\t{}", chan, val);
-        }
+
+        log::trace!("pitchsens\t{}\t{}", chan, val);
+
         // TODO: double borrow
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
@@ -214,9 +212,8 @@ impl Synth {
         }
         banknum = self.channel[chan as usize].get_banknum();
         self.channel[chan as usize].set_prognum(prognum);
-        if self.settings.synth.verbose {
-            log::info!("prog\t{}\t{}\t{}", chan, banknum, prognum);
-        }
+
+        log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
 
         if self.channel[chan as usize].channum == 9 && self.settings.synth.drums_channel_active {
             preset = self.find_preset(128 as i32 as u32, prognum as u32)
@@ -264,9 +261,9 @@ impl Synth {
             log::warn!("Channel out of range",);
             return Err(());
         }
-        if self.settings.synth.verbose {
-            log::info!("channelpressure\t{}\t{}", chan, val);
-        }
+
+        log::trace!("channelpressure\t{}\t{}", chan, val);
+
         // TODO: double borrow
         let synth_ptr = self as *mut Synth;
         synth_ptr.as_mut().unwrap().channel[chan as usize]
@@ -286,9 +283,9 @@ impl Synth {
         if val < 0 as i32 || val > 127 as i32 {
             return Err(());
         }
-        if self.settings.synth.verbose {
-            log::info!("keypressure\t{}\t{}\t{}", chan, key, val);
-        }
+
+        log::trace!("keypressure\t{}\t{}\t{}", chan, key, val);
+
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
