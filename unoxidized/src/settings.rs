@@ -36,7 +36,7 @@ pub struct SynthSettings {
     /// Def: 44100.0
     /// Min: 22050.0
     /// Max: 96000.0
-    pub sample_rate: f64,
+    pub sample_rate: f32,
     /// Def: 10
     /// Min: 0
     /// Max: 65535

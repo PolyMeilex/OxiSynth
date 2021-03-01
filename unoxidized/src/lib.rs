@@ -13,3 +13,4 @@ pub mod soundfont;
 pub mod synth;
 pub mod tuning;
 pub mod voice;
+mod voice_pool;

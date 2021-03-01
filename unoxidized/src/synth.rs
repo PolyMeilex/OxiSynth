@@ -11,6 +11,7 @@ pub mod write;
 
 use crate::voice::VoiceId;
 use crate::voice::VoiceStatus;
+use crate::voice_pool::VoicePool;
 use std::rc::Rc;
 
 use super::chorus::Chorus;
@@ -187,7 +188,7 @@ pub struct Synth {
     bank_offsets: Vec<BankOffset>,
     gain: f64,
     channel: Vec<Channel>,
-    pub(crate) voices: Vec<Voice>,
+    pub(crate) voices: VoicePool,
     noteid: u32,
     storeid: u32,
     nbuf: i32,
@@ -215,7 +216,7 @@ impl Synth {
         }
 
         let min_note_length_ticks =
-            (settings.synth.min_note_length as f64 * settings.synth.sample_rate / 1000.0) as u32;
+            (settings.synth.min_note_length as f32 * settings.synth.sample_rate / 1000.0) as u32;
 
         if settings.synth.midi_channels % 16 != 0 {
             log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
@@ -275,7 +276,10 @@ impl Synth {
             bank_offsets: Vec::new(),
             gain: settings.synth.gain,
             channel: Vec::new(),
-            voices: Vec::new(),
+            voices: VoicePool::new(
+                settings.synth.polyphony as usize,
+                settings.synth.sample_rate,
+            ),
             noteid: 0,
             storeid: 0 as _,
             nbuf,
@@ -298,12 +302,6 @@ impl Synth {
             synth.channel.push(Channel::new(&synth, i));
         }
 
-        for _ in 0..synth.settings.synth.polyphony {
-            synth
-                .voices
-                .push(Voice::new(synth.settings.synth.sample_rate as f32));
-        }
-
         synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
         synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
         synth
@@ -323,7 +321,7 @@ impl Synth {
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.settings.synth.sample_rate = sample_rate as f64;
+        self.settings.synth.sample_rate = sample_rate;
         for i in 0..self.voices.len() {
             self.voices[i as usize] = Voice::new(self.settings.synth.sample_rate as f32);
         }
