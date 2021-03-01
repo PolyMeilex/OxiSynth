@@ -27,6 +27,8 @@ use super::{
     chorus::ChorusMode,
 };
 
+use crate::gen::GenParam;
+
 static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub const FLUID_OK: C2RustUnnamed = 0;
@@ -457,12 +459,13 @@ impl Synth {
         key: u8,
         vel: i32,
     ) -> Option<VoiceId> {
+        /* check if there's an available synthesis process */
         let mut voice_id = self
             .voices
             .iter()
             .take(self.settings.synth.polyphony as usize)
             .enumerate()
-            .find(|(_, v)| v.status == FLUID_VOICE_CLEAN || v.status == FLUID_VOICE_OFF)
+            .find(|(_, v)| v.available())
             .map(|(id, _)| VoiceId(id));
 
         if voice_id.is_none() {
@@ -528,44 +531,38 @@ impl Synth {
         }
     }
 
-    pub(crate) unsafe fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
-        let mut i;
-
+    pub(crate) fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let excl_class = {
             let new_voice = &mut self.voices[new_voice.0];
-            let excl_class: i32 = ((*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
-                + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
-                + (*new_voice).gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
+            let excl_class: i32 = (new_voice.gen[GenParam::ExclusiveClass as usize].val
+                + new_voice.gen[GenParam::ExclusiveClass as usize].mod_0
+                + new_voice.gen[GenParam::ExclusiveClass as usize].nrpn)
                 as i32;
             excl_class
         };
 
-        if excl_class == 0 {
-            return;
-        }
+        if excl_class != 0 {
+            for i in 0..self.settings.synth.polyphony {
+                let new_voice = &self.voices[new_voice.0];
+                let existing_voice = &self.voices[i as usize];
 
-        i = 0 as i32;
-        while i < self.settings.synth.polyphony {
-            let new_voice = &self.voices[new_voice.0];
-            let existing_voice = &self.voices[i as usize];
-
-            if existing_voice.status as i32 == FLUID_VOICE_ON as i32
-                || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
-            {
-                if !(existing_voice.chan as i32 != new_voice.chan as i32) {
-                    if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
-                        + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
-                        + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
-                        as i32
-                        != excl_class)
-                    {
-                        if !(existing_voice.id == new_voice.id) {
-                            self.voices[i as usize].kill_excl();
+                if existing_voice.status as i32 == FLUID_VOICE_ON as i32
+                    || existing_voice.status as i32 == FLUID_VOICE_SUSTAINED as i32
+                {
+                    if !(existing_voice.chan as i32 != new_voice.chan as i32) {
+                        if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
+                            + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
+                            + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
+                            as i32
+                            != excl_class)
+                        {
+                            if !(existing_voice.id == new_voice.id) {
+                                self.voices[i as usize].kill_excl();
+                            }
                         }
                     }
                 }
             }
-            i += 1
         }
     }
 

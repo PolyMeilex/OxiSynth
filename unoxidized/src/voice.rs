@@ -88,7 +88,7 @@ pub const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
 pub const FLUID_VOICE_SUSTAINED: VoiceStatus = 2;
 pub const FLUID_VOICE_ON: VoiceStatus = 1;
 pub const FLUID_OK: i32 = 0;
-pub type VoiceStatus = u32;
+pub type VoiceStatus = u8;
 pub const FLUID_VOICE_OFF: VoiceStatus = 3;
 pub const FLUID_VOICE_CLEAN: VoiceStatus = 0;
 pub type VoiceEnvelopeIndex = u32;
@@ -355,6 +355,10 @@ impl Voice {
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
     }
 
+    pub(crate) fn available(&self) -> bool {
+        self.status == FLUID_VOICE_CLEAN || self.status == FLUID_VOICE_OFF
+    }
+
     pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: i32) {
         if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
             && (mod_0.src1 as i32 != 0 as i32
@@ -403,7 +407,7 @@ impl Voice {
         self.gen[i as usize].flags = GEN_SET as u8;
     }
 
-    pub(crate) unsafe fn kill_excl(&mut self) {
+    pub(crate) fn kill_excl(&mut self) {
         if !(self.status as i32 == FLUID_VOICE_ON as i32
             || self.status as i32 == FLUID_VOICE_SUSTAINED as i32)
         {
