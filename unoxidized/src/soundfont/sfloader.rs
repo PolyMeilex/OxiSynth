@@ -358,22 +358,22 @@ impl Synth {
         }
 
         unsafe {
-            let preset = &mut *preset.data;
+            let preset = &*preset.data;
 
-            let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
+            let mut mod_list: [*const Mod; 64] = [0 as *const Mod; 64]; // list for 'sorting' preset modulators
 
-            let mut global_preset_zone = &mut preset.global_zone;
+            let mut global_preset_zone = &preset.global_zone;
 
             // run thru all the zones of this preset
-            for preset_zone in preset.zones.iter_mut() {
+            for preset_zone in preset.zones.iter() {
                 // check if the note falls into the key and velocity range of this preset
                 if preset_zone_inside_range(preset_zone, key, vel) {
-                    let inst = preset_zone.inst.as_mut().unwrap();
+                    let inst = preset_zone.inst.as_ref().unwrap();
 
-                    let mut global_inst_zone = &mut inst.global_zone;
+                    let mut global_inst_zone = &inst.global_zone;
 
                     // run thru all the zones of this instrument
-                    for inst_zone in inst.zones.iter_mut() {
+                    for inst_zone in inst.zones.iter() {
                         // make sure this instrument zone has a valid sample
                         let sample = &inst_zone.sample;
                         if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap()) != 0) {
@@ -418,7 +418,7 @@ impl Synth {
                                      * list. */
                                     let mut mod_list_count = 0;
                                     if let Some(global_inst_zone) = &mut global_inst_zone {
-                                        for m in global_inst_zone.mods.iter_mut() {
+                                        for m in global_inst_zone.mods.iter() {
                                             mod_list[mod_list_count] = m;
                                             mod_list_count += 1;
                                         }
@@ -428,7 +428,7 @@ impl Synth {
                                      * Replace modulators with the same definition in the list:
                                      * SF 2.01 page 69, 'bullet' 8
                                      */
-                                    for m in inst_zone.mods.iter_mut() {
+                                    for m in inst_zone.mods.iter() {
                                         /* 'Identical' modulators will be deleted by setting their
                                          *  list entry to NULL.  The list length is known, NULL
                                          *  entries will be ignored later.  SF2.01 section 9.5.1
@@ -516,7 +516,7 @@ impl Synth {
                                      * list. */
                                     let mut mod_list_count = 0;
                                     if let Some(global_preset_zone) = &mut global_preset_zone {
-                                        for m in global_preset_zone.mods.iter_mut() {
+                                        for m in global_preset_zone.mods.iter() {
                                             mod_list[mod_list_count] = m;
                                             mod_list_count += 1;
                                         }
@@ -525,7 +525,7 @@ impl Synth {
                                     /* Process the modulators of the local preset zone.  Kick
                                      * out all identical modulators from the global preset zone
                                      * (SF 2.01 page 69, second-last bullet) */
-                                    for m in preset_zone.mods.iter_mut() {
+                                    for m in preset_zone.mods.iter() {
                                         let mut i = 0;
                                         while i < mod_list_count {
                                             if !mod_list[i].is_null()
@@ -675,37 +675,6 @@ impl DefaultSoundFont {
         }
         Ok(sampledata)
     }
-
-    // unsafe fn add_preset(&mut self, mut preset: &mut DefaultPreset) -> i32 {
-    //     let mut cur: *mut DefaultPreset;
-    //     let mut prev: *mut DefaultPreset;
-    //     if self.preset.is_null() {
-    //         preset.next = 0 as *mut DefaultPreset;
-    //         self.preset = preset
-    //     } else {
-    //         cur = self.preset;
-    //         prev = 0 as *mut DefaultPreset;
-    //         while !cur.is_null() {
-    //             if preset.bank < (*cur).bank
-    //                 || preset.bank == (*cur).bank && preset.num < (*cur).num
-    //             {
-    //                 if prev.is_null() {
-    //                     preset.next = cur;
-    //                     self.preset = preset
-    //                 } else {
-    //                     preset.next = cur;
-    //                     (*prev).next = preset
-    //                 }
-    //                 return FLUID_OK as i32;
-    //             }
-    //             prev = cur;
-    //             cur = (*cur).next
-    //         }
-    //         preset.next = 0 as *mut DefaultPreset;
-    //         (*prev).next = preset
-    //     }
-    //     return FLUID_OK as i32;
-    // }
 }
 
 fn fluid_inst_import_sfont(

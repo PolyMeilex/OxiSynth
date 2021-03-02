@@ -6,7 +6,7 @@ use soundfont_rs as sf2;
 
 #[derive(Copy, Clone)]
 pub struct Preset {
-    data: *mut DefaultPreset,
+    data: *const DefaultPreset,
     pub sfont_id: u32,
 }
 
