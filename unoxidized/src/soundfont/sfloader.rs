@@ -59,7 +59,6 @@ impl DefaultSoundFont {
 #[derive(Clone)]
 #[repr(C)]
 pub(super) struct DefaultPreset {
-    next: *mut DefaultPreset,
     sfont: *mut DefaultSoundFont,
     // [u8;21]
     name: String,
@@ -76,7 +75,6 @@ impl DefaultPreset {
         sfont: &mut DefaultSoundFont,
     ) -> Result<Self, ()> {
         let mut preset = DefaultPreset {
-            next: 0 as *mut DefaultPreset,
             sfont: sfont,
             name: String::new(),
             bank: 0 as i32 as u32,
