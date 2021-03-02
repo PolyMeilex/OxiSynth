@@ -35,7 +35,6 @@ type GenType = u32;
 type GenFlags = u32;
 
 const FLUID_OK: i32 = 0;
-const FLUID_FAILED: i32 = -1;
 
 #[derive(Clone)]
 #[repr(C)]
@@ -127,7 +126,7 @@ struct PresetZone {
 }
 
 impl PresetZone {
-    unsafe fn import_sfont(
+    fn import_sfont(
         name: String,
         sf2: &sf2::SoundFont2,
         sfzone: &sf2::Zone,
@@ -222,7 +221,7 @@ struct InstrumentZone {
 }
 
 impl InstrumentZone {
-    unsafe fn import_sfont(
+    fn import_sfont(
         name: String,
         sf2: &sf2::SoundFont2,
         new_zone: &sf2::Zone,
@@ -740,7 +739,7 @@ unsafe fn delete_fluid_defpreset(preset: *mut DefaultPreset) -> i32 {
     return err;
 }
 
-unsafe fn fluid_inst_import_sfont(
+fn fluid_inst_import_sfont(
     sf2: &sf2::SoundFont2,
     inst: &mut Instrument,
     new_inst: &sf2::Instrument,
