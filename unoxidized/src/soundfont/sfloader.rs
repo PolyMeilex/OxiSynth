@@ -33,19 +33,10 @@ type GenFlags = u32;
 
 pub(super) struct DefaultSoundFont {
     pub(super) filename: PathBuf,
-    pub(super) sampledata: Rc<Vec<i16>>,
-    sample: Vec<Rc<Sample>>,
-    pub(super) preset: Vec<Rc<DefaultPreset>>,
+    pub(super) presets: Vec<Rc<DefaultPreset>>,
 }
 
 impl DefaultSoundFont {
-    fn get_sample(&mut self, name: &str) -> Option<Rc<Sample>> {
-        self.sample
-            .iter()
-            .find(|sample| name == &sample.name)
-            .map(|s| s.clone())
-    }
-
     pub(super) fn load(path: &Path) -> Result<Self, ()> {
         let filename = path.to_owned();
         let mut file = std::fs::File::open(&filename).unwrap();
@@ -56,35 +47,31 @@ impl DefaultSoundFont {
 
         let smpl = sf2.sample_data.smpl.as_ref().unwrap();
 
-        let samplepos = smpl.offset() + 8;
-        let samplesize = smpl.len() as usize;
+        let sample_pos = smpl.offset() + 8;
+        let sample_size = smpl.len() as usize;
 
-        let sampledata = Rc::new(Self::load_sampledata(&mut file, samplepos, samplesize)?);
+        let sample_data = Rc::new(Self::load_sampledata(&mut file, sample_pos, sample_size)?);
 
-        let mut defsfont = DefaultSoundFont {
-            filename,
-            sample: Vec::new(),
-            sampledata,
-            preset: Vec::new(),
-        };
+        let mut samples = Vec::new();
 
         for sfsample in sf2.sample_headers.iter() {
-            let sample = Sample::import_sfont(sfsample, &mut defsfont)?;
+            let sample = Sample::import_sfont(sfsample, sample_data.clone())?;
             let mut sample = sample;
 
             unsafe {
                 sample.optimize_sample();
             }
 
-            defsfont.sample.push(Rc::new(sample));
+            samples.push(Rc::new(sample));
         }
 
+        let mut presets = Vec::new();
         for sfpreset in sf2.presets.iter() {
-            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
-            defsfont.preset.push(Rc::new(preset));
+            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &samples)? };
+            presets.push(Rc::new(preset));
         }
 
-        Ok(defsfont)
+        Ok(DefaultSoundFont { filename, presets })
     }
 
     fn load_sampledata(
@@ -131,7 +118,7 @@ impl DefaultPreset {
     unsafe fn import_sfont(
         sf2: &sf2::SoundFont2,
         sfpreset: &sf2::Preset,
-        sfont: &mut DefaultSoundFont,
+        samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
         let mut preset = DefaultPreset {
             name: String::new(),
@@ -155,7 +142,7 @@ impl DefaultPreset {
 
         for (id, sfzone) in sfpreset.zones.iter().enumerate() {
             let name = format!("{}/{}", sfpreset.header.name, id);
-            let zone = PresetZone::import_sfont(name, sf2, sfzone, sfont)?;
+            let zone = PresetZone::import_sfont(name, sf2, sfzone, samples)?;
 
             if id == 0 && zone.inst.is_none() {
                 preset.global_zone = Some(zone);
@@ -185,7 +172,7 @@ impl PresetZone {
         name: String,
         sf2: &sf2::SoundFont2,
         sfzone: &sf2::Zone,
-        sfont: &mut DefaultSoundFont,
+        samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
         let mut zone = Self {
             name,
@@ -217,7 +204,7 @@ impl PresetZone {
             }
         }
         if let Some(id) = sfzone.instrument() {
-            let inst = Instrument::import_sfont(sf2, &sf2.instruments[*id as usize], sfont)?;
+            let inst = Instrument::import_sfont(sf2, &sf2.instruments[*id as usize], samples)?;
 
             zone.inst = Some(inst);
         }
@@ -248,7 +235,7 @@ impl Instrument {
     fn import_sfont(
         sf2: &sf2::SoundFont2,
         new_inst: &sf2::Instrument,
-        sfont: &mut DefaultSoundFont,
+        samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
         let mut inst = Self {
             name: String::new(),
@@ -263,7 +250,7 @@ impl Instrument {
         }
         for (id, new_zone) in new_inst.zones.iter().enumerate() {
             let name = format!("{}/{}", new_inst.header.name, id);
-            let zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont)?;
+            let zone = InstrumentZone::import_sfont(name, sf2, new_zone, samples)?;
             if id == 0 && zone.sample.is_none() {
                 inst.global_zone = Some(zone);
             } else {
@@ -293,7 +280,7 @@ impl InstrumentZone {
         name: String,
         sf2: &sf2::SoundFont2,
         new_zone: &sf2::Zone,
-        sfont: &mut DefaultSoundFont,
+        samples: &Vec<Rc<Sample>>,
     ) -> Result<InstrumentZone, ()> {
         let mut keylo = 0;
         let mut keyhi = 128;
@@ -320,7 +307,14 @@ impl InstrumentZone {
 
         let sample = if let Some(sample_id) = new_zone.sample() {
             let sample = sf2.sample_headers.get(*sample_id as usize).unwrap();
-            let sample = sfont.get_sample(&sample.name);
+            let name = &sample.name;
+
+            // Find Sample by name:
+            let sample = samples
+                .iter()
+                .find(|sample| &sample.name == name)
+                .map(|s| s.clone());
+
             if sample.is_none() {
                 log::error!("Couldn't find sample name",);
                 return Err(());

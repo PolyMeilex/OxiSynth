@@ -46,7 +46,7 @@ impl SoundFont {
     pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
         let defpreset = self
             .data
-            .preset
+            .presets
             .iter()
             .find(|p| p.bank == bank && p.num == prenum);
 
@@ -84,7 +84,7 @@ pub struct Sample {
 impl Sample {
     fn import_sfont(
         sfsample: &sf2::data::SFSampleHeader,
-        sfont: &DefaultSoundFont,
+        data: Rc<Vec<i16>>,
     ) -> Result<Sample, ()> {
         let mut sample = Sample {
             name: sfsample.name.clone(),
@@ -97,7 +97,7 @@ impl Sample {
             pitchadj: sfsample.pitchadj as i32,
             sampletype: sfsample.sample_type as i32,
             valid: 1,
-            data: sfont.sampledata.clone(),
+            data,
 
             amplitude_that_reaches_noise_floor_is_valid: 0,
             amplitude_that_reaches_noise_floor: 0.0,
