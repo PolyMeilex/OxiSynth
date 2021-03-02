@@ -44,7 +44,7 @@ pub(super) struct DefaultSoundFont {
     samplesize: u32,
     pub(super) sampledata: *mut i16,
     sample: Vec<Rc<Sample>>,
-    preset: Vec<DefaultPreset>,
+    preset: Vec<Rc<DefaultPreset>>,
 }
 
 impl DefaultSoundFont {
@@ -304,7 +304,7 @@ impl SoundFont {
         if let Some(defpreset) = defpreset {
             let preset = Preset {
                 sfont_id: self.id,
-                data: defpreset as *const _ as *mut _,
+                data: defpreset.clone(),
             };
 
             Some(preset)
@@ -327,23 +327,21 @@ impl Drop for SoundFont {
 
 impl Preset {
     pub fn get_name(&self) -> String {
-        unsafe { (*self.data).name.clone() }
+        self.data.name.clone()
     }
 
     pub fn get_banknum(&self) -> u32 {
-        unsafe { (*self.data).bank }
+        self.data.bank
     }
 
     pub fn get_num(&self) -> u32 {
-        unsafe { (*self.data).num }
+        self.data.num
     }
 }
 
 impl Synth {
     /// noteon
     pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: i32) -> Result<(), ()> {
-        let preset = self.channel[chan as usize].preset.as_mut().unwrap();
-
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
             zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
         }
@@ -358,7 +356,10 @@ impl Synth {
         }
 
         unsafe {
-            let preset = &*preset.data;
+            let preset = {
+                let preset = self.channel[chan as usize].preset.as_ref().unwrap();
+                preset.data.clone()
+            };
 
             let mut mod_list: [*const Mod; 64] = [0 as *const Mod; 64]; // list for 'sorting' preset modulators
 
@@ -621,7 +622,7 @@ impl DefaultSoundFont {
 
         for sfpreset in sf2.presets.iter() {
             let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
-            defsfont.preset.push(preset);
+            defsfont.preset.push(Rc::new(preset));
         }
 
         Ok(defsfont)

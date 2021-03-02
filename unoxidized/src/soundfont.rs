@@ -3,10 +3,11 @@ mod sfloader;
 use sfloader::DefaultPreset;
 use sfloader::DefaultSoundFont;
 use soundfont_rs as sf2;
+use std::rc::Rc;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Preset {
-    data: *const DefaultPreset,
+    data: Rc<DefaultPreset>,
     pub sfont_id: u32,
 }
 
