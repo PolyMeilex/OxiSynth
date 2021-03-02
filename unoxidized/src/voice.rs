@@ -1,3 +1,5 @@
+pub mod dsp_float;
+
 use super::channel::{Channel, InterpMethod};
 use super::conv::fluid_act2hz;
 use super::conv::fluid_atten2amp;
@@ -9,10 +11,7 @@ use super::conv::fluid_tc2sec;
 use super::conv::fluid_tc2sec_attack;
 use super::conv::fluid_tc2sec_delay;
 use super::conv::fluid_tc2sec_release;
-use super::dsp_float::fluid_dsp_float_interpolate_4th_order;
-use super::dsp_float::fluid_dsp_float_interpolate_7th_order;
-use super::dsp_float::fluid_dsp_float_interpolate_linear;
-use super::dsp_float::fluid_dsp_float_interpolate_none;
+
 use super::gen::{self, Gen};
 use super::modulator::Mod;
 use super::soundfont::Sample;
@@ -970,14 +969,10 @@ impl Voice {
                         }
                         self.dsp_buf = dsp_buf.as_mut_ptr();
                         let count = match self.interp_method {
-                            InterpMethod::None => fluid_dsp_float_interpolate_none(self),
-                            InterpMethod::Linear => fluid_dsp_float_interpolate_linear(self),
-                            InterpMethod::FourthOrder => {
-                                fluid_dsp_float_interpolate_4th_order(self)
-                            }
-                            InterpMethod::SeventhOrder => {
-                                fluid_dsp_float_interpolate_7th_order(self)
-                            }
+                            InterpMethod::None => self.dsp_float_interpolate_none(),
+                            InterpMethod::Linear => self.dsp_float_interpolate_linear(),
+                            InterpMethod::FourthOrder => self.dsp_float_interpolate_4th_order(),
+                            InterpMethod::SeventhOrder => self.dsp_float_interpolate_7th_order(),
                         };
                         if count > 0 as i32 {
                             self.effects(
