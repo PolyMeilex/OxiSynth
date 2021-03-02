@@ -58,16 +58,14 @@ impl DefaultSoundFont {
             let sample = Sample::import_sfont(sfsample, sample_data.clone())?;
             let mut sample = sample;
 
-            unsafe {
-                sample.optimize_sample();
-            }
+            sample.optimize_sample();
 
             samples.push(Rc::new(sample));
         }
 
         let mut presets = Vec::new();
         for sfpreset in sf2.presets.iter() {
-            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &samples)? };
+            let preset = DefaultPreset::import_sfont(&sf2, sfpreset, &samples)?;
             presets.push(Rc::new(preset));
         }
 
@@ -115,7 +113,7 @@ pub(super) struct DefaultPreset {
 }
 
 impl DefaultPreset {
-    unsafe fn import_sfont(
+    fn import_sfont(
         sf2: &sf2::SoundFont2,
         sfpreset: &sf2::Preset,
         samples: &Vec<Rc<Sample>>,
