@@ -207,7 +207,6 @@ impl Instrument {
 #[derive(Clone)]
 #[repr(C)]
 struct InstrumentZone {
-    next: *mut InstrumentZone,
     name: String,
     sample: Option<Rc<Sample>>,
     keylo: u8,
@@ -271,7 +270,6 @@ impl InstrumentZone {
         }
 
         Ok(InstrumentZone {
-            next: 0 as *mut InstrumentZone,
             name: name,
             sample,
             keylo,
