@@ -74,7 +74,7 @@ lazy_static! {
 pub unsafe fn fluid_dsp_float_interpolate_none(mut voice: *mut Voice) -> i32 {
     let mut dsp_phase: Phase = (*voice).phase;
     let dsp_phase_incr: Phase;
-    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data;
+    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data.as_ptr();
     let dsp_buf: *mut f32 = (*voice).dsp_buf;
     let mut dsp_amp: f32 = (*voice).amp;
     let dsp_amp_incr: f32 = (*voice).amp_incr;
@@ -127,7 +127,7 @@ pub unsafe fn fluid_dsp_float_interpolate_none(mut voice: *mut Voice) -> i32 {
 pub unsafe fn fluid_dsp_float_interpolate_linear(mut voice: *mut Voice) -> i32 {
     let mut dsp_phase: Phase = (*voice).phase;
     let dsp_phase_incr: Phase;
-    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data;
+    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data.as_ptr();
     let dsp_buf: *mut f32 = (*voice).dsp_buf;
     let mut dsp_amp: f32 = (*voice).amp;
     let dsp_amp_incr: f32 = (*voice).amp_incr;
@@ -216,7 +216,7 @@ pub unsafe fn fluid_dsp_float_interpolate_linear(mut voice: *mut Voice) -> i32 {
 pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i32 {
     let mut dsp_phase: Phase = (*voice).phase;
     let dsp_phase_incr: Phase;
-    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data;
+    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data.as_ptr();
     let dsp_buf: *mut f32 = (*voice).dsp_buf;
     let mut dsp_amp: f32 = (*voice).amp;
     let dsp_amp_incr: f32 = (*voice).amp_incr;
@@ -372,7 +372,7 @@ pub unsafe fn fluid_dsp_float_interpolate_4th_order(mut voice: *mut Voice) -> i3
 pub unsafe fn fluid_dsp_float_interpolate_7th_order(mut voice: *mut Voice) -> i32 {
     let mut dsp_phase: Phase = (*voice).phase;
     let dsp_phase_incr: Phase;
-    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data;
+    let dsp_data: *const i16 = (*voice).sample.as_ref().unwrap().data.as_ptr();
     let dsp_buf: *mut f32 = (*voice).dsp_buf;
     let mut dsp_amp: f32 = (*voice).amp;
     let dsp_amp_incr: f32 = (*voice).amp_incr;

@@ -63,17 +63,6 @@ impl SoundFont {
     }
 }
 
-impl Drop for SoundFont {
-    fn drop(&mut self) {
-        let sfont = &mut self.data;
-        if !sfont.sampledata.is_null() {
-            unsafe {
-                libc::free(sfont.sampledata as *mut libc::c_void);
-            }
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Sample {
     // pub name: [u8; 21],
@@ -87,7 +76,8 @@ pub struct Sample {
     pub pitchadj: i32,
     pub sampletype: i32,
     pub valid: i32,
-    pub data: *const i16,
+    // TODO: Rc<Vec<i16>>
+    pub data: Vec<i16>,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
 }
@@ -108,7 +98,8 @@ impl Sample {
             pitchadj: sfsample.pitchadj as i32,
             sampletype: sfsample.sample_type as i32,
             valid: 1,
-            data: sfont.sampledata,
+            // TODO: Rc<Vec<i16>>
+            data: sfont.sampledata.clone(),
 
             amplitude_that_reaches_noise_floor_is_valid: 0,
             amplitude_that_reaches_noise_floor: 0.0,
@@ -143,7 +134,7 @@ impl Sample {
         if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
             i = self.loopstart as i32;
             while i < self.loopend as i32 {
-                let val: i16 = *self.data.offset(i as isize);
+                let val: i16 = *self.data.as_ptr().offset(i as isize);
                 if val as i32 > peak_max as i32 {
                     peak_max = val
                 } else if (val as i32) < peak_min as i32 {

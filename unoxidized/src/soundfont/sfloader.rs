@@ -10,7 +10,6 @@ use crate::soundfont::Sample;
 use crate::synth::Synth;
 use crate::voice::FluidVoiceAddMod;
 use std::path::Path;
-use std::slice::from_raw_parts_mut;
 
 const GEN_SET: GenFlags = 1;
 const GEN_VELOCITY: u32 = 47;
@@ -34,7 +33,7 @@ type GenFlags = u32;
 
 pub(super) struct DefaultSoundFont {
     pub(super) filename: PathBuf,
-    pub(super) sampledata: *const i16,
+    pub(super) sampledata: Vec<i16>,
     sample: Vec<Rc<Sample>>,
     pub(super) preset: Vec<Rc<DefaultPreset>>,
 }
@@ -60,7 +59,7 @@ impl DefaultSoundFont {
         let samplepos = smpl.offset() + 8;
         let samplesize = smpl.len() as usize;
 
-        let sampledata = unsafe { Self::load_sampledata(&mut file, samplepos, samplesize)? };
+        let sampledata = Self::load_sampledata(&mut file, samplepos, samplesize)?;
 
         let mut defsfont = DefaultSoundFont {
             filename,
@@ -88,53 +87,35 @@ impl DefaultSoundFont {
         Ok(defsfont)
     }
 
-    unsafe fn load_sampledata(
+    fn load_sampledata(
         file: &mut std::fs::File,
         sample_pos: u64,
         sample_size: usize,
-    ) -> Result<*const i16, ()> {
+    ) -> Result<Vec<i16>, ()> {
         if file.seek(SeekFrom::Start(sample_pos)).is_err() {
             log::error!("Failed to seek position in data file",);
             return Err(());
         }
-        let sampledata = libc::malloc(sample_size as libc::size_t) as *mut i16;
-        if sampledata.is_null() {
-            log::error!("Out of memory",);
+
+        let mut sample_data = vec![0u8; sample_size];
+        if file.read_exact(&mut sample_data).is_err() {
+            log::error!("Failed to read sample data");
             return Err(());
         }
 
-        // let sample_data_new = vec![0u8; sample_size];
+        let sample_data: Vec<i16> = sample_data
+            .chunks(2)
+            .map(|num| {
+                if num.len() == 2 {
+                    i16::from_le_bytes([num[0], num[1]])
+                } else {
+                    log::error!("Wrong sample data");
+                    0
+                }
+            })
+            .collect();
 
-        if file
-            .read(from_raw_parts_mut(sampledata as _, sample_size as _))
-            .is_err()
-        {
-            log::error!("Failed to read sample data",);
-            return Err(());
-        }
-
-        let mut endian = 0x100 as u16;
-        if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
-            let mut hi: u8;
-            let mut lo: u8;
-            let mut s: i16;
-            let cbuf = sampledata as *mut u8;
-
-            let mut i = 0u32;
-            let mut j = 0;
-            while j < sample_size {
-                let fresh0 = j;
-                j = j.wrapping_add(1);
-                lo = *cbuf.offset(fresh0 as isize);
-                let fresh1 = j;
-                j = j.wrapping_add(1);
-                hi = *cbuf.offset(fresh1 as isize);
-                s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
-                *sampledata.offset(i as isize) = s;
-                i = i.wrapping_add(1)
-            }
-        }
-        Ok(sampledata)
+        Ok(sample_data)
     }
 }
 
