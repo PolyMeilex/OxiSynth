@@ -34,7 +34,7 @@ type GenFlags = u32;
 
 pub(super) struct DefaultSoundFont {
     pub(super) filename: PathBuf,
-    pub(super) sampledata: *mut i16,
+    pub(super) sampledata: *const i16,
     sample: Vec<Rc<Sample>>,
     pub(super) preset: Vec<Rc<DefaultPreset>>,
 }
@@ -92,7 +92,7 @@ impl DefaultSoundFont {
         file: &mut std::fs::File,
         sample_pos: u64,
         sample_size: usize,
-    ) -> Result<*mut i16, ()> {
+    ) -> Result<*const i16, ()> {
         if file.seek(SeekFrom::Start(sample_pos)).is_err() {
             log::error!("Failed to seek position in data file",);
             return Err(());
@@ -102,6 +102,8 @@ impl DefaultSoundFont {
             log::error!("Out of memory",);
             return Err(());
         }
+
+        // let sample_data_new = vec![0u8; sample_size];
 
         if file
             .read(from_raw_parts_mut(sampledata as _, sample_size as _))

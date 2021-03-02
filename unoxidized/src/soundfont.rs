@@ -87,7 +87,7 @@ pub struct Sample {
     pub pitchadj: i32,
     pub sampletype: i32,
     pub valid: i32,
-    pub data: *mut i16,
+    pub data: *const i16,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
 }
