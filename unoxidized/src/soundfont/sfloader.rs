@@ -44,7 +44,7 @@ pub(super) struct DefaultSoundFont {
     samplesize: u32,
     pub(super) sampledata: *mut i16,
     sample: Vec<Rc<Sample>>,
-    preset: *mut DefaultPreset,
+    preset: Vec<DefaultPreset>,
 }
 
 impl DefaultSoundFont {
@@ -299,28 +299,21 @@ impl SoundFont {
     }
 
     pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
-        unsafe {
-            let defpreset = (|| {
-                let mut preset: *mut DefaultPreset = self.data.preset;
-                while !preset.is_null() {
-                    if (*preset).bank == bank && (*preset).num == prenum {
-                        return Some(preset);
-                    }
-                    preset = (*preset).next
-                }
-                None
-            })();
+        let defpreset = self
+            .data
+            .preset
+            .iter()
+            .find(|p| p.bank == bank && p.num == prenum);
 
-            if let Some(defpreset) = defpreset {
-                let preset = Preset {
-                    sfont_id: self.id,
-                    data: defpreset as *mut _,
-                };
+        if let Some(defpreset) = defpreset {
+            let preset = Preset {
+                sfont_id: self.id,
+                data: defpreset as *const _ as *mut _,
+            };
 
-                Some(preset)
-            } else {
-                None
-            }
+            Some(preset)
+        } else {
+            None
         }
     }
 }
@@ -331,15 +324,6 @@ impl Drop for SoundFont {
         if !sfont.sampledata.is_null() {
             unsafe {
                 libc::free(sfont.sampledata as *mut libc::c_void);
-            }
-        }
-
-        let mut preset = sfont.preset;
-        while !preset.is_null() {
-            unsafe {
-                sfont.preset = (*preset).next;
-                delete_fluid_defpreset(preset);
-                preset = sfont.preset
             }
         }
     }
@@ -625,7 +609,7 @@ impl DefaultSoundFont {
             samplesize,
             sample: Vec::new(),
             sampledata,
-            preset: std::ptr::null_mut(),
+            preset: Vec::new(),
         };
 
         for sfsample in sf2.sample_headers.iter() {
@@ -641,11 +625,7 @@ impl DefaultSoundFont {
 
         for sfpreset in sf2.presets.iter() {
             let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
-            let preset = Box::into_raw(Box::new(preset));
-
-            unsafe {
-                defsfont.add_preset(&mut *preset);
-            }
+            defsfont.preset.push(preset);
         }
 
         Ok(defsfont)
@@ -700,43 +680,36 @@ impl DefaultSoundFont {
         Ok(sampledata)
     }
 
-    unsafe fn add_preset(&mut self, mut preset: &mut DefaultPreset) -> i32 {
-        let mut cur: *mut DefaultPreset;
-        let mut prev: *mut DefaultPreset;
-        if self.preset.is_null() {
-            preset.next = 0 as *mut DefaultPreset;
-            self.preset = preset
-        } else {
-            cur = self.preset;
-            prev = 0 as *mut DefaultPreset;
-            while !cur.is_null() {
-                if preset.bank < (*cur).bank
-                    || preset.bank == (*cur).bank && preset.num < (*cur).num
-                {
-                    if prev.is_null() {
-                        preset.next = cur;
-                        self.preset = preset
-                    } else {
-                        preset.next = cur;
-                        (*prev).next = preset
-                    }
-                    return FLUID_OK as i32;
-                }
-                prev = cur;
-                cur = (*cur).next
-            }
-            preset.next = 0 as *mut DefaultPreset;
-            (*prev).next = preset
-        }
-        return FLUID_OK as i32;
-    }
-}
-
-unsafe fn delete_fluid_defpreset(preset: *mut DefaultPreset) -> i32 {
-    let err: i32 = FLUID_OK as i32;
-
-    libc::free(preset as *mut libc::c_void);
-    return err;
+    // unsafe fn add_preset(&mut self, mut preset: &mut DefaultPreset) -> i32 {
+    //     let mut cur: *mut DefaultPreset;
+    //     let mut prev: *mut DefaultPreset;
+    //     if self.preset.is_null() {
+    //         preset.next = 0 as *mut DefaultPreset;
+    //         self.preset = preset
+    //     } else {
+    //         cur = self.preset;
+    //         prev = 0 as *mut DefaultPreset;
+    //         while !cur.is_null() {
+    //             if preset.bank < (*cur).bank
+    //                 || preset.bank == (*cur).bank && preset.num < (*cur).num
+    //             {
+    //                 if prev.is_null() {
+    //                     preset.next = cur;
+    //                     self.preset = preset
+    //                 } else {
+    //                     preset.next = cur;
+    //                     (*prev).next = preset
+    //                 }
+    //                 return FLUID_OK as i32;
+    //             }
+    //             prev = cur;
+    //             cur = (*cur).next
+    //         }
+    //         preset.next = 0 as *mut DefaultPreset;
+    //         (*prev).next = preset
+    //     }
+    //     return FLUID_OK as i32;
+    // }
 }
 
 fn fluid_inst_import_sfont(
