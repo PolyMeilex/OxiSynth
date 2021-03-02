@@ -33,7 +33,7 @@ type GenFlags = u32;
 
 pub(super) struct DefaultSoundFont {
     pub(super) filename: PathBuf,
-    pub(super) sampledata: Vec<i16>,
+    pub(super) sampledata: Rc<Vec<i16>>,
     sample: Vec<Rc<Sample>>,
     pub(super) preset: Vec<Rc<DefaultPreset>>,
 }
@@ -59,7 +59,7 @@ impl DefaultSoundFont {
         let samplepos = smpl.offset() + 8;
         let samplesize = smpl.len() as usize;
 
-        let sampledata = Self::load_sampledata(&mut file, samplepos, samplesize)?;
+        let sampledata = Rc::new(Self::load_sampledata(&mut file, samplepos, samplesize)?);
 
         let mut defsfont = DefaultSoundFont {
             filename,

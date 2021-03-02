@@ -76,8 +76,7 @@ pub struct Sample {
     pub pitchadj: i32,
     pub sampletype: i32,
     pub valid: i32,
-    // TODO: Rc<Vec<i16>>
-    pub data: Vec<i16>,
+    pub data: Rc<Vec<i16>>,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
 }
@@ -98,7 +97,6 @@ impl Sample {
             pitchadj: sfsample.pitchadj as i32,
             sampletype: sfsample.sample_type as i32,
             valid: 1,
-            // TODO: Rc<Vec<i16>>
             data: sfont.sampledata.clone(),
 
             amplitude_that_reaches_noise_floor_is_valid: 0,
