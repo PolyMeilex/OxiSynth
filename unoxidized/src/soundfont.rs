@@ -3,6 +3,7 @@ mod sfloader;
 use sfloader::DefaultPreset;
 use sfloader::DefaultSoundFont;
 use soundfont_rs as sf2;
+use std::path::Path;
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -11,9 +12,66 @@ pub struct Preset {
     pub sfont_id: u32,
 }
 
+impl Preset {
+    pub fn get_name(&self) -> String {
+        self.data.name.clone()
+    }
+
+    pub fn get_banknum(&self) -> u32 {
+        self.data.bank
+    }
+
+    pub fn get_num(&self) -> u32 {
+        self.data.num
+    }
+}
+
 pub struct SoundFont {
     data: DefaultSoundFont,
     pub id: u32,
+}
+
+impl SoundFont {
+    pub(crate) fn load(filename: &Path) -> Result<Self, ()> {
+        DefaultSoundFont::load(filename).map(|defsfont| Self {
+            data: defsfont,
+            id: 0,
+        })
+    }
+
+    pub fn get_name(&self) -> &Path {
+        &self.data.filename
+    }
+
+    pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
+        let defpreset = self
+            .data
+            .preset
+            .iter()
+            .find(|p| p.bank == bank && p.num == prenum);
+
+        if let Some(defpreset) = defpreset {
+            let preset = Preset {
+                sfont_id: self.id,
+                data: defpreset.clone(),
+            };
+
+            Some(preset)
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for SoundFont {
+    fn drop(&mut self) {
+        let sfont = &mut self.data;
+        if !sfont.sampledata.is_null() {
+            unsafe {
+                libc::free(sfont.sampledata as *mut libc::c_void);
+            }
+        }
+    }
 }
 
 #[derive(Clone)]

@@ -6,9 +6,7 @@ use std::path::PathBuf;
 
 use crate::gen::{self, Gen};
 use crate::modulator::Mod;
-use crate::soundfont::Preset;
 use crate::soundfont::Sample;
-use crate::soundfont::SoundFont;
 use crate::synth::Synth;
 use crate::voice::FluidVoiceAddMod;
 use std::path::Path;
@@ -34,17 +32,11 @@ const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
 type GenType = u32;
 type GenFlags = u32;
 
-const FLUID_OK: i32 = 0;
-
-#[derive(Clone)]
-#[repr(C)]
 pub(super) struct DefaultSoundFont {
-    filename: PathBuf,
-    samplepos: u64,
-    samplesize: u32,
+    pub(super) filename: PathBuf,
     pub(super) sampledata: *mut i16,
     sample: Vec<Rc<Sample>>,
-    preset: Vec<Rc<DefaultPreset>>,
+    pub(super) preset: Vec<Rc<DefaultPreset>>,
 }
 
 impl DefaultSoundFont {
@@ -54,16 +46,100 @@ impl DefaultSoundFont {
             .find(|sample| name == &sample.name)
             .map(|s| s.clone())
     }
+
+    pub(super) fn load(path: &Path) -> Result<Self, ()> {
+        let filename = path.to_owned();
+        let mut file = std::fs::File::open(&filename).unwrap();
+
+        let data = sf2::data::SFData::load(&mut file);
+        let mut sf2 = sf2::SoundFont2::from_data(data);
+        sf2.sort_presets();
+
+        let smpl = sf2.sample_data.smpl.as_ref().unwrap();
+
+        let samplepos = smpl.offset() + 8;
+        let samplesize = smpl.len() as usize;
+
+        let sampledata = unsafe { Self::load_sampledata(&mut file, samplepos, samplesize)? };
+
+        let mut defsfont = DefaultSoundFont {
+            filename,
+            sample: Vec::new(),
+            sampledata,
+            preset: Vec::new(),
+        };
+
+        for sfsample in sf2.sample_headers.iter() {
+            let sample = Sample::import_sfont(sfsample, &mut defsfont)?;
+            let mut sample = sample;
+
+            unsafe {
+                sample.optimize_sample();
+            }
+
+            defsfont.sample.push(Rc::new(sample));
+        }
+
+        for sfpreset in sf2.presets.iter() {
+            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
+            defsfont.preset.push(Rc::new(preset));
+        }
+
+        Ok(defsfont)
+    }
+
+    unsafe fn load_sampledata(
+        file: &mut std::fs::File,
+        sample_pos: u64,
+        sample_size: usize,
+    ) -> Result<*mut i16, ()> {
+        if file.seek(SeekFrom::Start(sample_pos)).is_err() {
+            log::error!("Failed to seek position in data file",);
+            return Err(());
+        }
+        let sampledata = libc::malloc(sample_size as libc::size_t) as *mut i16;
+        if sampledata.is_null() {
+            log::error!("Out of memory",);
+            return Err(());
+        }
+
+        if file
+            .read(from_raw_parts_mut(sampledata as _, sample_size as _))
+            .is_err()
+        {
+            log::error!("Failed to read sample data",);
+            return Err(());
+        }
+
+        let mut endian = 0x100 as u16;
+        if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
+            let mut hi: u8;
+            let mut lo: u8;
+            let mut s: i16;
+            let cbuf = sampledata as *mut u8;
+
+            let mut i = 0u32;
+            let mut j = 0;
+            while j < sample_size {
+                let fresh0 = j;
+                j = j.wrapping_add(1);
+                lo = *cbuf.offset(fresh0 as isize);
+                let fresh1 = j;
+                j = j.wrapping_add(1);
+                hi = *cbuf.offset(fresh1 as isize);
+                s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
+                *sampledata.offset(i as isize) = s;
+                i = i.wrapping_add(1)
+            }
+        }
+        Ok(sampledata)
+    }
 }
 
-#[derive(Clone)]
-#[repr(C)]
 pub(super) struct DefaultPreset {
-    sfont: *mut DefaultSoundFont,
-    // [u8;21]
-    name: String,
-    bank: u32,
-    num: u32,
+    pub(super) name: String,
+    pub(super) bank: u32,
+    pub(super) num: u32,
     global_zone: Option<PresetZone>,
     zones: Vec<PresetZone>,
 }
@@ -75,7 +151,6 @@ impl DefaultPreset {
         sfont: &mut DefaultSoundFont,
     ) -> Result<Self, ()> {
         let mut preset = DefaultPreset {
-            sfont: sfont,
             name: String::new(),
             bank: 0 as i32 as u32,
             num: 0 as i32 as u32,
@@ -110,9 +185,8 @@ impl DefaultPreset {
     }
 }
 
-#[derive(Clone)]
-#[repr(C)]
 struct PresetZone {
+    #[allow(dead_code)]
     name: String,
     inst: Option<Instrument>,
     keylo: u8,
@@ -160,13 +234,7 @@ impl PresetZone {
             }
         }
         if let Some(id) = sfzone.instrument() {
-            let mut inst = Instrument::new();
-
-            if fluid_inst_import_sfont(sf2, &mut inst, &sf2.instruments[*id as usize], sfont)
-                != FLUID_OK as i32
-            {
-                return Err(());
-            }
+            let inst = Instrument::import_sfont(sf2, &sf2.instruments[*id as usize], sfont)?;
 
             zone.inst = Some(inst);
         }
@@ -186,7 +254,6 @@ impl PresetZone {
 }
 
 #[derive(Clone)]
-#[repr(C)]
 struct Instrument {
     // [u8;21]
     name: String,
@@ -195,12 +262,33 @@ struct Instrument {
 }
 
 impl Instrument {
-    fn new() -> Self {
-        Self {
+    fn import_sfont(
+        sf2: &sf2::SoundFont2,
+        new_inst: &sf2::Instrument,
+        sfont: &mut DefaultSoundFont,
+    ) -> Result<Self, ()> {
+        let mut inst = Self {
             name: String::new(),
             global_zone: None,
             zones: Vec::new(),
+        };
+
+        if new_inst.header.name.len() > 0 {
+            inst.name = new_inst.header.name.clone();
+        } else {
+            inst.name = "<untitled>".into();
         }
+        for (id, new_zone) in new_inst.zones.iter().enumerate() {
+            let name = format!("{}/{}", new_inst.header.name, id);
+            let zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont)?;
+            if id == 0 && zone.sample.is_none() {
+                inst.global_zone = Some(zone);
+            } else {
+                inst.zones.push(zone);
+            }
+        }
+
+        Ok(inst)
     }
 }
 
@@ -279,63 +367,6 @@ impl InstrumentZone {
             gen,
             mods,
         })
-    }
-}
-
-impl SoundFont {
-    pub(crate) fn load(filename: &Path) -> Result<Self, ()> {
-        DefaultSoundFont::load(filename).map(|defsfont| Self {
-            data: defsfont,
-            id: 0,
-        })
-    }
-
-    pub fn get_name(&self) -> &Path {
-        &self.data.filename
-    }
-
-    pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
-        let defpreset = self
-            .data
-            .preset
-            .iter()
-            .find(|p| p.bank == bank && p.num == prenum);
-
-        if let Some(defpreset) = defpreset {
-            let preset = Preset {
-                sfont_id: self.id,
-                data: defpreset.clone(),
-            };
-
-            Some(preset)
-        } else {
-            None
-        }
-    }
-}
-
-impl Drop for SoundFont {
-    fn drop(&mut self) {
-        let sfont = &mut self.data;
-        if !sfont.sampledata.is_null() {
-            unsafe {
-                libc::free(sfont.sampledata as *mut libc::c_void);
-            }
-        }
-    }
-}
-
-impl Preset {
-    pub fn get_name(&self) -> String {
-        self.data.name.clone()
-    }
-
-    pub fn get_banknum(&self) -> u32 {
-        self.data.bank
-    }
-
-    pub fn get_num(&self) -> u32 {
-        self.data.num
     }
 }
 
@@ -582,124 +613,4 @@ impl Synth {
             Ok(())
         }
     }
-}
-
-impl DefaultSoundFont {
-    fn load(path: &Path) -> Result<Self, ()> {
-        let filename = path.to_owned();
-        let mut file = std::fs::File::open(&filename).unwrap();
-
-        let data = sf2::data::SFData::load(&mut file);
-        let mut sf2 = sf2::SoundFont2::from_data(data);
-        sf2.sort_presets();
-
-        let smpl = sf2.sample_data.smpl.as_ref().unwrap();
-
-        let samplepos = smpl.offset() + 8;
-        let samplesize = smpl.len();
-
-        let sampledata = unsafe { Self::load_sampledata(&mut file, samplepos, samplesize)? };
-
-        let mut defsfont = DefaultSoundFont {
-            filename,
-            samplepos,
-            samplesize,
-            sample: Vec::new(),
-            sampledata,
-            preset: Vec::new(),
-        };
-
-        for sfsample in sf2.sample_headers.iter() {
-            let sample = Sample::import_sfont(sfsample, &mut defsfont)?;
-            let mut sample = sample;
-
-            unsafe {
-                sample.optimize_sample();
-            }
-
-            defsfont.sample.push(Rc::new(sample));
-        }
-
-        for sfpreset in sf2.presets.iter() {
-            let preset = unsafe { DefaultPreset::import_sfont(&sf2, sfpreset, &mut defsfont)? };
-            defsfont.preset.push(Rc::new(preset));
-        }
-
-        Ok(defsfont)
-    }
-
-    unsafe fn load_sampledata(
-        file: &mut std::fs::File,
-        samplepos: u64,
-        samplesize: u32,
-    ) -> Result<*mut i16, ()> {
-        if file.seek(SeekFrom::Start(samplepos)).is_err() {
-            libc::perror(b"error\x00" as *const u8 as *const i8);
-            log::error!("Failed to seek position in data file",);
-            return Err(());
-        }
-        let sampledata = libc::malloc(samplesize as libc::size_t) as *mut i16;
-        if sampledata.is_null() {
-            log::error!("Out of memory",);
-            return Err(());
-        }
-
-        if file
-            .read(from_raw_parts_mut(sampledata as _, samplesize as _))
-            .is_err()
-        {
-            log::error!("Failed to read sample data",);
-            return Err(());
-        }
-        let mut endian = 0x100 as u16;
-        if *(&mut endian as *mut u16 as *mut i8).offset(0 as i32 as isize) != 0 {
-            let cbuf: *mut u8;
-            let mut hi: u8;
-            let mut lo: u8;
-            let mut i: u32;
-            let mut j: u32;
-            let mut s: i16;
-            cbuf = sampledata as *mut u8;
-            i = 0 as i32 as u32;
-            j = 0 as i32 as u32;
-            while j < samplesize {
-                let fresh0 = j;
-                j = j.wrapping_add(1);
-                lo = *cbuf.offset(fresh0 as isize);
-                let fresh1 = j;
-                j = j.wrapping_add(1);
-                hi = *cbuf.offset(fresh1 as isize);
-                s = ((hi as i32) << 8 as i32 | lo as i32) as i16;
-                *sampledata.offset(i as isize) = s;
-                i = i.wrapping_add(1)
-            }
-        }
-        Ok(sampledata)
-    }
-}
-
-fn fluid_inst_import_sfont(
-    sf2: &sf2::SoundFont2,
-    inst: &mut Instrument,
-    new_inst: &sf2::Instrument,
-    sfont: &mut DefaultSoundFont,
-) -> i32 {
-    if new_inst.header.name.len() > 0 {
-        inst.name = new_inst.header.name.clone();
-    } else {
-        inst.name = "<untitled>".into();
-    }
-
-    for (id, new_zone) in new_inst.zones.iter().enumerate() {
-        let name = format!("{}/{}", new_inst.header.name, id);
-
-        let zone = InstrumentZone::import_sfont(name, sf2, new_zone, &mut *sfont).unwrap();
-
-        if id == 0 && zone.sample.is_none() {
-            inst.global_zone = Some(zone);
-        } else {
-            inst.zones.push(zone);
-        }
-    }
-    return FLUID_OK as i32;
 }
