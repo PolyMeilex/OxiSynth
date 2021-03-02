@@ -358,8 +358,13 @@ impl Preset {
     pub fn get_num(&self) -> u32 {
         unsafe { (*self.data).num }
     }
+}
 
-    pub fn noteon(&mut self, synth: &mut Synth, chan: u8, key: u8, vel: i32) -> i32 {
+impl Synth {
+    /// noteon
+    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: i32) -> Result<(), ()> {
+        let preset = self.channel[chan as usize].preset.as_mut().unwrap();
+
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
             zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
         }
@@ -374,7 +379,7 @@ impl Preset {
         }
 
         unsafe {
-            let preset = &mut *self.data;
+            let preset = &mut *preset.data;
 
             let mut mod_list: [*mut Mod; 64] = [0 as *mut Mod; 64]; // list for 'sorting' preset modulators
 
@@ -396,7 +401,7 @@ impl Preset {
                             // check if the note falls into the key and velocity range of this instrument
                             if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
                                 // this is a good zone. allocate a new synthesis process and initialize it
-                                let voice_id = synth.alloc_voice(
+                                let voice_id = self.alloc_voice(
                                     sample.as_ref().unwrap().clone(),
                                     chan,
                                     key,
@@ -413,11 +418,11 @@ impl Preset {
                                          * global instrument zone generator.  Both cases supersede
                                          * the default generator -> voice_gen_set */
                                         if inst_zone.gen[i as usize].flags != 0 {
-                                            synth.voices[voice_id.0]
+                                            self.voices[voice_id.0]
                                                 .gen_set(i, inst_zone.gen[i as usize].val);
                                         } else if let Some(global_inst_zone) = &global_inst_zone {
                                             if global_inst_zone.gen[i as usize].flags as i32 != 0 {
-                                                synth.voices[voice_id.0].gen_set(
+                                                self.voices[voice_id.0].gen_set(
                                                     i,
                                                     global_inst_zone.gen[i as usize].val,
                                                 );
@@ -476,7 +481,7 @@ impl Preset {
 
                                             /* Instrument modulators -supersede- existing (default)
                                              * modulators.  SF 2.01 page 69, 'bullet' 6 */
-                                            synth.voices[voice_id.0].add_mod(
+                                            self.voices[voice_id.0].add_mod(
                                                 mod_0.as_ref().unwrap(),
                                                 FLUID_VOICE_OVERWRITE,
                                             );
@@ -508,13 +513,13 @@ impl Preset {
                                              * generator.  The effect is -added- to the destination
                                              * summing node -> voice_gen_incr */
                                             if preset_zone.gen[i as usize].flags != 0 {
-                                                synth.voices[voice_id.0]
+                                                self.voices[voice_id.0]
                                                     .gen_incr(i, preset_zone.gen[i as usize].val);
                                             } else if let Some(global_preset_zone) =
                                                 &global_preset_zone
                                             {
                                                 if global_preset_zone.gen[i as usize].flags != 0 {
-                                                    synth.voices[voice_id.0].gen_incr(
+                                                    self.voices[voice_id.0].gen_incr(
                                                         i,
                                                         global_preset_zone.gen[i as usize].val,
                                                     );
@@ -570,14 +575,14 @@ impl Preset {
                                             /* Preset modulators -add- to existing instrument /
                                              * default modulators.  SF2.01 page 70 first bullet on
                                              * page */
-                                            synth.voices[voice_id.0]
+                                            self.voices[voice_id.0]
                                                 .add_mod(m.as_ref().unwrap(), FLUID_VOICE_ADD);
                                         }
                                         i += 1
                                     }
 
                                     // add the synthesis process to the synthesis loop.
-                                    synth.start_voice(voice_id);
+                                    self.start_voice(voice_id);
 
                                     /* Store the ID of the first voice that was created by this noteon event.
                                      * Exclusive class may only terminate older voices.
@@ -586,7 +591,7 @@ impl Preset {
                                      * class - for example when using stereo samples)
                                      */
                                 } else {
-                                    return FLUID_FAILED as i32;
+                                    return Err(());
                                 }
                             }
                         }
@@ -594,7 +599,7 @@ impl Preset {
                 }
             }
 
-            return FLUID_OK as i32;
+            Ok(())
         }
     }
 }

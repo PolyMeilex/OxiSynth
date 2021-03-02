@@ -91,7 +91,7 @@ pub struct Synth {
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
     gain: f64,
-    channel: Vec<Channel>,
+    pub(crate) channel: Vec<Channel>,
     pub(crate) voices: VoicePool,
     noteid: u32,
     storeid: u32,
@@ -411,36 +411,6 @@ impl Synth {
         }
     }
 
-    pub(crate) fn start(
-        &mut self,
-        id: u32,
-        _audio_chan: i32,
-        midi_chan: u8,
-        key: u8,
-        vel: i32,
-    ) -> Result<(), ()> {
-        if midi_chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            Err(())
-        } else if key >= 128 {
-            log::warn!("Key out of range",);
-            Err(())
-        } else if vel <= 0 || vel >= 128 {
-            log::warn!("Velocity out of range",);
-            Err(())
-        } else {
-            self.storeid = id;
-
-            // TODO: proper borrowing...
-            let preset = self.channel[midi_chan as usize].preset.as_mut().unwrap() as *mut Preset;
-
-            if unsafe { *preset }.noteon(self, midi_chan, key, vel) == FLUID_OK {
-                Ok(())
-            } else {
-                Err(())
-            }
-        }
-    }
 
     pub(crate) fn update_presets(&mut self) {
         let mut chan = 0;

@@ -6,18 +6,18 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn noteon(&mut self, chan: u8, key: u8, vel: i32) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+    pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: i32) -> Result<(), ()> {
+        if midi_chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range");
             return Err(());
         }
         if vel == 0 as i32 {
-            return self.noteoff(chan, key);
+            return self.noteoff(midi_chan, key);
         }
-        if self.channel[chan as usize].preset.is_none() {
+        if self.channel[midi_chan as usize].preset.is_none() {
             log::trace!(
                 "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
-                chan,
+                midi_chan,
                 key,
                 vel,
                 0,
@@ -28,12 +28,24 @@ impl Synth {
             );
             return Err(());
         }
-        self.release_voice_on_same_note(chan, key);
-        let fresh7 = self.noteid;
+        self.release_voice_on_same_note(midi_chan, key);
+        let id = self.noteid;
         self.noteid = self.noteid.wrapping_add(1);
 
-        // let preset_ptr = self.channel[chan as usize].preset.as_mut().unwrap();
-        return self.start(fresh7, 0, chan, key, vel);
+        // Start
+        if midi_chan >= self.settings.synth.midi_channels {
+            log::warn!("Channel out of range",);
+            Err(())
+        } else if key >= 128 {
+            log::warn!("Key out of range",);
+            Err(())
+        } else if vel <= 0 || vel >= 128 {
+            log::warn!("Velocity out of range",);
+            Err(())
+        } else {
+            self.storeid = id;
+            self.sf_noteon(midi_chan, key, vel)
+        }
     }
 
     /**
