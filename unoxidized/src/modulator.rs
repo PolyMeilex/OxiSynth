@@ -25,7 +25,7 @@ const FLUID_MOD_BIPOLAR: ModFlags = 2;
 
 use soundfont_rs::data::modulator::SFModulator;
 
-#[derive(Copy, PartialEq)]
+#[derive(Copy, Debug, PartialEq)]
 pub struct Mod {
     pub(crate) dest: u8,
     pub(crate) amount: f64,

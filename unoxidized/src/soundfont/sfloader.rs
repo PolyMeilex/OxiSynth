@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use soundfont_rs as sf2;
 use std::rc::Rc;
 
@@ -361,231 +363,213 @@ impl Synth {
             sample.sampletype & 0x8000
         }
 
-        unsafe {
-            let preset = {
-                let preset = self.channel[chan as usize].preset.as_ref().unwrap();
-                preset.data.clone()
-            };
+        let preset = {
+            let preset = self.channel[chan as usize].preset.as_ref().unwrap();
+            preset.data.clone()
+        };
 
-            let mut mod_list: [*const Mod; 64] = [0 as *const Mod; 64]; // list for 'sorting' preset modulators
+        // list for 'sorting' preset modulators
+        let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();
+        use std::convert::TryInto;
+        let mut mod_list: [Option<&Mod>; 64] = mod_list_new.try_into().unwrap();
 
-            let mut global_preset_zone = &preset.global_zone;
+        let mut global_preset_zone = &preset.global_zone;
 
-            // run thru all the zones of this preset
-            for preset_zone in preset.zones.iter() {
-                // check if the note falls into the key and velocity range of this preset
-                if preset_zone_inside_range(preset_zone, key, vel) {
-                    let inst = preset_zone.inst.as_ref().unwrap();
+        // run thru all the zones of this preset
+        for preset_zone in preset.zones.iter() {
+            // check if the note falls into the key and velocity range of this preset
+            if preset_zone_inside_range(preset_zone, key, vel) {
+                let inst = preset_zone.inst.as_ref().unwrap();
 
-                    let mut global_inst_zone = &inst.global_zone;
+                let mut global_inst_zone = &inst.global_zone;
 
-                    // run thru all the zones of this instrument
-                    for inst_zone in inst.zones.iter() {
-                        // make sure this instrument zone has a valid sample
-                        let sample = &inst_zone.sample;
-                        if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap()) != 0) {
-                            // check if the note falls into the key and velocity range of this instrument
-                            if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
-                                // this is a good zone. allocate a new synthesis process and initialize it
-                                let voice_id = self.alloc_voice(
-                                    sample.as_ref().unwrap().clone(),
-                                    chan,
-                                    key,
-                                    vel,
-                                );
+                // run thru all the zones of this instrument
+                for inst_zone in inst.zones.iter() {
+                    // make sure this instrument zone has a valid sample
+                    let sample = &inst_zone.sample;
+                    if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap()) != 0) {
+                        // check if the note falls into the key and velocity range of this instrument
+                        if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
+                            // this is a good zone. allocate a new synthesis process and initialize it
+                            let voice_id =
+                                self.alloc_voice(sample.as_ref().unwrap().clone(), chan, key, vel);
 
-                                if let Some(voice_id) = voice_id {
-                                    // Instrument level, generators
-                                    let mut i = 0;
-                                    while i < GEN_LAST as i32 {
-                                        /* SF 2.01 section 9.4 'bullet' 4:
-                                         *
-                                         * A generator in a local instrument zone supersedes a
-                                         * global instrument zone generator.  Both cases supersede
-                                         * the default generator -> voice_gen_set */
-                                        if inst_zone.gen[i as usize].flags != 0 {
+                            if let Some(voice_id) = voice_id {
+                                // Instrument level, generators
+                                for i in 0..GEN_LAST as i32 {
+                                    /* SF 2.01 section 9.4 'bullet' 4:
+                                     *
+                                     * A generator in a local instrument zone supersedes a
+                                     * global instrument zone generator.  Both cases supersede
+                                     * the default generator -> voice_gen_set */
+                                    if inst_zone.gen[i as usize].flags != 0 {
+                                        self.voices[voice_id.0]
+                                            .gen_set(i, inst_zone.gen[i as usize].val);
+                                    } else if let Some(global_inst_zone) = &global_inst_zone {
+                                        if global_inst_zone.gen[i as usize].flags as i32 != 0 {
                                             self.voices[voice_id.0]
-                                                .gen_set(i, inst_zone.gen[i as usize].val);
-                                        } else if let Some(global_inst_zone) = &global_inst_zone {
-                                            if global_inst_zone.gen[i as usize].flags as i32 != 0 {
-                                                self.voices[voice_id.0].gen_set(
+                                                .gen_set(i, global_inst_zone.gen[i as usize].val);
+                                        }
+                                    } else {
+                                        /* The generator has not been defined in this instrument.
+                                         * Do nothing, leave it at the default.
+                                         */
+                                    }
+                                }
+
+                                /* global instrument zone, modulators: Put them all into a
+                                 * list. */
+                                let mut mod_list_count = 0;
+                                if let Some(global_inst_zone) = &mut global_inst_zone {
+                                    for m in global_inst_zone.mods.iter() {
+                                        mod_list[mod_list_count] = Some(m);
+                                        mod_list_count += 1;
+                                    }
+                                }
+
+                                /* local instrument zone, modulators.
+                                 * Replace modulators with the same definition in the list:
+                                 * SF 2.01 page 69, 'bullet' 8
+                                 */
+                                for m in inst_zone.mods.iter() {
+                                    /* 'Identical' modulators will be deleted by setting their
+                                     *  list entry to NULL.  The list length is known, NULL
+                                     *  entries will be ignored later.  SF2.01 section 9.5.1
+                                     *  page 69, 'bullet' 3 defines 'identical'.  */
+                                    for i in 0..mod_list_count {
+                                        if !mod_list[i].is_none()
+                                            && m.test_identity(
+                                                mod_list[i as usize].as_ref().unwrap(),
+                                            )
+                                        {
+                                            mod_list[i] = None;
+                                        }
+                                    }
+
+                                    /* Finally add the new modulator to to the list. */
+                                    mod_list[mod_list_count] = Some(m);
+
+                                    mod_list_count += 1;
+                                }
+
+                                // Add instrument modulators (global / local) to the voice.
+                                for i in 0..mod_list_count {
+                                    let mod_0 = mod_list[i as usize];
+                                    if !mod_0.is_none() {
+                                        // disabled modulators CANNOT be skipped.
+
+                                        /* Instrument modulators -supersede- existing (default)
+                                         * modulators.  SF 2.01 page 69, 'bullet' 6 */
+                                        self.voices[voice_id.0].add_mod(
+                                            mod_0.as_ref().unwrap(),
+                                            FLUID_VOICE_OVERWRITE,
+                                        );
+                                    }
+                                }
+
+                                /* Preset level, generators */
+                                for i in 0..GEN_LAST {
+                                    /* SF 2.01 section 8.5 page 58: If some generators are
+                                     * encountered at preset level, they should be ignored */
+                                    if i != GEN_STARTADDROFS
+                                        && i != GEN_ENDADDROFS
+                                        && i != GEN_STARTLOOPADDROFS
+                                        && i != GEN_ENDLOOPADDROFS
+                                        && i != GEN_STARTADDRCOARSEOFS
+                                        && i != GEN_ENDADDRCOARSEOFS
+                                        && i != GEN_STARTLOOPADDRCOARSEOFS
+                                        && i != GEN_KEYNUM
+                                        && i != GEN_VELOCITY
+                                        && i != GEN_ENDLOOPADDRCOARSEOFS
+                                        && i != GEN_SAMPLEMODE
+                                        && i != GEN_EXCLUSIVECLASS
+                                        && i != GEN_OVERRIDEROOTKEY
+                                    {
+                                        /* SF 2.01 section 9.4 'bullet' 9: A generator in a
+                                         * local preset zone supersedes a global preset zone
+                                         * generator.  The effect is -added- to the destination
+                                         * summing node -> voice_gen_incr */
+                                        if preset_zone.gen[i as usize].flags != 0 {
+                                            self.voices[voice_id.0]
+                                                .gen_incr(i, preset_zone.gen[i as usize].val);
+                                        } else if let Some(global_preset_zone) = &global_preset_zone
+                                        {
+                                            if global_preset_zone.gen[i as usize].flags != 0 {
+                                                self.voices[voice_id.0].gen_incr(
                                                     i,
-                                                    global_inst_zone.gen[i as usize].val,
+                                                    global_preset_zone.gen[i as usize].val,
                                                 );
                                             }
                                         } else {
-                                            /* The generator has not been defined in this instrument.
-                                             * Do nothing, leave it at the default.
+                                            /* The generator has not been defined in this preset
+                                             * Do nothing, leave it unchanged.
                                              */
                                         }
-                                        i += 1
-                                    }
+                                    } /* if available at preset level */
+                                } /* for all generators */
 
-                                    /* global instrument zone, modulators: Put them all into a
-                                     * list. */
-                                    let mut mod_list_count = 0;
-                                    if let Some(global_inst_zone) = &mut global_inst_zone {
-                                        for m in global_inst_zone.mods.iter() {
-                                            mod_list[mod_list_count] = m;
-                                            mod_list_count += 1;
-                                        }
-                                    }
-
-                                    /* local instrument zone, modulators.
-                                     * Replace modulators with the same definition in the list:
-                                     * SF 2.01 page 69, 'bullet' 8
-                                     */
-                                    for m in inst_zone.mods.iter() {
-                                        /* 'Identical' modulators will be deleted by setting their
-                                         *  list entry to NULL.  The list length is known, NULL
-                                         *  entries will be ignored later.  SF2.01 section 9.5.1
-                                         *  page 69, 'bullet' 3 defines 'identical'.  */
-                                        let mut i = 0;
-                                        while i < mod_list_count {
-                                            if !mod_list[i].is_null()
-                                                && m.test_identity(
-                                                    mod_list[i as usize].as_ref().unwrap(),
-                                                )
-                                            {
-                                                mod_list[i] = 0 as *mut Mod
-                                            }
-                                            i += 1
-                                        }
-
-                                        /* Finally add the new modulator to to the list. */
-                                        mod_list[mod_list_count] = m;
-
+                                /* Global preset zone, modulators: put them all into a
+                                 * list. */
+                                let mut mod_list_count = 0;
+                                if let Some(global_preset_zone) = &mut global_preset_zone {
+                                    for m in global_preset_zone.mods.iter() {
+                                        mod_list[mod_list_count] = Some(m);
                                         mod_list_count += 1;
                                     }
+                                }
 
-                                    // Add instrument modulators (global / local) to the voice.
-                                    let mut i = 0;
-                                    while i < mod_list_count {
-                                        let mod_0 = mod_list[i as usize];
-                                        if !mod_0.is_null() {
-                                            // disabled modulators CANNOT be skipped.
-
-                                            /* Instrument modulators -supersede- existing (default)
-                                             * modulators.  SF 2.01 page 69, 'bullet' 6 */
-                                            self.voices[voice_id.0].add_mod(
-                                                mod_0.as_ref().unwrap(),
-                                                FLUID_VOICE_OVERWRITE,
-                                            );
-                                        }
-                                        i += 1
-                                    }
-
-                                    /* Preset level, generators */
-                                    let mut i = 0;
-                                    while i < GEN_LAST {
-                                        /* SF 2.01 section 8.5 page 58: If some generators are
-                                         * encountered at preset level, they should be ignored */
-                                        if i != GEN_STARTADDROFS
-                                            && i != GEN_ENDADDROFS
-                                            && i != GEN_STARTLOOPADDROFS
-                                            && i != GEN_ENDLOOPADDROFS
-                                            && i != GEN_STARTADDRCOARSEOFS
-                                            && i != GEN_ENDADDRCOARSEOFS
-                                            && i != GEN_STARTLOOPADDRCOARSEOFS
-                                            && i != GEN_KEYNUM
-                                            && i != GEN_VELOCITY
-                                            && i != GEN_ENDLOOPADDRCOARSEOFS
-                                            && i != GEN_SAMPLEMODE
-                                            && i != GEN_EXCLUSIVECLASS
-                                            && i != GEN_OVERRIDEROOTKEY
+                                /* Process the modulators of the local preset zone.  Kick
+                                 * out all identical modulators from the global preset zone
+                                 * (SF 2.01 page 69, second-last bullet) */
+                                for m in preset_zone.mods.iter() {
+                                    for i in 0..mod_list_count {
+                                        if !mod_list[i].is_none()
+                                            && m.test_identity(
+                                                mod_list[i as usize].as_ref().unwrap(),
+                                            )
                                         {
-                                            /* SF 2.01 section 9.4 'bullet' 9: A generator in a
-                                             * local preset zone supersedes a global preset zone
-                                             * generator.  The effect is -added- to the destination
-                                             * summing node -> voice_gen_incr */
-                                            if preset_zone.gen[i as usize].flags != 0 {
-                                                self.voices[voice_id.0]
-                                                    .gen_incr(i, preset_zone.gen[i as usize].val);
-                                            } else if let Some(global_preset_zone) =
-                                                &global_preset_zone
-                                            {
-                                                if global_preset_zone.gen[i as usize].flags != 0 {
-                                                    self.voices[voice_id.0].gen_incr(
-                                                        i,
-                                                        global_preset_zone.gen[i as usize].val,
-                                                    );
-                                                }
-                                            } else {
-                                                /* The generator has not been defined in this preset
-                                                 * Do nothing, leave it unchanged.
-                                                 */
-                                            }
-                                        } /* if available at preset level */
-                                        i += 1
-                                    } /* for all generators */
-
-                                    /* Global preset zone, modulators: put them all into a
-                                     * list. */
-                                    let mut mod_list_count = 0;
-                                    if let Some(global_preset_zone) = &mut global_preset_zone {
-                                        for m in global_preset_zone.mods.iter() {
-                                            mod_list[mod_list_count] = m;
-                                            mod_list_count += 1;
+                                            mod_list[i] = None;
                                         }
                                     }
 
-                                    /* Process the modulators of the local preset zone.  Kick
-                                     * out all identical modulators from the global preset zone
-                                     * (SF 2.01 page 69, second-last bullet) */
-                                    for m in preset_zone.mods.iter() {
-                                        let mut i = 0;
-                                        while i < mod_list_count {
-                                            if !mod_list[i].is_null()
-                                                && m.test_identity(
-                                                    mod_list[i as usize].as_ref().unwrap(),
-                                                )
-                                            {
-                                                mod_list[i] = 0 as *mut Mod
-                                            }
-                                            i += 1
-                                        }
+                                    /* Finally add the new modulator to the list. */
+                                    mod_list[mod_list_count] = Some(m);
 
-                                        /* Finally add the new modulator to the list. */
-                                        mod_list[mod_list_count] = m;
+                                    mod_list_count += 1;
+                                }
 
-                                        mod_list_count += 1;
-                                    }
-
-                                    // Add preset modulators (global / local) to the voice.
-                                    let mut i = 0;
-                                    while i < mod_list_count {
-                                        let m = mod_list[i];
-                                        if !m.is_null() && (*m).amount != 0.0 {
+                                // Add preset modulators (global / local) to the voice.
+                                for i in 0..mod_list_count {
+                                    if let Some(m) = mod_list[i] {
+                                        if m.amount != 0.0 {
                                             // disabled modulators can be skipped.
 
                                             /* Preset modulators -add- to existing instrument /
                                              * default modulators.  SF2.01 page 70 first bullet on
                                              * page */
-                                            self.voices[voice_id.0]
-                                                .add_mod(m.as_ref().unwrap(), FLUID_VOICE_ADD);
+                                            self.voices[voice_id.0].add_mod(m, FLUID_VOICE_ADD);
                                         }
-                                        i += 1
                                     }
-
-                                    // add the synthesis process to the synthesis loop.
-                                    self.start_voice(voice_id);
-
-                                    /* Store the ID of the first voice that was created by this noteon event.
-                                     * Exclusive class may only terminate older voices.
-                                     * That avoids killing voices, which have just been created.
-                                     * (a noteon event can create several voice processes with the same exclusive
-                                     * class - for example when using stereo samples)
-                                     */
-                                } else {
-                                    return Err(());
                                 }
+
+                                // add the synthesis process to the synthesis loop.
+                                self.start_voice(voice_id);
+
+                                /* Store the ID of the first voice that was created by this noteon event.
+                                 * Exclusive class may only terminate older voices.
+                                 * That avoids killing voices, which have just been created.
+                                 * (a noteon event can create several voice processes with the same exclusive
+                                 * class - for example when using stereo samples)
+                                 */
+                            } else {
+                                return Err(());
                             }
                         }
                     }
                 }
             }
-
-            Ok(())
         }
+
+        Ok(())
     }
 }
