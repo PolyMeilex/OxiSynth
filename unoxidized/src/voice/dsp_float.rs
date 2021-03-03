@@ -372,7 +372,7 @@ impl Voice {
     pub unsafe fn dsp_float_interpolate_7th_order(&mut self) -> i32 {
         let mut dsp_phase: Phase = (self).phase;
         let dsp_phase_incr: Phase;
-        let dsp_data: *const i16 = (self).sample.as_ref().unwrap().data.as_ptr();
+        let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
         let dsp_buf: *mut f32 = (self).dsp_buf;
         let mut dsp_amp: f32 = (self).amp;
         let dsp_amp_incr: f32 = (self).amp_incr;
@@ -383,42 +383,39 @@ impl Voice {
         let mut start_points: [i16; 3] = [0; 3];
         let mut end_points: [i16; 3] = [0; 3];
         let looping: i32;
-        dsp_phase_incr = ((self).phase_incr as u64) << 32 as i32
-            | (((self).phase_incr as f64 - (self).phase_incr as i32 as f64) * 4294967296.0f64)
-                as u32 as u64;
+        dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
+            | ((self.phase_incr as f64 - (self).phase_incr as i32 as f64) * 4294967296.0f64) as u32
+                as u64;
         dsp_phase = (dsp_phase as u64).wrapping_add(0x80000000 as u32 as Phase) as Phase as Phase;
-        looping = ((self).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+        looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
-            || (self).gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && (self).volenv_section < FLUID_VOICE_ENVRELEASE as i32) as i32;
+                && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32) as i32;
         end_index = ((if looping != 0 {
-            ((self).loopend) - 1 as i32
+            self.loopend - 1
         } else {
-            (self).end
+            self.end
         }) - 3 as i32) as u32;
-        if (self).has_looped != 0 {
-            start_index = (self).loopstart as u32;
-            start_points[0 as i32 as usize] =
-                *dsp_data.offset(((self).loopend - 1 as i32) as isize);
-            start_points[1 as i32 as usize] =
-                *dsp_data.offset(((self).loopend - 2 as i32) as isize);
-            start_points[2 as i32 as usize] = *dsp_data.offset(((self).loopend - 3 as i32) as isize)
+        if self.has_looped != 0 {
+            start_index = self.loopstart as u32;
+            start_points[0 as usize] = dsp_data[(self.loopend - 1) as usize];
+            start_points[1 as usize] = dsp_data[(self.loopend - 2) as usize];
+            start_points[2 as usize] = dsp_data[(self.loopend - 3) as usize];
         } else {
-            start_index = (self).start as u32;
-            start_points[0 as i32 as usize] = *dsp_data.offset((self).start as isize);
-            start_points[1 as i32 as usize] = start_points[0 as i32 as usize];
-            start_points[2 as i32 as usize] = start_points[0 as i32 as usize]
+            start_index = self.start as u32;
+            start_points[0 as usize] = dsp_data[self.start as usize];
+            start_points[1 as usize] = start_points[0];
+            start_points[2 as usize] = start_points[0]
         }
         if looping != 0 {
-            end_points[0 as i32 as usize] = *dsp_data.offset((self).loopstart as isize);
-            end_points[1 as i32 as usize] =
-                *dsp_data.offset(((self).loopstart + 1 as i32) as isize);
-            end_points[2 as i32 as usize] = *dsp_data.offset(((self).loopstart + 2 as i32) as isize)
+            end_points[0 as usize] = dsp_data[self.loopstart as usize];
+            end_points[1 as usize] = dsp_data[(self.loopstart + 1) as usize];
+            end_points[2 as usize] = dsp_data[(self.loopstart + 2) as usize];
         } else {
-            end_points[0 as i32 as usize] = *dsp_data.offset((self).end as isize);
-            end_points[1 as i32 as usize] = end_points[0 as i32 as usize];
-            end_points[2 as i32 as usize] = end_points[0 as i32 as usize]
+            end_points[0 as usize] = dsp_data[self.end as usize];
+            end_points[1 as usize] = end_points[0];
+            end_points[2 as usize] = end_points[0]
         }
         loop {
             dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
@@ -435,19 +432,13 @@ impl Voice {
                         + *coeffs.offset(2 as i32 as isize)
                             * start_points[0 as i32 as usize] as f32
                         + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
+                            * dsp_data[dsp_phase_index as usize] as f32
                         + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
                         + *coeffs.offset(5 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(2 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(2) as usize] as f32
                         + *coeffs.offset(6 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(3 as i32 as u32) as isize)
-                                as f32);
+                            * dsp_data[dsp_phase_index.wrapping_add(3) as usize] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -461,27 +452,17 @@ impl Voice {
                         >> 24 as i32) as usize]
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
-                    * (*coeffs.offset(0 as i32 as isize) * start_points[1 as i32 as usize] as f32
-                        + *coeffs.offset(1 as i32 as isize)
-                            * start_points[0 as i32 as usize] as f32
-                        + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
-                        + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(5 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(2 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(6 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(3 as i32 as u32) as isize)
-                                as f32);
+                    * (*coeffs.offset(0) * start_points[1] as f32
+                        + *coeffs.offset(1) * start_points[0] as f32
+                        + *coeffs.offset(2)
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
+                        + *coeffs.offset(3) * dsp_data[dsp_phase_index as usize] as f32
+                        + *coeffs.offset(4)
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
+                        + *coeffs.offset(5)
+                            * dsp_data[dsp_phase_index.wrapping_add(2) as usize] as f32
+                        + *coeffs.offset(6)
+                            * dsp_data[dsp_phase_index.wrapping_add(3) as usize] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -495,29 +476,18 @@ impl Voice {
                         >> 24 as i32) as usize]
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
-                    * (*coeffs.offset(0 as i32 as isize) * start_points[0 as i32 as usize] as f32
-                        + *coeffs.offset(1 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(2 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
-                        + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(5 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(2 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(6 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(3 as i32 as u32) as isize)
-                                as f32);
+                    * (*coeffs.offset(0 as i32 as isize) * start_points[0] as f32
+                        + *coeffs.offset(1)
+                            * dsp_data[dsp_phase_index.wrapping_sub(2) as usize] as f32
+                        + *coeffs.offset(2)
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
+                        + *coeffs.offset(3) * dsp_data[dsp_phase_index as usize] as f32
+                        + *coeffs.offset(4)
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
+                        + *coeffs.offset(5)
+                            * dsp_data[dsp_phase_index.wrapping_add(2) as usize] as f32
+                        + *coeffs.offset(6)
+                            * dsp_data[dsp_phase_index.wrapping_add(3) as usize] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -532,30 +502,19 @@ impl Voice {
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
                     * (*coeffs.offset(0 as i32 as isize)
-                        * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
-                            as f32
+                        * dsp_data[dsp_phase_index.wrapping_sub(3) as usize] as f32
                         + *coeffs.offset(1 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(2 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_sub(2) as usize] as f32
                         + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
                         + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
+                            * dsp_data[dsp_phase_index as usize] as f32
                         + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
                         + *coeffs.offset(5 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(2 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(2) as usize] as f32
                         + *coeffs.offset(6 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(3 as i32 as u32) as isize)
-                                as f32);
+                            * dsp_data[dsp_phase_index.wrapping_add(3) as usize] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -573,26 +532,17 @@ impl Voice {
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
                     * (*coeffs.offset(0 as i32 as isize)
-                        * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
-                            as f32
+                        * dsp_data[dsp_phase_index.wrapping_sub(3) as usize] as f32
                         + *coeffs.offset(1 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(2 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_sub(2) as usize] as f32
                         + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
                         + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
+                            * dsp_data[dsp_phase_index as usize] as f32
                         + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
                         + *coeffs.offset(5 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(2 as i32 as u32) as isize)
-                                as f32
+                            * dsp_data[dsp_phase_index.wrapping_add(2) as usize] as f32
                         + *coeffs.offset(6 as i32 as isize) * end_points[0 as i32 as usize] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
@@ -607,25 +557,17 @@ impl Voice {
                         >> 24 as i32) as usize]
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
-                    * (*coeffs.offset(0 as i32 as isize)
-                        * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
-                            as f32
-                        + *coeffs.offset(1 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(2 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
-                        + *coeffs.offset(4 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_add(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(5 as i32 as isize) * end_points[0 as i32 as usize] as f32
-                        + *coeffs.offset(6 as i32 as isize) * end_points[1 as i32 as usize] as f32);
+                    * (*coeffs.offset(0)
+                        * dsp_data[dsp_phase_index.wrapping_sub(3) as usize] as f32
+                        + *coeffs.offset(1)
+                            * dsp_data[dsp_phase_index.wrapping_sub(2) as usize] as f32
+                        + *coeffs.offset(2)
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
+                        + *coeffs.offset(3) * dsp_data[dsp_phase_index as usize] as f32
+                        + *coeffs.offset(4)
+                            * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32
+                        + *coeffs.offset(5) * end_points[0] as f32
+                        + *coeffs.offset(6) * end_points[1] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -640,21 +582,15 @@ impl Voice {
                         .as_ptr();
                 *dsp_buf.offset(dsp_i as isize) = dsp_amp
                     * (*coeffs.offset(0 as i32 as isize)
-                        * *dsp_data.offset(dsp_phase_index.wrapping_sub(3 as i32 as u32) as isize)
-                            as f32
-                        + *coeffs.offset(1 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(2 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(2 as i32 as isize)
-                            * *dsp_data
-                                .offset(dsp_phase_index.wrapping_sub(1 as i32 as u32) as isize)
-                                as f32
-                        + *coeffs.offset(3 as i32 as isize)
-                            * *dsp_data.offset(dsp_phase_index as isize) as f32
-                        + *coeffs.offset(4 as i32 as isize) * end_points[0 as i32 as usize] as f32
-                        + *coeffs.offset(5 as i32 as isize) * end_points[1 as i32 as usize] as f32
-                        + *coeffs.offset(6 as i32 as isize) * end_points[2 as i32 as usize] as f32);
+                        * dsp_data[dsp_phase_index.wrapping_sub(3) as usize] as f32
+                        + *coeffs.offset(1)
+                            * dsp_data[dsp_phase_index.wrapping_sub(2) as usize] as f32
+                        + *coeffs.offset(2)
+                            * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
+                        + *coeffs.offset(3) * dsp_data[dsp_phase_index as usize] as f32
+                        + *coeffs.offset(4) * end_points[0] as f32
+                        + *coeffs.offset(5) * end_points[1] as f32
+                        + *coeffs.offset(6) * end_points[2] as f32);
                 dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
                 dsp_phase_index = (dsp_phase >> 32 as i32) as u32;
                 dsp_amp += dsp_amp_incr;
@@ -665,17 +601,14 @@ impl Voice {
             }
             if dsp_phase_index > end_index {
                 dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub((((self).loopend - (self).loopstart) as u64) << 32 as i32)
+                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
                     as Phase as Phase;
-                if (self).has_looped == 0 {
-                    (self).has_looped = 1 as i32;
-                    start_index = (self).loopstart as u32;
-                    start_points[0 as i32 as usize] =
-                        *dsp_data.offset(((self).loopend - 1 as i32) as isize);
-                    start_points[1 as i32 as usize] =
-                        *dsp_data.offset(((self).loopend - 2 as i32) as isize);
-                    start_points[2 as i32 as usize] =
-                        *dsp_data.offset(((self).loopend - 3 as i32) as isize)
+                if self.has_looped == 0 {
+                    self.has_looped = 1 as i32;
+                    start_index = self.loopstart as u32;
+                    start_points[0] = dsp_data[(self.loopend - 1) as usize];
+                    start_points[1] = dsp_data[(self.loopend - 2) as usize];
+                    start_points[2] = dsp_data[(self.loopend - 3) as usize];
                 }
             }
             if dsp_i >= 64 as i32 as u32 {
