@@ -132,7 +132,6 @@ pub struct Voice {
     pub(crate) phase: Phase,
     pub(crate) phase_incr: f32,
     pub(crate) amp_incr: f32,
-    pub(crate) dsp_buf: *mut f32,
     pitch: f32,
     attenuation: f32,
     min_attenuation_c_b: f32,
@@ -256,7 +255,6 @@ impl Voice {
             phase: 0 as Phase,
             phase_incr: 0.0,
             amp_incr: 0.0,
-            dsp_buf: std::ptr::null_mut(),
             pitch: 0.0,
             attenuation: 0.0,
             min_attenuation_c_b: 0.0,
@@ -965,15 +963,20 @@ impl Voice {
                             }
                             self.last_fres = fres
                         }
-                        self.dsp_buf = dsp_buf.as_mut_ptr();
+
                         let count = match self.interp_method {
-                            InterpMethod::None => self.dsp_float_interpolate_none(),
-                            InterpMethod::Linear => self.dsp_float_interpolate_linear(),
-                            InterpMethod::FourthOrder => self.dsp_float_interpolate_4th_order(),
-                            InterpMethod::SeventhOrder => self.dsp_float_interpolate_7th_order(),
+                            InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
+                            InterpMethod::Linear => self.dsp_float_interpolate_linear(&mut dsp_buf),
+                            InterpMethod::FourthOrder => {
+                                self.dsp_float_interpolate_4th_order(&mut dsp_buf)
+                            }
+                            InterpMethod::SeventhOrder => {
+                                self.dsp_float_interpolate_7th_order(&mut dsp_buf)
+                            }
                         };
                         if count > 0 as i32 {
                             self.effects(
+                                &mut dsp_buf,
                                 count,
                                 dsp_left_buf,
                                 dsp_right_buf,
@@ -996,12 +999,15 @@ impl Voice {
     #[inline]
     unsafe fn effects(
         &mut self,
+        dsp_buf: &mut [f32; 64],
         count: i32,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
         dsp_reverb_buf: *mut f32,
         dsp_chorus_buf: *mut f32,
     ) {
+        let dsp_buf = dsp_buf.as_mut_ptr();
+
         let mut dsp_hist1: f32 = (self).hist1;
         let mut dsp_hist2: f32 = (self).hist2;
         let mut dsp_a1: f32 = (self).a1;
@@ -1013,7 +1019,6 @@ impl Voice {
         let dsp_b02_incr: f32 = (self).b02_incr;
         let dsp_b1_incr: f32 = (self).b1_incr;
         let mut dsp_filter_coeff_incr_count: i32 = (self).filter_coeff_incr_count;
-        let dsp_buf: *mut f32 = (self).dsp_buf;
         let mut dsp_centernode;
         let mut dsp_i;
         let mut v;

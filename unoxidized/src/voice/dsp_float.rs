@@ -68,11 +68,12 @@ lazy_static! {
 }
 
 impl Voice {
-    pub unsafe fn dsp_float_interpolate_none(&mut self) -> i32 {
+    pub unsafe fn dsp_float_interpolate_none(&mut self, dsp_buf: &mut [f32; 64]) -> i32 {
+        let dsp_buf = dsp_buf.as_mut_ptr();
+
         let mut dsp_phase: Phase = self.phase;
         let dsp_phase_incr: Phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
-        let dsp_buf: *mut f32 = self.dsp_buf;
         let mut dsp_amp: f32 = self.amp;
         let dsp_amp_incr: f32 = self.amp_incr;
         let mut dsp_i: u32 = 0 as i32 as u32;
@@ -121,11 +122,12 @@ impl Voice {
         return dsp_i as i32;
     }
 
-    pub unsafe fn dsp_float_interpolate_linear(&mut self) -> i32 {
+    pub unsafe fn dsp_float_interpolate_linear(&mut self, dsp_buf: &mut [f32; 64]) -> i32 {
+        let dsp_buf = dsp_buf.as_mut_ptr();
+
         let mut dsp_phase: Phase = self.phase;
         let dsp_phase_incr: Phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
-        let dsp_buf: *mut f32 = self.dsp_buf;
         let mut dsp_amp: f32 = self.amp;
         let dsp_amp_incr: f32 = self.amp_incr;
         let mut dsp_i: u32 = 0 as i32 as u32;
@@ -213,11 +215,12 @@ impl Voice {
         return dsp_i as i32;
     }
 
-    pub unsafe fn dsp_float_interpolate_4th_order(&mut self) -> i32 {
+    pub unsafe fn dsp_float_interpolate_4th_order(&mut self, dsp_buf: &mut [f32; 64]) -> i32 {
+        let dsp_buf = dsp_buf.as_mut_ptr();
+
         let mut dsp_phase: Phase = (self).phase;
         let dsp_phase_incr: Phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
-        let dsp_buf: *mut f32 = (self).dsp_buf;
         let mut dsp_amp: f32 = (self).amp;
         let dsp_amp_incr: f32 = (self).amp_incr;
         let mut dsp_i: u32 = 0 as i32 as u32;
@@ -369,11 +372,12 @@ impl Voice {
         return dsp_i as i32;
     }
 
-    pub unsafe fn dsp_float_interpolate_7th_order(&mut self) -> i32 {
+    pub unsafe fn dsp_float_interpolate_7th_order(&mut self, dsp_buf: &mut [f32; 64]) -> i32 {
+        let dsp_buf = dsp_buf.as_mut_ptr();
+
         let mut dsp_phase: Phase = (self).phase;
         let dsp_phase_incr: Phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
-        let dsp_buf: *mut f32 = (self).dsp_buf;
         let mut dsp_amp: f32 = (self).amp;
         let dsp_amp_incr: f32 = (self).amp_incr;
         let mut dsp_i: u32 = 0 as i32 as u32;
