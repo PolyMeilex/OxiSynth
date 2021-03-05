@@ -11,20 +11,16 @@ impl Synth {
     NULL, a new tuning is created with the well-tempered scale.
      */
 
-    pub unsafe fn create_key_tuning(
+    pub fn create_key_tuning(
         &mut self,
-        bank: i32,
-        prog: i32,
+        bank: u32,
+        prog: u32,
         name: String,
         pitch: &[f64; 128],
-    ) -> i32 {
-        return match self.create_tuning(bank, prog, name) {
-            Some(tuning) => {
-                tuning.set_all(pitch);
-                FLUID_OK as i32
-            }
-            None => FLUID_FAILED as i32,
-        };
+    ) -> Result<(), ()> {
+        let tuning = self.create_tuning(bank, prog, name)?;
+        tuning.set_all(pitch);
+        Ok(())
     }
 
     /**
@@ -34,37 +30,33 @@ impl Synth {
     pitches[0] equals -33, then the C-keys will be tuned 33 cents
     below the well-tempered C.
      */
-    pub unsafe fn create_octave_tuning(
+    pub fn create_octave_tuning(
         &mut self,
-        bank: i32,
-        prog: i32,
+        bank: u32,
+        prog: u32,
         name: String,
         pitch: &[f64; 12],
-    ) -> i32 {
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
-            return FLUID_FAILED as i32;
+    ) -> Result<(), ()> {
+        if !(bank < 128) {
+            Err(())
+        } else if !(prog < 128) {
+            Err(())
+        } else {
+            let tuning = self.create_tuning(bank, prog, name)?;
+
+            tuning.set_octave(pitch);
+            Ok(())
         }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        return match self.create_tuning(bank, prog, name) {
-            Some(tuning) => {
-                tuning.set_octave(pitch);
-                FLUID_OK as i32
-            }
-            None => FLUID_FAILED as i32,
-        };
     }
 
-    pub unsafe fn activate_octave_tuning(
+    pub fn activate_octave_tuning(
         &mut self,
-        bank: i32,
-        prog: i32,
+        bank: u32,
+        prog: u32,
         name: String,
         pitch: &[f64; 12],
-        _apply: i32,
-    ) -> i32 {
-        return self.create_octave_tuning(bank, prog, name, pitch);
+    ) -> Result<(), ()> {
+        self.create_octave_tuning(bank, prog, name, pitch)
     }
 
     /**
@@ -74,40 +66,17 @@ impl Synth {
     will have their pitch updated. 'APPLY' IS CURRENTLY IGNORED. The
     changes will be available for newly triggered notes only.
      */
-    pub unsafe fn tune_notes(
-        &mut self,
-        bank: i32,
-        prog: i32,
-        len: i32,
-        key: *mut i32,
-        pitch: *mut f64,
-        _apply: i32,
-    ) -> i32 {
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if !(len > 0 as i32) {
-            return FLUID_FAILED as i32;
-        }
-        if key.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        if pitch.is_null() {
-            return FLUID_FAILED as i32;
-        }
-        match self.create_tuning(bank, prog, "Unnamed".into()) {
-            Some(tuning) => {
-                for i in 0..len {
-                    tuning.set_pitch(*key.offset(i as isize), *pitch.offset(i as isize));
-                }
-                return FLUID_OK as i32;
+    pub fn tune_notes(&mut self, bank: u32, prog: u32, key_pitch: &[(u32, f64)]) -> Result<(), ()> {
+        if !(bank < 128) {
+            Err(())
+        } else if !(prog < 128) {
+            Err(())
+        } else {
+            let tuning = self.create_tuning(bank, prog, "Unnamed".into())?;
+            for (key, pitch) in key_pitch.iter() {
+                tuning.set_pitch(*key, *pitch);
             }
-            None => {
-                return FLUID_FAILED as i32;
-            }
+            Ok(())
         }
     }
 
@@ -186,25 +155,25 @@ impl Synth {
         }
     }
 
-    unsafe fn create_tuning<'a>(
+    fn create_tuning<'a>(
         &'a mut self,
-        bank: i32,
-        prog: i32,
+        bank: u32,
+        prog: u32,
         name: String,
-    ) -> Option<&'a mut Tuning> {
-        if bank < 0 as i32 || bank >= 128 as i32 {
+    ) -> Result<&'a mut Tuning, ()> {
+        if bank >= 128 {
             log::warn!("Bank number out of range",);
-            return None;
-        }
-        if prog < 0 as i32 || prog >= 128 as i32 {
+            Err(())
+        } else if prog >= 128 {
             log::warn!("Program number out of range",);
-            return None;
+            Err(())
+        } else {
+            let tuning = self.tuning[bank as usize][prog as usize]
+                .get_or_insert_with(|| Tuning::new(name.clone(), bank, prog));
+
+            tuning.set_name(name);
+
+            Ok(tuning)
         }
-        let tuning = self.tuning[bank as usize][prog as usize]
-            .get_or_insert_with(|| Tuning::new(name.clone(), bank, prog));
-
-        tuning.set_name(name);
-
-        Some(tuning)
     }
 }

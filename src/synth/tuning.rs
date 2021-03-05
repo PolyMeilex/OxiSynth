@@ -16,11 +16,9 @@ impl Synth {
         tuning_prog: Prog,
         name: S,
         pitch: &[f64; 128],
-    ) -> Status {
-        Synth::zero_ok(unsafe {
-            self.handle
-                .create_key_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
-        })
+    ) -> std::result::Result<(), ()> {
+        self.handle
+            .create_key_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
     }
 
     /**
@@ -36,11 +34,9 @@ impl Synth {
         tuning_prog: Prog,
         name: S,
         pitch: &[f64; 12],
-    ) -> Status {
-        Synth::zero_ok(unsafe {
-            self.handle
-                .create_octave_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
-        })
+    ) -> std::result::Result<(), ()> {
+        self.handle
+            .create_octave_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
     }
 
     pub fn activate_octave_tuning<S: Into<String>>(
@@ -49,46 +45,28 @@ impl Synth {
         prog: Prog,
         name: S,
         pitch: &[f64; 12],
-        apply: bool,
-    ) -> Status {
-        Synth::zero_ok(unsafe {
-            self.handle
-                .activate_octave_tuning(bank as _, prog as _, name.into(), pitch, apply as _)
-        })
+    ) -> std::result::Result<(), ()> {
+        self.handle
+            .activate_octave_tuning(bank as _, prog as _, name.into(), pitch)
     }
 
     /**
     Request a note tuning changes. Both they 'keys' and 'pitches'
     arrays should be of length 'num_pitches'. If 'apply' is non-zero,
     the changes should be applied in real-time, i.e. sounding notes
-    will have their pitch updated. 'APPLY' IS CURRENTLY IGNORED. The
-    changes will be available for newly triggered notes only.
+    will have their pitch updated. Changes will be available for newly triggered notes only.
      */
-    pub fn tune_notes<K, P>(
+    pub fn tune_notes<KP>(
         &mut self,
         tuning_bank: Bank,
         tuning_prog: Prog,
-        keys: K,
-        pitch: P,
-        apply: bool,
-    ) -> Status
+        keys_pitch: KP,
+    ) -> std::result::Result<(), ()>
     where
-        K: AsRef<[u32]>,
-        P: AsRef<[f64]>,
+        KP: AsRef<[(u32, f64)]>,
     {
-        let keys = keys.as_ref();
-        let pitch = pitch.as_ref();
-        let len = keys.len().min(pitch.len());
-        Synth::zero_ok(unsafe {
-            self.handle.tune_notes(
-                tuning_bank as _,
-                tuning_prog as _,
-                len as _,
-                keys.as_ptr() as _,
-                pitch.as_ptr() as _,
-                apply as _,
-            )
-        })
+        self.handle
+            .tune_notes(tuning_bank, tuning_prog, keys_pitch.as_ref())
     }
 
     /**

@@ -3,13 +3,13 @@
 #[derive(Clone)]
 pub struct Tuning {
     name: String,
-    pub(crate) bank: i32,
-    pub(crate) prog: i32,
+    pub(crate) bank: u32,
+    pub(crate) prog: u32,
     pub(crate) pitch: [f64; 128],
 }
 
 impl Tuning {
-    pub fn new(name: String, bank: i32, prog: i32) -> Tuning {
+    pub fn new(name: String, bank: u32, prog: u32) -> Tuning {
         let mut tuning = Tuning {
             name,
             bank,
@@ -45,8 +45,8 @@ impl Tuning {
         }
     }
 
-    pub fn set_pitch(&mut self, key: i32, pitch: f64) {
-        if key >= 0 as i32 && key < 128 as i32 {
+    pub fn set_pitch(&mut self, key: u32, pitch: f64) {
+        if key < 128 {
             self.pitch[key as usize] = pitch
         };
     }
