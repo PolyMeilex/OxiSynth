@@ -1,9 +1,4 @@
-use crate::{engine, Bank, Chan, Prog, Result, Status, Synth};
-use std::{
-    ffi::{CStr, CString},
-    mem::MaybeUninit,
-    ptr::null_mut,
-};
+use crate::{engine, Bank, Chan, Prog, Status, Synth};
 
 /**
  * Tuning
@@ -15,21 +10,16 @@ impl Synth {
     the pitch in cents of every key in cents. However, if 'pitches' is
     NULL, a new tuning is created with the well-tempered scale.
      */
-    pub fn create_key_tuning<S: AsRef<str>>(
+    pub fn create_key_tuning<S: Into<String>>(
         &mut self,
         tuning_bank: Bank,
         tuning_prog: Prog,
         name: S,
         pitch: &[f64; 128],
     ) -> Status {
-        let name = CString::new(name.as_ref()).unwrap();
         Synth::zero_ok(unsafe {
-            self.handle.create_key_tuning(
-                tuning_bank as _,
-                tuning_prog as _,
-                name.as_bytes_with_nul(),
-                pitch,
-            )
+            self.handle
+                .create_key_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
         })
     }
 
@@ -40,25 +30,20 @@ impl Synth {
     pitches[0] equals -33, then the C-keys will be tuned 33 cents
     below the well-tempered C.
      */
-    pub fn create_octave_tuning<S: AsRef<str>>(
+    pub fn create_octave_tuning<S: Into<String>>(
         &mut self,
         tuning_bank: Bank,
         tuning_prog: Prog,
         name: S,
         pitch: &[f64; 12],
     ) -> Status {
-        let name = CString::new(name.as_ref()).unwrap();
         Synth::zero_ok(unsafe {
-            self.handle.create_octave_tuning(
-                tuning_bank as _,
-                tuning_prog as _,
-                name.as_bytes_with_nul(),
-                pitch,
-            )
+            self.handle
+                .create_octave_tuning(tuning_bank as _, tuning_prog as _, name.into(), pitch)
         })
     }
 
-    pub fn activate_octave_tuning<S: AsRef<str>>(
+    pub fn activate_octave_tuning<S: Into<String>>(
         &mut self,
         bank: Bank,
         prog: Prog,
@@ -66,15 +51,9 @@ impl Synth {
         pitch: &[f64; 12],
         apply: bool,
     ) -> Status {
-        let name = CString::new(name.as_ref()).unwrap();
         Synth::zero_ok(unsafe {
-            self.handle.activate_octave_tuning(
-                bank as _,
-                prog as _,
-                name.as_bytes_with_nul(),
-                pitch,
-                apply as _,
-            )
+            self.handle
+                .activate_octave_tuning(bank as _, prog as _, name.into(), pitch, apply as _)
         })
     }
 
@@ -132,8 +111,8 @@ impl Synth {
     /**
     Set the tuning to the default well-tempered tuning on a channel.
      */
-    pub fn reset_tuning(&mut self, chan: Chan) -> Status {
-        Synth::zero_ok(self.handle.reset_tuning(chan))
+    pub fn reset_tuning(&mut self, chan: Chan) -> std::result::Result<(), ()> {
+        self.handle.reset_tuning(chan)
     }
 
     /**
@@ -148,28 +127,12 @@ impl Synth {
 
     This function returns both the name and pitch values of a tuning.
      */
-    pub fn tuning_dump(&self, bank: Bank, prog: Prog) -> Result<(String, [f64; 128])> {
-        const NAME_LEN: usize = 128;
-
-        let mut name = MaybeUninit::<[u8; NAME_LEN]>::uninit();
-        let mut pitch = MaybeUninit::<[f64; 128]>::uninit();
-
-        Synth::zero_ok(unsafe {
-            self.handle.tuning_dump(
-                bank as _,
-                prog as _,
-                name.as_mut_ptr() as _,
-                NAME_LEN as _,
-                pitch.as_mut_ptr() as _,
-            )
-        })?;
-        Ok((
-            (unsafe { CStr::from_ptr(name.as_ptr() as _) })
-                .to_str()
-                .unwrap()
-                .into(),
-            unsafe { pitch.assume_init() },
-        ))
+    pub fn tuning_dump(
+        &self,
+        bank: Bank,
+        prog: Prog,
+    ) -> std::result::Result<(String, &[f64; 128]), ()> {
+        self.handle.tuning_dump(bank, prog)
     }
 
     /**
@@ -177,24 +140,8 @@ impl Synth {
 
     This function returns the only name of a tuning.
      */
-    pub fn tuning_dump_name(&self, bank: Bank, prog: Prog) -> Result<String> {
-        const NAME_LEN: usize = 128;
-
-        let mut name = MaybeUninit::<[u8; NAME_LEN]>::uninit();
-
-        Synth::zero_ok(unsafe {
-            self.handle.tuning_dump(
-                bank as _,
-                prog as _,
-                name.as_mut_ptr() as _,
-                NAME_LEN as _,
-                null_mut(),
-            )
-        })?;
-        Ok((unsafe { CStr::from_ptr(name.as_ptr() as _) })
-            .to_str()
-            .unwrap()
-            .into())
+    pub fn tuning_dump_name(&self, bank: Bank, prog: Prog) -> std::result::Result<String, ()> {
+        self.handle.tuning_dump(bank, prog).map(|t| t.0)
     }
 
     /**
@@ -202,13 +149,11 @@ impl Synth {
 
     This function returns the only pitch values of a tuning.
      */
-    pub fn tuning_dump_pitch(&self, bank: Bank, prog: Prog) -> Result<[f64; 128]> {
-        let mut pitch = MaybeUninit::<[f64; 128]>::uninit();
-
-        Synth::zero_ok(unsafe {
-            self.handle
-                .tuning_dump(bank as _, prog as _, null_mut(), 0, pitch.as_mut_ptr() as _)
-        })?;
-        Ok(unsafe { pitch.assume_init() })
+    pub fn tuning_dump_pitch(
+        &self,
+        bank: Bank,
+        prog: Prog,
+    ) -> std::result::Result<&[f64; 128], ()> {
+        self.handle.tuning_dump(bank, prog).map(|t| t.1)
     }
 }

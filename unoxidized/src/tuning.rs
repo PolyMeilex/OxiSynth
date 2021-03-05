@@ -2,16 +2,16 @@
 
 #[derive(Clone)]
 pub struct Tuning {
-    name: Vec<u8>,
+    name: String,
     pub(crate) bank: i32,
     pub(crate) prog: i32,
     pub(crate) pitch: [f64; 128],
 }
 
 impl Tuning {
-    pub fn new(name: &[u8], bank: i32, prog: i32) -> Tuning {
+    pub fn new(name: String, bank: i32, prog: i32) -> Tuning {
         let mut tuning = Tuning {
-            name: name.to_vec(),
+            name,
             bank,
             prog,
             pitch: [0f64; 128],
@@ -22,12 +22,12 @@ impl Tuning {
         return tuning;
     }
 
-    pub fn set_name(&mut self, name: &[u8]) {
-        self.name = name.to_vec();
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
-    pub fn get_name(&self) -> &[u8] {
-        return &self.name;
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 
     pub fn set_octave(&mut self, pitch_deriv: &[f64; 12]) {

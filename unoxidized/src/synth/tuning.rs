@@ -15,7 +15,7 @@ impl Synth {
         &mut self,
         bank: i32,
         prog: i32,
-        name: &[u8],
+        name: String,
         pitch: &[f64; 128],
     ) -> i32 {
         return match self.create_tuning(bank, prog, name) {
@@ -38,7 +38,7 @@ impl Synth {
         &mut self,
         bank: i32,
         prog: i32,
-        name: &[u8],
+        name: String,
         pitch: &[f64; 12],
     ) -> i32 {
         if !(bank >= 0 as i32 && bank < 128 as i32) {
@@ -60,7 +60,7 @@ impl Synth {
         &mut self,
         bank: i32,
         prog: i32,
-        name: &[u8],
+        name: String,
         pitch: &[f64; 12],
         _apply: i32,
     ) -> i32 {
@@ -98,7 +98,7 @@ impl Synth {
         if pitch.is_null() {
             return FLUID_FAILED as i32;
         }
-        match self.create_tuning(bank, prog, b"Unnamed\x00") {
+        match self.create_tuning(bank, prog, "Unnamed".into()) {
             Some(tuning) => {
                 for i in 0..len {
                     tuning.set_pitch(*key.offset(i as isize), *pitch.offset(i as isize));
@@ -114,12 +114,12 @@ impl Synth {
     /**
     Select a tuning for a channel.
      */
-    pub fn select_tuning(&mut self, chan: u8, bank: i32, prog: i32) -> i32 {
+    pub fn select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> i32 {
         let tuning;
-        if !(bank >= 0 as i32 && bank < 128 as i32) {
+        if !(bank < 128) {
             return FLUID_FAILED as i32;
         }
-        if !(prog >= 0 as i32 && prog < 128 as i32) {
+        if !(prog < 128) {
             return FLUID_FAILED as i32;
         }
         tuning = self.get_tuning(bank, prog);
@@ -134,20 +134,21 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub fn activate_tuning(&mut self, chan: u8, bank: i32, prog: i32, _apply: i32) -> i32 {
+    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32, _apply: i32) -> i32 {
         self.select_tuning(chan, bank, prog)
     }
 
     /**
     Set the tuning to the default well-tempered tuning on a channel.
      */
-    pub fn reset_tuning(&mut self, chan: u8) -> i32 {
+    pub fn reset_tuning(&mut self, chan: u8) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
-            log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            log::warn!("Channel out of range");
+            Err(())
+        } else {
+            self.channel[chan as usize].tuning = None;
+            Ok(())
         }
-        self.channel[chan as usize].tuning = None;
-        return FLUID_OK as i32;
     }
 
     pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a Tuning> {
@@ -157,58 +158,39 @@ impl Synth {
             .filter_map(|t| if let Some(t) = t { Some(t) } else { None })
     }
 
-    pub unsafe fn tuning_dump(
-        &self,
-        bank: i32,
-        prog: i32,
-        name: *mut i8,
-        len: i32,
-        pitch: *mut f64,
-    ) -> i32 {
+    pub fn tuning_dump(&self, bank: u32, prog: u32) -> Result<(String, &[f64; 128]), ()> {
         match self.get_tuning(bank, prog) {
             Some(tuning) => {
-                if !name.is_null() {
-                    libc::strncpy(
-                        name,
-                        tuning.get_name().as_ptr() as _,
-                        (len - 1 as i32) as libc::size_t,
-                    );
-                    *name.offset((len - 1 as i32) as isize) = 0 as i32 as i8
-                }
-                if !pitch.is_null() {
-                    libc::memcpy(
-                        pitch as *mut libc::c_void,
-                        tuning.pitch.as_ptr().offset(0 as i32 as isize) as *mut f64
-                            as *const libc::c_void,
-                        (128 as i32 as libc::size_t)
-                            .wrapping_mul(::std::mem::size_of::<f64>() as libc::size_t),
-                    );
-                }
-                return FLUID_OK as i32;
+                let name = tuning.get_name();
+
+                let name: String = (unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as _) })
+                    .to_str()
+                    .unwrap()
+                    .into();
+
+                Ok((name, &tuning.pitch))
             }
-            None => {
-                return FLUID_FAILED as i32;
-            }
+            None => Err(()),
         }
     }
 
-    fn get_tuning(&self, bank: i32, prog: i32) -> Option<&Tuning> {
-        if bank < 0 as i32 || bank >= 128 as i32 {
-            log::warn!("Bank number out of range",);
-            return None;
+    fn get_tuning(&self, bank: u32, prog: u32) -> Option<&Tuning> {
+        if bank >= 128 {
+            log::warn!("Bank number out of range");
+            None
+        } else if prog >= 128 {
+            log::warn!("Program number out of range");
+            None
+        } else {
+            self.tuning[bank as usize][prog as usize].as_ref()
         }
-        if prog < 0 as i32 || prog >= 128 as i32 {
-            log::warn!("Program number out of range",);
-            return None;
-        }
-        return self.tuning[bank as usize][prog as usize].as_ref();
     }
 
     unsafe fn create_tuning<'a>(
         &'a mut self,
         bank: i32,
         prog: i32,
-        name: &[u8],
+        name: String,
     ) -> Option<&'a mut Tuning> {
         if bank < 0 as i32 || bank >= 128 as i32 {
             log::warn!("Bank number out of range",);
@@ -219,10 +201,10 @@ impl Synth {
             return None;
         }
         let tuning = self.tuning[bank as usize][prog as usize]
-            .get_or_insert_with(|| Tuning::new(name, bank, prog));
-        if libc::strcmp(tuning.get_name().as_ptr() as _, name.as_ptr() as _) != 0 {
-            tuning.set_name(name);
-        }
-        return Some(tuning);
+            .get_or_insert_with(|| Tuning::new(name.clone(), bank, prog));
+
+        tuning.set_name(name);
+
+        Some(tuning)
     }
 }
