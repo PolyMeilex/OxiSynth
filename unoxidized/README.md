@@ -1,0 +1,27 @@
+Oxidizations Status
+
+- [x] ./soundfont
+- [ ] ./synth
+  - [x] chorus.rs
+  - [x] count.rs
+  - [x] font.rs
+  - [x] gen.rs
+  - [x] midi.rs
+  - [x] params.rs
+  - [x] reverb.rs
+  - [x] tuning.rs
+  - [ ] write.rs
+- [ ] ./voice
+  - [ ] dsp_float.rs
+- [x] ./channel.rs
+- [ ] ./chorus.rs
+- [x] ./conv.rs
+- [x] ./gen.rs
+- [x] ./modulator.rs
+- [ ] ./reverb.rs
+- [x] ./settings.rs
+- [x] ./soundfont.rs
+- [ ] ./synth.rs
+- [x] ./tuning.rs
+- [x] ./voice_pool.rs 🚧
+- [ ] ./voice.rs
