@@ -126,17 +126,16 @@ impl Sample {
             return;
         }
         if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
-            let mut peak_max: i16 = 0;
-            let mut peak_min: i16 = 0;
-            let mut i = self.loopstart as i32;
-            while i < self.loopend as i32 {
-                let val: i16 = self.data[i as usize];
-                if val as i32 > peak_max as i32 {
+            let mut peak_max = 0;
+            let mut peak_min = 0;
+
+            for i in self.loopstart..self.loopend {
+                let val = self.data[i as usize] as i32;
+                if val > peak_max {
                     peak_max = val
-                } else if (val as i32) < peak_min as i32 {
+                } else if val < peak_min {
                     peak_min = val
                 }
-                i += 1
             }
 
             let peak = if peak_max > -peak_min {
