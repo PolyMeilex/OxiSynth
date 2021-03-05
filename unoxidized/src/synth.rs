@@ -27,8 +27,6 @@ use super::{
     chorus::ChorusMode,
 };
 
-use crate::gen::GenParam;
-
 static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
 
 pub const FLUID_OK: C2RustUnnamed = 0;
@@ -71,7 +69,6 @@ const FLUID_MOD_VELOCITY: ModSrc = 2;
 const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
-const GEN_EXCLUSIVECLASS: GenType = 57;
 
 #[derive(Copy, Clone)]
 struct ReverbModelPreset {
@@ -224,24 +221,6 @@ impl Synth {
         self.chorus = Chorus::new(sample_rate);
     }
 
-    pub(crate) fn damp_voices(&mut self, chan: u8) {
-        self.voices.damp_voices(
-            chan,
-            self.settings.synth.polyphony,
-            self.min_note_length_ticks,
-        )
-    }
-
-    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: u16) {
-        self.voices
-            .modulate_voices(chan, is_cc, ctrl, self.settings.synth.polyphony)
-    }
-
-    pub(crate) fn modulate_voices_all(&mut self, chan: u8) {
-        self.voices
-            .modulate_voices_all(chan, self.settings.synth.polyphony);
-    }
-
     pub(crate) fn get_preset(
         &mut self,
         sfontnum: u32,
@@ -276,11 +255,6 @@ impl Synth {
         return None;
     }
 
-    pub(crate) fn free_voice_by_kill(&mut self) -> Option<VoiceId> {
-        self.voices
-            .free_voice_by_kill(self.settings.synth.polyphony, self.noteid)
-    }
-
     pub(crate) fn alloc_voice(
         &mut self,
         sample: Rc<Sample>,
@@ -298,7 +272,9 @@ impl Synth {
             .map(|(id, _)| VoiceId(id));
 
         if voice_id.is_none() {
-            voice_id = self.free_voice_by_kill()
+            voice_id = self
+                .voices
+                .free_voice_by_kill(self.settings.synth.polyphony, self.noteid);
         }
 
         if let Some(voice_id) = voice_id {
@@ -353,59 +329,6 @@ impl Synth {
                 key
             );
             None
-        }
-    }
-
-    pub(crate) fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
-        let excl_class = {
-            let new_voice = &mut self.voices[new_voice.0];
-            let excl_class: i32 = (new_voice.gen[GenParam::ExclusiveClass as usize].val
-                + new_voice.gen[GenParam::ExclusiveClass as usize].mod_0
-                + new_voice.gen[GenParam::ExclusiveClass as usize].nrpn)
-                as i32;
-            excl_class
-        };
-
-        if excl_class != 0 {
-            for i in 0..self.settings.synth.polyphony {
-                let new_voice = &self.voices[new_voice.0];
-                let existing_voice = &self.voices[i as usize];
-
-                if existing_voice.is_playing() {
-                    if !(existing_voice.chan as i32 != new_voice.chan as i32) {
-                        if !((existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].val as f32
-                            + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].mod_0 as f32
-                            + existing_voice.gen[GEN_EXCLUSIVECLASS as i32 as usize].nrpn as f32)
-                            as i32
-                            != excl_class)
-                        {
-                            if !(existing_voice.id == new_voice.id) {
-                                self.voices[i as usize].kill_excl();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub(crate) fn start_voice(&mut self, voice_id: VoiceId) {
-        self.kill_by_exclusive_class(voice_id);
-        self.voices[voice_id.0].start();
-    }
-
-    pub(crate) fn release_voice_on_same_note(&mut self, chan: u8, key: u8) {
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing()
-                && voice.chan == chan
-                && voice.key == key
-                && voice.id != self.noteid
-            {
-                voice.noteoff(self.min_note_length_ticks);
-            }
-            i += 1
         }
     }
 

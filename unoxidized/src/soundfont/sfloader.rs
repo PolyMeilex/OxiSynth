@@ -553,7 +553,8 @@ impl Synth {
                                 }
 
                                 // add the synthesis process to the synthesis loop.
-                                self.start_voice(voice_id);
+                                self.voices
+                                    .start_voice(voice_id, self.settings.synth.polyphony);
 
                                 /* Store the ID of the first voice that was created by this noteon event.
                                  * Exclusive class may only terminate older voices.

@@ -30,7 +30,15 @@ impl Synth {
             );
             return Err(());
         }
-        self.release_voice_on_same_note(midi_chan, key);
+
+        self.voices.release_voice_on_same_note(
+            midi_chan,
+            key,
+            self.settings.synth.polyphony,
+            self.noteid,
+            self.min_note_length_ticks,
+        );
+
         let id = self.noteid;
         self.noteid = self.noteid.wrapping_add(1);
 
@@ -157,7 +165,12 @@ impl Synth {
             const FLUID_MOD_PITCHWHEEL: u16 = 14;
 
             self.channel[chan as usize].pitch_bend = val as i16;
-            self.modulate_voices(self.channel[chan as usize].channum, 0, FLUID_MOD_PITCHWHEEL);
+            self.voices.modulate_voices(
+                self.channel[chan as usize].channum,
+                0,
+                FLUID_MOD_PITCHWHEEL,
+                self.settings.synth.polyphony,
+            )
         }
 
         Ok(())
@@ -192,10 +205,11 @@ impl Synth {
             const FLUID_MOD_PITCHWHEELSENS: u16 = 16;
 
             self.channel[chan as usize].pitch_wheel_sensitivity = val;
-            self.modulate_voices(
+            self.voices.modulate_voices(
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_PITCHWHEELSENS,
+                self.settings.synth.polyphony,
             );
         }
 
@@ -287,10 +301,11 @@ impl Synth {
             const FLUID_MOD_CHANNELPRESSURE: u16 = 13;
 
             self.channel[chan as usize].channel_pressure = val as i16;
-            self.modulate_voices(
+            self.voices.modulate_voices(
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_CHANNELPRESSURE,
+                self.settings.synth.polyphony,
             );
         }
 
