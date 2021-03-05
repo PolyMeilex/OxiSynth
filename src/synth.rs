@@ -10,7 +10,6 @@ mod reverb;
 mod tuning;
 mod write;
 
-pub use self::tuning::TuningIter;
 pub use self::write::IsSamples;
 
 use crate::{engine, Settings};

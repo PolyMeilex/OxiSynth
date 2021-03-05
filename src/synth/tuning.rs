@@ -1,7 +1,6 @@
 use crate::{engine, Bank, Chan, Prog, Result, Status, Synth};
 use std::{
     ffi::{CStr, CString},
-    marker::PhantomData,
     mem::MaybeUninit,
     ptr::null_mut,
 };
@@ -140,8 +139,8 @@ impl Synth {
     /**
     Get the iterator throught the list of available tunings.
      */
-    pub fn tuning_iter(&mut self) -> TuningIter<'_> {
-        TuningIter::from_ptr(&mut self.handle)
+    pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a engine::tuning::Tuning> {
+        self.handle.tuning_iter()
     }
 
     /**
@@ -211,56 +210,5 @@ impl Synth {
                 .tuning_dump(bank as _, prog as _, null_mut(), 0, pitch.as_mut_ptr() as _)
         })?;
         Ok(unsafe { pitch.assume_init() })
-    }
-}
-
-/**
-The iterator over tunings
- */
-pub struct TuningIter<'a> {
-    handle: *mut engine::synth::Synth,
-    phantom: PhantomData<&'a ()>,
-    init: bool,
-    next: bool,
-}
-
-impl<'a> TuningIter<'a> {
-    fn from_ptr(handle: *mut engine::synth::Synth) -> Self {
-        Self {
-            handle,
-            phantom: PhantomData,
-            init: true,
-            next: true,
-        }
-    }
-}
-
-impl<'a> Iterator for TuningIter<'a> {
-    type Item = (Bank, Prog);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.init {
-            self.init = false;
-            unsafe {
-                self.handle.as_mut().unwrap().tuning_iteration_start();
-            }
-        }
-        if self.next {
-            let mut bank = MaybeUninit::uninit();
-            let mut prog = MaybeUninit::uninit();
-            self.next = 0
-                != unsafe {
-                    self.handle
-                        .as_mut()
-                        .unwrap()
-                        .tuning_iteration_next(bank.as_mut_ptr(), prog.as_mut_ptr())
-                };
-
-            Some((unsafe { bank.assume_init() as _ }, unsafe {
-                prog.assume_init() as _
-            }))
-        } else {
-            None
-        }
     }
 }

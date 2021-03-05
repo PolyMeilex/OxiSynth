@@ -2,12 +2,14 @@
 
 use super::channel::Channel;
 
+use num_derive::FromPrimitive;
+
 /**
 Generator (effect) numbers
 
 See also _SoundFont 2.01 specifications section 8.1.3_
  */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromPrimitive)]
 #[repr(u8)]
 pub enum GenParam {
     /** Sample start address offset (0-32767) */

@@ -31,7 +31,7 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32, polyphony: u16) {
+    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: u16, polyphony: u16) {
         for i in 0..polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan {

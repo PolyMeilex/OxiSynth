@@ -22,7 +22,7 @@ impl Synth {
     Send a control change message.
      */
     pub fn cc(&mut self, chan: Chan, ctrl: Ctrl, val: Val) -> Result<(), ()> {
-        unsafe { self.handle.cc(chan as _, ctrl as _, val as _) }
+        self.handle.cc(chan as _, ctrl as _, val as _)
     }
 
     /**
@@ -36,7 +36,7 @@ impl Synth {
     Send a pitch bend message.
      */
     pub fn pitch_bend(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        unsafe { self.handle.pitch_bend(chan as _, val as _) }
+        self.handle.pitch_bend(chan as _, val as _)
     }
 
     /**
@@ -50,7 +50,7 @@ impl Synth {
     Set the pitch wheel sensitivity.
      */
     pub fn pitch_wheel_sens(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        unsafe { self.handle.pitch_wheel_sens(chan as _, val as _) }
+        self.handle.pitch_wheel_sens(chan as _, val as _)
     }
 
     /**
@@ -71,14 +71,14 @@ impl Synth {
     Set channel pressure
      */
     pub fn channel_pressure(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        unsafe { self.handle.channel_pressure(chan as _, val as _) }
+        self.handle.channel_pressure(chan as _, val as _)
     }
 
     /**
     Set key pressure (aftertouch)
      */
     pub fn key_pressure(&mut self, chan: Chan, key: Key, val: Val) -> Result<(), ()> {
-        unsafe { self.handle.key_pressure(chan as _, key as _, val as _) }
+        self.handle.key_pressure(chan as _, key as _, val as _)
     }
 
     /**
@@ -134,6 +134,6 @@ impl Synth {
     A reset turns all the notes off and resets the controller values.
      */
     pub fn system_reset(&mut self) {
-        unsafe { self.handle.system_reset() }
+        self.handle.system_reset()
     }
 }

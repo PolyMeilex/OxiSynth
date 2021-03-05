@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::Synth;
 use crate::synth::FLUID_MOD_KEYPRESSURE;
 use crate::synth::FLUID_OK;
@@ -84,29 +86,23 @@ impl Synth {
     /**
     Send a control change message.
      */
-    pub unsafe fn cc(&mut self, chan: u8, num: i32, val: i32) -> Result<(), ()> {
+    pub fn cc(&mut self, chan: u8, num: u16, val: u16) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
-        if num < 0 as i32 || num >= 128 as i32 {
+        if num >= 128 {
             log::warn!("Ctrl out of range",);
             return Err(());
         }
-        if val < 0 as i32 || val >= 128 as i32 {
+        if val >= 128 {
             log::warn!("Value out of range",);
             return Err(());
         }
 
         log::trace!("cc\t{}\t{}\t{}", chan, num, val);
 
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize].cc(
-            synth_ptr.as_mut().unwrap(),
-            num,
-            val,
-        );
+        self.channel_cc(chan as usize, num, val);
 
         Ok(())
     }
@@ -136,7 +132,7 @@ impl Synth {
         }
     }
 
-    pub unsafe fn all_sounds_off(&mut self, chan: u8) {
+    pub fn all_sounds_off(&mut self, chan: u8) {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_playing() && voice.chan == chan {
@@ -148,7 +144,7 @@ impl Synth {
     /**
     Send a pitch bend message.
      */
-    pub unsafe fn pitch_bend(&mut self, chan: u8, val: i32) -> Result<(), ()> {
+    pub fn pitch_bend(&mut self, chan: u8, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
@@ -156,10 +152,13 @@ impl Synth {
 
         log::trace!("pitchb\t{}\t{}", chan, val);
 
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pitch_bend(synth_ptr.as_mut().unwrap(), val);
+        // chan.pitch_bend()
+        {
+            const FLUID_MOD_PITCHWHEEL: u16 = 14;
+
+            self.channel[chan as usize].pitch_bend = val as i16;
+            self.modulate_voices(self.channel[chan as usize].channum, 0, FLUID_MOD_PITCHWHEEL);
+        }
 
         Ok(())
     }
@@ -180,7 +179,7 @@ impl Synth {
     /**
     Set the pitch wheel sensitivity.
      */
-    pub unsafe fn pitch_wheel_sens(&mut self, chan: u8, val: i32) -> Result<(), ()> {
+    pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
@@ -188,10 +187,17 @@ impl Synth {
 
         log::trace!("pitchsens\t{}\t{}", chan, val);
 
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pitch_wheel_sens(synth_ptr.as_mut().unwrap(), val);
+        // chan.pitch_wheel_sens()
+        {
+            const FLUID_MOD_PITCHWHEELSENS: u16 = 16;
+
+            self.channel[chan as usize].pitch_wheel_sensitivity = val;
+            self.modulate_voices(
+                self.channel[chan as usize].channum,
+                0,
+                FLUID_MOD_PITCHWHEELSENS,
+            );
+        }
 
         return Ok(());
     }
@@ -268,7 +274,7 @@ impl Synth {
     /**
     Set channel pressure
      */
-    pub unsafe fn channel_pressure(&mut self, chan: u8, val: i32) -> Result<(), ()> {
+    pub fn channel_pressure(&mut self, chan: u8, val: i32) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
@@ -276,10 +282,17 @@ impl Synth {
 
         log::trace!("channelpressure\t{}\t{}", chan, val);
 
-        // TODO: double borrow
-        let synth_ptr = self as *mut Synth;
-        synth_ptr.as_mut().unwrap().channel[chan as usize]
-            .pressure(synth_ptr.as_mut().unwrap(), val);
+        // channel.pressure()
+        {
+            const FLUID_MOD_CHANNELPRESSURE: u16 = 13;
+
+            self.channel[chan as usize].channel_pressure = val as i16;
+            self.modulate_voices(
+                self.channel[chan as usize].channum,
+                0,
+                FLUID_MOD_CHANNELPRESSURE,
+            );
+        }
 
         Ok(())
     }
@@ -287,7 +300,7 @@ impl Synth {
     /**
     Set key pressure (aftertouch)
      */
-    pub unsafe fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> Result<(), ()> {
+    pub fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> Result<(), ()> {
         let mut result: i32 = FLUID_OK as i32;
         if key < 0 as i32 || key > 127 as i32 {
             return Err(());
@@ -302,7 +315,7 @@ impl Synth {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.key as i32 == key {
-                result = voice.modulate(0 as i32, FLUID_MOD_KEYPRESSURE as i32);
+                result = voice.modulate(0 as i32, FLUID_MOD_KEYPRESSURE as u16);
                 if result != FLUID_OK as i32 {
                     break;
                 }
@@ -415,7 +428,7 @@ impl Synth {
     Purpose:
     Respond to the MIDI command 'system reset' (0xFF, big red 'panic' button)
      */
-    pub unsafe fn system_reset(&mut self) {
+    pub fn system_reset(&mut self) {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_playing() {
@@ -424,9 +437,10 @@ impl Synth {
         }
 
         for i in 0..self.settings.synth.midi_channels {
-            // TODO: double borrow
-            let synth_ptr = self as *mut Synth;
-            synth_ptr.as_mut().unwrap().channel[i as usize].reset(synth_ptr.as_mut().unwrap());
+            // channel.reset()
+            let preset = self.find_preset(0, 0);
+            self.channel[i as usize].init(preset);
+            self.channel[i as usize].init_ctrl(0 as i32);
         }
         self.chorus.reset();
         self.reverb.reset();

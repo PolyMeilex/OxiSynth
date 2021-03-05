@@ -105,7 +105,6 @@ pub struct Synth {
     cur: i32,
     dither_index: i32,
     tuning: Vec<Vec<Option<Tuning>>>,
-    cur_tuning: Option<Tuning>,
     pub(crate) min_note_length_ticks: u32,
 
     pub(crate) settings: Settings,
@@ -190,7 +189,6 @@ impl Synth {
             cur: 64,
             dither_index: 0,
             tuning: Vec::new(),
-            cur_tuning: None,
             min_note_length_ticks,
 
             settings,
@@ -234,7 +232,7 @@ impl Synth {
         )
     }
 
-    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: i32) {
+    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: u16) {
         self.voices
             .modulate_voices(chan, is_cc, ctrl, self.settings.synth.polyphony)
     }
@@ -410,7 +408,6 @@ impl Synth {
             i += 1
         }
     }
-
 
     pub(crate) fn update_presets(&mut self) {
         let mut chan = 0;

@@ -150,40 +150,11 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub unsafe fn tuning_iteration_start(&mut self) {
-        self.cur_tuning = None;
-    }
-
-    pub unsafe fn tuning_iteration_next(&mut self, bank: *mut i32, prog: *mut i32) -> i32 {
-        let mut b = 0;
-        let mut p = 0;
-        match self.cur_tuning.as_ref() {
-            Some(tuning) => {
-                b = tuning.bank;
-                p = tuning.prog + 1;
-                if p >= 128 {
-                    p = 0;
-                    b += 1
-                }
-            }
-            None => {}
-        }
-        while b < 128 {
-            while p < 128 {
-                match self.tuning[b as usize][p as usize] {
-                    Some(_) => {
-                        *bank = b;
-                        *prog = p;
-                        return 1;
-                    }
-                    None => {}
-                }
-                p += 1
-            }
-            p = 0 as i32;
-            b += 1
-        }
-        return 0 as i32;
+    pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a Tuning> {
+        self.tuning
+            .iter()
+            .flatten()
+            .filter_map(|t| if let Some(t) = t { Some(t) } else { None })
     }
 
     pub unsafe fn tuning_dump(

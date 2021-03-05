@@ -488,22 +488,20 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) fn modulate(&mut self, cc: i32, ctrl: i32) -> i32 {
+    pub(crate) fn modulate(&mut self, cc: i32, ctrl: u16) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_0.src1 as i32 == ctrl
-                && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0 as i32
-                && cc != 0 as i32
-                || mod_0.src1 as i32 == ctrl
-                    && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
-                    && cc == 0 as i32
-                || (mod_0.src2 as i32 == ctrl
-                    && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0 as i32
-                    && cc != 0 as i32
-                    || mod_0.src2 as i32 == ctrl
-                        && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 == 0 as i32
-                        && cc == 0 as i32)
+            if mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0 && cc != 0
+                || mod_0.src1 == ctrl as u8
+                    && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0
+                    && cc == 0
+                || (mod_0.src2 == ctrl as u8
+                    && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0
+                    && cc != 0
+                    || mod_0.src2 == ctrl as u8
+                        && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 == 0
+                        && cc == 0)
             {
                 let gen = mod_0.get_dest();
                 let mut modval = 0.0;
