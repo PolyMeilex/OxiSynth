@@ -109,7 +109,7 @@ impl Synth {
         &self,
         bank: Bank,
         prog: Prog,
-    ) -> std::result::Result<(String, &[f64; 128]), ()> {
+    ) -> std::result::Result<(&str, &[f64; 128]), ()> {
         self.handle.tuning_dump(bank, prog)
     }
 
@@ -118,7 +118,7 @@ impl Synth {
 
     This function returns the only name of a tuning.
      */
-    pub fn tuning_dump_name(&self, bank: Bank, prog: Prog) -> std::result::Result<String, ()> {
+    pub fn tuning_dump_name(&self, bank: Bank, prog: Prog) -> std::result::Result<&str, ()> {
         self.handle.tuning_dump(bank, prog).map(|t| t.0)
     }
 

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::Synth;
 use crate::synth::FLUID_FAILED;
 use crate::synth::FLUID_OK;
@@ -127,18 +129,9 @@ impl Synth {
             .filter_map(|t| if let Some(t) = t { Some(t) } else { None })
     }
 
-    pub fn tuning_dump(&self, bank: u32, prog: u32) -> Result<(String, &[f64; 128]), ()> {
+    pub fn tuning_dump(&self, bank: u32, prog: u32) -> Result<(&str, &[f64; 128]), ()> {
         match self.get_tuning(bank, prog) {
-            Some(tuning) => {
-                let name = tuning.get_name();
-
-                let name: String = (unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as _) })
-                    .to_str()
-                    .unwrap()
-                    .into();
-
-                Ok((name, &tuning.pitch))
-            }
+            Some(tuning) => Ok((tuning.get_name(), &tuning.pitch)),
             None => Err(()),
         }
     }
