@@ -23,11 +23,13 @@ const FLUID_MOD_CONVEX: ModFlags = 8;
 const FLUID_MOD_CONCAVE: ModFlags = 4;
 const FLUID_MOD_BIPOLAR: ModFlags = 2;
 
+use crate::gen::GenParam;
+
 use soundfont_rs::data::modulator::SFModulator;
 
 #[derive(Copy, Debug, PartialEq)]
-pub struct Mod {
-    pub(crate) dest: u8,
+pub(crate) struct Mod {
+    pub(crate) dest: GenParam,
     pub(crate) amount: f64,
 
     pub(crate) src1: u8,
@@ -143,11 +145,13 @@ impl From<&SFModulator> for Mod {
             amount = 0.0;
         }
 
+        use num_traits::FromPrimitive;
+
         Mod {
             src1,
             amount,
             flags1,
-            dest, // index of controlled generator
+            dest: FromPrimitive::from_u8(dest).unwrap(), // index of controlled generator
             src2, // index of source 2, seven-bit value, SF2.01 section 8.2, p.50
             flags2,
         }
@@ -170,7 +174,7 @@ impl Clone for Mod {
 impl Default for Mod {
     fn default() -> Self {
         Self {
-            dest: 0,
+            dest: GenParam::StartAddrOfs,
             src1: 0,
             flags1: 0,
             src2: 0,
@@ -181,35 +185,6 @@ impl Default for Mod {
 }
 
 impl Mod {
-    pub fn new() -> Mod {
-        Mod {
-            dest: 0,
-            src1: 0,
-            flags1: 0,
-            src2: 0,
-            flags2: 0,
-            amount: 0.0,
-        }
-    }
-
-    pub fn set_source1(&mut self, src: i32, flags: i32) {
-        self.src1 = src as u8;
-        self.flags1 = flags as u8;
-    }
-
-    pub fn set_source2(&mut self, src: i32, flags: i32) {
-        self.src2 = src as u8;
-        self.flags2 = flags as u8;
-    }
-
-    pub fn set_dest(&mut self, dest: i32) {
-        self.dest = dest as u8;
-    }
-
-    pub fn set_amount(&mut self, amount: f64) {
-        self.amount = amount;
-    }
-
     pub fn get_dest(&self) -> i32 {
         self.dest as i32
     }

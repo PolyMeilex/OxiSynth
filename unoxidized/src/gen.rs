@@ -155,7 +155,7 @@ pub const GEN_UNUSED: GenFlags = 0;
 pub const FLUID_OK: C2RustUnnamed = 0;
 #[derive(Copy, Clone)]
 pub struct GenInfo {
-    pub num: i8,
+    pub num: GenParam,
     pub init: i8,
     pub nrpn_scale: i8,
     pub min: f32,
@@ -166,7 +166,7 @@ pub type C2RustUnnamed = i32;
 
 pub static GEN_INFO: [GenInfo; 60] = [
     GenInfo {
-        num: GenParam::StartAddrOfs as i8,
+        num: GenParam::StartAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -174,7 +174,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::EndAddrOfs as i8,
+        num: GenParam::EndAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -182,7 +182,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::StartLoopAddrOfs as i8,
+        num: GenParam::StartLoopAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -190,7 +190,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::EndLoopAddrOfs as i8,
+        num: GenParam::EndLoopAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -198,7 +198,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::StartAddrCoarseOfs as i8,
+        num: GenParam::StartAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -206,7 +206,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModLfoToPitch as i8,
+        num: GenParam::ModLfoToPitch,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -214,7 +214,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VibLfoToPitch as i8,
+        num: GenParam::VibLfoToPitch,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -222,7 +222,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvToPitch as i8,
+        num: GenParam::ModEnvToPitch,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -230,7 +230,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::FilterFc as i8,
+        num: GenParam::FilterFc,
         init: 1,
         nrpn_scale: 2 as i8,
         min: 1500.0f32,
@@ -238,7 +238,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 13500.0f32,
     },
     GenInfo {
-        num: GenParam::FilterQ as i8,
+        num: GenParam::FilterQ,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -246,7 +246,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModLfoToFilterFc as i8,
+        num: GenParam::ModLfoToFilterFc,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -254,7 +254,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvToFilterFc as i8,
+        num: GenParam::ModEnvToFilterFc,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -262,7 +262,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::EndAddrCoarseOfs as i8,
+        num: GenParam::EndAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -270,7 +270,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModLfoToVol as i8,
+        num: GenParam::ModLfoToVol,
         init: 1,
         nrpn_scale: 1,
         min: -960.0f32,
@@ -278,7 +278,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Unused as i8,
+        num: GenParam::Unused,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -286,7 +286,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ChorusSend as i8,
+        num: GenParam::ChorusSend,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -294,7 +294,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ReverbSend as i8,
+        num: GenParam::ReverbSend,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -302,7 +302,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Pan as i8,
+        num: GenParam::Pan,
         init: 1,
         nrpn_scale: 1,
         min: -500.0f32,
@@ -310,7 +310,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Unused2 as i8,
+        num: GenParam::Unused2,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -318,7 +318,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Unused3 as i8,
+        num: GenParam::Unused3,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -326,7 +326,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Unused4 as i8,
+        num: GenParam::Unused4,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -334,7 +334,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModLfoDelay as i8,
+        num: GenParam::ModLfoDelay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -342,7 +342,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::ModLfoFreq as i8,
+        num: GenParam::ModLfoFreq,
         init: 1,
         nrpn_scale: 4 as i8,
         min: -16000.0f32,
@@ -350,7 +350,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VibLfoDelay as i8,
+        num: GenParam::VibLfoDelay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -358,7 +358,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::VibLfoFreq as i8,
+        num: GenParam::VibLfoFreq,
         init: 1,
         nrpn_scale: 4 as i8,
         min: -16000.0f32,
@@ -366,7 +366,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvDelay as i8,
+        num: GenParam::ModEnvDelay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -374,7 +374,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvAttack as i8,
+        num: GenParam::ModEnvAttack,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -382,7 +382,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvHold as i8,
+        num: GenParam::ModEnvHold,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -390,7 +390,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvDecay as i8,
+        num: GenParam::ModEnvDecay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -398,7 +398,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvSustain as i8,
+        num: GenParam::ModEnvSustain,
         init: 0,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -406,7 +406,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ModEnvRelease as i8,
+        num: GenParam::ModEnvRelease,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -414,7 +414,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::KeyToModEnvHold as i8,
+        num: GenParam::KeyToModEnvHold,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0f32,
@@ -422,7 +422,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::KeyToModEnvDecay as i8,
+        num: GenParam::KeyToModEnvDecay,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0f32,
@@ -430,7 +430,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvDelay as i8,
+        num: GenParam::VolEnvDelay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -438,7 +438,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvAttack as i8,
+        num: GenParam::VolEnvAttack,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -446,7 +446,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvHold as i8,
+        num: GenParam::VolEnvHold,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -454,7 +454,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvDecay as i8,
+        num: GenParam::VolEnvDecay,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -462,7 +462,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvSustain as i8,
+        num: GenParam::VolEnvSustain,
         init: 0,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -470,7 +470,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvRelease as i8,
+        num: GenParam::VolEnvRelease,
         init: 1,
         nrpn_scale: 2 as i8,
         min: -12000.0f32,
@@ -478,7 +478,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0f32,
     },
     GenInfo {
-        num: GenParam::KeyToVolEnvHold as i8,
+        num: GenParam::KeyToVolEnvHold,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0f32,
@@ -486,7 +486,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::KeyToVolEnvDecay as i8,
+        num: GenParam::KeyToVolEnvDecay,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0f32,
@@ -494,7 +494,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Instrument as i8,
+        num: GenParam::Instrument,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -502,7 +502,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Reserved1 as i8,
+        num: GenParam::Reserved1,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -510,7 +510,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::KeyRange as i8,
+        num: GenParam::KeyRange,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -518,7 +518,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VelRange as i8,
+        num: GenParam::VelRange,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -526,7 +526,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::StartLoopAddrCoarseOfs as i8,
+        num: GenParam::StartLoopAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -534,7 +534,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::KeyNum as i8,
+        num: GenParam::KeyNum,
         init: 1,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -542,7 +542,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -1.0f32,
     },
     GenInfo {
-        num: GenParam::Velocity as i8,
+        num: GenParam::Velocity,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -550,7 +550,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -1.0f32,
     },
     GenInfo {
-        num: GenParam::Attenuation as i8,
+        num: GenParam::Attenuation,
         init: 1,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -558,7 +558,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Reserved2 as i8,
+        num: GenParam::Reserved2,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -566,7 +566,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::EndLoopAddrCoarseOfs as i8,
+        num: GenParam::EndLoopAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -574,7 +574,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::CoarseTune as i8,
+        num: GenParam::CoarseTune,
         init: 0,
         nrpn_scale: 1,
         min: -120.0f32,
@@ -582,7 +582,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::FineTune as i8,
+        num: GenParam::FineTune,
         init: 0,
         nrpn_scale: 1,
         min: -99.0f32,
@@ -590,7 +590,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::SampleId as i8,
+        num: GenParam::SampleId,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -598,7 +598,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::SampleMode as i8,
+        num: GenParam::SampleMode,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -606,7 +606,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::Reserved3 as i8,
+        num: GenParam::Reserved3,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -614,7 +614,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::ScaleTune as i8,
+        num: GenParam::ScaleTune,
         init: 0,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -622,7 +622,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 100.0f32,
     },
     GenInfo {
-        num: GenParam::ExclusiveClass as i8,
+        num: GenParam::ExclusiveClass,
         init: 0,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -630,7 +630,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::OverrideRootKey as i8,
+        num: GenParam::OverrideRootKey,
         init: 1,
         nrpn_scale: 0,
         min: 0.0f32,
@@ -638,7 +638,7 @@ pub static GEN_INFO: [GenInfo; 60] = [
         def: -1.0f32,
     },
     GenInfo {
-        num: GenParam::Pitch as i8,
+        num: GenParam::Pitch,
         init: 1,
         nrpn_scale: 0,
         min: 0.0f32,

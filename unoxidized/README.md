@@ -21,7 +21,7 @@ Oxidizations Status
 - [x] ./reverb.rs
 - [x] ./settings.rs
 - [x] ./soundfont.rs
-- [ ] ./synth.rs
+- [x] ./synth.rs
 - [x] ./tuning.rs
 - [x] ./voice_pool.rs 🚧
 - [ ] ./voice.rs

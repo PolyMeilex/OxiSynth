@@ -3,7 +3,6 @@ pub mod count;
 pub mod font;
 pub mod gen;
 pub mod midi;
-pub mod misc;
 pub mod params;
 pub mod reverb;
 pub mod tuning;
@@ -12,6 +11,8 @@ pub mod write;
 use crate::voice::VoiceId;
 use crate::voice_pool::VoicePool;
 use std::rc::Rc;
+
+use crate::gen::GenParam;
 
 use super::chorus::Chorus;
 use super::modulator::Mod;
@@ -27,15 +28,7 @@ use super::{
     chorus::ChorusMode,
 };
 
-static mut FLUID_ERRBUF: [u8; 512] = [0; 512];
-
 pub const FLUID_OK: C2RustUnnamed = 0;
-
-#[derive(Copy, Clone)]
-pub struct BankOffset {
-    pub sfont_id: u32,
-    pub offset: u32,
-}
 
 type ModFlags = u8;
 type ModSrc = u8;
@@ -45,7 +38,6 @@ type C2RustUnnamed = i32;
 const FLUID_FAILED: C2RustUnnamed = -1;
 const FLUID_SYNTH_PLAYING: SynthStatus = 1;
 
-const GEN_PITCH: GenType = 59;
 const FLUID_MOD_POSITIVE: ModFlags = 0;
 const FLUID_MOD_UNIPOLAR: ModFlags = 0;
 const FLUID_MOD_LINEAR: ModFlags = 0;
@@ -53,32 +45,22 @@ const FLUID_MOD_GC: ModFlags = 0;
 const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
 const FLUID_MOD_BIPOLAR: ModFlags = 2;
 const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-const GEN_CHORUSSEND: GenType = 15;
 const FLUID_MOD_CC: ModFlags = 16;
-const GEN_REVERBSEND: GenType = 16;
-const GEN_ATTENUATION: GenType = 48;
 const FLUID_MOD_NEGATIVE: ModFlags = 1;
 const FLUID_MOD_CONCAVE: ModFlags = 4;
-const GEN_PAN: GenType = 17;
-const GEN_VIBLFOTOPITCH: GenType = 6;
 const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
-const GEN_FILTERFC: GenType = 8;
 const FLUID_MOD_SWITCH: ModFlags = 12;
 const FLUID_MOD_VELOCITY: ModSrc = 2;
 const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
-const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
-
-#[derive(Copy, Clone)]
-struct ReverbModelPreset {
-    pub name: *mut i8,
-    pub roomsize: f32,
-    pub damp: f32,
-    pub width: f32,
-    pub level: f32,
-}
 
 type SynthStatus = u32;
+
+#[derive(Copy, Clone)]
+pub struct BankOffset {
+    pub sfont_id: u32,
+    pub offset: u32,
+}
 
 pub struct Synth {
     state: u32,
@@ -308,6 +290,8 @@ impl Synth {
                 self.gain as f32,
             );
 
+            const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
+
             voice.add_mod(&DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT);
             voice.add_mod(&DEFAULT_VEL2FILTER_MOD, FLUID_VOICE_DEFAULT);
             voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, FLUID_VOICE_DEFAULT);
@@ -331,14 +315,12 @@ impl Synth {
     }
 
     pub(crate) fn update_presets(&mut self) {
-        let mut chan = 0;
-        while chan < self.settings.synth.midi_channels {
-            let sfontnum = self.channel[chan as usize].get_sfontnum();
-            let banknum = self.channel[chan as usize].get_banknum();
-            let prognum = self.channel[chan as usize].get_prognum() as u32;
+        for chan in 0..(self.settings.synth.midi_channels as usize) {
+            let sfontnum = self.channel[chan].get_sfontnum();
+            let banknum = self.channel[chan].get_banknum();
+            let prognum = self.channel[chan].get_prognum() as u32;
             let preset = self.get_preset(sfontnum, banknum, prognum);
-            self.channel[chan as usize].set_preset(preset);
-            chan += 1
+            self.channel[chan].set_preset(preset);
         }
     }
 }
@@ -347,26 +329,22 @@ lazy_static! {
     static ref RAND_TABLE: [[f32; 48000]; 2] = {
         let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
 
-        let mut c = 0;
-        while c < 2 {
+        for c in 0..2 {
             let mut dp = 0.0;
-            let mut i = 0;
-            while i < 48000 - 1 {
+            for i in 0..(48000 - 1) {
                 let r: i32 = rand::random();
                 let d = r as f32 / 2147483647.0 - 0.5;
-                rand[c as usize][i] = d - dp;
+                rand[c][i] = d - dp;
                 dp = d;
-                i += 1
             }
-            rand[c as usize][(48000 as i32 - 1 as i32) as usize] = 0 as i32 as f32 - dp;
-            c += 1
+            rand[c][48000 - 1] = 0.0 - dp;
         }
         rand
     };
 }
 
 static DEFAULT_VEL2ATT_MOD: Mod = Mod {
-    dest: GEN_ATTENUATION,
+    dest: GenParam::Attenuation,
     amount: 960.0,
 
     src1: FLUID_MOD_VELOCITY,
@@ -377,7 +355,7 @@ static DEFAULT_VEL2ATT_MOD: Mod = Mod {
 };
 
 static DEFAULT_VEL2FILTER_MOD: Mod = Mod {
-    dest: GEN_FILTERFC,
+    dest: GenParam::FilterFc,
     amount: -2400.0,
 
     src1: FLUID_MOD_VELOCITY,
@@ -388,7 +366,7 @@ static DEFAULT_VEL2FILTER_MOD: Mod = Mod {
 };
 
 static DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
-    dest: GEN_VIBLFOTOPITCH,
+    dest: GenParam::VibLfoToPitch,
     amount: 50.0,
 
     src1: FLUID_MOD_CHANNELPRESSURE,
@@ -399,7 +377,7 @@ static DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
 };
 
 static DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
-    dest: GEN_VIBLFOTOPITCH,
+    dest: GenParam::VibLfoToPitch,
     amount: 50.0,
 
     src1: 1,
@@ -410,7 +388,7 @@ static DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
 };
 
 static DEFAULT_ATT_MOD: Mod = Mod {
-    dest: GEN_ATTENUATION,
+    dest: GenParam::Attenuation,
     amount: 960.0,
 
     src1: 7,
@@ -422,7 +400,7 @@ static DEFAULT_ATT_MOD: Mod = Mod {
 
 static DEFAULT_PAN_MOD: Mod = Mod {
     amount: 500.0,
-    dest: GEN_PAN,
+    dest: GenParam::Pan,
 
     src1: 10,
     flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
@@ -433,7 +411,7 @@ static DEFAULT_PAN_MOD: Mod = Mod {
 
 static DEFAULT_EXPR_MOD: Mod = Mod {
     amount: 960.0,
-    dest: GEN_ATTENUATION,
+    dest: GenParam::Attenuation,
 
     src1: 11,
     flags1: FLUID_MOD_CC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
@@ -444,7 +422,7 @@ static DEFAULT_EXPR_MOD: Mod = Mod {
 
 static DEFAULT_REVERB_MOD: Mod = Mod {
     amount: 200.0,
-    dest: GEN_REVERBSEND,
+    dest: GenParam::ReverbSend,
 
     src1: 91,
     flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
@@ -455,7 +433,7 @@ static DEFAULT_REVERB_MOD: Mod = Mod {
 
 static DEFAULT_CHORUS_MOD: Mod = Mod {
     amount: 200.0,
-    dest: GEN_CHORUSSEND,
+    dest: GenParam::ChorusSend,
 
     src1: 93,
     flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
@@ -466,7 +444,7 @@ static DEFAULT_CHORUS_MOD: Mod = Mod {
 
 static DEFAULT_PITCH_BEND_MOD: Mod = Mod {
     amount: 12700.0,
-    dest: GEN_PITCH,
+    dest: GenParam::Pitch,
 
     src1: FLUID_MOD_PITCHWHEEL,
     flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
