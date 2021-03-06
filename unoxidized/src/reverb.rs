@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 const DC_OFFSET: f32 = 1e-8;
 const STEREO_SPREAD: usize = 23;
 
@@ -238,12 +240,13 @@ impl ReverbModel {
         ];
     }
 
-    pub fn process_replace(&mut self, in_0: *mut f32, left_out: *mut f32, right_out: *mut f32) {
+    pub fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
         for k in 0..64 {
             let mut out_r = 0f32;
             let mut out_l = 0f32;
 
-            let input = unsafe { ((2f32 * *in_0.offset(k)) + DC_OFFSET) * self.gain };
+            // Don't ask me why only left buf is considered an input...
+            let input = (2.0 * left_out[k] + DC_OFFSET) * self.gain;
 
             for comb in self.comb.iter_mut() {
                 out_l += comb.l.process(input);
@@ -258,18 +261,21 @@ impl ReverbModel {
             out_l -= DC_OFFSET;
             out_r -= DC_OFFSET;
 
-            unsafe {
-                *left_out.offset(k) = out_l * self.wet1 + out_r * self.wet2;
-                *right_out.offset(k) = out_r * self.wet1 + out_l * self.wet2;
-            }
+            left_out[k] = out_l * self.wet1 + out_r * self.wet2;
+            right_out[k] = out_r * self.wet1 + out_l * self.wet2;
         }
     }
 
-    pub fn process_mix(&mut self, in_0: *mut f32, left_out: *mut f32, right_out: *mut f32) {
+    pub fn process_mix(
+        &mut self,
+        in_0: &mut [f32; 64],
+        left_out: &mut [f32; 64],
+        right_out: &mut [f32; 64],
+    ) {
         for k in 0..64 {
             let mut out_r = 0f32;
             let mut out_l = out_r;
-            let input = unsafe { ((2f32 * *in_0.offset(k as isize)) + DC_OFFSET) * self.gain };
+            let input = (2.0 * in_0[k] + DC_OFFSET) * self.gain;
 
             for comb in self.comb.iter_mut() {
                 out_l += comb.l.process(input);
@@ -284,10 +290,8 @@ impl ReverbModel {
             out_l -= DC_OFFSET;
             out_r -= DC_OFFSET;
 
-            unsafe {
-                *left_out.offset(k as isize) += out_l * self.wet1 + out_r * self.wet2;
-                *right_out.offset(k as isize) += out_r * self.wet1 + out_l * self.wet2;
-            }
+            left_out[k] += out_l * self.wet1 + out_r * self.wet2;
+            right_out[k] += out_r * self.wet1 + out_l * self.wet2;
         }
     }
 

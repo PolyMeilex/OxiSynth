@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 const MIN_SPEED_HZ: f32 = 0.29;
 
 /* Length of one delay line in samples:
@@ -69,12 +71,8 @@ impl Chorus {
             sample_rate,
             sinc_table: [[0f32; 128]; 5],
         };
-        let mut i;
-        i = 0 as i32;
-        while i < 5 as i32 {
-            let mut ii;
-            ii = 0 as i32;
-            while ii < (1 as i32) << 8 as i32 - 1 as i32 {
+        for i in 0..5 {
+            for ii in 0..((1 as i32) << 8 as i32 - 1 as i32) {
                 let i_shifted: f64 = i as f64 - 5 as i32 as f64 / 2.0f64
                     + ii as f64 / ((1 as i32) << 8 as i32 - 1 as i32) as f64;
                 if f64::abs(i_shifted) < 0.000001f64 {
@@ -92,20 +90,15 @@ impl Chorus {
                                             / 5 as i32 as f32 as f64,
                                     )))) as f32
                 }
-                ii += 1
             }
-            i += 1
         }
         chorus.init();
         return chorus;
     }
 
     pub fn init(&mut self) {
-        let mut i: i32 = 0;
-
-        while i < (1 as i32) << 12 as i32 - 1 as i32 {
+        for i in 0..((1 as i32) << 12 as i32 - 1 as i32) {
             self.chorusbuf[i as usize] = 0.0f32;
-            i += 1
         }
 
         self.set_nr(3);
@@ -157,7 +150,6 @@ impl Chorus {
     }
 
     pub fn update(&mut self) {
-        let mut i: i32;
         let mut modulation_depth_samples: i32;
         if self.new_number_blocks < 0 as i32 {
             log::warn!("chorus: number blocks must be >=0! Setting value to 0.");
@@ -208,7 +200,7 @@ impl Chorus {
         if self.type_0 == ChorusMode::Sine {
             modulate_sine(
                 &mut self.lookup_tab,
-                self.modulation_period_samples as i32,
+                self.modulation_period_samples as usize,
                 modulation_depth_samples,
             );
         } else if self.type_0 == ChorusMode::Triangle {
@@ -222,15 +214,13 @@ impl Chorus {
             self.type_0 = ChorusMode::Sine;
             modulate_sine(
                 &mut self.lookup_tab,
-                self.modulation_period_samples as i32,
+                self.modulation_period_samples as usize,
                 modulation_depth_samples,
             );
         }
-        i = 0 as i32;
-        while i < self.number_blocks {
-            self.phase[i as usize] = (self.modulation_period_samples as f64 * i as f64
+        for i in 0..(self.number_blocks as usize) {
+            self.phase[i] = (self.modulation_period_samples as f64 * i as f64
                 / self.number_blocks as f64) as i32 as isize;
-            i += 1
         }
         self.counter = 0 as i32;
         self.type_0 = self.new_type;
@@ -240,89 +230,75 @@ impl Chorus {
         self.number_blocks = self.new_number_blocks;
     }
 
-    pub fn process_mix(&mut self, in_0: *mut f32, left_out: *mut f32, right_out: *mut f32) {
-        unsafe {
-            let mut sample_index: i32;
-            let mut i: i32;
-            let mut d_in: f32;
-            let mut d_out: f32;
-            sample_index = 0 as i32;
-            while sample_index < 64 as i32 {
-                d_in = *in_0.offset(sample_index as isize);
-                d_out = 0.0f32;
-                self.chorusbuf[self.counter as usize] = d_in;
-                i = 0 as i32;
-                while i < self.number_blocks {
-                    let mut ii: i32;
-                    let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32)
-                        * self.counter
-                        - self.lookup_tab[self.phase[i as usize] as usize];
-                    let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
-                    pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
-                    ii = 0 as i32;
-                    while ii < 5 as i32 {
-                        d_out += self.chorusbuf[(pos_samples
-                            & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
-                            as usize]
-                            * self.sinc_table[ii as usize][pos_subsamples as usize];
-                        pos_samples -= 1;
-                        ii += 1
-                    }
-                    self.phase[i as usize] += 1;
-                    self.phase[i as usize] %= self.modulation_period_samples;
-                    i += 1
+    pub fn process_mix(
+        &mut self,
+        in_0: &mut [f32; 64],
+        left_out: &mut [f32; 64],
+        right_out: &mut [f32; 64],
+    ) {
+        for sample_index in 0..64 {
+            let d_in = in_0[sample_index as usize];
+            let mut d_out = 0.0f32;
+            self.chorusbuf[self.counter as usize] = d_in;
+
+            for i in 0..(self.number_blocks as usize) {
+                let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32) * self.counter
+                    - self.lookup_tab[self.phase[i as usize] as usize];
+                let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
+                pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
+
+                for ii in 0..5 {
+                    d_out += self.chorusbuf
+                        [(pos_samples & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32) as usize]
+                        * self.sinc_table[ii as usize][pos_subsamples as usize];
+                    pos_samples -= 1;
                 }
-                d_out *= self.level;
-                let ref mut fresh0 = *left_out.offset(sample_index as isize);
-                *fresh0 += d_out;
-                let ref mut fresh1 = *right_out.offset(sample_index as isize);
-                *fresh1 += d_out;
-                self.counter += 1;
-                self.counter %= (1 as i32) << 12 as i32 - 1 as i32;
-                sample_index += 1
+
+                self.phase[i as usize] += 1;
+                self.phase[i as usize] %= self.modulation_period_samples;
             }
+
+            d_out *= self.level;
+
+            left_out[sample_index] += d_out;
+            right_out[sample_index] += d_out;
+
+            self.counter += 1;
+            self.counter %= (1 as i32) << 12 as i32 - 1 as i32;
         }
     }
 
-    pub fn process_replace(&mut self, in_0: *mut f32, left_out: *mut f32, right_out: *mut f32) {
-        unsafe {
-            let mut sample_index: i32;
-            let mut i: i32;
-            let mut d_in: f32;
-            let mut d_out: f32;
-            sample_index = 0 as i32;
-            while sample_index < 64 as i32 {
-                d_in = *in_0.offset(sample_index as isize);
-                d_out = 0.0f32;
-                self.chorusbuf[self.counter as usize] = d_in;
-                i = 0 as i32;
-                while i < self.number_blocks {
-                    let mut ii: i32;
-                    let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32)
-                        * self.counter
-                        - self.lookup_tab[self.phase[i as usize] as usize];
-                    let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
-                    pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
-                    ii = 0 as i32;
-                    while ii < 5 as i32 {
-                        d_out += self.chorusbuf[(pos_samples
-                            & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
-                            as usize]
-                            * self.sinc_table[ii as usize][pos_subsamples as usize];
-                        pos_samples -= 1;
-                        ii += 1
-                    }
-                    self.phase[i as usize] += 1;
-                    self.phase[i as usize] %= self.modulation_period_samples;
-                    i += 1
+    pub fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
+        for sample_index in 0..64 {
+            // Don't ask me why only left buf is considered an input...
+            let d_in = left_out[sample_index];
+            let mut d_out = 0.0f32;
+
+            self.chorusbuf[self.counter as usize] = d_in;
+
+            for i in 0..(self.number_blocks as usize) {
+                let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32) * self.counter
+                    - self.lookup_tab[self.phase[i as usize] as usize];
+                let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
+                pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
+
+                for ii in 0..5 {
+                    d_out += self.chorusbuf
+                        [(pos_samples & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32) as usize]
+                        * self.sinc_table[ii as usize][pos_subsamples as usize];
+                    pos_samples -= 1;
                 }
-                d_out *= self.level;
-                *left_out.offset(sample_index as isize) = d_out;
-                *right_out.offset(sample_index as isize) = d_out;
-                self.counter += 1;
-                self.counter %= (1 as i32) << 12 as i32 - 1 as i32;
-                sample_index += 1
+
+                self.phase[i] += 1;
+                self.phase[i] %= self.modulation_period_samples;
             }
+            d_out *= self.level;
+
+            left_out[sample_index as usize] = d_out;
+            right_out[sample_index as usize] = d_out;
+
+            self.counter += 1;
+            self.counter %= (1 as i32) << 12 as i32 - 1 as i32;
         }
     }
 
@@ -331,17 +307,14 @@ impl Chorus {
     }
 }
 
-fn modulate_sine(buf: &mut [i32], len: i32, depth: i32) {
-    let mut i: i32;
+fn modulate_sine(buf: &mut [i32], len: usize, depth: i32) {
     let mut val: f64;
-    i = 0 as i32;
-    while i < len {
+    for i in 0..len {
         val = f64::sin(i as f64 / len as f64 * 2.0f64 * std::f64::consts::PI);
-        buf[i as usize] = ((1.0f64 + val) * depth as f64 / 2.0f64
+        buf[i] = ((1.0f64 + val) * depth as f64 / 2.0f64
             * ((1 as i32) << 8 as i32 - 1 as i32) as f64) as i32;
-        buf[i as usize] -=
+        buf[i] -=
             3 as i32 * ((1 as i32) << 12 as i32 - 1 as i32) * ((1 as i32) << 8 as i32 - 1 as i32);
-        i += 1
     }
 }
 

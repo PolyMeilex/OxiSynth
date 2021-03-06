@@ -14,11 +14,11 @@ Oxidizations Status
 - [ ] ./voice
   - [ ] dsp_float.rs
 - [x] ./channel.rs
-- [ ] ./chorus.rs
+- [x] ./chorus.rs
 - [x] ./conv.rs
 - [x] ./gen.rs
 - [x] ./modulator.rs
-- [ ] ./reverb.rs
+- [x] ./reverb.rs
 - [x] ./settings.rs
 - [x] ./soundfont.rs
 - [ ] ./synth.rs

@@ -25,20 +25,9 @@ impl Synth {
          * enabled on synth level.  Nonexisting buffers are detected in the
          * DSP loop. Not sending the reverb / chorus signal saves some time
          * in that case. */
-        let reverb_buf = if self.settings.synth.reverb_active {
-            self.fx_left_buf[0].as_mut_ptr()
-        } else {
-            0 as *mut f32
-        };
-        let chorus_buf = if self.settings.synth.chorus_active {
-            self.fx_left_buf[1].as_mut_ptr()
-        } else {
-            0 as *mut f32
-        };
 
         /* call all playing synthesis processes */
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
+        for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_playing() {
                 /* The output associated with a MIDI channel is wrapped around
@@ -60,11 +49,20 @@ impl Synth {
                     self.min_note_length_ticks,
                     &mut self.left_buf[auchan as usize],
                     &mut self.right_buf[auchan as usize],
-                    reverb_buf,
-                    chorus_buf,
+                    // reverb_buf
+                    if self.settings.synth.reverb_active {
+                        self.fx_left_buf[0].as_mut_ptr()
+                    } else {
+                        0 as *mut f32
+                    },
+                    // chorus_buf
+                    if self.settings.synth.chorus_active {
+                        self.fx_left_buf[1].as_mut_ptr()
+                    } else {
+                        0 as *mut f32
+                    },
                 );
             }
-            i += 1
         }
 
         /* if multi channel output, don't mix the output of the chorus and
@@ -72,36 +70,38 @@ impl Synth {
         separately. */
         if do_not_mix_fx_to_out != 0 {
             /* send to reverb */
-            if !reverb_buf.is_null() {
+            if self.settings.synth.reverb_active {
                 self.reverb.process_replace(
-                    reverb_buf,
-                    self.fx_left_buf[0].as_mut_ptr(),
-                    self.fx_right_buf[0].as_mut_ptr(),
+                    // reverb_buf
+                    &mut self.fx_left_buf[0],
+                    &mut self.fx_right_buf[0],
                 );
             }
             /* send to chorus */
-            if !chorus_buf.is_null() {
+            if self.settings.synth.chorus_active {
                 self.chorus.process_replace(
-                    chorus_buf,
-                    self.fx_left_buf[1].as_mut_ptr(),
-                    self.fx_right_buf[1].as_mut_ptr(),
+                    // chorus_buf
+                    &mut self.fx_left_buf[1],
+                    &mut self.fx_right_buf[1],
                 );
             }
         } else {
             /* send to reverb */
-            if !reverb_buf.is_null() {
+            if self.settings.synth.reverb_active {
                 self.reverb.process_mix(
-                    reverb_buf,
-                    self.left_buf[0].as_mut_ptr(),
-                    self.right_buf[0].as_mut_ptr(),
+                    // reverb_buf
+                    &mut self.fx_left_buf[0],
+                    &mut self.left_buf[0],
+                    &mut self.right_buf[0],
                 );
             }
             /* send to chorus */
-            if !chorus_buf.is_null() {
+            if self.settings.synth.chorus_active {
                 self.chorus.process_mix(
-                    chorus_buf,
-                    self.left_buf[0].as_mut_ptr(),
-                    self.right_buf[0].as_mut_ptr(),
+                    // chorus_buf
+                    &mut self.fx_left_buf[1],
+                    &mut self.left_buf[0],
+                    &mut self.right_buf[0],
                 );
             }
         }
