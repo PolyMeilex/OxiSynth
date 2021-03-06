@@ -1081,8 +1081,8 @@ impl Voice {
                             self.last_fres = fres
                         }
 
-                        unsafe {
-                            let count = match self.interp_method {
+                        let count = unsafe {
+                            (match self.interp_method {
                                 InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
                                 InterpMethod::Linear => {
                                     self.dsp_float_interpolate_linear(&mut dsp_buf)
@@ -1093,22 +1093,23 @@ impl Voice {
                                 InterpMethod::SeventhOrder => {
                                     self.dsp_float_interpolate_7th_order(&mut dsp_buf)
                                 }
-                            } as usize;
-                            if count > 0 {
-                                self.effects(
-                                    &mut dsp_buf,
-                                    count,
-                                    dsp_left_buf,
-                                    dsp_right_buf,
-                                    fx_left_buf,
-                                    reverb_active,
-                                    chorus_active,
-                                );
-                            }
-                            /* turn off voice if short count (sample ended and not looping) */
-                            if count < 64 {
-                                self.off();
-                            }
+                            }) as usize
+                        };
+
+                        if count > 0 {
+                            self.effects(
+                                &mut dsp_buf,
+                                count,
+                                dsp_left_buf,
+                                dsp_right_buf,
+                                fx_left_buf,
+                                reverb_active,
+                                chorus_active,
+                            );
+                        }
+                        /* turn off voice if short count (sample ended and not looping) */
+                        if count < 64 {
+                            self.off();
                         }
                     }
                 }
@@ -1120,7 +1121,7 @@ impl Voice {
     }
     //removed inline
     #[inline]
-    unsafe fn effects(
+    fn effects(
         &mut self,
         dsp_buf: &mut [f32; 64],
         count: usize,
@@ -1130,10 +1131,11 @@ impl Voice {
         reverb_active: bool,
         chorus_active: bool,
     ) {
-        let dsp_buf = dsp_buf.as_mut_ptr();
-
+        /* IIR filter sample history */
         let mut dsp_hist1: f32 = self.hist1;
         let mut dsp_hist2: f32 = self.hist2;
+
+        /* IIR filter coefficients */
         let mut dsp_a1: f32 = self.a1;
         let mut dsp_a2: f32 = self.a2;
         let mut dsp_b02: f32 = self.b02;
@@ -1143,53 +1145,74 @@ impl Voice {
         let dsp_b02_incr: f32 = self.b02_incr;
         let dsp_b1_incr: f32 = self.b1_incr;
         let mut dsp_filter_coeff_incr_count: i32 = self.filter_coeff_incr_count;
+
         let mut dsp_centernode;
         let mut v;
+
+        /* filter (implement the voice filter according to SoundFont standard) */
+
+        /* Check for denormal number (too close to zero). */
         if f64::abs(dsp_hist1 as f64) < 1e-20f64 {
-            dsp_hist1 = 0.0f32
+            dsp_hist1 = 0.0f32; /* FIXME JMG - Is this even needed? */
         }
+
+        /* Two versions of the filter loop. One, while the filter is
+         * changing towards its new setting. The other, if the filter
+         * doesn't change.
+         */
         if dsp_filter_coeff_incr_count > 0 as i32 {
+            /* Increment is added to each filter coefficient filter_coeff_incr_count times. */
             for dsp_i in 0..count {
-                dsp_centernode =
-                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                *dsp_buf.offset(dsp_i as isize) =
-                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+                /* The filter is implemented in Direct-II form. */
+                dsp_centernode = dsp_buf[dsp_i] - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                dsp_buf[dsp_i] = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
                 let fresh0 = dsp_filter_coeff_incr_count;
                 dsp_filter_coeff_incr_count = dsp_filter_coeff_incr_count - 1;
-                if fresh0 > 0 as i32 {
+
+                if fresh0 > 0 {
                     dsp_a1 += dsp_a1_incr;
                     dsp_a2 += dsp_a2_incr;
                     dsp_b02 += dsp_b02_incr;
                     dsp_b1 += dsp_b1_incr
                 }
             }
-        } else {
+        }
+        /* The filter parameters are constant.  This is duplicated to save time. */
+        else {
+            /* The filter is implemented in Direct-II form. */
             for dsp_i in 0..count {
-                dsp_centernode =
-                    *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                *dsp_buf.offset(dsp_i as isize) =
-                    dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+                dsp_centernode = dsp_buf[dsp_i] - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                dsp_buf[dsp_i] = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
             }
         }
+
+        /* pan (Copy the signal to the left and right output buffer) The voice
+         * panning generator has a range of -500 .. 500.  If it is centered,
+         * it's close to 0.  voice->amp_left and voice->amp_right are then the
+         * same, and we can save one multiplication per voice and sample.
+         */
         if -0.5f64 < (self).pan as f64 && ((self).pan as f64) < 0.5f64 {
+            /* The voice is centered. Use voice->amp_left twice. */
             for dsp_i in 0..count {
-                v = self.amp_left * *dsp_buf.offset(dsp_i as isize);
+                v = self.amp_left * dsp_buf[dsp_i];
                 dsp_left_buf[dsp_i as usize] += v;
                 dsp_right_buf[dsp_i as usize] += v;
             }
-        } else {
+        }
+        /* The voice is not centered. Stereo samples have one side zero. */
+        else {
             if self.amp_left as f64 != 0.0f64 {
                 for dsp_i in 0..count {
-                    dsp_left_buf[dsp_i] += (self).amp_left * *dsp_buf.offset(dsp_i as isize);
+                    dsp_left_buf[dsp_i] += (self).amp_left * dsp_buf[dsp_i];
                 }
             }
             if self.amp_right as f64 != 0.0f64 {
                 for dsp_i in 0..count {
-                    dsp_right_buf[dsp_i] += self.amp_right * *dsp_buf.offset(dsp_i as isize);
+                    dsp_right_buf[dsp_i] += self.amp_right * dsp_buf[dsp_i];
                 }
             }
         }
@@ -1198,7 +1221,7 @@ impl Voice {
             if self.amp_reverb != 0.0 {
                 for dsp_i in 0..count {
                     // dsp_reverb_buf
-                    fx_left_buf[0][dsp_i] += self.amp_reverb * *dsp_buf.offset(dsp_i as isize);
+                    fx_left_buf[0][dsp_i] += self.amp_reverb * dsp_buf[dsp_i];
                 }
             }
         }
@@ -1207,7 +1230,7 @@ impl Voice {
             if self.amp_chorus != 0.0 {
                 for dsp_i in 0..count {
                     // dsp_chorus_buf
-                    fx_left_buf[1][dsp_i] += self.amp_chorus * *dsp_buf.offset(dsp_i as isize);
+                    fx_left_buf[1][dsp_i] += self.amp_chorus * dsp_buf[dsp_i];
                 }
             }
         }
