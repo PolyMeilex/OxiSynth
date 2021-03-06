@@ -11,8 +11,8 @@ Oxidizations Status
   - [x] reverb.rs
   - [x] tuning.rs
   - [ ] write.rs
-- [ ] ./voice
-  - [ ] dsp_float.rs
+- [x] ./voice
+  - [x] dsp_float.rs
 - [x] ./channel.rs
 - [x] ./chorus.rs
 - [x] ./conv.rs

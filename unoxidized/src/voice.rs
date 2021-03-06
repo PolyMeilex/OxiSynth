@@ -1081,19 +1081,15 @@ impl Voice {
                             self.last_fres = fres
                         }
 
-                        let count = unsafe {
-                            (match self.interp_method {
-                                InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
-                                InterpMethod::Linear => {
-                                    self.dsp_float_interpolate_linear(&mut dsp_buf)
-                                }
-                                InterpMethod::FourthOrder => {
-                                    self.dsp_float_interpolate_4th_order(&mut dsp_buf)
-                                }
-                                InterpMethod::SeventhOrder => {
-                                    self.dsp_float_interpolate_7th_order(&mut dsp_buf)
-                                }
-                            }) as usize
+                        let count = match self.interp_method {
+                            InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
+                            InterpMethod::Linear => self.dsp_float_interpolate_linear(&mut dsp_buf),
+                            InterpMethod::FourthOrder => {
+                                self.dsp_float_interpolate_4th_order(&mut dsp_buf)
+                            }
+                            InterpMethod::SeventhOrder => {
+                                self.dsp_float_interpolate_7th_order(&mut dsp_buf)
+                            }
                         };
 
                         if count > 0 {
