@@ -782,7 +782,7 @@ impl Voice {
         self.amp_chorus = self.chorus_send * gain / 32768.0f32;
     }
 
-    pub unsafe fn write(
+    pub fn write(
         &mut self,
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32],
@@ -793,12 +793,16 @@ impl Voice {
     ) -> i32 {
         let current_block: u64;
         let mut fres;
-        let target_amp;
+        let target_amp; /* target amplitude */
+
         let mut dsp_buf: [f32; 64] = [0.; 64];
-        let mut x;
+
+        /* make sure we're playing and that we have sample data */
         if !self.is_playing() {
             return FLUID_OK as i32;
         }
+
+        /******************* sample **********************/
         if self.sample.is_none() {
             self.off();
             return FLUID_OK as i32;
@@ -806,63 +810,73 @@ impl Voice {
         if self.noteoff_ticks != 0 as i32 as u32 && self.ticks >= self.noteoff_ticks {
             self.noteoff(min_note_length_ticks);
         }
+
+        /* Range checking for sample- and loop-related parameters
+         * Initial phase is calculated here*/
         self.check_sample_sanity();
-        let mut env_data = &mut *self
-            .volenv_data
-            .as_mut_ptr()
-            .offset(self.volenv_section as isize) as *mut EnvData;
-        while self.volenv_count >= (*env_data).count {
+
+        /* skip to the next section of the envelope if necessary */
+        let mut env_data = &self.volenv_data[self.volenv_section as usize];
+        while self.volenv_count >= env_data.count {
             // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
-            if !env_data.is_null() && (self).volenv_section == FLUID_VOICE_ENVDECAY as i32 {
-                self.volenv_val = (*env_data).min * (*env_data).coeff
+            if self.volenv_section == FLUID_VOICE_ENVDECAY as i32 {
+                self.volenv_val = env_data.min * env_data.coeff
             }
+
             self.volenv_section += 1;
-            env_data = &mut *self
-                .volenv_data
-                .as_mut_ptr()
-                .offset(self.volenv_section as isize) as *mut EnvData;
+            env_data = &self.volenv_data[self.volenv_section as usize];
+            self.volenv_count = 0;
+        }
+
+        /* calculate the envelope value and check for valid range */
+        let mut x = env_data.coeff * self.volenv_val + env_data.incr;
+        if x < env_data.min {
+            x = env_data.min;
+            self.volenv_section += 1;
+            self.volenv_count = 0 as i32 as u32
+        } else if x > env_data.max {
+            x = env_data.max;
+            self.volenv_section += 1;
             self.volenv_count = 0 as i32 as u32
         }
-        x = (*env_data).coeff * (self).volenv_val + (*env_data).incr;
-        if x < (*env_data).min {
-            x = (*env_data).min;
-            self.volenv_section += 1;
-            self.volenv_count = 0 as i32 as u32
-        } else if x > (*env_data).max {
-            x = (*env_data).max;
-            self.volenv_section += 1;
-            self.volenv_count = 0 as i32 as u32
-        }
+
         self.volenv_val = x;
         self.volenv_count = self.volenv_count.wrapping_add(1);
+
         if self.volenv_section == FLUID_VOICE_ENVFINISHED as i32 {
             self.off();
             return FLUID_OK as i32;
         }
-        env_data = &mut *self
-            .modenv_data
-            .as_mut_ptr()
-            .offset(self.modenv_section as isize) as *mut EnvData;
-        while self.modenv_count >= (*env_data).count {
+
+        /******************* mod env **********************/
+
+        let mut env_data = &self.modenv_data[self.modenv_section as usize];
+
+        /* skip to the next section of the envelope if necessary */
+        while self.modenv_count >= env_data.count {
             self.modenv_section += 1;
-            env_data = &mut *self
-                .modenv_data
-                .as_mut_ptr()
-                .offset(self.modenv_section as isize) as *mut EnvData;
+            env_data = &self.modenv_data[self.modenv_section as usize];
+            self.modenv_count = 0;
+        }
+
+        /* calculate the envelope value and check for valid range */
+        let mut x = env_data.coeff * self.modenv_val + env_data.incr;
+
+        if x < env_data.min {
+            x = env_data.min;
+            self.modenv_section += 1;
+            self.modenv_count = 0 as i32 as u32
+        } else if x > env_data.max {
+            x = env_data.max;
+            self.modenv_section += 1;
             self.modenv_count = 0 as i32 as u32
         }
-        x = (*env_data).coeff * (self).modenv_val + (*env_data).incr;
-        if x < (*env_data).min {
-            x = (*env_data).min;
-            self.modenv_section += 1;
-            self.modenv_count = 0 as i32 as u32
-        } else if x > (*env_data).max {
-            x = (*env_data).max;
-            self.modenv_section += 1;
-            self.modenv_count = 0 as i32 as u32
-        }
+
         self.modenv_val = x;
         self.modenv_count = self.modenv_count.wrapping_add(1);
+
+        /******************* mod lfo **********************/
+
         if self.ticks >= self.modlfo_delay {
             self.modlfo_val += self.modlfo_incr;
             if self.modlfo_val as f64 > 1.0f64 {
@@ -873,6 +887,8 @@ impl Voice {
                 self.modlfo_val = -2.0f32 - self.modlfo_val
             }
         }
+
+        /******************* vib lfo **********************/
         if self.ticks >= self.viblfo_delay {
             self.viblfo_val += self.viblfo_incr;
             if self.viblfo_val > 1.0f32 {
@@ -883,8 +899,19 @@ impl Voice {
                 self.viblfo_val = -2.0f32 - self.viblfo_val
             }
         }
+
+        /******************* amplitude **********************/
+
+        /* calculate final amplitude
+         * - initial gain
+         * - amplitude envelope
+         */
+
         if !(self.volenv_section == FLUID_VOICE_ENVDELAY as i32) {
             if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
+                /* the envelope is in the attack section: ramp linearly to max value.
+                 * A positive modlfo_to_vol should increase volume (negative attenuation).
+                 */
                 target_amp = fluid_atten2amp(self.attenuation)
                     * fluid_cb2amp(self.modlfo_val * -self.modlfo_to_vol)
                     * self.volenv_val;
@@ -897,6 +924,19 @@ impl Voice {
                         960.0f32 * (1.0f32 - self.volenv_val)
                             + self.modlfo_val * -self.modlfo_to_vol,
                     );
+
+                /* We turn off a voice, if the volume has dropped low enough. */
+
+                /* A voice can be turned off, when an estimate for the volume
+                 * (upper bound) falls below that volume, that will drop the
+                 * sample below the noise floor.
+                 */
+
+                /* If the loop amplitude is known, we can use it if the voice loop is within
+                 * the sample loop
+                 */
+
+                /* Is the playing pointer already in the loop? */
                 if self.has_looped != 0 {
                     amplitude_that_reaches_noise_floor =
                         self.amplitude_that_reaches_noise_floor_loop
@@ -904,9 +944,20 @@ impl Voice {
                     amplitude_that_reaches_noise_floor =
                         self.amplitude_that_reaches_noise_floor_nonloop
                 }
+
+                /* voice->attenuation_min is a lower boundary for the attenuation
+                 * now and in the future (possibly 0 in the worst case).  Now the
+                 * amplitude of sample and volenv cannot exceed amp_max (since
+                 * volenv_val can only drop):
+                 */
                 amp_max = fluid_atten2amp(self.min_attenuation_c_b) * self.volenv_val;
+
+                /* And if amp_max is already smaller than the known amplitude,
+                 * which will attenuate the sample below the noise floor, then we
+                 * can safely turn off the voice. Duh. */
                 if amp_max < amplitude_that_reaches_noise_floor {
                     self.off();
+                    //  goto post_process;
                     current_block = 3632332525568699835;
                 } else {
                     current_block = 576355610076403033;
@@ -915,28 +966,70 @@ impl Voice {
             match current_block {
                 3632332525568699835 => {}
                 _ => {
+                    /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
                     self.amp_incr = (target_amp - self.amp) / 64 as i32 as f32;
+                    /* no volume and not changing? - No need to process */
                     if !(self.amp == 0.0f32 && self.amp_incr == 0.0f32) {
+                        /* Calculate the number of samples, that the DSP loop advances
+                         * through the original waveform with each step in the output
+                         * buffer. It is the ratio between the frequencies of original
+                         * waveform and output waveform.*/
                         self.phase_incr = fluid_ct2hz_real(
                             self.pitch
                                 + self.modlfo_val * self.modlfo_to_pitch
                                 + self.viblfo_val * self.viblfo_to_pitch
                                 + self.modenv_val * self.modenv_to_pitch,
                         ) / self.root_pitch;
+
+                        /* if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage) */
                         if self.phase_incr == 0 as i32 as f32 {
                             self.phase_incr = 1 as i32 as f32
                         }
+
+                        /*************** resonant filter ******************/
+
+                        /* calculate the frequency of the resonant filter in Hz */
                         fres = fluid_ct2hz(
                             self.fres
                                 + self.modlfo_val * self.modlfo_to_fc
                                 + self.modenv_val * self.modenv_to_fc,
                         );
+
+                        /* FIXME - Still potential for a click during turn on, can we interpolate
+                        between 20khz cutoff and 0 Q? */
+
+                        /* I removed the optimization of turning the filter off when the
+                         * resonance frequence is above the maximum frequency. Instead, the
+                         * filter frequency is set to a maximum of 0.45 times the sampling
+                         * rate. For a 44100 kHz sampling rate, this amounts to 19845
+                         * Hz. The reason is that there were problems with anti-aliasing when the
+                         * synthesizer was run at lower sampling rates. Thanks to Stephan
+                         * Tassart for pointing me to this bug. By turning the filter on and
+                         * clipping the maximum filter frequency at 0.45*srate, the filter
+                         * is used as an anti-aliasing filter. */
                         if fres > 0.45f32 * self.output_rate {
                             fres = 0.45f32 * self.output_rate
                         } else if fres < 5 as i32 as f32 {
                             fres = 5 as i32 as f32
                         }
+
+                        /* if filter enabled and there is a significant frequency change.. */
                         if f64::abs((fres - self.last_fres) as f64) > 0.01f64 {
+                            /* The filter coefficients have to be recalculated (filter
+                             * parameters have changed). Recalculation for various reasons is
+                             * forced by setting last_fres to -1.  The flag filter_startup
+                             * indicates, that the DSP loop runs for the first time, in this
+                             * case, the filter is set directly, instead of smoothly fading
+                             * between old and new settings.
+                             *
+                             * Those equations from Robert Bristow-Johnson's `Cookbook
+                             * formulae for audio EQ biquad filter coefficients', obtained
+                             * from Harmony-central.com / Computer / Programming. They are
+                             * the result of the bilinear transform on an analogue filter
+                             * prototype. To quote, `BLT frequency warping has been taken
+                             * into account for both significant frequency relocation and for
+                             * bandwidth readjustment'. */
+
                             let omega: f32 =
                                 (2.0f64 * std::f64::consts::PI * (fres / self.output_rate) as f64)
                                     as f32;
@@ -944,11 +1037,25 @@ impl Voice {
                             let cos_coeff: f32 = f64::cos(omega.into()) as f32;
                             let alpha_coeff: f32 = sin_coeff / (2.0f32 * (self).q_lin);
                             let a0_inv: f32 = 1.0f32 / (1.0f32 + alpha_coeff);
+
+                            /* Calculate the filter coefficients. All coefficients are
+                             * normalized by a0. Think of `a1' as `a1/a0'.
+                             *
+                             * Here a couple of multiplications are saved by reusing common expressions.
+                             * The original equations should be:
+                             *  voice->b0=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
+                             *  voice->b1=(1.-cos_coeff)*a0_inv*voice->filter_gain;
+                             *  voice->b2=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain; */
                             let a1_temp: f32 = -2.0f32 * cos_coeff * a0_inv;
                             let a2_temp: f32 = (1.0f32 - alpha_coeff) * a0_inv;
                             let b1_temp: f32 = (1.0f32 - cos_coeff) * a0_inv * (self).filter_gain;
+                            /* both b0 -and- b2 */
                             let b02_temp: f32 = b1_temp * 0.5f32;
+
                             if self.filter_startup != 0 {
+                                /* The filter is calculated, because the voice was started up.
+                                 * In this case set the filter coefficients without delay.
+                                 */
                                 self.a1 = a1_temp;
                                 self.a2 = a2_temp;
                                 self.b02 = b02_temp;
@@ -956,38 +1063,52 @@ impl Voice {
                                 self.filter_coeff_incr_count = 0 as i32;
                                 self.filter_startup = 0 as i32
                             } else {
+                                /* The filter frequency is changed.  Calculate an increment
+                                 * factor, so that the new setting is reached after one buffer
+                                 * length. x_incr is added to the current value FLUID_BUFSIZE
+                                 * times. The length is arbitrarily chosen. Longer than one
+                                 * buffer will sacrifice some performance, though.  Note: If
+                                 * the filter is still too 'grainy', then increase this number
+                                 * at will.
+                                 */
                                 self.a1_incr = (a1_temp - (self).a1) / 64 as i32 as f32;
                                 self.a2_incr = (a2_temp - (self).a2) / 64 as i32 as f32;
                                 self.b02_incr = (b02_temp - (self).b02) / 64 as i32 as f32;
                                 self.b1_incr = (b1_temp - (self).b1) / 64 as i32 as f32;
+                                /* Have to add the increments filter_coeff_incr_count times. */
                                 self.filter_coeff_incr_count = 64 as i32
                             }
                             self.last_fres = fres
                         }
 
-                        let count = match self.interp_method {
-                            InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
-                            InterpMethod::Linear => self.dsp_float_interpolate_linear(&mut dsp_buf),
-                            InterpMethod::FourthOrder => {
-                                self.dsp_float_interpolate_4th_order(&mut dsp_buf)
+                        unsafe {
+                            let count = match self.interp_method {
+                                InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
+                                InterpMethod::Linear => {
+                                    self.dsp_float_interpolate_linear(&mut dsp_buf)
+                                }
+                                InterpMethod::FourthOrder => {
+                                    self.dsp_float_interpolate_4th_order(&mut dsp_buf)
+                                }
+                                InterpMethod::SeventhOrder => {
+                                    self.dsp_float_interpolate_7th_order(&mut dsp_buf)
+                                }
+                            } as usize;
+                            if count > 0 {
+                                self.effects(
+                                    &mut dsp_buf,
+                                    count,
+                                    dsp_left_buf,
+                                    dsp_right_buf,
+                                    fx_left_buf,
+                                    reverb_active,
+                                    chorus_active,
+                                );
                             }
-                            InterpMethod::SeventhOrder => {
-                                self.dsp_float_interpolate_7th_order(&mut dsp_buf)
+                            /* turn off voice if short count (sample ended and not looping) */
+                            if count < 64 {
+                                self.off();
                             }
-                        } as usize;
-                        if count > 0 {
-                            self.effects(
-                                &mut dsp_buf,
-                                count,
-                                dsp_left_buf,
-                                dsp_right_buf,
-                                fx_left_buf,
-                                reverb_active,
-                                chorus_active,
-                            );
-                        }
-                        if count < 64 {
-                            self.off();
                         }
                     }
                 }
