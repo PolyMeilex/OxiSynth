@@ -1,3 +1,16 @@
+const MIN_SPEED_HZ: f32 = 0.29;
+
+/* Length of one delay line in samples:
+ * Set through MAX_SAMPLES_LN2.
+ * For example:
+ * MAX_SAMPLES_LN2=12
+ * => MAX_SAMPLES=pow(2,12)=4096
+ * => MAX_SAMPLES_ANDMASK=4095
+ */
+const MAX_SAMPLES_LN2: usize = 12;
+const MAX_SAMPLES: usize = 1 << (MAX_SAMPLES_LN2 - 1);
+// const MAX_SAMPLES_ANDMASK: usize = MAX_SAMPLES - 1;
+
 /**
 Chorus type
  */
@@ -14,7 +27,7 @@ impl Default for ChorusMode {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Chorus {
     type_0: ChorusMode,
     new_type: ChorusMode,
@@ -26,89 +39,75 @@ pub struct Chorus {
     new_speed_hz: f32,
     number_blocks: i32,
     new_number_blocks: i32,
-    chorusbuf: *mut f32,
+    chorusbuf: [f32; MAX_SAMPLES],
     counter: i32,
     phase: [isize; 99],
     modulation_period_samples: isize,
-    lookup_tab: *mut i32,
+    lookup_tab: Vec<i32>,
     sample_rate: f32,
     sinc_table: [[f32; 128]; 5],
 }
 
 impl Chorus {
     pub fn new(sample_rate: f32) -> Self {
-        unsafe {
-            let mut chorus = Self {
-                type_0: ChorusMode::Sine,
-                new_type: ChorusMode::Sine,
-                depth_ms: 0f32,
-                new_depth_ms: 0f32,
-                level: 0f32,
-                new_level: 0f32,
-                speed_hz: 0f32,
-                new_speed_hz: 0f32,
-                number_blocks: 0,
-                new_number_blocks: 0,
-                chorusbuf: libc::malloc(
-                    (((1 as i32) << 12 as i32 - 1 as i32) as libc::size_t)
-                        .wrapping_mul(::std::mem::size_of::<f32>() as libc::size_t),
-                ) as *mut f32,
-                counter: 0,
-                phase: [0; 99],
-                modulation_period_samples: 0,
-                lookup_tab: libc::malloc(
-                    ((sample_rate as f64 / 0.29f64) as i32 as libc::size_t)
-                        .wrapping_mul(::std::mem::size_of::<i32>() as libc::size_t),
-                ) as *mut i32,
-                sample_rate,
-                sinc_table: [[0f32; 128]; 5],
-            };
-            let mut i;
-            i = 0 as i32;
-            while i < 5 as i32 {
-                let mut ii;
-                ii = 0 as i32;
-                while ii < (1 as i32) << 8 as i32 - 1 as i32 {
-                    let i_shifted: f64 = i as f64 - 5 as i32 as f64 / 2.0f64
-                        + ii as f64 / ((1 as i32) << 8 as i32 - 1 as i32) as f64;
-                    if f64::abs(i_shifted) < 0.000001f64 {
-                        chorus.sinc_table[i as usize][ii as usize] = 1.0f32
-                    } else {
-                        chorus.sinc_table[i as usize][ii as usize] =
-                            (f64::sin(i_shifted * std::f64::consts::PI) as f32 as f64
-                                / (std::f64::consts::PI * i_shifted))
-                                as f32;
-                        chorus.sinc_table[i as usize][ii as usize] =
-                            (chorus.sinc_table[i as usize][ii as usize] as f64
-                                * (0.5f64
-                                    * (1.0f64
-                                        + f64::cos(
-                                            2.0f64 * std::f64::consts::PI * i_shifted
-                                                / 5 as i32 as f32 as f64,
-                                        )))) as f32
-                    }
-                    ii += 1
+        let mut chorus = Self {
+            type_0: ChorusMode::Sine,
+            new_type: ChorusMode::Sine,
+            depth_ms: 0f32,
+            new_depth_ms: 0f32,
+            level: 0f32,
+            new_level: 0f32,
+            speed_hz: 0f32,
+            new_speed_hz: 0f32,
+            number_blocks: 0,
+            new_number_blocks: 0,
+            chorusbuf: [0.0; MAX_SAMPLES],
+            counter: 0,
+            phase: [0; 99],
+            modulation_period_samples: 0,
+            lookup_tab: vec![0; (sample_rate / MIN_SPEED_HZ) as usize],
+            sample_rate,
+            sinc_table: [[0f32; 128]; 5],
+        };
+        let mut i;
+        i = 0 as i32;
+        while i < 5 as i32 {
+            let mut ii;
+            ii = 0 as i32;
+            while ii < (1 as i32) << 8 as i32 - 1 as i32 {
+                let i_shifted: f64 = i as f64 - 5 as i32 as f64 / 2.0f64
+                    + ii as f64 / ((1 as i32) << 8 as i32 - 1 as i32) as f64;
+                if f64::abs(i_shifted) < 0.000001f64 {
+                    chorus.sinc_table[i as usize][ii as usize] = 1.0f32
+                } else {
+                    chorus.sinc_table[i as usize][ii as usize] =
+                        (f64::sin(i_shifted * std::f64::consts::PI) as f32 as f64
+                            / (std::f64::consts::PI * i_shifted)) as f32;
+                    chorus.sinc_table[i as usize][ii as usize] =
+                        (chorus.sinc_table[i as usize][ii as usize] as f64
+                            * (0.5f64
+                                * (1.0f64
+                                    + f64::cos(
+                                        2.0f64 * std::f64::consts::PI * i_shifted
+                                            / 5 as i32 as f32 as f64,
+                                    )))) as f32
                 }
-                i += 1
+                ii += 1
             }
-            if chorus.lookup_tab.is_null() {
-                panic!("out of memory");
-            } else if chorus.chorusbuf.is_null() {
-                panic!("out of memory");
-            }
-            chorus.init();
-            return chorus;
+            i += 1
         }
+        chorus.init();
+        return chorus;
     }
 
     pub fn init(&mut self) {
         let mut i: i32 = 0;
-        unsafe {
-            while i < (1 as i32) << 12 as i32 - 1 as i32 {
-                *self.chorusbuf.offset(i as isize) = 0.0f32;
-                i += 1
-            }
+
+        while i < (1 as i32) << 12 as i32 - 1 as i32 {
+            self.chorusbuf[i as usize] = 0.0f32;
+            i += 1
         }
+
         self.set_nr(3);
         self.set_level(2.0);
         self.set_speed_hz(0.3);
@@ -155,19 +154,6 @@ impl Chorus {
 
     pub fn get_mode(&self) -> ChorusMode {
         self.type_0
-    }
-
-    pub fn delete(&mut self) {
-        if !self.chorusbuf.is_null() {
-            unsafe {
-                libc::free(self.chorusbuf as *mut libc::c_void);
-            }
-        }
-        if !self.lookup_tab.is_null() {
-            unsafe {
-                libc::free(self.lookup_tab as *mut libc::c_void);
-            }
-        }
     }
 
     pub fn update(&mut self) {
@@ -221,13 +207,13 @@ impl Chorus {
         }
         if self.type_0 == ChorusMode::Sine {
             modulate_sine(
-                self.lookup_tab,
+                &mut self.lookup_tab,
                 self.modulation_period_samples as i32,
                 modulation_depth_samples,
             );
         } else if self.type_0 == ChorusMode::Triangle {
             modulate_triangle(
-                self.lookup_tab,
+                &mut self.lookup_tab,
                 self.modulation_period_samples as i32,
                 modulation_depth_samples,
             );
@@ -235,7 +221,7 @@ impl Chorus {
             log::warn!("chorus: Unknown modulation type. Using sinewave.",);
             self.type_0 = ChorusMode::Sine;
             modulate_sine(
-                self.lookup_tab,
+                &mut self.lookup_tab,
                 self.modulation_period_samples as i32,
                 modulation_depth_samples,
             );
@@ -264,21 +250,21 @@ impl Chorus {
             while sample_index < 64 as i32 {
                 d_in = *in_0.offset(sample_index as isize);
                 d_out = 0.0f32;
-                *self.chorusbuf.offset(self.counter as isize) = d_in;
+                self.chorusbuf[self.counter as usize] = d_in;
                 i = 0 as i32;
                 while i < self.number_blocks {
                     let mut ii: i32;
                     let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32)
                         * self.counter
-                        - *self.lookup_tab.offset(self.phase[i as usize] as isize);
+                        - self.lookup_tab[self.phase[i as usize] as usize];
                     let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
                     pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
                     ii = 0 as i32;
                     while ii < 5 as i32 {
-                        d_out += *self.chorusbuf.offset(
-                            (pos_samples & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
-                                as isize,
-                        ) * self.sinc_table[ii as usize][pos_subsamples as usize];
+                        d_out += self.chorusbuf[(pos_samples
+                            & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
+                            as usize]
+                            * self.sinc_table[ii as usize][pos_subsamples as usize];
                         pos_samples -= 1;
                         ii += 1
                     }
@@ -308,21 +294,21 @@ impl Chorus {
             while sample_index < 64 as i32 {
                 d_in = *in_0.offset(sample_index as isize);
                 d_out = 0.0f32;
-                *self.chorusbuf.offset(self.counter as isize) = d_in;
+                self.chorusbuf[self.counter as usize] = d_in;
                 i = 0 as i32;
                 while i < self.number_blocks {
                     let mut ii: i32;
                     let mut pos_subsamples: i32 = ((1 as i32) << 8 as i32 - 1 as i32)
                         * self.counter
-                        - *self.lookup_tab.offset(self.phase[i as usize] as isize);
+                        - self.lookup_tab[self.phase[i as usize] as usize];
                     let mut pos_samples: i32 = pos_subsamples / ((1 as i32) << 8 as i32 - 1 as i32);
                     pos_subsamples &= ((1 as i32) << 8 as i32 - 1 as i32) - 1 as i32;
                     ii = 0 as i32;
                     while ii < 5 as i32 {
-                        d_out += *self.chorusbuf.offset(
-                            (pos_samples & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
-                                as isize,
-                        ) * self.sinc_table[ii as usize][pos_subsamples as usize];
+                        d_out += self.chorusbuf[(pos_samples
+                            & ((1 as i32) << 12 as i32 - 1 as i32) - 1 as i32)
+                            as usize]
+                            * self.sinc_table[ii as usize][pos_subsamples as usize];
                         pos_samples -= 1;
                         ii += 1
                     }
@@ -345,44 +331,37 @@ impl Chorus {
     }
 }
 
-fn modulate_sine(buf: *mut i32, len: i32, depth: i32) {
-    unsafe {
-        let mut i: i32;
-        let mut val: f64;
-        i = 0 as i32;
-        while i < len {
-            val = f64::sin(i as f64 / len as f64 * 2.0f64 * std::f64::consts::PI);
-            *buf.offset(i as isize) = ((1.0f64 + val) * depth as f64 / 2.0f64
-                * ((1 as i32) << 8 as i32 - 1 as i32) as f64)
-                as i32;
-            *buf.offset(i as isize) -= 3 as i32
-                * ((1 as i32) << 12 as i32 - 1 as i32)
-                * ((1 as i32) << 8 as i32 - 1 as i32);
-            i += 1
-        }
+fn modulate_sine(buf: &mut [i32], len: i32, depth: i32) {
+    let mut i: i32;
+    let mut val: f64;
+    i = 0 as i32;
+    while i < len {
+        val = f64::sin(i as f64 / len as f64 * 2.0f64 * std::f64::consts::PI);
+        buf[i as usize] = ((1.0f64 + val) * depth as f64 / 2.0f64
+            * ((1 as i32) << 8 as i32 - 1 as i32) as f64) as i32;
+        buf[i as usize] -=
+            3 as i32 * ((1 as i32) << 12 as i32 - 1 as i32) * ((1 as i32) << 8 as i32 - 1 as i32);
+        i += 1
     }
 }
 
-fn modulate_triangle(buf: *mut i32, len: i32, depth: i32) {
-    unsafe {
-        let mut i: i32 = 0 as i32;
-        let mut ii: i32 = len - 1 as i32;
-        let mut val: f64;
-        let mut val2: f64;
-        while i <= ii {
-            val = i as f64 * 2.0f64 / len as f64
-                * depth as f64
-                * ((1 as i32) << 8 as i32 - 1 as i32) as f64;
-            val2 = ((val + 0.5f64) as i32
-                - 3 as i32
-                    * ((1 as i32) << 12 as i32 - 1 as i32)
-                    * ((1 as i32) << 8 as i32 - 1 as i32)) as f64;
-            let fresh2 = i;
-            i = i + 1;
-            *buf.offset(fresh2 as isize) = val2 as i32;
-            let fresh3 = ii;
-            ii = ii - 1;
-            *buf.offset(fresh3 as isize) = val2 as i32
-        }
+fn modulate_triangle(buf: &mut [i32], len: i32, depth: i32) {
+    let mut i: i32 = 0 as i32;
+    let mut ii: i32 = len - 1 as i32;
+    let mut val: f64;
+    let mut val2: f64;
+    while i <= ii {
+        val = i as f64 * 2.0f64 / len as f64
+            * depth as f64
+            * ((1 as i32) << 8 as i32 - 1 as i32) as f64;
+        val2 = ((val + 0.5f64) as i32
+            - 3 as i32 * ((1 as i32) << 12 as i32 - 1 as i32) * ((1 as i32) << 8 as i32 - 1 as i32))
+            as f64;
+        let fresh2 = i;
+        i = i + 1;
+        buf[fresh2 as usize] = val2 as i32;
+        let fresh3 = ii;
+        ii = ii - 1;
+        buf[fresh3 as usize] = val2 as i32
     }
 }

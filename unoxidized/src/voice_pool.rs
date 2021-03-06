@@ -150,14 +150,6 @@ impl VoicePool {
     pub fn iter(&self) -> std::slice::Iter<'_, Voice> {
         self.voices.iter()
     }
-
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Voice> {
-        self.voices.iter_mut()
-    }
-
-    pub fn clear(&mut self) {
-        self.voices.clear();
-    }
 }
 
 impl std::ops::Index<usize> for VoicePool {

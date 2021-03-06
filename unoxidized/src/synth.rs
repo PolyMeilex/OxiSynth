@@ -42,7 +42,6 @@ type ModSrc = u8;
 type GenType = u8;
 type C2RustUnnamed = i32;
 
-const FLUID_SYNTH_STOPPED: SynthStatus = 3;
 const FLUID_FAILED: C2RustUnnamed = -1;
 const FLUID_SYNTH_PLAYING: SynthStatus = 1;
 
@@ -217,7 +216,6 @@ impl Synth {
         self.settings.synth.sample_rate = sample_rate;
         self.voices.set_sample_rate(sample_rate);
 
-        self.chorus.delete();
         self.chorus = Chorus::new(sample_rate);
     }
 
@@ -345,18 +343,6 @@ impl Synth {
     }
 }
 
-impl Drop for Synth {
-    fn drop(&mut self) {
-        self.state = FLUID_SYNTH_STOPPED as i32 as u32;
-        for voice in self.voices.iter_mut() {
-            voice.off();
-        }
-        self.bank_offsets.clear();
-        self.voices.clear();
-        self.chorus.delete();
-    }
-}
-
 lazy_static! {
     static ref RAND_TABLE: [[f32; 48000]; 2] = {
         let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
@@ -366,7 +352,8 @@ lazy_static! {
             let mut dp = 0.0;
             let mut i = 0;
             while i < 48000 - 1 {
-                let d = unsafe { libc::rand() as f32 / 2147483647.0 - 0.5 };
+                let r: i32 = rand::random();
+                let d = r as f32 / 2147483647.0 - 0.5;
                 rand[c as usize][i] = d - dp;
                 dp = d;
                 i += 1

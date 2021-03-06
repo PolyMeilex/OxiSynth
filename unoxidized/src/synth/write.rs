@@ -112,10 +112,10 @@ impl Synth {
     pub unsafe fn write_f32(
         &mut self,
         len: i32,
-        lout: *mut libc::c_void,
+        lout: *mut std::ffi::c_void,
         loff: i32,
         lincr: i32,
-        rout: *mut libc::c_void,
+        rout: *mut std::ffi::c_void,
         roff: i32,
         rincr: i32,
     ) -> i32 {
@@ -153,10 +153,10 @@ impl Synth {
     pub unsafe fn write_f64(
         &mut self,
         len: i32,
-        lout: *mut libc::c_void,
+        lout: *mut std::ffi::c_void,
         loff: i32,
         lincr: i32,
-        rout: *mut libc::c_void,
+        rout: *mut std::ffi::c_void,
         roff: i32,
         rincr: i32,
     ) -> i32 {
@@ -194,10 +194,10 @@ impl Synth {
     pub unsafe fn write_s16(
         &mut self,
         len: i32,
-        lout: *mut libc::c_void,
+        lout: *mut std::ffi::c_void,
         loff: i32,
         lincr: i32,
-        rout: *mut libc::c_void,
+        rout: *mut std::ffi::c_void,
         roff: i32,
         rincr: i32,
     ) -> i32 {
@@ -261,6 +261,7 @@ impl Synth {
     }
 }
 
+/* A portable replacement for roundf(), seems it may actually be faster too! */
 fn roundi(x: f32) -> i32 {
     if x >= 0.0f32 {
         (x + 0.5f32) as i32
