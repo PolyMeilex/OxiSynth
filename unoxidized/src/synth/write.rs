@@ -49,18 +49,9 @@ impl Synth {
                     self.min_note_length_ticks,
                     &mut self.left_buf[auchan as usize],
                     &mut self.right_buf[auchan as usize],
-                    // reverb_buf
-                    if self.settings.synth.reverb_active {
-                        self.fx_left_buf[0].as_mut_ptr()
-                    } else {
-                        0 as *mut f32
-                    },
-                    // chorus_buf
-                    if self.settings.synth.chorus_active {
-                        self.fx_left_buf[1].as_mut_ptr()
-                    } else {
-                        0 as *mut f32
-                    },
+                    &mut self.fx_left_buf,
+                    self.settings.synth.reverb_active,
+                    self.settings.synth.chorus_active,
                 );
             }
         }

@@ -787,8 +787,9 @@ impl Voice {
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
-        dsp_reverb_buf: *mut f32,
-        dsp_chorus_buf: *mut f32,
+        fx_left_buf: &mut Vec<[f32; 64]>,
+        reverb_active: bool,
+        chorus_active: bool,
     ) -> i32 {
         let current_block: u64;
         let mut fres;
@@ -973,18 +974,19 @@ impl Voice {
                             InterpMethod::SeventhOrder => {
                                 self.dsp_float_interpolate_7th_order(&mut dsp_buf)
                             }
-                        };
-                        if count > 0 as i32 {
+                        } as usize;
+                        if count > 0 {
                             self.effects(
                                 &mut dsp_buf,
                                 count,
                                 dsp_left_buf,
                                 dsp_right_buf,
-                                dsp_reverb_buf,
-                                dsp_chorus_buf,
+                                fx_left_buf,
+                                reverb_active,
+                                chorus_active,
                             );
                         }
-                        if count < 64 as i32 {
+                        if count < 64 {
                             self.off();
                         }
                     }
@@ -1000,34 +1002,33 @@ impl Voice {
     unsafe fn effects(
         &mut self,
         dsp_buf: &mut [f32; 64],
-        count: i32,
+        count: usize,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
-        dsp_reverb_buf: *mut f32,
-        dsp_chorus_buf: *mut f32,
+        fx_left_buf: &mut Vec<[f32; 64]>,
+        reverb_active: bool,
+        chorus_active: bool,
     ) {
         let dsp_buf = dsp_buf.as_mut_ptr();
 
-        let mut dsp_hist1: f32 = (self).hist1;
-        let mut dsp_hist2: f32 = (self).hist2;
-        let mut dsp_a1: f32 = (self).a1;
-        let mut dsp_a2: f32 = (self).a2;
-        let mut dsp_b02: f32 = (self).b02;
-        let mut dsp_b1: f32 = (self).b1;
-        let dsp_a1_incr: f32 = (self).a1_incr;
-        let dsp_a2_incr: f32 = (self).a2_incr;
-        let dsp_b02_incr: f32 = (self).b02_incr;
-        let dsp_b1_incr: f32 = (self).b1_incr;
-        let mut dsp_filter_coeff_incr_count: i32 = (self).filter_coeff_incr_count;
+        let mut dsp_hist1: f32 = self.hist1;
+        let mut dsp_hist2: f32 = self.hist2;
+        let mut dsp_a1: f32 = self.a1;
+        let mut dsp_a2: f32 = self.a2;
+        let mut dsp_b02: f32 = self.b02;
+        let mut dsp_b1: f32 = self.b1;
+        let dsp_a1_incr: f32 = self.a1_incr;
+        let dsp_a2_incr: f32 = self.a2_incr;
+        let dsp_b02_incr: f32 = self.b02_incr;
+        let dsp_b1_incr: f32 = self.b1_incr;
+        let mut dsp_filter_coeff_incr_count: i32 = self.filter_coeff_incr_count;
         let mut dsp_centernode;
-        let mut dsp_i;
         let mut v;
         if f64::abs(dsp_hist1 as f64) < 1e-20f64 {
             dsp_hist1 = 0.0f32
         }
         if dsp_filter_coeff_incr_count > 0 as i32 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
+            for dsp_i in 0..count {
                 dsp_centernode =
                     *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
                 *dsp_buf.offset(dsp_i as isize) =
@@ -1042,71 +1043,61 @@ impl Voice {
                     dsp_b02 += dsp_b02_incr;
                     dsp_b1 += dsp_b1_incr
                 }
-                dsp_i += 1
             }
         } else {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
+            for dsp_i in 0..count {
                 dsp_centernode =
                     *dsp_buf.offset(dsp_i as isize) - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
                 *dsp_buf.offset(dsp_i as isize) =
                     dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
-                dsp_i += 1
             }
         }
         if -0.5f64 < (self).pan as f64 && ((self).pan as f64) < 0.5f64 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                v = (self).amp_left * *dsp_buf.offset(dsp_i as isize);
-                let fresh1 = &mut dsp_left_buf[dsp_i as usize];
-                *fresh1 += v;
-                let fresh2 = &mut dsp_right_buf[dsp_i as usize];
-                *fresh2 += v;
-                dsp_i += 1
+            for dsp_i in 0..count {
+                v = self.amp_left * *dsp_buf.offset(dsp_i as isize);
+                dsp_left_buf[dsp_i as usize] += v;
+                dsp_right_buf[dsp_i as usize] += v;
             }
         } else {
-            if (self).amp_left as f64 != 0.0f64 {
-                dsp_i = 0 as i32;
-                while dsp_i < count {
-                    let fresh3 = &mut dsp_left_buf[dsp_i as usize];
-                    *fresh3 += (self).amp_left * *dsp_buf.offset(dsp_i as isize);
-                    dsp_i += 1
+            if self.amp_left as f64 != 0.0f64 {
+                for dsp_i in 0..count {
+                    dsp_left_buf[dsp_i] += (self).amp_left * *dsp_buf.offset(dsp_i as isize);
                 }
             }
-            if (self).amp_right as f64 != 0.0f64 {
-                dsp_i = 0 as i32;
-                while dsp_i < count {
-                    let fresh4 = &mut dsp_right_buf[dsp_i as usize];
-                    *fresh4 += self.amp_right * *dsp_buf.offset(dsp_i as isize);
-                    dsp_i += 1
+            if self.amp_right as f64 != 0.0f64 {
+                for dsp_i in 0..count {
+                    dsp_right_buf[dsp_i] += self.amp_right * *dsp_buf.offset(dsp_i as isize);
                 }
             }
         }
-        if !dsp_reverb_buf.is_null() && (self).amp_reverb as f64 != 0.0f64 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                let ref mut fresh5 = *dsp_reverb_buf.offset(dsp_i as isize);
-                *fresh5 += (self).amp_reverb * *dsp_buf.offset(dsp_i as isize);
-                dsp_i += 1
+
+        if reverb_active {
+            if self.amp_reverb != 0.0 {
+                for dsp_i in 0..count {
+                    // dsp_reverb_buf
+                    fx_left_buf[0][dsp_i] += self.amp_reverb * *dsp_buf.offset(dsp_i as isize);
+                }
             }
         }
-        if !dsp_chorus_buf.is_null() && (self).amp_chorus != 0 as i32 as f32 {
-            dsp_i = 0 as i32;
-            while dsp_i < count {
-                let ref mut fresh6 = *dsp_chorus_buf.offset(dsp_i as isize);
-                *fresh6 += (self).amp_chorus * *dsp_buf.offset(dsp_i as isize);
-                dsp_i += 1
+
+        if chorus_active {
+            if self.amp_chorus != 0.0 {
+                for dsp_i in 0..count {
+                    // dsp_chorus_buf
+                    fx_left_buf[1][dsp_i] += self.amp_chorus * *dsp_buf.offset(dsp_i as isize);
+                }
             }
         }
-        (self).hist1 = dsp_hist1;
-        (self).hist2 = dsp_hist2;
-        (self).a1 = dsp_a1;
-        (self).a2 = dsp_a2;
-        (self).b02 = dsp_b02;
-        (self).b1 = dsp_b1;
-        (self).filter_coeff_incr_count = dsp_filter_coeff_incr_count;
+
+        self.hist1 = dsp_hist1;
+        self.hist2 = dsp_hist2;
+        self.a1 = dsp_a1;
+        self.a2 = dsp_a2;
+        self.b02 = dsp_b02;
+        self.b1 = dsp_b1;
+        self.filter_coeff_incr_count = dsp_filter_coeff_incr_count;
     }
 
     pub fn calculate_hold_decay_buffers(
