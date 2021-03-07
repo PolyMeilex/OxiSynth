@@ -42,34 +42,25 @@ impl SynthBackend {
     }
 
     fn run<T: cpal::Sample>(&self, rx: Receiver<MidiEvent>, path: &Path) -> cpal::Stream {
-        let mut buff: [f32; SAMPLES_SIZE] = [0.0f32; SAMPLES_SIZE];
-
         let mut synth = {
             let sample_rate = self.stream_config.sample_rate.0;
 
             let mut settings = oxisynth::Settings::default();
 
-            settings.synth.sample_rate = (sample_rate / 2) as f32;
+            settings.synth.sample_rate = sample_rate as f32;
 
             let mut synth = oxisynth::Synth::new(settings);
-            synth.sfload(path, true).unwrap();
-            synth.set_sample_rate((sample_rate / 2) as f32);
+            let mut file = std::fs::File::open(path).unwrap();
+
+            synth.sfload(&mut file, true).unwrap();
+            synth.set_sample_rate(sample_rate as f32);
             synth.set_gain(1.0);
 
             synth
         };
 
-        let mut sample_clock = 0;
-
         let mut next_value = move || {
-            let out = buff[sample_clock];
-
-            sample_clock += 1;
-
-            if sample_clock == SAMPLES_SIZE {
-                synth.write(buff.as_mut());
-                sample_clock = 0;
-            }
+            let (l, r) = synth.read_next();
 
             if let Ok(e) = rx.try_recv() {
                 match e {
@@ -85,7 +76,7 @@ impl SynthBackend {
                 }
             }
 
-            out
+            r
         };
 
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
