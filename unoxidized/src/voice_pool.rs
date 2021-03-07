@@ -64,7 +64,7 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn free_voice_by_kill(&mut self, polyphony: u16, noteid: u32) -> Option<VoiceId> {
+    pub(crate) fn free_voice_by_kill(&mut self, polyphony: u16, noteid: usize) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut best_voice_index: Option<usize> = None;
 
@@ -145,7 +145,7 @@ impl VoicePool {
         chan: u8,
         key: u8,
         polyphony: u16,
-        noteid: u32,
+        noteid: usize,
         min_note_length_ticks: u32,
     ) {
         for i in 0..polyphony {

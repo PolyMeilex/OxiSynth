@@ -11,23 +11,7 @@ use crate::synth::Synth;
 use crate::voice::VoiceAddMode;
 use std::path::Path;
 
-const GEN_SET: GenFlags = 1;
-const GEN_VELOCITY: u32 = 47;
-const GEN_KEYNUM: u32 = 46;
-const GEN_OVERRIDEROOTKEY: GenType = 58;
-const GEN_EXCLUSIVECLASS: GenType = 57;
-const GEN_SAMPLEMODE: GenType = 54;
-const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
-const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
-const GEN_ENDADDRCOARSEOFS: GenType = 12;
-const GEN_STARTADDRCOARSEOFS: GenType = 4;
-const GEN_ENDLOOPADDROFS: GenType = 3;
-const GEN_STARTLOOPADDROFS: GenType = 2;
-const GEN_ENDADDROFS: GenType = 1;
-const GEN_STARTADDROFS: GenType = 0;
-const GEN_LAST: GenType = 60;
-type GenType = u32;
-type GenFlags = u32;
+const GEN_SET: u32 = 1;
 
 pub(super) struct DefaultSoundFont {
     pub(super) filename: PathBuf,
@@ -467,6 +451,24 @@ impl Synth {
                                         );
                                     }
                                 }
+
+                                const GEN_STARTADDROFS: u32 = 0;
+                                const GEN_ENDADDROFS: u32 = 1;
+                                const GEN_STARTLOOPADDROFS: u32 = 2;
+                                const GEN_ENDLOOPADDROFS: u32 = 3;
+                                const GEN_STARTADDRCOARSEOFS: u32 = 4;
+
+                                const GEN_ENDADDRCOARSEOFS: u32 = 12;
+
+                                const GEN_STARTLOOPADDRCOARSEOFS: u32 = 45;
+                                const GEN_KEYNUM: u32 = 46;
+                                const GEN_VELOCITY: u32 = 47;
+
+                                const GEN_ENDLOOPADDRCOARSEOFS: u32 = 50;
+                                const GEN_SAMPLEMODE: u32 = 54;
+                                const GEN_EXCLUSIVECLASS: u32 = 57;
+                                const GEN_OVERRIDEROOTKEY: u32 = 58;
+                                const GEN_LAST: u32 = 60;
 
                                 /* Preset level, generators */
                                 for i in 0..GEN_LAST {

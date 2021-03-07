@@ -58,7 +58,7 @@ pub enum LoopMode {
 pub struct VoiceId(pub(crate) usize);
 
 pub struct Voice {
-    pub(crate) id: u32,
+    pub(crate) id: usize,
     pub(crate) status: VoiceStatus,
     pub(crate) chan: u8,
     pub(crate) key: u8,
@@ -269,7 +269,7 @@ impl Voice {
         channel_id: ChannelId,
         key: u8,
         vel: i32,
-        id: u32,
+        id: usize,
         start_time: u32,
         gain: f32,
     ) {
