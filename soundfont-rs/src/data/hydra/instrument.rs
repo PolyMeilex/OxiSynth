@@ -10,7 +10,7 @@ pub struct SFInstrumentHeader {
 
 impl SFInstrumentHeader {
     pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20);
+        let name: String = reader.read_string(20).trim_end().to_owned();
         let bag_id: u16 = reader.read_u16();
 
         Self { name, bag_id }

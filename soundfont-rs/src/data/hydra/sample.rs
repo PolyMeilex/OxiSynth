@@ -20,7 +20,7 @@ pub struct SFSampleHeader {
 
 impl SFSampleHeader {
     pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20);
+        let name: String = reader.read_string(20).trim_end().to_owned();
         // 20
 
         let start: u32 = reader.read_u32();

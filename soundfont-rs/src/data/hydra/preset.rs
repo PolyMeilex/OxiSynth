@@ -23,7 +23,7 @@ pub struct SFPresetHeader {
 
 impl SFPresetHeader {
     pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20);
+        let name: String = reader.read_string(20).trim_end().to_owned();
         let preset: u16 = reader.read_u16();
         let bank: u16 = reader.read_u16();
         let bag_id: u16 = reader.read_u16();
