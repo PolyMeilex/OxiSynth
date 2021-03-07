@@ -99,7 +99,7 @@ impl Synth {
         self.ticks = self.ticks.wrapping_add(64);
     }
 
-    pub fn write<F: Fn(f32, f32)>(&mut self, len: usize, cb: F) {
+    pub fn write<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
         /* make sure we're playing */
         if self.state != FLUID_SYNTH_PLAYING as u32 {
             return;
@@ -108,6 +108,7 @@ impl Synth {
         let mut l = self.cur;
         let mut i: usize = 0;
 
+        let mut out_id = 0;
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
@@ -117,7 +118,9 @@ impl Synth {
                 l = 0;
             }
 
-            cb(self.left_buf[0][l], self.right_buf[0][l]);
+            cb(out_id, self.left_buf[0][l], self.right_buf[0][l]);
+
+            out_id += incr;
 
             i += 1;
             l += 1;

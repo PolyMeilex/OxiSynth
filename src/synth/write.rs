@@ -28,18 +28,10 @@ impl IsSamples for &mut [f32] {
     /// Write samples interleaved
     fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
-        unsafe {
-            let ptr = self as *mut [f32];
-            synth.write_f32(
-                len,
-                ptr.as_mut().unwrap(),
-                0,
-                2,
-                ptr.as_mut().unwrap(),
-                1,
-                2,
-            )
-        }
+        synth.write_cb(len, 2, |id, l, r| {
+            self[id] = l;
+            self[id + 1] = r;
+        });
     }
 }
 
@@ -47,7 +39,10 @@ impl IsSamples for (&mut [f32], &mut [f32]) {
     /// Write samples non-interleaved
     fn write_samples(self, synth: &mut Synth) {
         let len = self.0.len().min(self.1.len());
-        synth.write_f32(len, self.0, 0, 1, self.1, 0, 1)
+        synth.write_cb(len, 1, |id, l, r| {
+            self.0[id] = l;
+            self.1[id] = r;
+        });
     }
 }
 
@@ -55,10 +50,10 @@ impl IsSamples for &mut [f64] {
     /// Write samples interleaved
     fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
-        unsafe {
-            let ptr = self as *mut _;
-            synth.write_f64(len, &mut *ptr, 0, 2, &mut *ptr, 1, 2)
-        }
+        synth.write_cb(len, 2, |id, l, r| {
+            self[id] = l as f64;
+            self[id + 1] = r as f64;
+        });
     }
 }
 
@@ -71,6 +66,10 @@ impl Synth {
      */
     pub fn write<S: IsSamples>(&mut self, samples: S) {
         samples.write_samples(self)
+    }
+
+    pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, cb: F) {
+        self.handle.write(len, incr, cb)
     }
 
     /**
