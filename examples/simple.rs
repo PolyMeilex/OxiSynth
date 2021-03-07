@@ -1,4 +1,3 @@
-use oxidized_fluid as fluid;
 use std::{fs::File, io::Write, slice::from_raw_parts};
 
 fn main() {
@@ -10,9 +9,9 @@ fn main() {
 fn synth_sf2() {
     let mut pcm = File::create("Out.sf2.pcm").unwrap();
 
-    let settings = fluid::Settings::default();
+    let settings = oxisynth::Settings::default();
 
-    let mut synth = fluid::Synth::new(settings);
+    let mut synth = oxisynth::Synth::new(settings);
 
     synth.sfload("./testdata/sin.sf2", true).unwrap();
 
