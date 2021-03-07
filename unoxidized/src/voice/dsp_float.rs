@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use super::Voice;
 pub type Phase = u64;
 pub type GenType = u32;

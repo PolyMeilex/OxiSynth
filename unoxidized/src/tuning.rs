@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 #[derive(Clone)]
 pub struct Tuning {
     name: String,

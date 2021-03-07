@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use soundfont_rs as sf2;
 use std::rc::Rc;
 

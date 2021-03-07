@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 const DC_OFFSET: f32 = 1e-8;
 const STEREO_SPREAD: usize = 23;
 

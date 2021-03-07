@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::Synth;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

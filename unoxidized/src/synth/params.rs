@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::BankOffset;
 use crate::synth::InterpMethod;
 use crate::synth::Preset;

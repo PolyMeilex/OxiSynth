@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::Synth;
 use crate::synth::FLUID_MOD_KEYPRESSURE;
 use crate::synth::FLUID_OK;

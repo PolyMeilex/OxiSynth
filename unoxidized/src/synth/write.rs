@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::Synth;
 use crate::synth::FLUID_SYNTH_PLAYING;
 use crate::synth::RAND_TABLE;

@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::Synth;
 
 impl Synth {

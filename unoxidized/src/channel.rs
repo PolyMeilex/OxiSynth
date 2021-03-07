@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use super::gen::{fluid_gen_scale_nrpn, GenParam};
 use super::soundfont::Preset;
 use super::synth::Synth;

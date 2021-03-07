@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 const MIN_SPEED_HZ: f32 = 0.29;
 
 /* Length of one delay line in samples:

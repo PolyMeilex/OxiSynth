@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 pub mod dsp_float;
 
 use crate::gen::GenParam;

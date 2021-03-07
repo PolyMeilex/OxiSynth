@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 mod sfloader;
 
 use sfloader::DefaultPreset;

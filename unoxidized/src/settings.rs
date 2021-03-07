@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 pub struct SynthSettings {
     pub dump: bool,
 

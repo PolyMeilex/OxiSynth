@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use super::channel::Channel;
 
 use num_derive::FromPrimitive;

@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 lazy_static! {
     static ref CT2HZ_TAB: [f32; 1200] = {
         let mut init = [0.0; 1200];

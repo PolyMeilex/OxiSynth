@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use super::channel::Channel;
 use super::conv::fluid_concave;
 use super::conv::fluid_convex;

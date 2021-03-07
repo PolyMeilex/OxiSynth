@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::synth::SoundFont;
 use crate::synth::Synth;
 
