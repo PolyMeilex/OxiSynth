@@ -394,19 +394,24 @@ impl Synth {
 
                             if let Some(voice_id) = voice_id {
                                 // Instrument level, generators
-                                for i in 0..GEN_LAST as i32 {
+                                for i in 0..GEN_LAST {
+                                    use num_traits::FromPrimitive;
                                     /* SF 2.01 section 9.4 'bullet' 4:
                                      *
                                      * A generator in a local instrument zone supersedes a
                                      * global instrument zone generator.  Both cases supersede
                                      * the default generator -> voice_gen_set */
                                     if inst_zone.gen[i as usize].flags != 0 {
-                                        self.voices[voice_id.0]
-                                            .gen_set(i, inst_zone.gen[i as usize].val);
+                                        self.voices[voice_id.0].gen_set(
+                                            FromPrimitive::from_u8(i as u8).unwrap(),
+                                            inst_zone.gen[i as usize].val,
+                                        );
                                     } else if let Some(global_inst_zone) = &global_inst_zone {
                                         if global_inst_zone.gen[i as usize].flags as i32 != 0 {
-                                            self.voices[voice_id.0]
-                                                .gen_set(i, global_inst_zone.gen[i as usize].val);
+                                            self.voices[voice_id.0].gen_set(
+                                                FromPrimitive::from_u8(i as u8).unwrap(),
+                                                global_inst_zone.gen[i as usize].val,
+                                            );
                                         }
                                     } else {
                                         /* The generator has not been defined in this instrument.

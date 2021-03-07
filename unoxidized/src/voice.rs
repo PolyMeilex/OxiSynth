@@ -23,25 +23,10 @@ type Phase = u64;
 type ModFlags = u32;
 const FLUID_MOD_CC: ModFlags = 16;
 const FLUID_MOD_BIPOLAR: ModFlags = 2;
+
 type ModSrc = u32;
 const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-type GenType = u32;
-const GEN_PITCH: GenType = 59;
-const GEN_EXCLUSIVECLASS: GenType = 57;
-const GEN_SCALETUNE: GenType = 56;
-const GEN_SAMPLEMODE: GenType = 54;
 
-const GEN_ATTENUATION: GenType = 48;
-const GEN_KEYTOVOLENVDECAY: GenType = 40;
-const GEN_KEYTOVOLENVHOLD: GenType = 39;
-const GEN_VOLENVRELEASE: GenType = 38;
-const GEN_VOLENVDECAY: GenType = 36;
-const GEN_VOLENVHOLD: GenType = 35;
-const GEN_KEYTOMODENVDECAY: GenType = 32;
-const GEN_KEYTOMODENVHOLD: GenType = 31;
-const GEN_MODENVRELEASE: GenType = 30;
-const GEN_MODENVDECAY: GenType = 28;
-const GEN_MODENVHOLD: GenType = 27;
 type GenFlags = u32;
 const GEN_ABS_NRPN: GenFlags = 2;
 const GEN_SET: GenFlags = 1;
@@ -385,7 +370,7 @@ impl Voice {
         self.gen[i as usize].flags = GEN_SET as u8;
     }
 
-    pub(crate) fn gen_set(&mut self, i: i32, val: f64) {
+    pub(crate) fn gen_set(&mut self, i: GenParam, val: f64) {
         self.gen[i as usize].val = val;
         self.gen[i as usize].flags = GEN_SET as u8;
     }
@@ -394,16 +379,16 @@ impl Voice {
         if !self.is_playing() {
             return;
         }
-        self.gen_set(GEN_EXCLUSIVECLASS as i32, 0.0);
+        self.gen_set(GenParam::ExclusiveClass, 0.0);
         if self.volenv_section != FLUID_VOICE_ENVRELEASE as i32 {
             self.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
             self.volenv_count = 0 as i32 as u32;
             self.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
             self.modenv_count = 0 as i32 as u32
         }
-        self.gen_set(GEN_VOLENVRELEASE as i32, -200.0);
+        self.gen_set(GenParam::VolEnvRelease, -200.0);
         self.update_param(GenParam::VolEnvRelease);
-        self.gen_set(GEN_MODENVRELEASE as i32, -200.0);
+        self.gen_set(GenParam::ModEnvRelease, -200.0);
         self.update_param(GenParam::ModEnvRelease);
     }
 
@@ -533,7 +518,7 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i as usize];
-            if mod_0.dest as i32 == GEN_ATTENUATION as i32
+            if mod_0.dest == GenParam::Attenuation
                 && (mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0
                     || mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0)
             {
@@ -612,11 +597,11 @@ impl Voice {
         }
         let tuning = &channels[self.channel_id.as_ref().unwrap().0].tuning;
         if let Some(tuning) = tuning {
-            self.gen[GEN_PITCH as usize].val = tuning.pitch[60]
-                + self.gen[GEN_SCALETUNE as usize].val / 100.0f32 as f64
+            self.gen[GenParam::Pitch as usize].val = tuning.pitch[60]
+                + self.gen[GenParam::ScaleTune as usize].val / 100.0f32 as f64
                     * (tuning.pitch[self.key as usize] - tuning.pitch[60])
         } else {
-            self.gen[GEN_PITCH as usize].val = self.gen[GEN_SCALETUNE as usize].val
+            self.gen[GenParam::Pitch as usize].val = self.gen[GenParam::ScaleTune as usize].val
                 * (self.key as i32 as f32 - 60.0f32) as f64
                 + (100.0f32 * 60.0f32) as f64
         }
@@ -656,8 +641,8 @@ impl Voice {
             self.off();
             return;
         }
-        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+        if self.gen[GenParam::SampleMode as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GenParam::SampleMode as usize].val as i32
                 == FLUID_LOOP_DURING_RELEASE as i32
         {
             if self.loopstart < min_index_loop {
@@ -676,7 +661,7 @@ impl Voice {
                 self.loopend = temp_0
             }
             if self.loopend < self.loopstart + 2 as i32 {
-                self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+                self.gen[GenParam::SampleMode as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
             }
             if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
                 && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
@@ -703,19 +688,21 @@ impl Voice {
         }
         if self.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
             if max_index_loop - min_index_loop < 2 as i32 {
-                if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                if self.gen[GenParam::SampleMode as i32 as usize].val as i32
                     == FLUID_LOOP_UNTIL_RELEASE as i32
-                    || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+                    || self.gen[GenParam::SampleMode as i32 as usize].val as i32
                         == FLUID_LOOP_DURING_RELEASE as i32
                 {
-                    self.gen[GEN_SAMPLEMODE as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+                    self.gen[GenParam::SampleMode as i32 as usize].val =
+                        FLUID_UNLOOPED as i32 as f64
                 }
             }
             self.phase = (self.start as u64) << 32 as i32
         }
-        if self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+        if self.gen[GenParam::SampleMode as i32 as usize].val as i32
+            == FLUID_LOOP_UNTIL_RELEASE as i32
             && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+            || self.gen[GenParam::SampleMode as usize].val as i32
                 == FLUID_LOOP_DURING_RELEASE as i32
         {
             let index_in_sample: i32 = (self.phase >> 32 as i32) as u32 as i32;
@@ -1207,8 +1194,8 @@ impl Voice {
 
     pub fn calculate_hold_decay_buffers(
         &mut self,
-        gen_base: i32,
-        gen_key2base: i32,
+        gen_base: GenParam,
+        gen_key2base: GenParam,
         is_decay: i32,
     ) -> i32 {
         let mut timecents = (self.gen[gen_base as usize].val
@@ -1698,8 +1685,8 @@ impl Voice {
 
             GenParam::VolEnvHold | GenParam::KeyToVolEnvHold => {
                 let count = self.calculate_hold_decay_buffers(
-                    GEN_VOLENVHOLD as i32,
-                    GEN_KEYTOVOLENVHOLD as i32,
+                    GenParam::VolEnvHold,
+                    GenParam::KeyToVolEnvHold,
                     0,
                 ) as u32;
                 self.volenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
@@ -1721,8 +1708,8 @@ impl Voice {
                 };
 
                 let count = self.calculate_hold_decay_buffers(
-                    GEN_VOLENVDECAY as i32,
-                    GEN_KEYTOVOLENVDECAY as i32,
+                    GenParam::VolEnvDecay,
+                    GenParam::KeyToVolEnvDecay,
                     1,
                 ) as u32;
 
@@ -1797,8 +1784,8 @@ impl Voice {
 
             GenParam::ModEnvHold | GenParam::KeyToModEnvHold => {
                 let count = self.calculate_hold_decay_buffers(
-                    GEN_MODENVHOLD as i32,
-                    GEN_KEYTOMODENVHOLD as i32,
+                    GenParam::ModEnvHold,
+                    GenParam::KeyToModEnvHold,
                     0,
                 ) as u32;
                 self.modenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
@@ -1810,8 +1797,8 @@ impl Voice {
 
             GenParam::ModEnvDecay | GenParam::ModEnvSustain | GenParam::KeyToModEnvDecay => {
                 let count = self.calculate_hold_decay_buffers(
-                    GEN_MODENVDECAY as i32,
-                    GEN_KEYTOMODENVDECAY as i32,
+                    GenParam::ModEnvDecay,
+                    GenParam::KeyToModEnvDecay,
                     1,
                 ) as u32;
 
