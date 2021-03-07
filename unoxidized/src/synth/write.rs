@@ -3,7 +3,7 @@ use crate::synth::FLUID_SYNTH_PLAYING;
 use crate::synth::RAND_TABLE;
 
 impl Synth {
-    unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) -> i32 {
+    unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
         // clean the audio buffers
         {
             for i in 0..self.nbuf {
@@ -97,136 +97,163 @@ impl Synth {
             }
         }
         self.ticks = self.ticks.wrapping_add(64);
-        return 0 as i32;
     }
 
-    pub unsafe fn write_f32(
-        &mut self,
-        len: i32,
-        lout: *mut std::ffi::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut std::ffi::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut l;
-        let left_out: *mut f32 = lout as *mut f32;
-        let right_out: *mut f32 = rout as *mut f32;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
+    pub fn write<F: Fn(f32, f32)>(&mut self, len: usize, cb: F) {
+        /* make sure we're playing */
+        if self.state != FLUID_SYNTH_PLAYING as u32 {
+            return;
         }
-        l = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
+
+        let mut l = self.cur;
+        let mut i: usize = 0;
+
         while i < len {
-            if l == 64 as i32 {
-                self.one_block(0 as i32);
-                l = 0 as i32
+            /* fill up the buffers as needed */
+            if l == 64 {
+                unsafe {
+                    self.one_block(0);
+                }
+                l = 0;
             }
-            *left_out.offset(j as isize) = *left_in.offset(l as isize);
-            *right_out.offset(k as isize) = *right_in.offset(l as isize);
+
+            cb(self.left_buf[0][l], self.right_buf[0][l]);
+
+            i += 1;
+            l += 1;
+        }
+        self.cur = l;
+    }
+
+    pub fn write_f32(
+        &mut self,
+        len: usize,
+        left_out: &mut [f32],
+        loff: usize,
+        lincr: usize,
+        right_out: &mut [f32],
+        roff: usize,
+        rincr: usize,
+    ) {
+        /* make sure we're playing */
+        if self.state != FLUID_SYNTH_PLAYING as u32 {
+            return;
+        }
+
+        let mut l = self.cur;
+        let mut i: usize = 0;
+        let mut j = loff;
+        let mut k = roff;
+
+        while i < len {
+            /* fill up the buffers as needed */
+            if l == 64 {
+                unsafe {
+                    self.one_block(0);
+                }
+                l = 0;
+            }
+
+            left_out[j] = self.left_buf[0][l];
+            right_out[k] = self.right_buf[0][l];
+
             i += 1;
             l += 1;
             j += lincr;
             k += rincr
         }
         self.cur = l;
-        return 0 as i32;
     }
 
-    pub unsafe fn write_f64(
+    pub fn write_f64(
         &mut self,
-        len: i32,
-        lout: *mut std::ffi::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut std::ffi::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut l;
-        let left_out: *mut f64 = lout as *mut f64;
-        let right_out: *mut f64 = rout as *mut f64;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
+        len: usize,
+        left_out: &mut [f64],
+        loff: usize,
+        lincr: usize,
+        right_out: &mut [f64],
+        roff: usize,
+        rincr: usize,
+    ) {
+        /* make sure we're playing */
+        if self.state != FLUID_SYNTH_PLAYING as u32 {
+            return;
         }
-        l = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
+
+        let mut l = self.cur;
+        let mut i: usize = 0;
+        let mut j = loff;
+        let mut k = roff;
+
         while i < len {
-            if l == 64 as i32 {
-                self.one_block(0 as i32);
-                l = 0 as i32
+            /* fill up the buffers as needed */
+            if l == 64 {
+                unsafe {
+                    self.one_block(0 as i32);
+                }
+                l = 0;
             }
-            *left_out.offset(j as isize) = *left_in.offset(l as isize) as f64;
-            *right_out.offset(k as isize) = *right_in.offset(l as isize) as f64;
+
+            left_out[j] = self.left_buf[0][l] as f64;
+            right_out[k] = self.right_buf[0][l] as f64;
+
             i += 1;
             l += 1;
             j += lincr;
             k += rincr
         }
         self.cur = l;
-        return 0 as i32;
     }
 
-    pub unsafe fn write_s16(
+    pub fn write_s16(
         &mut self,
-        len: i32,
-        lout: *mut std::ffi::c_void,
-        loff: i32,
-        lincr: i32,
-        rout: *mut std::ffi::c_void,
-        roff: i32,
-        rincr: i32,
-    ) -> i32 {
-        let mut i;
-        let mut j;
-        let mut k;
-        let mut cur;
-        let left_out: *mut i16 = lout as *mut i16;
-        let right_out: *mut i16 = rout as *mut i16;
-        let left_in: *mut f32 = self.left_buf[0].as_mut_ptr();
-        let right_in: *mut f32 = self.right_buf[0].as_mut_ptr();
-        let mut left_sample;
-        let mut right_sample;
+        len: usize,
+        left_out: &mut [i16],
+        loff: usize,
+        lincr: usize,
+        right_out: &mut [i16],
+        roff: usize,
+        rincr: usize,
+    ) {
         let mut di: i32 = self.dither_index;
+
+        /* make sure we're playing */
         if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return 0 as i32;
+            return;
         }
-        cur = self.cur;
-        i = 0 as i32;
-        j = loff;
-        k = roff;
+
+        let mut cur = self.cur;
+        let mut i: usize = 0;
+        let mut j = loff;
+        let mut k = roff;
         while i < len {
-            if cur == 64 as i32 {
-                self.one_block(0 as i32);
-                cur = 0 as i32
+            /* fill up the buffers as needed */
+            if cur == 64 {
+                unsafe {
+                    self.one_block(0 as i32);
+                }
+                cur = 0;
             }
-            left_sample = roundi(
-                *left_in.offset(cur as isize) * 32766.0f32
+            /*
+             * Converts stereo floating point sample data to signed 16 bit data with
+             * dithering.
+             */
+
+            let mut left_sample = roundi(
+                self.left_buf[0][cur as usize] * 32766.0f32
                     + RAND_TABLE[0 as i32 as usize][di as usize],
             ) as f32;
-            right_sample = roundi(
-                *right_in.offset(cur as isize) * 32766.0f32
+            let mut right_sample = roundi(
+                self.right_buf[0][cur as usize] * 32766.0f32
                     + RAND_TABLE[1 as i32 as usize][di as usize],
             ) as f32;
+
             di += 1;
             if di >= 48000 as i32 {
                 di = 0 as i32
             }
+
+            /* digital clipping */
             if left_sample > 32767.0f32 {
                 left_sample = 32767.0f32
             }
@@ -239,16 +266,18 @@ impl Synth {
             if right_sample < -32768.0f32 {
                 right_sample = -32768.0f32
             }
-            *left_out.offset(j as isize) = left_sample as i16;
-            *right_out.offset(k as isize) = right_sample as i16;
+
+            left_out[j as usize] = left_sample as i16;
+            right_out[k as usize] = right_sample as i16;
+
             i += 1;
             cur += 1;
             j += lincr;
             k += rincr
         }
         self.cur = cur;
+        /* keep dither buffer continous */
         self.dither_index = di;
-        return 0 as i32;
     }
 }
 

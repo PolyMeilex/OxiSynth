@@ -81,7 +81,7 @@ mod test {
 
         synth.note_on(0, 60, 127).unwrap();
 
-        synth.write(samples.as_mut()).unwrap();
+        synth.write(samples.as_mut());
         pcm.write(unsafe {
             from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
         })
@@ -89,7 +89,7 @@ mod test {
 
         synth.note_off(0, 60).unwrap();
 
-        synth.write(samples.as_mut()).unwrap();
+        synth.write(samples.as_mut());
         pcm.write(unsafe {
             from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
         })

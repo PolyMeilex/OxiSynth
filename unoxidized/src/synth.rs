@@ -80,7 +80,7 @@ pub struct Synth {
     fx_right_buf: Vec<[f32; 64]>,
     reverb: ReverbModel,
     chorus: Chorus,
-    cur: i32,
+    cur: usize,
     dither_index: i32,
     tuning: Vec<Vec<Option<Tuning>>>,
     pub(crate) min_note_length_ticks: u32,

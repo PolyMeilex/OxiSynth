@@ -790,7 +790,7 @@ impl Voice {
         fx_left_buf: &mut Vec<[f32; 64]>,
         reverb_active: bool,
         chorus_active: bool,
-    ) -> i32 {
+    ) {
         let current_block: u64;
         let mut fres;
         let target_amp; /* target amplitude */
@@ -799,13 +799,13 @@ impl Voice {
 
         /* make sure we're playing and that we have sample data */
         if !self.is_playing() {
-            return FLUID_OK as i32;
+            return;
         }
 
         /******************* sample **********************/
         if self.sample.is_none() {
             self.off();
-            return FLUID_OK as i32;
+            return;
         }
         if self.noteoff_ticks != 0 as i32 as u32 && self.ticks >= self.noteoff_ticks {
             self.noteoff(min_note_length_ticks);
@@ -845,7 +845,7 @@ impl Voice {
 
         if self.volenv_section == FLUID_VOICE_ENVFINISHED as i32 {
             self.off();
-            return FLUID_OK as i32;
+            return;
         }
 
         /******************* mod env **********************/
@@ -1112,8 +1112,6 @@ impl Voice {
             }
         }
         self.ticks = self.ticks.wrapping_add(64 as u32);
-
-        FLUID_OK
     }
     //removed inline
     #[inline]

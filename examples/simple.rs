@@ -22,7 +22,7 @@ fn synth_sf2() {
         for n in 50..100 {
             synth.note_on(0, n, 127).unwrap();
 
-            synth.write(samples.as_mut()).unwrap();
+            synth.write(samples.as_mut());
             pcm.write(unsafe {
                 from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
             })
@@ -33,7 +33,7 @@ fn synth_sf2() {
         for n in 0..50 {
             synth.note_on(0, 100 - n, 127).unwrap();
 
-            synth.write(samples.as_mut()).unwrap();
+            synth.write(samples.as_mut());
             pcm.write(unsafe {
                 from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
             })

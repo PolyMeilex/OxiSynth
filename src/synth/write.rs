@@ -1,47 +1,64 @@
-use crate::{Status, Synth};
+use crate::Synth;
 
 /// The trait which implements samples data buffer interface
 pub trait IsSamples {
-    fn write_samples(self, synth: &mut Synth) -> Status;
+    fn write_samples(self, synth: &mut Synth);
 }
 
 impl IsSamples for &mut [i16] {
     /// Write samples interleaved
-    fn write_samples(self, synth: &mut Synth) -> Status {
+    fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
-        unsafe { synth.write_i16(len, self.as_mut_ptr(), 0, 2, self.as_mut_ptr(), 1, 2) }
+        unsafe {
+            let ptr = self as *mut _;
+            synth.write_i16(len, &mut *ptr, 0, 2, &mut *ptr, 1, 2)
+        }
     }
 }
 
 impl IsSamples for (&mut [i16], &mut [i16]) {
     /// Write samples non-interleaved
-    fn write_samples(self, synth: &mut Synth) -> Status {
+    fn write_samples(self, synth: &mut Synth) {
         let len = self.0.len().min(self.1.len());
-        unsafe { synth.write_i16(len, self.0.as_mut_ptr(), 0, 1, self.1.as_mut_ptr(), 0, 1) }
+        synth.write_i16(len, self.0, 0, 1, self.1, 0, 1)
     }
 }
 
 impl IsSamples for &mut [f32] {
     /// Write samples interleaved
-    fn write_samples(self, synth: &mut Synth) -> Status {
+    fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
-        unsafe { synth.write_f32(len, self.as_mut_ptr(), 0, 2, self.as_mut_ptr(), 1, 2) }
+        unsafe {
+            let ptr = self as *mut [f32];
+            synth.write_f32(
+                len,
+                ptr.as_mut().unwrap(),
+                0,
+                2,
+                ptr.as_mut().unwrap(),
+                1,
+                2,
+            )
+        }
     }
 }
 
 impl IsSamples for (&mut [f32], &mut [f32]) {
     /// Write samples non-interleaved
-    fn write_samples(self, synth: &mut Synth) -> Status {
+    fn write_samples(self, synth: &mut Synth) {
         let len = self.0.len().min(self.1.len());
-        unsafe { synth.write_f32(len, self.0.as_mut_ptr(), 0, 1, self.1.as_mut_ptr(), 0, 1) }
+        synth.write_f32(len, self.0, 0, 1, self.1, 0, 1)
     }
 }
 
 impl IsSamples for &mut [f64] {
     /// Write samples interleaved
-    fn write_samples(self, synth: &mut Synth) -> Status {
+    fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
-        unsafe { synth.write_f64(len, self.as_mut_ptr(), 0, 2, self.as_mut_ptr(), 1, 2) }
+        unsafe {
+            let ptr = self as *mut _;
+            synth.write_f64(len, &mut *ptr, 0, 2, &mut *ptr, 1, 2)
+        }
     }
 }
 
@@ -52,7 +69,7 @@ impl Synth {
     /**
     Write sound samples to the sample data buffer
      */
-    pub fn write<S: IsSamples>(&mut self, samples: S) -> Status {
+    pub fn write<S: IsSamples>(&mut self, samples: S) {
         samples.write_samples(self)
     }
 
@@ -66,19 +83,19 @@ impl Synth {
     #[allow(clippy::missing_safety_doc)] // TODO: Remove after closing https://github.com/rust-lang/rust-clippy/issues/5593
     #[allow(clippy::too_many_arguments)]
     #[inline]
-    pub unsafe fn write_i16(
+    pub fn write_i16(
         &mut self,
         len: usize,
-        lbuf: *mut i16,
+        left_out: &mut [i16],
         loff: u32,
         lincr: u32,
-        rbuf: *mut i16,
+        right_out: &mut [i16],
         roff: u32,
         rincr: u32,
-    ) -> Status {
-        Synth::zero_ok(self.handle.write_s16(
-            len as _, lbuf as _, loff as _, lincr as _, rbuf as _, roff as _, rincr as _,
-        ))
+    ) {
+        self.handle.write_s16(
+            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
+        )
     }
 
     /**
@@ -88,22 +105,21 @@ impl Synth {
 
     The `len` must corresponds to the lenghtes of buffers.
      */
-    #[allow(clippy::missing_safety_doc)] // TODO: Remove after closing https://github.com/rust-lang/rust-clippy/issues/5593
     #[allow(clippy::too_many_arguments)]
     #[inline]
-    pub unsafe fn write_f32(
+    pub fn write_f32(
         &mut self,
         len: usize,
-        lbuf: *mut f32,
+        left_out: &mut [f32],
         loff: u32,
         lincr: u32,
-        rbuf: *mut f32,
+        right_out: &mut [f32],
         roff: u32,
         rincr: u32,
-    ) -> Status {
-        Synth::zero_ok(self.handle.write_f32(
-            len as _, lbuf as _, loff as _, lincr as _, rbuf as _, roff as _, rincr as _,
-        ))
+    ) {
+        self.handle.write_f32(
+            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
+        )
     }
 
     /**
@@ -116,18 +132,18 @@ impl Synth {
     #[allow(clippy::missing_safety_doc)] // TODO: Remove after closing https://github.com/rust-lang/rust-clippy/issues/5593
     #[allow(clippy::too_many_arguments)]
     #[inline]
-    pub unsafe fn write_f64(
+    pub fn write_f64(
         &mut self,
         len: usize,
-        lbuf: *mut f64,
+        left_out: &mut [f64],
         loff: u32,
         lincr: u32,
-        rbuf: *mut f64,
+        right_out: &mut [f64],
         roff: u32,
         rincr: u32,
-    ) -> Status {
-        Synth::zero_ok(self.handle.write_f64(
-            len as _, lbuf as _, loff as _, lincr as _, rbuf as _, roff as _, rincr as _,
-        ))
+    ) {
+        self.handle.write_f64(
+            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
+        )
     }
 }
