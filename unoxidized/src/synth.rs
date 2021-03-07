@@ -8,6 +8,7 @@ pub mod reverb;
 pub mod tuning;
 pub mod write;
 
+use crate::channel::ChannelId;
 use crate::voice::VoiceId;
 use crate::voice_pool::VoicePool;
 use std::rc::Rc;
@@ -283,6 +284,7 @@ impl Synth {
             voice.init(
                 sample,
                 channel,
+                ChannelId(chan as usize),
                 key,
                 vel,
                 self.storeid,

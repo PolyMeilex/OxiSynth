@@ -1,6 +1,6 @@
 pub mod dsp_float;
 
-use super::channel::{Channel, InterpMethod};
+use super::channel::{Channel, ChannelId, InterpMethod};
 use super::conv::fluid_act2hz;
 use super::conv::fluid_atten2amp;
 use super::conv::fluid_cb2amp;
@@ -118,6 +118,7 @@ pub struct Voice {
     pub(crate) key: u8,
     pub(crate) vel: u8,
     channel: *mut Channel,
+    channel_id: Option<ChannelId>,
     pub(crate) gen: [Gen; 60],
     mod_0: [Mod; 64],
     mod_count: usize,
@@ -241,6 +242,7 @@ impl Voice {
             key: 0,
             vel: 0,
             channel: 0 as *mut Channel,
+            channel_id: None,
             gen: [Gen::default(); 60],
             mod_0: [Mod::default(); 64],
             mod_count: 0,
@@ -318,6 +320,7 @@ impl Voice {
         &mut self,
         sample: Rc<Sample>,
         channel: &mut Channel,
+        channel_id: ChannelId,
         key: u8,
         vel: i32,
         id: u32,
@@ -330,6 +333,7 @@ impl Voice {
         self.vel = vel as u8;
         self.interp_method = channel.get_interp_method();
         self.channel = channel;
+        self.channel_id = Some(channel_id);
         self.mod_count = 0;
         self.sample = Some(sample);
         self.start_time = start_time;
@@ -557,8 +561,8 @@ impl Voice {
         }
     }
 
-    pub(crate) fn get_channel(&self) -> *mut Channel {
-        self.channel
+    pub(crate) fn get_channel(&self) -> Option<&ChannelId> {
+        self.channel_id.as_ref()
     }
 
     fn get_lower_boundary_for_attenuation(&mut self) -> f32 {

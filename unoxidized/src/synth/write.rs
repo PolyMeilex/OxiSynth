@@ -1,9 +1,11 @@
+#![forbid(unsafe_code)]
+
 use crate::synth::Synth;
 use crate::synth::FLUID_SYNTH_PLAYING;
 use crate::synth::RAND_TABLE;
 
 impl Synth {
-    unsafe fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
+    fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
         // clean the audio buffers
         {
             for i in 0..self.nbuf {
@@ -42,7 +44,7 @@ impl Synth {
                  * channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
                  * output 2, 3, 6, 9, 12 etc to output 3.
                  */
-                let mut auchan = voice.get_channel().as_ref().unwrap().get_num();
+                let mut auchan = self.channel[voice.get_channel().unwrap().0].get_num();
                 auchan %= self.settings.synth.audio_groups as u8;
 
                 voice.write(
@@ -112,9 +114,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                unsafe {
-                    self.one_block(0);
-                }
+                self.one_block(0);
                 l = 0;
             }
 
@@ -151,9 +151,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                unsafe {
-                    self.one_block(0);
-                }
+                self.one_block(0);
                 l = 0;
             }
 
@@ -191,9 +189,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                unsafe {
-                    self.one_block(0 as i32);
-                }
+                self.one_block(0 as i32);
                 l = 0;
             }
 
@@ -232,9 +228,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if cur == 64 {
-                unsafe {
-                    self.one_block(0 as i32);
-                }
+                self.one_block(0 as i32);
                 cur = 0;
             }
             /*

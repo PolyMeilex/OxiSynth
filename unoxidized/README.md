@@ -1,7 +1,7 @@
 Oxidizations Status
 
 - [x] ./soundfont
-- [ ] ./synth
+- [x] ./synth
   - [x] chorus.rs
   - [x] count.rs
   - [x] font.rs
@@ -10,7 +10,7 @@ Oxidizations Status
   - [x] params.rs
   - [x] reverb.rs
   - [x] tuning.rs
-  - [ ] write.rs
+  - [x] write.rs
 - [x] ./voice
   - [x] dsp_float.rs
 - [x] ./channel.rs
