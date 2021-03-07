@@ -1,6 +1,23 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_SYNTH_PLAYING;
-use crate::synth::RAND_TABLE;
+
+lazy_static! {
+    static ref RAND_TABLE: [[f32; 48000]; 2] = {
+        let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
+
+        for c in 0..2 {
+            let mut dp = 0.0;
+            for i in 0..(48000 - 1) {
+                let r: i32 = rand::random();
+                let d = r as f32 / 2147483647.0 - 0.5;
+                rand[c][i] = d - dp;
+                dp = d;
+            }
+            rand[c][48000 - 1] = 0.0 - dp;
+        }
+        rand
+    };
+}
 
 impl Synth {
     fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
