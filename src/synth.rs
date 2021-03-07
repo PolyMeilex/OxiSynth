@@ -72,7 +72,8 @@ mod test {
 
         let mut synth = Synth::new(settings);
 
-        synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
+        let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+        synth.sfload(&mut file, true).unwrap();
 
         let mut samples = [0f32; 44100 * 2];
 

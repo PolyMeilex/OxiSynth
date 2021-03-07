@@ -9,7 +9,6 @@ use crate::modulator::Mod;
 use crate::soundfont::Sample;
 use crate::synth::Synth;
 use crate::voice::VoiceAddMode;
-use std::path::Path;
 
 const GEN_SET: u32 = 1;
 
@@ -19,11 +18,8 @@ pub(super) struct DefaultSoundFont {
 }
 
 impl DefaultSoundFont {
-    pub(super) fn load(path: &Path) -> Result<Self, ()> {
-        let filename = path.to_owned();
-        let mut file = std::fs::File::open(&filename).unwrap();
-
-        let data = sf2::data::SFData::load(&mut file);
+    pub(super) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
+        let data = sf2::data::SFData::load(file);
         let mut sf2 = sf2::SoundFont2::from_data(data);
         sf2.sort_presets();
 
@@ -32,7 +28,7 @@ impl DefaultSoundFont {
         let sample_pos = smpl.offset() + 8;
         let sample_size = smpl.len() as usize;
 
-        let sample_data = Rc::new(Self::load_sampledata(&mut file, sample_pos, sample_size)?);
+        let sample_data = Rc::new(Self::load_sampledata(file, sample_pos, sample_size)?);
 
         let mut samples = Vec::new();
 
@@ -51,11 +47,14 @@ impl DefaultSoundFont {
             presets.push(Rc::new(preset));
         }
 
-        Ok(DefaultSoundFont { filename, presets })
+        Ok(DefaultSoundFont {
+            filename: PathBuf::from(""),
+            presets,
+        })
     }
 
-    fn load_sampledata(
-        file: &mut std::fs::File,
+    fn load_sampledata<F: Read + Seek>(
+        file: &mut F,
         sample_pos: u64,
         sample_size: usize,
     ) -> Result<Vec<i16>, ()> {

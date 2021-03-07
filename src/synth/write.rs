@@ -68,6 +68,10 @@ impl Synth {
         samples.write_samples(self)
     }
 
+    pub fn read_next(&mut self) -> (f32, f32) {
+        self.handle.read_next()
+    }
+
     pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, cb: F) {
         self.handle.write(len, incr, cb)
     }

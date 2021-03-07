@@ -1,6 +1,6 @@
 use crate::engine::soundfont::SoundFont;
 use crate::Synth;
-use std::path::Path;
+use std::io::{Read, Seek};
 
 /**
 SoundFont management
@@ -13,8 +13,8 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<P: AsRef<Path>>(&mut self, filename: P, reset_presets: bool) -> Result<u32, ()> {
-        self.handle.sfload(filename, reset_presets)
+    pub fn sfload<P: Read + Seek>(&mut self, file: &mut P, reset_presets: bool) -> Result<u32, ()> {
+        self.handle.sfload(file, reset_presets)
     }
 
     /**
@@ -91,17 +91,18 @@ mod test {
 
         assert_eq!(synth.sfcount(), 0);
 
-        synth.sfload("./testdata/Boomwhacker.sf2", true).unwrap();
+        let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
+        synth.sfload(&mut file, true).unwrap();
 
         assert_eq!(synth.sfcount(), 1);
 
         let font = synth.get_sfont(0).unwrap();
 
         assert_eq!(font.get_id(), 1);
-        assert_eq!(
-            font.get_name().to_str().unwrap(),
-            "./testdata/Boomwhacker.sf2"
-        );
+        // assert_eq!(
+        //     font.get_name().to_str().unwrap(),
+        //     "./testdata/Boomwhacker.sf2"
+        // );
 
         let preset = font.get_preset(0, 0).unwrap();
 

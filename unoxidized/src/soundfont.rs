@@ -3,6 +3,7 @@ mod sfloader;
 use sfloader::DefaultPreset;
 use sfloader::DefaultSoundFont;
 use soundfont_rs as sf2;
+use std::io::{Read, Seek};
 use std::path::Path;
 use std::rc::Rc;
 
@@ -32,8 +33,8 @@ pub struct SoundFont {
 }
 
 impl SoundFont {
-    pub(crate) fn load(filename: &Path) -> Result<Self, ()> {
-        DefaultSoundFont::load(filename).map(|defsfont| Self {
+    pub(crate) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
+        DefaultSoundFont::load(file).map(|defsfont| Self {
             data: defsfont,
             id: 0,
         })
