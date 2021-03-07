@@ -99,14 +99,10 @@ mod test {
         let font = synth.get_sfont(0).unwrap();
 
         assert_eq!(font.get_id(), 1);
-        // assert_eq!(
-        //     font.get_name().to_str().unwrap(),
-        //     "./testdata/Boomwhacker.sf2"
-        // );
 
         let preset = font.get_preset(0, 0).unwrap();
 
-        assert_eq!(preset.get_name(), "Boomwhacker");
+        assert_eq!(preset.get_name(), "Sine Wave");
         assert_eq!(preset.get_banknum(), 0);
         assert_eq!(preset.get_num(), 0);
     }
