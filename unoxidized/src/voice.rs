@@ -32,10 +32,21 @@ const GEN_ABS_NRPN: GenFlags = 2;
 const GEN_SET: GenFlags = 1;
 
 const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
-const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
-const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
+// const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
+// const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
 pub(crate) const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
 const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
+
+#[derive(Clone, Copy)]
+pub(crate) enum VoiceEnvelope {
+    Delay = 0,
+    Attack = 1,
+    Hold = 2,
+    Decay = 3,
+    Sustain = 4,
+    Release = 5,
+    Finished = 6,
+}
 
 pub type FluidVoiceAddMod = u32;
 const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
@@ -773,7 +784,7 @@ impl Voice {
         let mut env_data = &self.volenv_data[self.volenv_section as usize];
         while self.volenv_count >= env_data.count {
             // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
-            if self.volenv_section == FLUID_VOICE_ENVDECAY as i32 {
+            if self.volenv_section == VoiceEnvelope::Decay as i32 {
                 self.volenv_val = env_data.min * env_data.coeff
             }
 
@@ -1689,11 +1700,11 @@ impl Voice {
                     GenParam::KeyToVolEnvHold,
                     0,
                 ) as u32;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].coeff = 1.0;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].incr = 0.0;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].min = -1.0;
-                self.volenv_data[FLUID_VOICE_ENVHOLD as usize].max = 2.0;
+                self.volenv_data[VoiceEnvelope::Hold as usize].count = count;
+                self.volenv_data[VoiceEnvelope::Hold as usize].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Hold as usize].incr = 0.0;
+                self.volenv_data[VoiceEnvelope::Hold as usize].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
             }
 
             GenParam::VolEnvDecay | GenParam::VolEnvSustain | GenParam::KeyToVolEnvDecay => {
@@ -1713,12 +1724,12 @@ impl Voice {
                     1,
                 ) as u32;
 
-                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].coeff = 1.0;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].incr =
+                self.volenv_data[VoiceEnvelope::Decay as usize].count = count;
+                self.volenv_data[VoiceEnvelope::Decay as usize].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Decay as usize].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].min = y;
-                self.volenv_data[FLUID_VOICE_ENVDECAY as usize].max = 2.0;
+                self.volenv_data[VoiceEnvelope::Decay as usize].min = y;
+                self.volenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
             }
 
             GenParam::VolEnvRelease => {
@@ -1788,11 +1799,11 @@ impl Voice {
                     GenParam::KeyToModEnvHold,
                     0,
                 ) as u32;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].coeff = 1.0;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].incr = 0.0;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].min = -1.0;
-                self.modenv_data[FLUID_VOICE_ENVHOLD as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Hold as usize].count = count;
+                self.modenv_data[VoiceEnvelope::Hold as usize].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Hold as usize].incr = 0.0;
+                self.modenv_data[VoiceEnvelope::Hold as usize].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
             }
 
             GenParam::ModEnvDecay | GenParam::ModEnvSustain | GenParam::KeyToModEnvDecay => {
@@ -1812,12 +1823,12 @@ impl Voice {
                     y
                 };
 
-                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].coeff = 1.0;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].incr =
+                self.modenv_data[VoiceEnvelope::Decay as usize].count = count;
+                self.modenv_data[VoiceEnvelope::Decay as usize].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Decay as usize].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].min = y;
-                self.modenv_data[FLUID_VOICE_ENVDECAY as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Decay as usize].min = y;
+                self.modenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
             }
 
             GenParam::ModEnvRelease => {
