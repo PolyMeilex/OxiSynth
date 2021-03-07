@@ -4,6 +4,8 @@ pub mod hydra;
 pub mod info;
 pub mod sample_data;
 
+use std::io::{Read, Seek};
+
 pub use hydra::*;
 pub use info::*;
 pub use sample_data::*;
@@ -16,7 +18,7 @@ pub struct SFData {
 }
 
 impl SFData {
-    pub fn load(file: &mut std::fs::File) -> SFData {
+    pub fn load<F: Read + Seek>(file: &mut F) -> SFData {
         let sfbk = riff::Chunk::read(file, 0).unwrap();
         assert_eq!(sfbk.id().as_str(), "RIFF");
         assert_eq!(sfbk.read_type(file).unwrap().as_str(), "sfbk");

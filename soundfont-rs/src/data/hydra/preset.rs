@@ -1,6 +1,8 @@
 use super::super::utils::Reader;
 use riff::Chunk;
 
+use std::io::{Read, Seek};
+
 #[derive(Debug, Clone)]
 pub struct SFPresetHeader {
     /// The name of the preset
@@ -41,7 +43,7 @@ impl SFPresetHeader {
         }
     }
 
-    pub fn read_all(phdr: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Vec<Self> {
         assert_eq!(phdr.id().as_str(), "phdr");
 
         let size = phdr.len();

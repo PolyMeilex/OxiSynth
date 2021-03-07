@@ -18,6 +18,8 @@ pub use sample::SFSampleHeader;
 
 use riff::Chunk;
 
+use std::io::{Read, Seek};
+
 #[derive(Debug)]
 pub struct SFHydra {
     pub preset_headers: Vec<SFPresetHeader>,
@@ -34,7 +36,7 @@ pub struct SFHydra {
 }
 
 impl SFHydra {
-    pub fn read(pdta: &Chunk, file: &mut std::fs::File) -> Self {
+    pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Self {
         assert_eq!(pdta.id().as_str(), "LIST");
         assert_eq!(pdta.read_type(file).unwrap().as_str(), "pdta");
 

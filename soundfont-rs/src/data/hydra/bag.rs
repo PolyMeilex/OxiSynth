@@ -1,5 +1,6 @@
 use super::super::utils::Reader;
 use riff::Chunk;
+use std::io::{Read, Seek};
 
 #[derive(Debug)]
 pub struct SFBag {
@@ -18,7 +19,7 @@ impl SFBag {
         }
     }
 
-    pub fn read_all(pbag: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(pbag: &Chunk, file: &mut F) -> Vec<Self> {
         assert!(pbag.id().as_str() == "pbag" || pbag.id().as_str() == "ibag");
 
         let size = pbag.len();

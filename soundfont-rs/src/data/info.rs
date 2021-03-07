@@ -1,6 +1,8 @@
 use super::utils::Reader;
 use riff::Chunk;
 
+use std::io::{Read, Seek};
+
 #[derive(Debug)]
 pub struct SFVersion {
     major: u16,
@@ -37,7 +39,7 @@ pub struct SFInfo {
 }
 
 impl SFInfo {
-    pub fn read(info: &Chunk, file: &mut std::fs::File) -> SFInfo {
+    pub fn read<F: Read + Seek>(info: &Chunk, file: &mut F) -> SFInfo {
         assert_eq!(info.id().as_str(), "LIST");
         assert_eq!(info.read_type(file).unwrap().as_str(), "INFO");
 

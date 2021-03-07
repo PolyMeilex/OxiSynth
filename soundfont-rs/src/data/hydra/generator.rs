@@ -1,5 +1,6 @@
 use super::super::utils::Reader;
 use riff::Chunk;
+use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
 pub enum SFGeneratorAmount {
@@ -86,7 +87,7 @@ impl SFGenerator {
         Self { ty, amount }
     }
 
-    pub fn read_all(pmod: &Chunk, file: &mut std::fs::File) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Vec<Self> {
         assert!(pmod.id().as_str() == "pgen" || pmod.id().as_str() == "igen");
 
         let size = pmod.len();

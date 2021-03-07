@@ -1,5 +1,7 @@
 use riff::Chunk;
 
+use std::io::{Read, Seek};
+
 /// The Sample Binary Data
 #[derive(Debug)]
 pub struct SFSampleData {
@@ -16,7 +18,7 @@ pub struct SFSampleData {
 }
 
 impl SFSampleData {
-    pub fn read(sdta: &Chunk, file: &mut std::fs::File) -> Self {
+    pub fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Self {
         assert_eq!(sdta.id().as_str(), "LIST");
         assert_eq!(sdta.read_type(file).unwrap().as_str(), "sdta");
 
