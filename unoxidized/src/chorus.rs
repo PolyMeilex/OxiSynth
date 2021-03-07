@@ -37,8 +37,8 @@ pub struct Chorus {
     new_level: f32,
     speed_hz: f32,
     new_speed_hz: f32,
-    number_blocks: i32,
-    new_number_blocks: i32,
+    number_blocks: u32,
+    new_number_blocks: u32,
     chorusbuf: [f32; MAX_SAMPLES],
     counter: i32,
     phase: [isize; 99],
@@ -107,12 +107,12 @@ impl Chorus {
         self.update();
     }
 
-    pub fn set_nr(&mut self, nr: i32) {
+    pub fn set_nr(&mut self, nr: u32) {
         self.new_number_blocks = nr;
     }
 
-    pub fn get_nr(&self) -> i32 {
-        return self.number_blocks;
+    pub fn get_nr(&self) -> u32 {
+        self.number_blocks
     }
 
     pub fn set_level(&mut self, level: f32) {
@@ -120,7 +120,7 @@ impl Chorus {
     }
 
     pub fn get_level(&self) -> f32 {
-        return self.level;
+        self.level
     }
 
     pub fn set_speed_hz(&mut self, speed_hz: f32) {
@@ -128,7 +128,7 @@ impl Chorus {
     }
 
     pub fn get_speed_hz(&self) -> f32 {
-        return self.speed_hz;
+        self.speed_hz
     }
 
     pub fn set_depth_ms(&mut self, depth_ms: f32) {
@@ -136,7 +136,7 @@ impl Chorus {
     }
 
     pub fn get_depth_ms(&self) -> f32 {
-        return self.depth_ms;
+        self.depth_ms
     }
 
     pub fn set_mode(&mut self, mode: ChorusMode) {
@@ -149,15 +149,12 @@ impl Chorus {
 
     pub fn update(&mut self) {
         let mut modulation_depth_samples: i32;
-        if self.new_number_blocks < 0 as i32 {
-            log::warn!("chorus: number blocks must be >=0! Setting value to 0.");
-            self.new_number_blocks = 0 as i32
-        } else if self.new_number_blocks > 99 as i32 {
+        if self.new_number_blocks > 99 {
             log::warn!(
                 "chorus: number blocks larger than max. allowed! Setting value to {}.",
                 99
             );
-            self.new_number_blocks = 99 as i32
+            self.new_number_blocks = 99;
         }
         if (self.new_speed_hz as f64) < 0.29f64 {
             log::warn!(

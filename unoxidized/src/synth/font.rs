@@ -4,8 +4,15 @@ use crate::synth::Synth;
 use std::path::Path;
 
 impl Synth {
-    pub fn sfload(&mut self, filename: &Path, reset_presets: bool) -> Result<u32, ()> {
-        let sfont = SoundFont::load(filename);
+    /**
+    Loads a SoundFont file and creates a new SoundFont. The newly
+    loaded SoundFont will be put on top of the SoundFont
+    stack. Presets are searched starting from the SoundFont on the
+    top of the stack, working the way down the stack until a preset
+    is found.
+     */
+    pub fn sfload<P: AsRef<Path>>(&mut self, filename: P, reset_presets: bool) -> Result<u32, ()> {
+        let sfont = SoundFont::load(filename.as_ref());
 
         match sfont {
             Ok(mut sfont) => {
@@ -18,12 +25,15 @@ impl Synth {
                 Ok(self.sfont_id)
             }
             Err(err) => {
-                log::error!("Failed to load SoundFont '{:?}'", filename);
+                log::error!("Failed to load SoundFont '{:?}'", filename.as_ref());
                 Err(err)
             }
         }
     }
 
+    /**
+    Removes a SoundFont from the stack and deallocates it.
+     */
     pub fn sfunload(&mut self, id: u32, reset_presets: bool) -> Result<(), ()> {
         let sfont = self.get_sfont_by_id(id);
         if let Some(id) = sfont.map(|sfont| sfont.id) {
@@ -42,6 +52,10 @@ impl Synth {
         }
     }
 
+    /**
+    Reload a SoundFont. The reloaded SoundFont retains its ID and
+    index on the stack.
+     */
     pub fn sfreload(&mut self, id: u32) -> Result<u32, ()> {
         let index = self
             .sfont
@@ -69,20 +83,37 @@ impl Synth {
         }
     }
 
+    /**
+    Remove a SoundFont that was previously added using
+    fluid_synth_add_sfont(). The synthesizer does not delete the
+    SoundFont; this is responsability of the caller.
+     */
     pub fn remove_sfont(&mut self, id: u32) {
         self.sfont.retain(|s| s.id != id);
         self.remove_bank_offset(id);
         self.program_reset();
     }
 
+    /**
+    Count the number of loaded SoundFonts.
+     */
     pub fn sfcount(&self) -> usize {
         self.sfont.len()
     }
 
+    /**
+    Get a SoundFont. The SoundFont is specified by its index on the
+    stack. The top of the stack has index zero.
+
+    - `num` The number of the SoundFont (0 <= num < sfcount)
+     */
     pub fn get_sfont(&self, num: u32) -> Option<&SoundFont> {
         self.sfont.get(num as usize)
     }
 
+    /**
+    Get a SoundFont. The SoundFont is specified by its ID.
+     */
     pub fn get_sfont_by_id(&self, id: u32) -> Option<&SoundFont> {
         self.sfont.iter().find(|x| x.id == id)
     }

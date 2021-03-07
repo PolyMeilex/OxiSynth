@@ -2,10 +2,10 @@ use crate::synth::Synth;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ReverbParams {
-    pub roomsize: f64,
-    pub damp: f64,
-    pub width: f64,
-    pub level: f64,
+    pub roomsize: f32,
+    pub damp: f32,
+    pub width: f32,
+    pub level: f32,
 }
 
 impl Default for ReverbParams {
@@ -30,11 +30,11 @@ impl Synth {
     /**
     Set the parameters for the built-in reverb unit
      */
-    pub fn set_reverb_params(&mut self, roomsize: f64, damping: f64, width: f64, level: f64) {
-        self.reverb.set_room_size(roomsize as f32);
-        self.reverb.set_damp(damping as f32);
-        self.reverb.set_width(width as f32);
-        self.reverb.set_level(level as f32);
+    pub fn set_reverb_params(&mut self, roomsize: f32, damping: f32, width: f32, level: f32) {
+        self.reverb.set_room_size(roomsize);
+        self.reverb.set_damp(damping);
+        self.reverb.set_width(width);
+        self.reverb.set_level(level);
     }
 
     /**
@@ -47,29 +47,29 @@ impl Synth {
     /**
     Query the current reverb room size
      */
-    pub fn get_reverb_roomsize(&self) -> f64 {
-        self.reverb.get_room_size() as f64
+    pub fn get_reverb_roomsize(&self) -> f32 {
+        self.reverb.get_room_size()
     }
 
     /**
     Query the current reverb dumping
      */
-    pub fn get_reverb_damp(&self) -> f64 {
-        self.reverb.get_damp() as f64
+    pub fn get_reverb_damp(&self) -> f32 {
+        self.reverb.get_damp()
     }
 
     /**
     Query the current reverb level
      */
-    pub fn get_reverb_level(&self) -> f64 {
-        self.reverb.get_level() as f64
+    pub fn get_reverb_level(&self) -> f32 {
+        self.reverb.get_level()
     }
 
     /**
     Query the current reverb width
      */
-    pub fn get_reverb_width(&self) -> f64 {
-        self.reverb.get_width() as f64
+    pub fn get_reverb_width(&self) -> f32 {
+        self.reverb.get_width()
     }
 
     /**

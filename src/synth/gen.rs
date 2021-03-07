@@ -1,4 +1,4 @@
-use crate::{engine, Chan, Synth};
+use crate::{engine, Synth};
 
 use engine::gen::GenParam;
 
@@ -15,12 +15,7 @@ impl Synth {
     parameter numbers and ranges are described in the SoundFont 2.01
     specification, paragraph 8.1.3, page 48.
      */
-    pub fn set_gen(
-        &mut self,
-        chan: Chan,
-        param: GenParam,
-        value: f32,
-    ) -> std::result::Result<(), ()> {
+    pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) -> Result<(), ()> {
         self.handle.set_gen(chan, param, value)
     }
 
@@ -30,7 +25,7 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn get_gen(&self, chan: Chan, param: GenParam) -> f32 {
+    pub fn get_gen(&self, chan: u8, param: GenParam) -> f32 {
         self.handle.get_gen(chan, param)
     }
 }

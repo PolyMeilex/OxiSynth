@@ -38,7 +38,7 @@ pub struct Channel {
     pub(crate) channum: u8,
     sfontnum: u32,
     banknum: u32,
-    prognum: u32,
+    prognum: u8,
     pub(crate) preset: Option<Preset>,
     pub(crate) key_pressure: [i8; 128],
     pub(crate) channel_pressure: i16,
@@ -87,7 +87,7 @@ impl Channel {
             channum: num,
             sfontnum: 0 as _,
             banknum: 0 as _,
-            prognum: 0 as _,
+            prognum: 0,
             preset: None,
             key_pressure: [0; 128],
             channel_pressure: 0 as _,
@@ -108,7 +108,7 @@ impl Channel {
     }
 
     pub fn init(&mut self, preset: Option<Preset>) {
-        self.prognum = 0 as i32 as u32;
+        self.prognum = 0;
         self.banknum = 0 as i32 as u32;
         self.sfontnum = 0 as i32 as u32;
 
@@ -188,16 +188,15 @@ impl Channel {
     }
 
     pub fn get_banknum(&self) -> u32 {
-        return self.banknum;
+        self.banknum
     }
 
-    pub fn set_prognum(&mut self, prognum: i32) -> i32 {
-        self.prognum = prognum as u32;
-        return FLUID_OK as i32;
+    pub fn set_prognum(&mut self, prognum: u8) {
+        self.prognum = prognum;
     }
 
-    pub fn get_prognum(&self) -> i32 {
-        return self.prognum as i32;
+    pub fn get_prognum(&self) -> u8 {
+        self.prognum
     }
 
     pub fn set_banknum(&mut self, banknum: u32) {

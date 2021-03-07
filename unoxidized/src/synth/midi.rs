@@ -6,12 +6,12 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: i32) -> Result<(), ()> {
+    pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: u8) -> Result<(), ()> {
         if midi_chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range");
             return Err(());
         }
-        if vel == 0 as i32 {
+        if vel == 0 {
             return self.noteoff(midi_chan, key);
         }
         if self.channel[midi_chan as usize].preset.is_none() {
@@ -117,7 +117,7 @@ impl Synth {
     /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: u8, num: u32) -> Result<u8, ()> {
+    pub fn get_cc(&self, chan: u8, num: u16) -> Result<u8, ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             Err(())
@@ -151,7 +151,7 @@ impl Synth {
     /**
     Send a pitch bend message.
      */
-    pub fn pitch_bend(&mut self, chan: u8, val: i32) -> Result<(), ()> {
+    pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
@@ -232,26 +232,27 @@ impl Synth {
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, chan: u8, prognum: i32) -> Result<(), ()> {
+    pub fn program_change(&mut self, chan: u8, prognum: u8) -> Result<(), ()> {
         let mut preset;
         let banknum;
         let sfont_id;
         let mut subst_bank;
         let mut subst_prog;
-        if prognum < 0 as i32 || prognum >= 128 as i32 || chan >= self.settings.synth.midi_channels
-        {
+
+        if prognum >= 128 || chan >= self.settings.synth.midi_channels {
             log::error!("Index out of range (chan={}, prog={})", chan, prognum);
             return Err(());
         }
+
         banknum = self.channel[chan as usize].get_banknum();
         self.channel[chan as usize].set_prognum(prognum);
 
         log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
 
         if self.channel[chan as usize].channum == 9 && self.settings.synth.drums_channel_active {
-            preset = self.find_preset(128 as i32 as u32, prognum as u32)
+            preset = self.find_preset(128, prognum)
         } else {
-            preset = self.find_preset(banknum, prognum as u32)
+            preset = self.find_preset(banknum, prognum)
         }
 
         if preset.is_none() {
@@ -259,14 +260,14 @@ impl Synth {
             subst_prog = prognum;
             if banknum != 128 as i32 as u32 {
                 subst_bank = 0 as i32;
-                preset = self.find_preset(0 as i32 as u32, prognum as u32);
-                if preset.is_none() && prognum != 0 as i32 {
-                    preset = self.find_preset(0 as i32 as u32, 0 as i32 as u32);
-                    subst_prog = 0 as i32
+                preset = self.find_preset(0, prognum);
+                if preset.is_none() && prognum != 0 {
+                    preset = self.find_preset(0, 0);
+                    subst_prog = 0;
                 }
             } else {
-                preset = self.find_preset(128 as i32 as u32, 0 as i32 as u32);
-                subst_prog = 0 as i32
+                preset = self.find_preset(128, 0);
+                subst_prog = 0;
             }
             if preset.is_none() {
                 log::warn!(
@@ -289,7 +290,7 @@ impl Synth {
     /**
     Set channel pressure
      */
-    pub fn channel_pressure(&mut self, chan: u8, val: i32) -> Result<(), ()> {
+    pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), ()> {
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
@@ -317,12 +318,12 @@ impl Synth {
     /**
     Set key pressure (aftertouch)
      */
-    pub fn key_pressure(&mut self, chan: i32, key: i32, val: i32) -> Result<(), ()> {
+    pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
         let mut result: i32 = FLUID_OK as i32;
-        if key < 0 as i32 || key > 127 as i32 {
+        if key > 127 {
             return Err(());
         }
-        if val < 0 as i32 || val > 127 as i32 {
+        if val > 127 {
             return Err(());
         }
 
@@ -331,8 +332,8 @@ impl Synth {
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
-            if voice.chan as i32 == chan && voice.key as i32 == key {
-                result = voice.modulate(&self.channel, 0 as i32, FLUID_MOD_KEYPRESSURE as u16);
+            if voice.chan == chan && voice.key == key {
+                result = voice.modulate(&self.channel, 0, FLUID_MOD_KEYPRESSURE as u16);
                 if result != FLUID_OK as i32 {
                     break;
                 }
@@ -379,7 +380,7 @@ impl Synth {
         chan: u8,
         sfont_id: u32,
         bank_num: u32,
-        preset_num: u32,
+        preset_num: u8,
     ) -> Result<(), ()> {
         let preset;
         let channel;
@@ -400,7 +401,7 @@ impl Synth {
         channel = &mut self.channel[chan as usize];
         channel.set_sfontnum(sfont_id);
         channel.set_banknum(bank_num);
-        channel.set_prognum(preset_num as i32);
+        channel.set_prognum(preset_num);
         channel.set_preset(preset);
 
         Ok(())

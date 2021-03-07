@@ -28,7 +28,7 @@ impl Synth {
                 self.right_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
             }
 
-            for i in 0..self.settings.synth.effects_channels {
+            for i in 0..2 {
                 self.fx_left_buf[i as usize]
                     .iter_mut()
                     .for_each(|v| *v = 0.0);

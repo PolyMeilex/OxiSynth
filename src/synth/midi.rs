@@ -1,4 +1,4 @@
-use crate::{Bank, Chan, Ctrl, FontId, Key, PresetId, Prog, Synth, Val, Vel};
+use crate::Synth;
 
 /**
 MIDI channel messages
@@ -7,92 +7,92 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn note_on(&mut self, chan: Chan, key: Key, vel: Vel) -> Result<(), ()> {
-        self.handle.noteon(chan as _, key as _, vel as _)
+    pub fn note_on(&mut self, chan: u8, key: u8, vel: u8) -> Result<(), ()> {
+        self.handle.noteon(chan, key, vel)
     }
 
     /**
     Send a noteoff message.
      */
-    pub fn note_off(&mut self, chan: Chan, key: Key) -> Result<(), ()> {
+    pub fn note_off(&mut self, chan: u8, key: u8) -> Result<(), ()> {
         self.handle.noteoff(chan, key)
     }
 
     /**
     Send a control change message.
      */
-    pub fn cc(&mut self, chan: Chan, ctrl: Ctrl, val: Val) -> Result<(), ()> {
-        self.handle.cc(chan as _, ctrl as _, val as _)
+    pub fn cc(&mut self, chan: u8, ctrl: u16, val: u16) -> Result<(), ()> {
+        self.handle.cc(chan, ctrl, val)
     }
 
     /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: Chan, ctrl: Ctrl) -> Result<u8, ()> {
+    pub fn get_cc(&self, chan: u8, ctrl: u16) -> Result<u8, ()> {
         self.handle.get_cc(chan, ctrl)
     }
 
     /**
     Send a pitch bend message.
      */
-    pub fn pitch_bend(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        self.handle.pitch_bend(chan as _, val as _)
+    pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), ()> {
+        self.handle.pitch_bend(chan, val)
     }
 
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: Chan) -> Result<i16, ()> {
+    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, ()> {
         self.handle.get_pitch_bend(chan)
     }
 
     /**
     Set the pitch wheel sensitivity.
      */
-    pub fn pitch_wheel_sens(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        self.handle.pitch_wheel_sens(chan as _, val as _)
+    pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), ()> {
+        self.handle.pitch_wheel_sens(chan, val)
     }
 
     /**
     Get the pitch wheel sensitivity.
      */
-    pub fn get_pitch_wheel_sens(&self, chan: Chan) -> Result<u32, ()> {
+    pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, ()> {
         self.handle.get_pitch_wheel_sens(chan)
     }
 
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, chan: Chan, prog: Prog) -> Result<(), ()> {
-        self.handle.program_change(chan as _, prog as _)
+    pub fn program_change(&mut self, chan: u8, prog: u8) -> Result<(), ()> {
+        self.handle.program_change(chan, prog)
     }
 
     /**
     Set channel pressure
      */
-    pub fn channel_pressure(&mut self, chan: Chan, val: Val) -> Result<(), ()> {
-        self.handle.channel_pressure(chan as _, val as _)
+    pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), ()> {
+        self.handle.channel_pressure(chan, val)
     }
 
     /**
     Set key pressure (aftertouch)
      */
-    pub fn key_pressure(&mut self, chan: Chan, key: Key, val: Val) -> Result<(), ()> {
-        self.handle.key_pressure(chan as _, key as _, val as _)
+    pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
+        self.handle.key_pressure(chan, key, val)
     }
 
     /**
     Select a bank.
      */
-    pub fn bank_select(&mut self, chan: Chan, bank: Bank) -> Result<(), ()> {
-        self.handle.bank_select(chan as _, bank)
+    pub fn bank_select(&mut self, chan: u8, bank: u32) -> Result<(), ()> {
+        self.handle.bank_select(chan, bank)
     }
 
     /**
     Select a sfont.
      */
-    pub fn sfont_select(&mut self, chan: Chan, sfont_id: FontId) -> Result<(), ()> {
-        self.handle.sfont_select(chan as _, sfont_id)
+    pub fn sfont_select(&mut self, chan: u8, sfont_id: u32) -> Result<(), ()> {
+        self.handle.sfont_select(chan, sfont_id)
     }
 
     /**
@@ -103,19 +103,19 @@ impl Synth {
      */
     pub fn program_select(
         &mut self,
-        chan: Chan,
-        sfont_id: FontId,
-        bank_num: Bank,
-        preset_num: PresetId,
+        chan: u8,
+        sfont_id: u32,
+        bank_num: u32,
+        preset_num: u8,
     ) -> Result<(), ()> {
         self.handle
-            .program_select(chan as _, sfont_id, bank_num, preset_num)
+            .program_select(chan, sfont_id, bank_num, preset_num)
     }
 
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: Chan) -> Result<(FontId, Bank, PresetId), ()> {
+    pub fn get_program(&self, chan: u8) -> Result<(u32, u32, u32), ()> {
         self.handle.get_program(chan)
     }
 

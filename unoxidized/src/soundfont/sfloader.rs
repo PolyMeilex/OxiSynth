@@ -329,13 +329,19 @@ impl InstrumentZone {
 
 impl Synth {
     /// noteon
-    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: i32) -> Result<(), ()> {
-        fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: i32) -> bool {
-            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) -> Result<(), ()> {
+        fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
+            zone.keylo <= key
+                && zone.keyhi >= key
+                && zone.vello <= vel as i32
+                && zone.velhi >= vel as i32
         }
 
-        fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: i32) -> bool {
-            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+        fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: u8) -> bool {
+            zone.keylo <= key
+                && zone.keyhi >= key
+                && zone.vello <= vel as i32
+                && zone.velhi >= vel as i32
         }
 
         fn sample_in_rom(sample: &Sample) -> i32 {

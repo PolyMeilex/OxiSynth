@@ -2,15 +2,12 @@ mod chorus;
 mod count;
 mod font;
 mod gen;
-mod loader;
 mod midi;
 mod misc;
 mod params;
 mod reverb;
 mod tuning;
 mod write;
-
-pub use self::write::IsSamples;
 
 use crate::{engine, Settings};
 

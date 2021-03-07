@@ -1,27 +1,3 @@
 Oxidizations Status
-
-- [x] ./soundfont
-- [x] ./synth
-  - [x] chorus.rs
-  - [x] count.rs
-  - [x] font.rs
-  - [x] gen.rs
-  - [x] midi.rs
-  - [x] params.rs
-  - [x] reverb.rs
-  - [x] tuning.rs
-  - [x] write.rs
-- [x] ./voice
-  - [x] dsp_float.rs
-- [x] ./channel.rs
-- [x] ./chorus.rs
-- [x] ./conv.rs
-- [x] ./gen.rs
-- [x] ./modulator.rs
-- [x] ./reverb.rs
-- [x] ./settings.rs
-- [x] ./soundfont.rs
-- [x] ./synth.rs
-- [x] ./tuning.rs
-- [x] ./voice_pool.rs 🚧
-- [ ] ./voice.rs
+- There is no unsafe left in codebase
+- But there is still a lot of work to be done to make it rusty

@@ -268,15 +268,15 @@ impl Voice {
         channel: &Channel,
         channel_id: ChannelId,
         key: u8,
-        vel: i32,
+        vel: u8,
         id: usize,
         start_time: u32,
         gain: f32,
     ) {
         self.id = id;
         self.chan = channel.get_num();
-        self.key = key as u8;
-        self.vel = vel as u8;
+        self.key = key;
+        self.vel = vel;
         self.interp_method = channel.get_interp_method();
         self.channel_id = Some(channel_id);
         self.mod_count = 0;
@@ -853,7 +853,7 @@ impl Voice {
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
-        fx_left_buf: &mut Vec<[f32; 64]>,
+        fx_left_buf: &mut [[f32; 64]; 2],
         reverb_active: bool,
         chorus_active: bool,
     ) {
@@ -1187,7 +1187,7 @@ impl Voice {
         count: usize,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
-        fx_left_buf: &mut Vec<[f32; 64]>,
+        fx_left_buf: &mut [[f32; 64]; 2],
         reverb_active: bool,
         chorus_active: bool,
     ) {

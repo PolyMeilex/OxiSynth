@@ -1,4 +1,4 @@
-use crate::{engine, Bank, Chan, Prog, Status, Synth};
+use crate::{engine, Synth};
 
 /**
  * Tuning
@@ -12,8 +12,8 @@ impl Synth {
      */
     pub fn create_key_tuning<S: Into<String>>(
         &mut self,
-        tuning_bank: Bank,
-        tuning_prog: Prog,
+        tuning_bank: u32,
+        tuning_prog: u32,
         name: S,
         pitch: &[f64; 128],
     ) -> std::result::Result<(), ()> {
@@ -30,8 +30,8 @@ impl Synth {
      */
     pub fn create_octave_tuning<S: Into<String>>(
         &mut self,
-        tuning_bank: Bank,
-        tuning_prog: Prog,
+        tuning_bank: u32,
+        tuning_prog: u32,
         name: S,
         pitch: &[f64; 12],
     ) -> std::result::Result<(), ()> {
@@ -41,8 +41,8 @@ impl Synth {
 
     pub fn activate_octave_tuning<S: Into<String>>(
         &mut self,
-        bank: Bank,
-        prog: Prog,
+        bank: u32,
+        prog: u32,
         name: S,
         pitch: &[f64; 12],
     ) -> std::result::Result<(), ()> {
@@ -58,8 +58,8 @@ impl Synth {
      */
     pub fn tune_notes<KP>(
         &mut self,
-        tuning_bank: Bank,
-        tuning_prog: Prog,
+        tuning_bank: u32,
+        tuning_prog: u32,
         keys_pitch: KP,
     ) -> std::result::Result<(), ()>
     where
@@ -72,24 +72,23 @@ impl Synth {
     /**
     Select a tuning for a channel.
      */
-    pub fn select_tuning(&mut self, chan: Chan, tuning_bank: Bank, tuning_prog: Prog) -> Status {
-        Synth::zero_ok(
-            self.handle
-                .select_tuning(chan as _, tuning_bank as _, tuning_prog as _),
-        )
+    pub fn select_tuning(
+        &mut self,
+        chan: u8,
+        tuning_bank: u32,
+        tuning_prog: u32,
+    ) -> Result<(), ()> {
+        Synth::zero_ok(self.handle.select_tuning(chan, tuning_bank, tuning_prog))
     }
 
-    pub fn activate_tuning(&mut self, chan: Chan, bank: Bank, prog: Prog, apply: bool) -> Status {
-        Synth::zero_ok(
-            self.handle
-                .activate_tuning(chan as _, bank as _, prog as _, apply as _),
-        )
+    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
+        Synth::zero_ok(self.handle.activate_tuning(chan, bank, prog))
     }
 
     /**
     Set the tuning to the default well-tempered tuning on a channel.
      */
-    pub fn reset_tuning(&mut self, chan: Chan) -> std::result::Result<(), ()> {
+    pub fn reset_tuning(&mut self, chan: u8) -> std::result::Result<(), ()> {
         self.handle.reset_tuning(chan)
     }
 
@@ -107,8 +106,8 @@ impl Synth {
      */
     pub fn tuning_dump(
         &self,
-        bank: Bank,
-        prog: Prog,
+        bank: u32,
+        prog: u32,
     ) -> std::result::Result<(&str, &[f64; 128]), ()> {
         self.handle.tuning_dump(bank, prog)
     }
@@ -118,7 +117,7 @@ impl Synth {
 
     This function returns the only name of a tuning.
      */
-    pub fn tuning_dump_name(&self, bank: Bank, prog: Prog) -> std::result::Result<&str, ()> {
+    pub fn tuning_dump_name(&self, bank: u32, prog: u32) -> std::result::Result<&str, ()> {
         self.handle.tuning_dump(bank, prog).map(|t| t.0)
     }
 
@@ -127,11 +126,7 @@ impl Synth {
 
     This function returns the only pitch values of a tuning.
      */
-    pub fn tuning_dump_pitch(
-        &self,
-        bank: Bank,
-        prog: Prog,
-    ) -> std::result::Result<&[f64; 128], ()> {
+    pub fn tuning_dump_pitch(&self, bank: u32, prog: u32) -> std::result::Result<&[f64; 128], ()> {
         self.handle.tuning_dump(bank, prog).map(|t| t.1)
     }
 }

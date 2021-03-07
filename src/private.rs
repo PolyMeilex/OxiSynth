@@ -1,4 +1,4 @@
-pub trait HasHandle {
+pub(crate) trait HasHandle {
     type Handle;
 
     fn get_handle(&self) -> *const Self::Handle;

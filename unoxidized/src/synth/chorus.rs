@@ -4,11 +4,11 @@ use crate::synth::Synth;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChorusParams {
     pub nr: u32,
-    pub level: f64,
+    pub level: f32,
     /// Speed in Hz
-    pub speed: f64,
+    pub speed: f32,
     /// Depth in mS
-    pub depth: f64,
+    pub depth: f32,
     /// Mode
     pub mode: ChorusMode,
 }
@@ -33,7 +33,7 @@ impl Synth {
      */
     pub fn set_chorus(&mut self, params: &ChorusParams) {
         self.set_chorus_params(
-            params.nr as i32,
+            params.nr,
             params.level,
             params.speed,
             params.depth,
@@ -48,16 +48,16 @@ impl Synth {
      */
     pub fn set_chorus_params(
         &mut self,
-        nr: i32,
-        level: f64,
-        speed: f64,
-        depth_ms: f64,
+        nr: u32,
+        level: f32,
+        speed: f32,
+        depth_ms: f32,
         type_0: ChorusMode,
     ) {
         self.chorus.set_nr(nr);
-        self.chorus.set_level(level as f32);
-        self.chorus.set_speed_hz(speed as f32);
-        self.chorus.set_depth_ms(depth_ms as f32);
+        self.chorus.set_level(level);
+        self.chorus.set_speed_hz(speed);
+        self.chorus.set_depth_ms(depth_ms);
         self.chorus.set_mode(type_0);
         self.chorus.update();
     }
@@ -70,29 +70,29 @@ impl Synth {
     /**
     Query the current chorus nr
      */
-    pub fn get_chorus_nr(&self) -> i32 {
+    pub fn get_chorus_nr(&self) -> u32 {
         self.chorus.get_nr()
     }
 
     /**
     Query the current chorus level
      */
-    pub fn get_chorus_level(&self) -> f64 {
-        self.chorus.get_level() as f64
+    pub fn get_chorus_level(&self) -> f32 {
+        self.chorus.get_level()
     }
 
     /**
     Query the current chorus speed (Hz)
      */
-    pub fn get_chorus_speed_hz(&self) -> f64 {
-        self.chorus.get_speed_hz() as f64
+    pub fn get_chorus_speed_hz(&self) -> f32 {
+        self.chorus.get_speed_hz()
     }
 
     /**
     Query the current chorus depth (mS)
      */
-    pub fn get_chorus_depth_ms(&self) -> f64 {
-        self.chorus.get_depth_ms() as f64
+    pub fn get_chorus_depth_ms(&self) -> f32 {
+        self.chorus.get_depth_ms()
     }
 
     /**
@@ -107,10 +107,10 @@ impl Synth {
      */
     pub fn get_chorus(&self) -> ChorusParams {
         ChorusParams {
-            nr: self.get_chorus_nr() as _,
+            nr: self.get_chorus_nr(),
             level: self.get_chorus_level(),
-            speed: self.get_chorus_speed_hz() as _,
-            depth: self.get_chorus_depth_ms() as _,
+            speed: self.get_chorus_speed_hz(),
+            depth: self.get_chorus_depth_ms(),
             mode: self.get_chorus_mode(),
         }
     }

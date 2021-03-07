@@ -13,8 +13,8 @@ pub struct Preset {
 }
 
 impl Preset {
-    pub fn get_name(&self) -> String {
-        self.data.name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.data.name
     }
 
     pub fn get_banknum(&self) -> u32 {
@@ -28,7 +28,7 @@ impl Preset {
 
 pub struct SoundFont {
     data: DefaultSoundFont,
-    pub id: u32,
+    pub(crate) id: u32,
 }
 
 impl SoundFont {
@@ -39,16 +39,20 @@ impl SoundFont {
         })
     }
 
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
     pub fn get_name(&self) -> &Path {
         &self.data.filename
     }
 
-    pub fn get_preset(&self, bank: u32, prenum: u32) -> Option<Preset> {
+    pub fn get_preset(&self, bank: u32, prenum: u8) -> Option<Preset> {
         let defpreset = self
             .data
             .presets
             .iter()
-            .find(|p| p.bank == bank && p.num == prenum);
+            .find(|p| p.bank == bank && p.num == prenum as u32);
 
         if let Some(defpreset) = defpreset {
             let preset = Preset {

@@ -1,7 +1,6 @@
 use crate::{engine, Synth};
 
-use engine::chorus::ChorusMode;
-pub use engine::synth::chorus::ChorusParams;
+use engine::{chorus::ChorusMode, synth::chorus::ChorusParams};
 
 impl Synth {
     /**
@@ -12,13 +11,12 @@ impl Synth {
     pub fn set_chorus_params(
         &mut self,
         nr: u32,
-        level: f64,
-        speed: f64,
-        depth: f64,
+        level: f32,
+        speed: f32,
+        depth: f32,
         mode: ChorusMode,
     ) {
-        self.handle
-            .set_chorus_params(nr as i32, level, speed, depth, mode);
+        self.handle.set_chorus_params(nr, level, speed, depth, mode);
     }
 
     /**
@@ -32,35 +30,35 @@ impl Synth {
 
     /** Turn on/off the built-in chorus unit */
     pub fn set_chorus_on(&mut self, on: bool) {
-        self.handle.set_chorus_on(on as _);
+        self.handle.set_chorus_on(on);
     }
 
     /**
     Query the current chorus nr
      */
     pub fn get_chorus_nr(&self) -> u32 {
-        self.handle.get_chorus_nr() as _
+        self.handle.get_chorus_nr()
     }
 
     /**
     Query the current chorus level
      */
-    pub fn get_chorus_level(&self) -> f64 {
-        self.handle.get_chorus_level() as _
+    pub fn get_chorus_level(&self) -> f32 {
+        self.handle.get_chorus_level()
     }
 
     /**
     Query the current chorus speed (Hz)
      */
-    pub fn get_chorus_speed(&self) -> f64 {
-        self.handle.get_chorus_speed_hz() as _
+    pub fn get_chorus_speed(&self) -> f32 {
+        self.handle.get_chorus_speed_hz()
     }
 
     /**
     Query the current chorus depth (mS)
      */
-    pub fn get_chorus_depth(&self) -> f64 {
-        self.handle.get_chorus_depth_ms() as _
+    pub fn get_chorus_depth(&self) -> f32 {
+        self.handle.get_chorus_depth_ms()
     }
 
     /**

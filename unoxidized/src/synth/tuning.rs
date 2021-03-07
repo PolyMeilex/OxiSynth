@@ -103,7 +103,7 @@ impl Synth {
         return FLUID_OK as i32;
     }
 
-    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32, _apply: i32) -> i32 {
+    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> i32 {
         self.select_tuning(chan, bank, prog)
     }
 

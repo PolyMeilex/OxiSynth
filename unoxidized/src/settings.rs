@@ -1,3 +1,5 @@
+pub const EFFECTS_CHANNELS: u8 = 2;
+
 pub struct SynthSettings {
     pub dump: bool,
 
@@ -21,15 +23,11 @@ pub struct SynthSettings {
     /// Def: 1
     /// Min: 1
     /// Max: 256
-    pub audio_channels: i32,
+    pub audio_channels: u8,
     /// Def: 1
     /// Min: 1
     /// Max: 256
-    pub audio_groups: i32,
-    /// Def: 2
-    /// Min: 2
-    /// Max: 2
-    pub effects_channels: i32,
+    pub audio_groups: u8,
     /// Def: 44100.0
     /// Min: 22050.0
     /// Max: 96000.0
@@ -55,7 +53,6 @@ impl Default for SynthSettings {
             gain: 0.2,
             audio_channels: 1,
             audio_groups: 1,
-            effects_channels: 2,
             sample_rate: 44100.0,
             min_note_length: 10,
         }

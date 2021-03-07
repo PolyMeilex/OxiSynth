@@ -74,11 +74,11 @@ pub struct Synth {
     pub(crate) voices: VoicePool,
     noteid: usize,
     storeid: usize,
-    nbuf: i32,
+    nbuf: u8,
     left_buf: Vec<[f32; 64]>,
     right_buf: Vec<[f32; 64]>,
-    fx_left_buf: Vec<[f32; 64]>,
-    fx_right_buf: Vec<[f32; 64]>,
+    fx_left_buf: [[f32; 64]; 2],
+    fx_right_buf: [[f32; 64]; 2],
     reverb: ReverbModel,
     chorus: Chorus,
     cur: usize,
@@ -127,14 +127,6 @@ impl Synth {
             settings.synth.audio_groups = 128;
         }
 
-        if settings.synth.effects_channels != 2 {
-            log::warn!(
-                "Invalid number of effects channels ({}).Setting effects channels to 2.",
-                settings.synth.effects_channels
-            );
-            settings.synth.effects_channels = 2;
-        }
-
         let nbuf = {
             let nbuf = settings.synth.audio_channels;
             if settings.synth.audio_groups > nbuf {
@@ -161,8 +153,8 @@ impl Synth {
             nbuf,
             left_buf: Vec::new(),
             right_buf: Vec::new(),
-            fx_left_buf: Vec::new(),
-            fx_right_buf: Vec::new(),
+            fx_left_buf: [[0f32; 64]; 2],
+            fx_right_buf: [[0f32; 64]; 2],
             reverb: ReverbModel::new(),
             chorus: Chorus::new(settings.synth.sample_rate as f32),
             cur: 64,
@@ -179,12 +171,6 @@ impl Synth {
 
         synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
         synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
-        synth
-            .fx_left_buf
-            .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
-        synth
-            .fx_right_buf
-            .resize(synth.settings.synth.effects_channels as usize, [0f32; 64]);
 
         synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
 
@@ -206,7 +192,7 @@ impl Synth {
         &mut self,
         sfontnum: u32,
         banknum: u32,
-        prognum: u32,
+        prognum: u8,
     ) -> Option<Preset> {
         let sfont = self.get_sfont_by_id(sfontnum);
         if let Some(sfont) = sfont {
@@ -221,14 +207,14 @@ impl Synth {
         }
     }
 
-    pub(crate) fn find_preset(&self, banknum: u32, prognum: u32) -> Option<Preset> {
+    pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<Preset> {
         for sfont in self.sfont.iter() {
             let offset = self
                 .get_bank_offset(sfont.id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
 
-            let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
+            let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
             if let Some(preset) = preset {
                 return Some(preset);
             }
@@ -241,7 +227,7 @@ impl Synth {
         sample: Rc<Sample>,
         chan: u8,
         key: u8,
-        vel: i32,
+        vel: u8,
     ) -> Option<VoiceId> {
         /* check if there's an available synthesis process */
         let mut voice_id = self
@@ -318,13 +304,12 @@ impl Synth {
         for chan in 0..(self.settings.synth.midi_channels as usize) {
             let sfontnum = self.channel[chan].get_sfontnum();
             let banknum = self.channel[chan].get_banknum();
-            let prognum = self.channel[chan].get_prognum() as u32;
+            let prognum = self.channel[chan].get_prognum();
             let preset = self.get_preset(sfontnum, banknum, prognum);
             self.channel[chan].set_preset(preset);
         }
     }
 }
-
 
 static DEFAULT_VEL2ATT_MOD: Mod = Mod {
     dest: GenParam::Attenuation,
