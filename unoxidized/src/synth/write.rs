@@ -48,6 +48,7 @@ impl Synth {
                 auchan %= self.settings.synth.audio_groups as u8;
 
                 voice.write(
+                    &self.channel,
                     self.min_note_length_ticks,
                     &mut self.left_buf[auchan as usize],
                     &mut self.right_buf[auchan as usize],

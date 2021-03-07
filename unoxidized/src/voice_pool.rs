@@ -1,3 +1,4 @@
+use crate::channel::Channel;
 use crate::gen::GenParam;
 use crate::voice::{Voice, VoiceId, VoiceStatus, FLUID_VOICE_ENVATTACK};
 
@@ -22,30 +23,43 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn damp_voices(&mut self, chan: u8, polyphony: u16, min_note_length_ticks: u32) {
+    pub(crate) fn damp_voices(
+        &mut self,
+        channels: &[Channel],
+        chan: u8,
+        polyphony: u16,
+        min_note_length_ticks: u32,
+    ) {
         for i in 0..polyphony {
             let voice = &mut self.voices[i as usize];
 
             if voice.chan == chan && voice.status == VoiceStatus::Sustained {
-                voice.noteoff(min_note_length_ticks);
+                voice.noteoff(channels, min_note_length_ticks);
             }
         }
     }
 
-    pub(crate) fn modulate_voices(&mut self, chan: u8, is_cc: i32, ctrl: u16, polyphony: u16) {
+    pub(crate) fn modulate_voices(
+        &mut self,
+        channels: &[Channel],
+        chan: u8,
+        is_cc: i32,
+        ctrl: u16,
+        polyphony: u16,
+    ) {
         for i in 0..polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan {
-                voice.modulate(is_cc, ctrl);
+                voice.modulate(channels, is_cc, ctrl);
             }
         }
     }
 
-    pub(crate) fn modulate_voices_all(&mut self, chan: u8, polyphony: u16) {
+    pub(crate) fn modulate_voices_all(&mut self, channels: &[Channel], chan: u8, polyphony: u16) {
         for i in 0..polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan {
-                voice.modulate_all();
+                voice.modulate_all(channels);
             }
         }
     }
@@ -120,13 +134,14 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn start_voice(&mut self, voice_id: VoiceId, polyphony: u16) {
+    pub(crate) fn start_voice(&mut self, channels: &[Channel], voice_id: VoiceId, polyphony: u16) {
         self.kill_by_exclusive_class(voice_id, polyphony);
-        self.voices[voice_id.0].start();
+        self.voices[voice_id.0].start(channels);
     }
 
     pub(crate) fn release_voice_on_same_note(
         &mut self,
+        channels: &[Channel],
         chan: u8,
         key: u8,
         polyphony: u16,
@@ -136,7 +151,7 @@ impl VoicePool {
         for i in 0..polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_playing() && voice.chan == chan && voice.key == key && voice.id != noteid {
-                voice.noteoff(min_note_length_ticks);
+                voice.noteoff(channels, min_note_length_ticks);
             }
         }
     }

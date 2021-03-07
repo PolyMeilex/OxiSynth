@@ -17,7 +17,7 @@ impl Synth {
         while i < self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan == chan as u8 {
-                voice.set_param(param as u16, value, 0 as i32);
+                voice.set_param(param, value, 0 as i32);
             }
             i += 1
         }

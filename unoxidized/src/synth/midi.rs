@@ -32,6 +32,7 @@ impl Synth {
         }
 
         self.voices.release_voice_on_same_note(
+            &self.channel,
             midi_chan,
             key,
             self.settings.synth.polyphony,
@@ -84,7 +85,7 @@ impl Synth {
                         used_voices
                     }
                 );
-                voice.noteoff(self.min_note_length_ticks);
+                voice.noteoff(&self.channel, self.min_note_length_ticks);
                 status = Ok(());
             }
         }
@@ -135,7 +136,7 @@ impl Synth {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.is_playing() && voice.chan == chan {
-                voice.noteoff(self.min_note_length_ticks);
+                voice.noteoff(&self.channel, self.min_note_length_ticks);
             }
         }
     }
@@ -166,6 +167,7 @@ impl Synth {
 
             self.channel[chan as usize].pitch_bend = val as i16;
             self.voices.modulate_voices(
+                &self.channel,
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_PITCHWHEEL,
@@ -206,6 +208,7 @@ impl Synth {
 
             self.channel[chan as usize].pitch_wheel_sensitivity = val;
             self.voices.modulate_voices(
+                &self.channel,
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_PITCHWHEELSENS,
@@ -302,6 +305,7 @@ impl Synth {
 
             self.channel[chan as usize].channel_pressure = val as i16;
             self.voices.modulate_voices(
+                &self.channel,
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_CHANNELPRESSURE,
@@ -330,7 +334,7 @@ impl Synth {
         for i in 0..self.settings.synth.polyphony {
             let voice = &mut self.voices[i as usize];
             if voice.chan as i32 == chan && voice.key as i32 == key {
-                result = voice.modulate(0 as i32, FLUID_MOD_KEYPRESSURE as u16);
+                result = voice.modulate(&self.channel, 0 as i32, FLUID_MOD_KEYPRESSURE as u16);
                 if result != FLUID_OK as i32 {
                     break;
                 }

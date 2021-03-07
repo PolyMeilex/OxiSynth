@@ -185,8 +185,8 @@ impl Default for Mod {
 }
 
 impl Mod {
-    pub fn get_dest(&self) -> i32 {
-        self.dest as i32
+    pub fn get_dest(&self) -> GenParam {
+        self.dest
     }
 
     pub fn get_value(&self, chan: &Channel, voice: &Voice) -> f32 {

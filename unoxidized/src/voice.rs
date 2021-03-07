@@ -1,4 +1,8 @@
+#![forbid(unsafe_code)]
+
 pub mod dsp_float;
+
+use crate::gen::GenParam;
 
 use super::channel::{Channel, ChannelId, InterpMethod};
 use super::conv::fluid_act2hz;
@@ -25,55 +29,21 @@ type ModSrc = u32;
 const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
 type GenType = u32;
 const GEN_PITCH: GenType = 59;
-const GEN_OVERRIDEROOTKEY: GenType = 58;
 const GEN_EXCLUSIVECLASS: GenType = 57;
 const GEN_SCALETUNE: GenType = 56;
 const GEN_SAMPLEMODE: GenType = 54;
 
-// const GEN_FINETUNE: GenType = 52;
-// const GEN_COARSETUNE: GenType = 51;
-// const GEN_ENDLOOPADDRCOARSEOFS: GenType = 50;
 const GEN_ATTENUATION: GenType = 48;
-const GEN_VELOCITY: GenType = 47;
-const GEN_KEYNUM: GenType = 46;
-// const GEN_STARTLOOPADDRCOARSEOFS: GenType = 45;
 const GEN_KEYTOVOLENVDECAY: GenType = 40;
 const GEN_KEYTOVOLENVHOLD: GenType = 39;
 const GEN_VOLENVRELEASE: GenType = 38;
-// const GEN_VOLENVSUSTAIN: GenType = 37;
 const GEN_VOLENVDECAY: GenType = 36;
 const GEN_VOLENVHOLD: GenType = 35;
-const GEN_VOLENVATTACK: GenType = 34;
-const GEN_VOLENVDELAY: GenType = 33;
 const GEN_KEYTOMODENVDECAY: GenType = 32;
 const GEN_KEYTOMODENVHOLD: GenType = 31;
 const GEN_MODENVRELEASE: GenType = 30;
-// const GEN_MODENVSUSTAIN: GenType = 29;
 const GEN_MODENVDECAY: GenType = 28;
 const GEN_MODENVHOLD: GenType = 27;
-const GEN_MODENVATTACK: GenType = 26;
-const GEN_MODENVDELAY: GenType = 25;
-const GEN_VIBLFOFREQ: GenType = 24;
-const GEN_VIBLFODELAY: GenType = 23;
-const GEN_MODLFOFREQ: GenType = 22;
-const GEN_MODLFODELAY: GenType = 21;
-const GEN_PAN: GenType = 17;
-const GEN_REVERBSEND: GenType = 16;
-const GEN_CHORUSSEND: GenType = 15;
-const GEN_MODLFOTOVOL: GenType = 13;
-// const GEN_ENDADDRCOARSEOFS: GenType = 12;
-const GEN_MODENVTOFILTERFC: GenType = 11;
-const GEN_MODLFOTOFILTERFC: GenType = 10;
-const GEN_FILTERQ: GenType = 9;
-const GEN_FILTERFC: GenType = 8;
-const GEN_MODENVTOPITCH: GenType = 7;
-const GEN_VIBLFOTOPITCH: GenType = 6;
-const GEN_MODLFOTOPITCH: GenType = 5;
-// const GEN_STARTADDRCOARSEOFS: GenType = 4;
-const GEN_ENDLOOPADDROFS: GenType = 3;
-const GEN_STARTLOOPADDROFS: GenType = 2;
-const GEN_ENDADDROFS: GenType = 1;
-const GEN_STARTADDROFS: GenType = 0;
 type GenFlags = u32;
 const GEN_ABS_NRPN: GenFlags = 2;
 const GEN_SET: GenFlags = 1;
@@ -117,7 +87,6 @@ pub struct Voice {
     pub(crate) chan: u8,
     pub(crate) key: u8,
     pub(crate) vel: u8,
-    channel: *mut Channel,
     channel_id: Option<ChannelId>,
     pub(crate) gen: [Gen; 60],
     mod_0: [Mod; 64],
@@ -190,6 +159,7 @@ pub struct Voice {
     interp_method: InterpMethod,
     debug: i32,
 }
+
 #[derive(Copy, Default, Clone)]
 pub struct EnvData {
     pub count: u32,
@@ -241,7 +211,6 @@ impl Voice {
             chan: 0xff,
             key: 0,
             vel: 0,
-            channel: 0 as *mut Channel,
             channel_id: None,
             gen: [Gen::default(); 60],
             mod_0: [Mod::default(); 64],
@@ -319,7 +288,7 @@ impl Voice {
     pub(crate) fn init(
         &mut self,
         sample: Rc<Sample>,
-        channel: &mut Channel,
+        channel: &Channel,
         channel_id: ChannelId,
         key: u8,
         vel: i32,
@@ -332,7 +301,6 @@ impl Voice {
         self.key = key as u8;
         self.vel = vel as u8;
         self.interp_method = channel.get_interp_method();
-        self.channel = channel;
         self.channel_id = Some(channel_id);
         self.mod_count = 0;
         self.sample = Some(sample);
@@ -436,61 +404,60 @@ impl Voice {
             self.modenv_count = 0 as i32 as u32
         }
         self.gen_set(GEN_VOLENVRELEASE as i32, -200.0);
-        self.update_param(GEN_VOLENVRELEASE as i32);
+        self.update_param(GenParam::VolEnvRelease);
         self.gen_set(GEN_MODENVRELEASE as i32, -200.0);
-        self.update_param(GEN_MODENVRELEASE as i32);
+        self.update_param(GenParam::ModEnvRelease);
     }
 
-    pub(crate) fn start(&mut self) {
-        unsafe {
-            self.calculate_runtime_synthesis_parameters();
-        }
+    pub(crate) fn start(&mut self, channels: &[Channel]) {
+        self.calculate_runtime_synthesis_parameters(channels);
         self.check_sample_sanity_flag = (1 as i32) << 1 as i32;
         self.status = VoiceStatus::On;
     }
 
-    pub(crate) fn noteoff(&mut self, min_note_length_ticks: u32) -> i32 {
+    pub(crate) fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) -> i32 {
         let at_tick;
         at_tick = min_note_length_ticks;
         if at_tick > self.ticks {
             self.noteoff_ticks = at_tick;
             return FLUID_OK as i32;
         }
-        if !self.channel.is_null()
-            && unsafe { &*self.channel }.cc[SUSTAIN_SWITCH as i32 as usize] as i32 >= 64 as i32
-        {
-            self.status = VoiceStatus::Sustained;
-        } else {
-            if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
-                if self.volenv_val > 0 as i32 as f32 {
-                    let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
-                    let amp: f32 = (self.volenv_val as f64
-                        * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
-                        as f32;
-                    let mut env_value: f32 = -((-(200 as i32) as f64 * f64::ln(amp as f64)
-                        / f64::ln(10.0f64)
-                        - lfo as f64)
-                        / 960.0f64
-                        - 1 as i32 as f64) as f32;
-                    env_value = if (env_value as f64) < 0.0f64 {
-                        0.0f64
-                    } else if env_value as f64 > 1.0f64 {
-                        1.0f64
-                    } else {
-                        env_value as f64
-                    } as f32;
-                    self.volenv_val = env_value
+
+        if let Some(channel_id) = &self.channel_id {
+            if channels[channel_id.0].cc[SUSTAIN_SWITCH as i32 as usize] >= 64 {
+                self.status = VoiceStatus::Sustained;
+            } else {
+                if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
+                    if self.volenv_val > 0 as i32 as f32 {
+                        let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
+                        let amp: f32 = (self.volenv_val as f64
+                            * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
+                            as f32;
+                        let mut env_value: f32 =
+                            -((-(200 as i32) as f64 * f64::ln(amp as f64) / f64::ln(10.0f64)
+                                - lfo as f64)
+                                / 960.0f64
+                                - 1 as i32 as f64) as f32;
+                        env_value = if (env_value as f64) < 0.0f64 {
+                            0.0f64
+                        } else if env_value as f64 > 1.0f64 {
+                            1.0f64
+                        } else {
+                            env_value as f64
+                        } as f32;
+                        self.volenv_val = env_value
+                    }
                 }
+                self.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
+                self.volenv_count = 0 as i32 as u32;
+                self.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
+                self.modenv_count = 0 as i32 as u32
             }
-            self.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
-            self.volenv_count = 0 as i32 as u32;
-            self.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
-            self.modenv_count = 0 as i32 as u32
         }
         return FLUID_OK as i32;
     }
 
-    pub(crate) fn modulate(&mut self, cc: i32, ctrl: u16) -> i32 {
+    pub(crate) fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -510,10 +477,9 @@ impl Voice {
 
                 let mut k = 0;
                 while k < self.mod_count {
-                    if self.mod_0[k].dest as i32 == gen {
-                        unsafe {
-                            modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self);
-                        }
+                    if self.mod_0[k].dest == gen {
+                        modval += self.mod_0[k]
+                            .get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
                     }
                     k += 1
                 }
@@ -525,7 +491,7 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) fn modulate_all(&mut self) -> i32 {
+    pub(crate) fn modulate_all(&mut self, channels: &[Channel]) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -534,10 +500,9 @@ impl Voice {
 
             let mut k = 0;
             while k < self.mod_count {
-                if self.mod_0[k].dest as i32 == gen {
-                    unsafe {
-                        modval += self.mod_0[k].get_value(self.channel.as_ref().unwrap(), self)
-                    }
+                if self.mod_0[k].dest == gen {
+                    modval += self.mod_0[k]
+                        .get_value(&channels[self.channel_id.as_ref().unwrap().0], self)
                 }
                 k += 1
             }
@@ -565,7 +530,7 @@ impl Voice {
         self.channel_id.as_ref()
     }
 
-    fn get_lower_boundary_for_attenuation(&mut self) -> f32 {
+    fn get_lower_boundary_for_attenuation(&mut self, channels: &[Channel]) -> f32 {
         let mut possible_att_reduction_c_b: f32 = 0.0;
         let mut i = 0;
         while i < self.mod_count {
@@ -575,7 +540,7 @@ impl Voice {
                     || mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0)
             {
                 let current_val: f32 =
-                    unsafe { mod_0.get_value(self.channel.as_ref().unwrap(), self) };
+                    mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
                 let mut v: f32 = f64::abs(mod_0.amount) as f32;
                 if mod_0.src1 as i32 == FLUID_MOD_PITCHWHEEL as i32
                     || mod_0.flags1 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
@@ -600,57 +565,56 @@ impl Voice {
         lower_bound
     }
 
-    unsafe fn calculate_runtime_synthesis_parameters(&mut self) -> i32 {
-        let list_of_generators_to_initialize: [i32; 35] = [
-            GEN_STARTADDROFS as i32,
-            GEN_ENDADDROFS as i32,
-            GEN_STARTLOOPADDROFS as i32,
-            GEN_ENDLOOPADDROFS as i32,
-            GEN_MODLFOTOPITCH as i32,
-            GEN_VIBLFOTOPITCH as i32,
-            GEN_MODENVTOPITCH as i32,
-            GEN_FILTERFC as i32,
-            GEN_FILTERQ as i32,
-            GEN_MODLFOTOFILTERFC as i32,
-            GEN_MODENVTOFILTERFC as i32,
-            GEN_MODLFOTOVOL as i32,
-            GEN_CHORUSSEND as i32,
-            GEN_REVERBSEND as i32,
-            GEN_PAN as i32,
-            GEN_MODLFODELAY as i32,
-            GEN_MODLFOFREQ as i32,
-            GEN_VIBLFODELAY as i32,
-            GEN_VIBLFOFREQ as i32,
-            GEN_MODENVDELAY as i32,
-            GEN_MODENVATTACK as i32,
-            GEN_MODENVHOLD as i32,
-            GEN_MODENVDECAY as i32,
-            GEN_MODENVRELEASE as i32,
-            GEN_VOLENVDELAY as i32,
-            GEN_VOLENVATTACK as i32,
-            GEN_VOLENVHOLD as i32,
-            GEN_VOLENVDECAY as i32,
-            GEN_VOLENVRELEASE as i32,
-            GEN_KEYNUM as i32,
-            GEN_VELOCITY as i32,
-            GEN_ATTENUATION as i32,
-            GEN_OVERRIDEROOTKEY as i32,
-            GEN_PITCH as i32,
-            -(1 as i32),
+    fn calculate_runtime_synthesis_parameters(&mut self, channels: &[Channel]) -> i32 {
+        let list_of_generators_to_initialize: [GenParam; 34] = [
+            GenParam::StartAddrOfs,
+            GenParam::EndAddrOfs,
+            GenParam::StartLoopAddrOfs,
+            GenParam::EndLoopAddrOfs,
+            GenParam::ModLfoToPitch,
+            GenParam::VibLfoToPitch,
+            GenParam::ModEnvToPitch,
+            GenParam::FilterFc,
+            GenParam::FilterQ,
+            GenParam::ModLfoToFilterFc,
+            GenParam::ModEnvToFilterFc,
+            GenParam::ModLfoToVol,
+            GenParam::ChorusSend,
+            GenParam::ReverbSend,
+            GenParam::Pan,
+            GenParam::ModLfoDelay,
+            GenParam::ModLfoFreq,
+            GenParam::VibLfoDelay,
+            GenParam::VibLfoFreq,
+            GenParam::ModEnvDelay,
+            GenParam::ModEnvAttack,
+            GenParam::ModEnvHold,
+            GenParam::ModEnvDecay,
+            GenParam::ModEnvRelease,
+            GenParam::VolEnvDelay,
+            GenParam::VolEnvAttack,
+            GenParam::VolEnvHold,
+            GenParam::VolEnvDecay,
+            GenParam::VolEnvRelease,
+            GenParam::KeyNum,
+            GenParam::Velocity,
+            GenParam::Attenuation,
+            GenParam::OverrideRootKey,
+            GenParam::Pitch,
         ];
 
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i];
-            let modval: f32 = mod_0.get_value(self.channel.as_ref().unwrap(), self);
+            let modval: f32 = mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
             let dest_gen_index = mod_0.dest as usize;
             let mut dest_gen = &mut self.gen[dest_gen_index];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
-        if !(*self.channel).tuning.is_none() {
-            let tuning = (*self.channel).tuning.as_ref().unwrap();
-            self.gen[GEN_PITCH as usize].val = tuning.pitch[60 as i32 as usize]
+        let tuning = &channels[self.channel_id.as_ref().unwrap().0].tuning;
+        if let Some(tuning) = tuning {
+            self.gen[GEN_PITCH as usize].val = tuning.pitch[60]
                 + self.gen[GEN_SCALETUNE as usize].val / 100.0f32 as f64
                     * (tuning.pitch[self.key as usize] - tuning.pitch[60])
         } else {
@@ -658,12 +622,12 @@ impl Voice {
                 * (self.key as i32 as f32 - 60.0f32) as f64
                 + (100.0f32 * 60.0f32) as f64
         }
-        i = 0;
-        while list_of_generators_to_initialize[i as usize] != -(1 as i32) {
-            self.update_param(list_of_generators_to_initialize[i as usize]);
-            i += 1
+
+        for gen in list_of_generators_to_initialize.iter() {
+            self.update_param(*gen);
         }
-        self.min_attenuation_c_b = self.get_lower_boundary_for_attenuation();
+
+        self.min_attenuation_c_b = self.get_lower_boundary_for_attenuation(channels);
         return FLUID_OK as i32;
     }
 
@@ -764,14 +728,14 @@ impl Voice {
         self.check_sample_sanity_flag = 0 as i32;
     }
 
-    pub fn set_param(&mut self, gen: u16, nrpn_value: f32, abs: i32) {
+    pub fn set_param(&mut self, gen: GenParam, nrpn_value: f32, abs: i32) {
         self.gen[gen as usize].nrpn = nrpn_value as f64;
         self.gen[gen as usize].flags = if abs != 0 {
             GEN_ABS_NRPN as i32
         } else {
             GEN_SET as i32
         } as u8;
-        self.update_param(gen as _);
+        self.update_param(gen);
     }
 
     pub fn set_gain(&mut self, mut gain: f64) {
@@ -788,6 +752,7 @@ impl Voice {
 
     pub fn write(
         &mut self,
+        channels: &[Channel],
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
@@ -812,7 +777,7 @@ impl Voice {
             return;
         }
         if self.noteoff_ticks != 0 as i32 as u32 && self.ticks >= self.noteoff_ticks {
-            self.noteoff(min_note_length_ticks);
+            self.noteoff(channels, min_note_length_ticks);
         }
 
         /* Range checking for sample- and loop-related parameters
@@ -1290,7 +1255,7 @@ impl Voice {
     /// offset caused by modulators .mod, and an offset caused by the
     /// NRPN system. _GEN(voice, generator_enumerator) returns the sum
     /// of all three.
-    pub fn update_param(&mut self, gen: i32) {
+    pub fn update_param(&mut self, gen: GenParam) {
         macro_rules! gen_sum {
             ($id: expr) => {{
                 let Gen {
@@ -1300,14 +1265,6 @@ impl Voice {
                 (val + mod_0 + nrpn) as f32
             }};
         }
-
-        use gen::GenParam;
-        let gen: GenParam = if gen < 0 && gen > 60 {
-            log::error!("Unknown Generator: {}", gen);
-            return;
-        } else {
-            unsafe { std::mem::transmute(gen as u8) }
-        };
 
         match gen {
             GenParam::Pan => {
