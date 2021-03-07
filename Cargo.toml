@@ -7,8 +7,6 @@ edition = "2018"
 [dependencies]
 bitflags = "^1.2"
 env_logger = "0.8.3"
-nom = "6.1.2"
-riff = "1.0.1"
 
 unoxidized={path="./unoxidized"}
 soundfont-rs={path="./soundfont-rs"}
@@ -17,4 +15,3 @@ soundfont-rs={path="./soundfont-rs"}
 name="sf2"
 [[example]]
 name="simple"
-
