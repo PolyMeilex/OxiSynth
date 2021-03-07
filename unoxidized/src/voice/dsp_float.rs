@@ -295,17 +295,17 @@ impl Voice {
         }) - 2 as i32) as usize;
 
         let mut start_index: usize;
-        let mut start_point: usize;
+        let mut start_point: i16;
 
         if self.has_looped != 0 {
             /* set start_index and start point if looped or not */
             start_index = self.loopstart as usize;
             /* last point in loop (wrap around) */
-            start_point = dsp_data[(self.loopend - 1 as i32) as usize] as usize;
+            start_point = dsp_data[(self.loopend - 1 as i32) as usize];
         } else {
             start_index = self.start as usize;
             /* just duplicate the point */
-            start_point = dsp_data[self.start as usize] as usize;
+            start_point = dsp_data[self.start as usize];
         }
 
         /* get points off the end (loop start if looping, duplicate point if end) */
@@ -415,7 +415,7 @@ impl Voice {
                 if self.has_looped == 0 {
                     self.has_looped = 1 as i32;
                     start_index = self.loopstart as usize;
-                    start_point = dsp_data[(self.loopend - 1) as usize] as usize;
+                    start_point = dsp_data[(self.loopend - 1) as usize];
                 }
             }
 
@@ -440,8 +440,7 @@ impl Voice {
 
         /* Convert playback "speed" floating point value to phase index/fract */
         let dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
-            | ((self.phase_incr as f64 - (self).phase_incr as f64) * 4294967296.0f64) as u32
-                as u64;
+            | ((self.phase_incr as f64 - (self).phase_incr as f64) * 4294967296.0f64) as u32 as u64;
 
         let dsp_phase = self.phase;
         /* add 1/2 sample to dsp_phase since 7th order interpolation is centered on
@@ -449,12 +448,10 @@ impl Voice {
         let mut dsp_phase = dsp_phase.wrapping_add(0x80000000 as Phase) as Phase;
 
         /* voice is currently looping? */
-        let looping = (self.gen[GEN_SAMPLEMODE as usize].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as usize].val as i32
-                == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32)
-            as i32;
+        let looping =
+            (self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_DURING_RELEASE as i32
+                || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+                    && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32) as i32;
 
         /* last index before 7th interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
