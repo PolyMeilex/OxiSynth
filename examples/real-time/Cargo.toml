@@ -1,0 +1,10 @@
+[package]
+name = "real-time"
+version = "0.1.0"
+authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cpal = "0.13.1"
+midir = "0.7.0"
+oxisynth={path="../../"}
