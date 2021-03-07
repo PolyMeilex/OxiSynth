@@ -1,41 +1,24 @@
-pub mod dsp_float;
+mod dsp_float;
 
-use crate::gen::GenParam;
+use crate::{
+    channel::{Channel, ChannelId, InterpMethod},
+    conv::{
+        act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
+        tc2sec_release,
+    },
+    gen::{self, Gen, GenParam},
+    modulator::Mod,
+    soundfont::Sample,
+};
 
-use super::channel::{Channel, ChannelId, InterpMethod};
-use super::conv::fluid_act2hz;
-use super::conv::fluid_atten2amp;
-use super::conv::fluid_cb2amp;
-use super::conv::fluid_ct2hz;
-use super::conv::fluid_ct2hz_real;
-use super::conv::fluid_pan;
-use super::conv::fluid_tc2sec;
-use super::conv::fluid_tc2sec_attack;
-use super::conv::fluid_tc2sec_delay;
-use super::conv::fluid_tc2sec_release;
-
-use super::gen::{self, Gen};
-use super::modulator::Mod;
-use super::soundfont::Sample;
 use std::rc::Rc;
 
 type Phase = u64;
-type ModFlags = u32;
-const FLUID_MOD_CC: ModFlags = 16;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
 
-type ModSrc = u32;
-const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
+const MOD_CC: u32 = 16;
 
-type GenFlags = u32;
-const GEN_ABS_NRPN: GenFlags = 2;
-const GEN_SET: GenFlags = 1;
-
-const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
-// const FLUID_VOICE_ENVDECAY: VoiceEnvelopeIndex = 3;
-// const FLUID_VOICE_ENVHOLD: VoiceEnvelopeIndex = 2;
-pub(crate) const FLUID_VOICE_ENVATTACK: VoiceEnvelopeIndex = 1;
-const FLUID_VOICE_ENVDELAY: VoiceEnvelopeIndex = 0;
+const GEN_ABS_NRPN: u32 = 2;
+const GEN_SET: u32 = 1;
 
 #[derive(Clone, Copy)]
 pub(crate) enum VoiceEnvelope {
@@ -48,9 +31,12 @@ pub(crate) enum VoiceEnvelope {
     Finished = 6,
 }
 
-pub type FluidVoiceAddMod = u32;
-const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
-const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum VoiceAddMode {
+    Overwrite = 0,
+    Add = 1,
+    Default = 2,
+}
 
 const FLUID_OK: i32 = 0;
 
@@ -62,15 +48,11 @@ pub enum VoiceStatus {
     Off,
 }
 
-pub type VoiceEnvelopeIndex = u32;
-pub const FLUID_VOICE_ENVFINISHED: VoiceEnvelopeIndex = 6;
-pub const FLUID_VOICE_ENVSUSTAIN: VoiceEnvelopeIndex = 4;
-pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
-pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
-pub const FLUID_UNLOOPED: LoopMode = 0;
-pub const SUSTAIN_SWITCH: MidiControlChange = 64;
-pub type MidiControlChange = u32;
-pub type LoopMode = u32;
+pub enum LoopMode {
+    UnLooped = 0,
+    DuringRelease = 1,
+    UntilRelease = 3,
+}
 
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
@@ -81,11 +63,12 @@ pub struct Voice {
     pub(crate) chan: u8,
     pub(crate) key: u8,
     pub(crate) vel: u8,
+
     channel_id: Option<ChannelId>,
     pub(crate) gen: [Gen; 60],
     mod_0: [Mod; 64],
     mod_count: usize,
-    pub(crate) has_looped: i32,
+    pub(crate) has_looped: bool,
     pub(crate) sample: Option<Rc<Sample>>,
     check_sample_sanity_flag: i32,
     output_rate: f32,
@@ -167,7 +150,7 @@ impl Voice {
     pub(crate) fn new(output_rate: f32) -> Voice {
         let mut volenv_data = [EnvData::default(); 7];
         {
-            let sustain = &mut volenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
+            let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
 
             sustain.count = 0xffffffff as u32;
             sustain.coeff = 1.0f32;
@@ -175,7 +158,7 @@ impl Voice {
             sustain.min = -1.0f32;
             sustain.max = 2.0f32;
 
-            let finished = &mut volenv_data[FLUID_VOICE_ENVFINISHED as usize];
+            let finished = &mut volenv_data[VoiceEnvelope::Finished as usize];
             finished.count = 0xffffffff as u32;
             finished.coeff = 0.0f32;
             finished.incr = 0.0f32;
@@ -184,14 +167,14 @@ impl Voice {
         }
         let mut modenv_data = [EnvData::default(); 7];
         {
-            let sustain = &mut modenv_data[FLUID_VOICE_ENVSUSTAIN as usize];
+            let sustain = &mut modenv_data[VoiceEnvelope::Sustain as usize];
             sustain.count = 0xffffffff as u32;
             sustain.coeff = 1.0f32;
             sustain.incr = 0.0f32;
             sustain.min = -1.0f32;
             sustain.max = 2.0f32;
 
-            let finished = &mut modenv_data[FLUID_VOICE_ENVFINISHED as usize];
+            let finished = &mut modenv_data[VoiceEnvelope::Finished as usize];
             finished.count = 0xffffffff as u32;
             finished.coeff = 0.0f32;
             finished.incr = 0.0f32;
@@ -209,7 +192,7 @@ impl Voice {
             gen: [Gen::default(); 60],
             mod_0: [Mod::default(); 64],
             mod_count: 0,
-            has_looped: 0,
+            has_looped: false,
             sample: None,
             check_sample_sanity_flag: 0,
             output_rate,
@@ -302,7 +285,7 @@ impl Voice {
         self.ticks = 0 as i32 as u32;
         self.noteoff_ticks = 0 as i32 as u32;
         self.debug = 0 as i32;
-        self.has_looped = 0 as i32;
+        self.has_looped = false;
         self.last_fres = -(1 as i32) as f32;
         self.filter_startup = 1 as i32;
         self.volenv_count = 0 as i32 as u32;
@@ -331,22 +314,34 @@ impl Voice {
     }
 
     pub(crate) fn is_on(&self) -> bool {
-        self.status == VoiceStatus::On && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
+        self.status == VoiceStatus::On && self.volenv_section < VoiceEnvelope::Release as i32
     }
 
     pub(crate) fn is_playing(&self) -> bool {
         self.status == VoiceStatus::On || self.status == VoiceStatus::Sustained
     }
 
-    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: u32) {
-        if mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0 as i32
-            && (mod_0.src1 as i32 != 0 as i32
-                && mod_0.src1 as i32 != 2 as i32
-                && mod_0.src1 as i32 != 3 as i32
-                && mod_0.src1 as i32 != 10 as i32
-                && mod_0.src1 as i32 != 13 as i32
-                && mod_0.src1 as i32 != 14 as i32
-                && mod_0.src1 as i32 != 16 as i32)
+    /// Adds a modulator to the voice.  "mode" indicates, what to do, if
+    /// an identical modulator exists already.
+    ///
+    /// mode == FLUID_VOICE_ADD: Identical modulators on preset level are added
+    /// mode == FLUID_VOICE_OVERWRITE: Identical modulators on instrument level are overwritten
+    /// mode == FLUID_VOICE_DEFAULT: This is a default modulator, there can be no identical modulator.
+    ///                             Don't check.
+    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: VoiceAddMode) {
+        /*
+         * Some soundfonts come with a huge number of non-standard
+         * controllers, because they have been designed for one particular
+         * sound card.  Discard them, maybe print a warning.
+         */
+        if mod_0.flags1 as i32 & MOD_CC as i32 == 0
+            && (mod_0.src1 != 0     // SF2.01 section 8.2.1: Constant value */
+                && mod_0.src1 != 2  // Note-on velocity 
+                && mod_0.src1 != 3  // Note-on key number 
+                && mod_0.src1 != 10 // Poly pressure 
+                && mod_0.src1 != 13 // Channel pressure 
+                && mod_0.src1 != 14 // Pitch wheel 
+                && mod_0.src1 != 16/* Pitch wheel sensitivity */)
         {
             log::warn!(
                 "Ignoring invalid controller, using non-CC source {}.",
@@ -354,14 +349,16 @@ impl Voice {
             );
             return;
         }
-        if mode == FLUID_VOICE_ADD {
+        if mode == VoiceAddMode::Add {
+            /* if identical modulator exists, add them */
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount += mod_0.amount;
                     return;
                 }
             }
-        } else if mode == FLUID_VOICE_OVERWRITE {
+        } else if mode == VoiceAddMode::Overwrite {
+            /* if identical modulator exists, replace it (only the amount has to be changed) */
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount = mod_0.amount;
@@ -369,6 +366,10 @@ impl Voice {
                 }
             }
         }
+
+        /* Add a new modulator (No existing modulator to add / overwrite).
+        Also, default modulators (VOICE_DEFAULT) are added without
+        checking, if the same modulator already exists. */
         if self.mod_count < 64 {
             let fresh7 = self.mod_count;
             self.mod_count = self.mod_count + 1;
@@ -386,19 +387,39 @@ impl Voice {
         self.gen[i as usize].flags = GEN_SET as u8;
     }
 
+    /*
+     * Percussion sounds can be mutually exclusive: for example, a 'closed
+     * hihat' sound will terminate an 'open hihat' sound ringing at the
+     * same time. This behaviour is modeled using 'exclusive classes',
+     * turning on a voice with an exclusive class other than 0 will kill
+     * all other voices having that exclusive class within the same preset
+     * or channel.  fluid_voice_kill_excl gets called, when 'voice' is to
+     * be killed for that reason.
+     */
     pub(crate) fn kill_excl(&mut self) {
         if !self.is_playing() {
             return;
         }
+
+        /* Turn off the exclusive class information for this voice,
+           so that it doesn't get killed twice
+        */
         self.gen_set(GenParam::ExclusiveClass, 0.0);
-        if self.volenv_section != FLUID_VOICE_ENVRELEASE as i32 {
-            self.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
+
+        /* If the voice is not yet in release state, put it into release state */
+        if self.volenv_section != VoiceEnvelope::Release as i32 {
+            self.volenv_section = VoiceEnvelope::Release as i32;
             self.volenv_count = 0 as i32 as u32;
-            self.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
+            self.modenv_section = VoiceEnvelope::Release as i32;
             self.modenv_count = 0 as i32 as u32
         }
+
+        /* Speed up the volume envelope */
+        /* The value was found through listening tests with hi-hat samples. */
         self.gen_set(GenParam::VolEnvRelease, -200.0);
         self.update_param(GenParam::VolEnvRelease);
+
+        /* Speed up the modulation envelope */
         self.gen_set(GenParam::ModEnvRelease, -200.0);
         self.update_param(GenParam::ModEnvRelease);
     }
@@ -410,43 +431,57 @@ impl Voice {
     }
 
     pub(crate) fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) -> i32 {
-        let at_tick;
-        at_tick = min_note_length_ticks;
+        let at_tick = min_note_length_ticks;
+
         if at_tick > self.ticks {
+            /* Delay noteoff */
             self.noteoff_ticks = at_tick;
             return FLUID_OK as i32;
         }
 
-        if let Some(channel_id) = &self.channel_id {
-            if channels[channel_id.0].cc[SUSTAIN_SWITCH as i32 as usize] >= 64 {
-                self.status = VoiceStatus::Sustained;
-            } else {
-                if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
-                    if self.volenv_val > 0 as i32 as f32 {
-                        let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
-                        let amp: f32 = (self.volenv_val as f64
-                            * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
-                            as f32;
-                        let mut env_value: f32 =
-                            -((-(200 as i32) as f64 * f64::ln(amp as f64) / f64::ln(10.0f64)
-                                - lfo as f64)
-                                / 960.0f64
-                                - 1 as i32 as f64) as f32;
-                        env_value = if (env_value as f64) < 0.0f64 {
-                            0.0f64
-                        } else if env_value as f64 > 1.0f64 {
-                            1.0f64
-                        } else {
-                            env_value as f64
-                        } as f32;
-                        self.volenv_val = env_value
-                    }
+        let sustained = if let Some(channel_id) = &self.channel_id {
+            const SUSTAIN_SWITCH: usize = 64;
+            let channel = &channels[channel_id.0];
+            // check is channel is sustained
+            channel.cc[SUSTAIN_SWITCH] >= 64
+        } else {
+            false
+        };
+
+        if sustained {
+            self.status = VoiceStatus::Sustained;
+        } else {
+            if self.volenv_section == VoiceEnvelope::Attack as i32 {
+                /* A voice is turned off during the attack section of the volume
+                 * envelope.  The attack section ramps up linearly with
+                 * amplitude. The other sections use logarithmic scaling. Calculate new
+                 * volenv_val to achieve equievalent amplitude during the release phase
+                 * for seamless volume transition.
+                 */
+                if self.volenv_val > 0 as i32 as f32 {
+                    let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
+                    let amp: f32 = (self.volenv_val as f64
+                        * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
+                        as f32;
+                    let mut env_value: f32 = -((-(200 as i32) as f64 * f64::ln(amp as f64)
+                        / f64::ln(10.0f64)
+                        - lfo as f64)
+                        / 960.0f64
+                        - 1 as i32 as f64) as f32;
+                    env_value = if (env_value as f64) < 0.0f64 {
+                        0.0f64
+                    } else if env_value as f64 > 1.0f64 {
+                        1.0f64
+                    } else {
+                        env_value as f64
+                    } as f32;
+                    self.volenv_val = env_value
                 }
-                self.volenv_section = FLUID_VOICE_ENVRELEASE as i32;
-                self.volenv_count = 0 as i32 as u32;
-                self.modenv_section = FLUID_VOICE_ENVRELEASE as i32;
-                self.modenv_count = 0 as i32 as u32
             }
+            self.volenv_section = VoiceEnvelope::Release as i32;
+            self.volenv_count = 0 as i32 as u32;
+            self.modenv_section = VoiceEnvelope::Release as i32;
+            self.modenv_count = 0 as i32 as u32
         }
         return FLUID_OK as i32;
     }
@@ -455,15 +490,11 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0 && cc != 0
-                || mod_0.src1 == ctrl as u8
-                    && mod_0.flags1 as i32 & FLUID_MOD_CC as i32 == 0
-                    && cc == 0
-                || (mod_0.src2 == ctrl as u8
-                    && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0
-                    && cc != 0
+            if mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & MOD_CC as i32 != 0 && cc != 0
+                || mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & MOD_CC as i32 == 0 && cc == 0
+                || (mod_0.src2 == ctrl as u8 && mod_0.flags2 as i32 & MOD_CC as i32 != 0 && cc != 0
                     || mod_0.src2 == ctrl as u8
-                        && mod_0.flags2 as i32 & FLUID_MOD_CC as i32 == 0
+                        && mod_0.flags2 as i32 & MOD_CC as i32 == 0
                         && cc == 0)
             {
                 let gen = mod_0.get_dest();
@@ -508,11 +539,13 @@ impl Voice {
         FLUID_OK
     }
 
+    /// Turns off a voice, meaning that it is not processed
+    /// anymore by the DSP loop.
     pub(crate) fn off(&mut self) {
         self.chan = 0xff as i32 as u8;
-        self.volenv_section = FLUID_VOICE_ENVFINISHED as i32;
+        self.volenv_section = VoiceEnvelope::Finished as i32;
         self.volenv_count = 0 as i32 as u32;
-        self.modenv_section = FLUID_VOICE_ENVFINISHED as i32;
+        self.modenv_section = VoiceEnvelope::Finished as i32;
         self.modenv_count = 0 as i32 as u32;
         self.status = VoiceStatus::Off;
         if self.sample.is_some() {
@@ -524,34 +557,54 @@ impl Voice {
         self.channel_id.as_ref()
     }
 
+    /// A lower boundary for the attenuation (as in 'the minimum
+    /// attenuation of this voice, with volume pedals, modulators
+    /// etc. resulting in minimum attenuation, cannot fall below x cB) is
+    /// calculated.  This has to be called during fluid_voice_init, after
+    /// all modulators have been run on the voice once.  Also,
+    /// voice.attenuation has to be initialized.
     fn get_lower_boundary_for_attenuation(&mut self, channels: &[Channel]) -> f32 {
-        let mut possible_att_reduction_c_b: f32 = 0.0;
-        let mut i = 0;
-        while i < self.mod_count {
+        const MOD_PITCHWHEEL: i32 = 14;
+        const MOD_BIPOLAR: i32 = 2;
+
+        let mut possible_att_reduction_c_b = 0.0;
+        for i in 0..self.mod_count {
             let mod_0 = &self.mod_0[i as usize];
+
+            /* Modulator has attenuation as target and can change over time? */
             if mod_0.dest == GenParam::Attenuation
-                && (mod_0.flags1 as i32 & FLUID_MOD_CC as i32 != 0
-                    || mod_0.flags2 as i32 & FLUID_MOD_CC as i32 != 0)
+                && (mod_0.flags1 as i32 & MOD_CC as i32 != 0
+                    || mod_0.flags2 as i32 & MOD_CC as i32 != 0)
             {
                 let current_val: f32 =
                     mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
-                let mut v: f32 = f64::abs(mod_0.amount) as f32;
-                if mod_0.src1 as i32 == FLUID_MOD_PITCHWHEEL as i32
-                    || mod_0.flags1 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
-                    || mod_0.flags2 as i32 & FLUID_MOD_BIPOLAR as i32 != 0
-                    || mod_0.amount < 0 as i32 as f64
+                let mut v = mod_0.amount.abs() as f32;
+
+                if mod_0.src1 as i32 == MOD_PITCHWHEEL as i32
+                    || mod_0.flags1 as i32 & MOD_BIPOLAR as i32 != 0
+                    || mod_0.flags2 as i32 & MOD_BIPOLAR as i32 != 0
+                    || mod_0.amount < 0.0
                 {
-                    v = (v as f64 * -1.0f64) as f32
+                    /* Can this modulator produce a negative contribution? */
+                    v *= -1.0;
                 } else {
                     v = 0.0;
                 }
+
+                /* For example:
+                 * - current_val=100
+                 * - min_val=-4000
+                 * - possible_att_reduction_cB += 4100
+                 */
                 if current_val > v {
                     possible_att_reduction_c_b += current_val - v
                 }
             }
-            i += 1
         }
+
         let mut lower_bound = self.attenuation - possible_att_reduction_c_b;
+
+        /* SF2.01 specs do not allow negative attenuation */
         if lower_bound < 0.0 {
             lower_bound = 0.0;
         }
@@ -625,58 +678,83 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
+    /// Make sure, that sample start / end point and loop points are in
+    /// proper order. When starting up, calculate the initial phase.
     pub fn check_sample_sanity(&mut self) {
-        let min_index_nonloop: i32 = (self.sample.as_ref().unwrap()).start as i32;
-        let max_index_nonloop: i32 = (self.sample.as_ref().unwrap()).end as i32;
-        let min_index_loop: i32 = (self.sample.as_ref().unwrap()).start as i32 + 0 as i32;
-        let max_index_loop: i32 = (self.sample.as_ref().unwrap()).end as i32 - 0 as i32 + 1 as i32;
+        let min_index_nonloop = self.sample.as_ref().unwrap().start as i32;
+        let max_index_nonloop = self.sample.as_ref().unwrap().end as i32;
+
+        /* make sure we have enough samples surrounding the loop */
+        let min_index_loop = self.sample.as_ref().unwrap().start as i32;
+        /* 'end' is last valid sample, loopend can be + 1 */
+        let max_index_loop = self.sample.as_ref().unwrap().end as i32 + 1;
+
         if self.check_sample_sanity_flag == 0 {
             return;
         }
+
+        /* Keep the start point within the sample data */
         if self.start < min_index_nonloop {
             self.start = min_index_nonloop
         } else if self.start > max_index_nonloop {
             self.start = max_index_nonloop
         }
+        /* Keep the end point within the sample data */
         if self.end < min_index_nonloop {
             self.end = min_index_nonloop
         } else if self.end > max_index_nonloop {
             self.end = max_index_nonloop
         }
+
+        /* Keep start and end point in the right order */
         if self.start > self.end {
             let temp: i32 = self.start;
             self.start = self.end;
             self.end = temp
         }
+
+        /* Zero length? */
         if self.start == self.end {
             self.off();
             return;
         }
-        if self.gen[GenParam::SampleMode as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-            || self.gen[GenParam::SampleMode as usize].val as i32
-                == FLUID_LOOP_DURING_RELEASE as i32
+
+        if self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::UntilRelease as i32
+            || self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::DuringRelease as i32
         {
+            /* Keep the loop start point within the sample data */
             if self.loopstart < min_index_loop {
                 self.loopstart = min_index_loop
             } else if self.loopstart > max_index_loop {
                 self.loopstart = max_index_loop
             }
+
+            /* Keep the loop end point within the sample data */
             if self.loopend < min_index_loop {
                 self.loopend = min_index_loop
             } else if self.loopend > max_index_loop {
                 self.loopend = max_index_loop
             }
+
+            /* Keep loop start and end point in the right order */
             if self.loopstart > self.loopend {
                 let temp_0: i32 = self.loopstart;
                 self.loopstart = self.loopend;
                 self.loopend = temp_0
             }
+
+            /* Loop too short? Then don't loop. */
             if self.loopend < self.loopstart + 2 as i32 {
-                self.gen[GenParam::SampleMode as i32 as usize].val = FLUID_UNLOOPED as i32 as f64
+                self.gen[GenParam::SampleMode as i32 as usize].val =
+                    LoopMode::UnLooped as i32 as f64
             }
+
+            /* The loop points may have changed. Obtain a new estimate for the loop volume. */
+            /* Is the voice loop within the sample loop? */
             if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
                 && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
             {
+                /* Is there a valid peak amplitude available for the loop? */
                 if self
                     .sample
                     .as_ref()
@@ -692,35 +770,57 @@ impl Voice {
                         / self.synth_gain as f64)
                         as f32
                 } else {
+                    /* Worst case */
                     self.amplitude_that_reaches_noise_floor_loop =
                         self.amplitude_that_reaches_noise_floor_nonloop
                 }
             }
         }
+
+        /* Run startup specific code (only once, when the voice is started) */
         if self.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
             if max_index_loop - min_index_loop < 2 as i32 {
                 if self.gen[GenParam::SampleMode as i32 as usize].val as i32
-                    == FLUID_LOOP_UNTIL_RELEASE as i32
+                    == LoopMode::UntilRelease as i32
                     || self.gen[GenParam::SampleMode as i32 as usize].val as i32
-                        == FLUID_LOOP_DURING_RELEASE as i32
+                        == LoopMode::DuringRelease as i32
                 {
                     self.gen[GenParam::SampleMode as i32 as usize].val =
-                        FLUID_UNLOOPED as i32 as f64
+                        LoopMode::UnLooped as i32 as f64
                 }
             }
+
+            /* Set the initial phase of the voice (using the result from the
+            start offset modulators). */
             self.phase = (self.start as u64) << 32 as i32
         }
+
+        /* Is this voice run in loop mode, or does it run straight to the
+        end of the waveform data? */
         if self.gen[GenParam::SampleMode as i32 as usize].val as i32
-            == FLUID_LOOP_UNTIL_RELEASE as i32
-            && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32
-            || self.gen[GenParam::SampleMode as usize].val as i32
-                == FLUID_LOOP_DURING_RELEASE as i32
+            == LoopMode::UntilRelease as i32
+            && self.volenv_section < VoiceEnvelope::Release as i32
+            || self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::DuringRelease as i32
         {
+            /* Yes, it will loop as soon as it reaches the loop point.  In
+             * this case we must prevent, that the playback pointer (phase)
+             * happens to end up beyond the 2nd loop point, because the
+             * point has moved.  The DSP algorithm is unable to cope with
+             * that situation.  So if the phase is beyond the 2nd loop
+             * point, set it to the start of the loop. No way to avoid some
+             * noise here.  Note: If the sample pointer ends up -before the
+             * first loop point- instead, then the DSP loop will just play
+             * the sample, enter the loop and proceed as expected => no
+             * actions required.
+             */
             let index_in_sample: i32 = (self.phase >> 32 as i32) as u32 as i32;
             if index_in_sample >= self.loopend {
                 self.phase = (self.loopstart as u64) << 32 as i32
             }
         }
+
+        /* Sample sanity has been assured. Don't check again, until some
+        sample parameter is changed by modulation. */
         self.check_sample_sanity_flag = 0 as i32;
     }
 
@@ -734,14 +834,15 @@ impl Voice {
         self.update_param(gen);
     }
 
-    pub fn set_gain(&mut self, mut gain: f64) {
+    pub fn set_gain(&mut self, mut gain: f32) {
+        /* avoid division by zero*/
         if gain < 0.0000001 {
             gain = 0.0000001;
         }
-        let gain = gain as f32;
+
         self.synth_gain = gain;
-        self.amp_left = fluid_pan(self.pan, 1 as i32) * gain / 32768.0f32;
-        self.amp_right = fluid_pan(self.pan, 0 as i32) * gain / 32768.0f32;
+        self.amp_left = pan(self.pan, 1 as i32) * gain / 32768.0f32;
+        self.amp_right = pan(self.pan, 0 as i32) * gain / 32768.0f32;
         self.amp_reverb = self.reverb_send * gain / 32768.0f32;
         self.amp_chorus = self.chorus_send * gain / 32768.0f32;
     }
@@ -808,7 +909,7 @@ impl Voice {
         self.volenv_val = x;
         self.volenv_count = self.volenv_count.wrapping_add(1);
 
-        if self.volenv_section == FLUID_VOICE_ENVFINISHED as i32 {
+        if self.volenv_section == VoiceEnvelope::Finished as i32 {
             self.off();
             return;
         }
@@ -872,20 +973,20 @@ impl Voice {
          * - amplitude envelope
          */
 
-        if !(self.volenv_section == FLUID_VOICE_ENVDELAY as i32) {
-            if self.volenv_section == FLUID_VOICE_ENVATTACK as i32 {
+        if !(self.volenv_section == VoiceEnvelope::Delay as i32) {
+            if self.volenv_section == VoiceEnvelope::Attack as i32 {
                 /* the envelope is in the attack section: ramp linearly to max value.
                  * A positive modlfo_to_vol should increase volume (negative attenuation).
                  */
-                target_amp = fluid_atten2amp(self.attenuation)
-                    * fluid_cb2amp(self.modlfo_val * -self.modlfo_to_vol)
+                target_amp = atten2amp(self.attenuation)
+                    * cb2amp(self.modlfo_val * -self.modlfo_to_vol)
                     * self.volenv_val;
                 current_block = 576355610076403033;
             } else {
                 let amplitude_that_reaches_noise_floor;
                 let amp_max;
-                target_amp = fluid_atten2amp(self.attenuation)
-                    * fluid_cb2amp(
+                target_amp = atten2amp(self.attenuation)
+                    * cb2amp(
                         960.0f32 * (1.0f32 - self.volenv_val)
                             + self.modlfo_val * -self.modlfo_to_vol,
                     );
@@ -902,7 +1003,7 @@ impl Voice {
                  */
 
                 /* Is the playing pointer already in the loop? */
-                if self.has_looped != 0 {
+                if self.has_looped {
                     amplitude_that_reaches_noise_floor =
                         self.amplitude_that_reaches_noise_floor_loop
                 } else {
@@ -915,7 +1016,7 @@ impl Voice {
                  * amplitude of sample and volenv cannot exceed amp_max (since
                  * volenv_val can only drop):
                  */
-                amp_max = fluid_atten2amp(self.min_attenuation_c_b) * self.volenv_val;
+                amp_max = atten2amp(self.min_attenuation_c_b) * self.volenv_val;
 
                 /* And if amp_max is already smaller than the known amplitude,
                  * which will attenuate the sample below the noise floor, then we
@@ -939,7 +1040,7 @@ impl Voice {
                          * through the original waveform with each step in the output
                          * buffer. It is the ratio between the frequencies of original
                          * waveform and output waveform.*/
-                        self.phase_incr = fluid_ct2hz_real(
+                        self.phase_incr = ct2hz_real(
                             self.pitch
                                 + self.modlfo_val * self.modlfo_to_pitch
                                 + self.viblfo_val * self.viblfo_to_pitch
@@ -954,7 +1055,7 @@ impl Voice {
                         /*************** resonant filter ******************/
 
                         /* calculate the frequency of the resonant filter in Hz */
-                        fres = fluid_ct2hz(
+                        fres = ct2hz(
                             self.fres
                                 + self.modlfo_val * self.modlfo_to_fc
                                 + self.modenv_val * self.modenv_to_fc,
@@ -1078,7 +1179,7 @@ impl Voice {
         }
         self.ticks = self.ticks.wrapping_add(64 as u32);
     }
-    //removed inline
+
     #[inline]
     fn effects(
         &mut self,
@@ -1231,13 +1332,11 @@ impl Voice {
         if (timecents as f64) < -12000.0 {
             timecents = -12000.0;
         }
-        let seconds = fluid_tc2sec(timecents);
+        let seconds = tc2sec(timecents);
         let buffers = ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32;
         return buffers;
     }
 
-    /// Purpose:
-    ///
     /// The value of a generator (gen) has changed.  (The different
     /// generators are listed in fluidlite.h, or in SF2.01 page 48-49)
     /// Now the dependent 'voice' parameters are calculated.
@@ -1267,8 +1366,8 @@ impl Voice {
                 // range checking is done in the fluid_pan function
                 self.pan = gen_sum!(GenParam::Pan);
 
-                self.amp_left = fluid_pan(self.pan, 1) * self.synth_gain / 32768.0;
-                self.amp_right = fluid_pan(self.pan, 0) * self.synth_gain / 32768.0;
+                self.amp_left = pan(self.pan, 1) * self.synth_gain / 32768.0;
+                self.amp_right = pan(self.pan, 0) * self.synth_gain / 32768.0;
             }
 
             GenParam::Attenuation => {
@@ -1346,7 +1445,7 @@ impl Voice {
                     self.root_pitch = self.sample.as_ref().unwrap().origpitch as f32 * 100.0
                         - self.sample.as_ref().unwrap().pitchadj as f32
                 }
-                self.root_pitch = fluid_ct2hz(self.root_pitch);
+                self.root_pitch = ct2hz(self.root_pitch);
 
                 if self.sample.is_some() {
                     self.root_pitch *=
@@ -1461,7 +1560,7 @@ impl Voice {
                 } else {
                     val
                 };
-                self.modlfo_delay = (self.output_rate * fluid_tc2sec_delay(val)) as u32;
+                self.modlfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
             }
 
             GenParam::ModLfoFreq => {
@@ -1477,7 +1576,7 @@ impl Voice {
                 } else {
                     val
                 };
-                self.modlfo_incr = 4.0 * 64.0 * fluid_act2hz(val) / self.output_rate;
+                self.modlfo_incr = 4.0 * 64.0 * act2hz(val) / self.output_rate;
             }
 
             GenParam::VibLfoFreq => {
@@ -1495,7 +1594,7 @@ impl Voice {
                 } else {
                     freq
                 };
-                self.viblfo_incr = 4.0 * 64.0 * fluid_act2hz(freq) / self.output_rate;
+                self.viblfo_incr = 4.0 * 64.0 * act2hz(freq) / self.output_rate;
             }
 
             GenParam::VibLfoDelay => {
@@ -1508,7 +1607,7 @@ impl Voice {
                 } else {
                     val
                 };
-                self.viblfo_delay = (self.output_rate * fluid_tc2sec_delay(val)) as u32;
+                self.viblfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
             }
 
             GenParam::VibLfoToPitch => {
@@ -1665,12 +1764,12 @@ impl Voice {
                     val
                 };
 
-                let count = (self.output_rate * fluid_tc2sec_delay(val) / 64.0) as u32;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].coeff = 0.0;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].incr = 0.0;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].min = -1.0;
-                self.volenv_data[FLUID_VOICE_ENVDELAY as usize].max = 1.0;
+                let count = (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
+                self.volenv_data[VoiceEnvelope::Delay as usize].count = count;
+                self.volenv_data[VoiceEnvelope::Delay as usize].coeff = 0.0;
+                self.volenv_data[VoiceEnvelope::Delay as usize].incr = 0.0;
+                self.volenv_data[VoiceEnvelope::Delay as usize].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
             }
 
             GenParam::VolEnvAttack => {
@@ -1684,14 +1783,14 @@ impl Voice {
                     val
                 };
 
-                let count = (1 as u32)
-                    .wrapping_add((self.output_rate * fluid_tc2sec_attack(val) / 64.0) as u32);
-                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].coeff = 1.0;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].incr =
+                let count =
+                    (1 as u32).wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                self.volenv_data[VoiceEnvelope::Attack as usize].count = count;
+                self.volenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Attack as usize].incr =
                     if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].min = -1.0;
-                self.volenv_data[FLUID_VOICE_ENVATTACK as usize].max = 1.0;
+                self.volenv_data[VoiceEnvelope::Attack as usize].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
             }
 
             GenParam::VolEnvHold | GenParam::KeyToVolEnvHold => {
@@ -1743,14 +1842,14 @@ impl Voice {
                     val
                 };
 
-                let count = (1 as u32)
-                    .wrapping_add((self.output_rate * fluid_tc2sec_release(val) / 64.0) as u32);
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].count = count;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].coeff = 1.0;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].incr =
+                let count =
+                    (1 as u32).wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                self.volenv_data[VoiceEnvelope::Release as usize].count = count;
+                self.volenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Release as usize].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].min = 0.0;
-                self.volenv_data[FLUID_VOICE_ENVRELEASE as usize].max = 1.0;
+                self.volenv_data[VoiceEnvelope::Release as usize].min = 0.0;
+                self.volenv_data[VoiceEnvelope::Release as usize].max = 1.0;
             }
 
             GenParam::ModEnvDelay => {
@@ -1764,12 +1863,12 @@ impl Voice {
                     val
                 };
 
-                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].count =
-                    (self.output_rate * fluid_tc2sec_delay(val) / 64.0) as u32;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].coeff = 0.0;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].incr = 0.0;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].min = -1.0;
-                self.modenv_data[FLUID_VOICE_ENVDELAY as usize].max = 1.0;
+                self.modenv_data[VoiceEnvelope::Delay as usize].count =
+                    (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
+                self.modenv_data[VoiceEnvelope::Delay as usize].coeff = 0.0;
+                self.modenv_data[VoiceEnvelope::Delay as usize].incr = 0.0;
+                self.modenv_data[VoiceEnvelope::Delay as usize].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
             }
 
             GenParam::ModEnvAttack => {
@@ -1783,14 +1882,14 @@ impl Voice {
                     val
                 };
 
-                let count = (1 as u32)
-                    .wrapping_add((self.output_rate * fluid_tc2sec_attack(val) / 64.0) as u32);
-                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].coeff = 1.0;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].incr =
+                let count =
+                    (1 as u32).wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                self.modenv_data[VoiceEnvelope::Attack as usize].count = count;
+                self.modenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Attack as usize].incr =
                     if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].min = -1.0;
-                self.modenv_data[FLUID_VOICE_ENVATTACK as usize].max = 1.0;
+                self.modenv_data[VoiceEnvelope::Attack as usize].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
             }
 
             GenParam::ModEnvHold | GenParam::KeyToModEnvHold => {
@@ -1842,14 +1941,14 @@ impl Voice {
                     val
                 };
 
-                let count = (1 as u32)
-                    .wrapping_add((self.output_rate * fluid_tc2sec_release(val) / 64.0) as u32);
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].count = count;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].coeff = 1.0;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].incr =
+                let count =
+                    (1 as u32).wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                self.modenv_data[VoiceEnvelope::Release as usize].count = count;
+                self.modenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Release as usize].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].min = 0.0;
-                self.modenv_data[FLUID_VOICE_ENVRELEASE as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Release as usize].min = 0.0;
+                self.modenv_data[VoiceEnvelope::Release as usize].max = 2.0;
             }
             _ => {}
         }

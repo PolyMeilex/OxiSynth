@@ -23,7 +23,7 @@ use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
-use super::voice::FluidVoiceAddMod;
+use super::voice::VoiceAddMode;
 use super::{
     channel::{Channel, InterpMethod},
     chorus::ChorusMode,
@@ -69,7 +69,7 @@ pub struct Synth {
     sfont: Vec<SoundFont>,
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
-    gain: f64,
+    gain: f32,
     pub(crate) channel: Vec<Channel>,
     pub(crate) voices: VoicePool,
     noteid: u32,
@@ -292,18 +292,16 @@ impl Synth {
                 self.gain as f32,
             );
 
-            const FLUID_VOICE_DEFAULT: FluidVoiceAddMod = 2;
-
-            voice.add_mod(&DEFAULT_VEL2ATT_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_VEL2FILTER_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_MOD2VIBLFO_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_ATT_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_PAN_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_EXPR_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_REVERB_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_CHORUS_MOD, FLUID_VOICE_DEFAULT);
-            voice.add_mod(&DEFAULT_PITCH_BEND_MOD, FLUID_VOICE_DEFAULT);
+            voice.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_MOD2VIBLFO_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_ATT_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_PAN_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_EXPR_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_REVERB_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_CHORUS_MOD, VoiceAddMode::Default);
+            voice.add_mod(&DEFAULT_PITCH_BEND_MOD, VoiceAddMode::Default);
 
             Some(voice_id)
         } else {

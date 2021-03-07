@@ -9,14 +9,14 @@ impl Synth {
     /**
     Set the master gain
      */
-    pub fn set_gain(&mut self, gain: f64) {
+    pub fn set_gain(&mut self, gain: f32) {
         self.handle.set_gain(gain)
     }
 
     /**
     Get the master gain
      */
-    pub fn get_gain(&self) -> f64 {
+    pub fn get_gain(&self) -> f32 {
         self.handle.get_gain()
     }
 

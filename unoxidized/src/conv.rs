@@ -52,7 +52,7 @@ lazy_static! {
     };
 }
 
-pub fn fluid_ct2hz_real(cents: f32) -> f32 {
+pub fn ct2hz_real(cents: f32) -> f32 {
     if cents < 0.0 {
         1.0
     } else if cents < 900.0 {
@@ -84,16 +84,16 @@ pub fn fluid_ct2hz_real(cents: f32) -> f32 {
     }
 }
 
-pub fn fluid_ct2hz(mut cents: f32) -> f32 {
+pub fn ct2hz(mut cents: f32) -> f32 {
     if cents >= 13500.0 {
         cents = 13500.0;
     } else if cents < 1500.0 {
         cents = 1500.0;
     }
-    fluid_ct2hz_real(cents)
+    ct2hz_real(cents)
 }
 
-pub fn fluid_cb2amp(cb: f32) -> f32 {
+pub fn cb2amp(cb: f32) -> f32 {
     if cb < 0.0 {
         1.0
     } else if cb >= 961.0 {
@@ -103,7 +103,7 @@ pub fn fluid_cb2amp(cb: f32) -> f32 {
     }
 }
 
-pub fn fluid_atten2amp(atten: f32) -> f32 {
+pub fn atten2amp(atten: f32) -> f32 {
     if atten < 0.0 {
         1.0
     } else if atten >= 1441.0 {
@@ -113,7 +113,7 @@ pub fn fluid_atten2amp(atten: f32) -> f32 {
     }
 }
 
-pub fn fluid_tc2sec_delay(mut tc: f32) -> f32 {
+pub fn tc2sec_delay(mut tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
@@ -127,7 +127,7 @@ pub fn fluid_tc2sec_delay(mut tc: f32) -> f32 {
     }
 }
 
-pub fn fluid_tc2sec_attack(mut tc: f32) -> f32 {
+pub fn tc2sec_attack(mut tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
@@ -141,11 +141,11 @@ pub fn fluid_tc2sec_attack(mut tc: f32) -> f32 {
     }
 }
 
-pub fn fluid_tc2sec(tc: f64) -> f64 {
+pub fn tc2sec(tc: f64) -> f64 {
     f64::powf(2.0, tc / 1200.0)
 }
 
-pub fn fluid_tc2sec_release(mut tc: f32) -> f32 {
+pub fn tc2sec_release(mut tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
@@ -159,11 +159,11 @@ pub fn fluid_tc2sec_release(mut tc: f32) -> f32 {
     }
 }
 
-pub fn fluid_act2hz(c: f32) -> f32 {
+pub fn act2hz(c: f32) -> f32 {
     (8.176 * f64::powf(2.0, c as f64 / 1200.0f64)) as f32
 }
 
-pub fn fluid_pan(mut c: f32, left: i32) -> f32 {
+pub fn pan(mut c: f32, left: i32) -> f32 {
     if left != 0 {
         c = -c
     }
@@ -177,7 +177,7 @@ pub fn fluid_pan(mut c: f32, left: i32) -> f32 {
     };
 }
 
-pub fn fluid_concave(val: f32) -> f32 {
+pub fn concave(val: f32) -> f32 {
     if val < 0.0 {
         0.0
     } else if val > 127.0 {
@@ -187,7 +187,7 @@ pub fn fluid_concave(val: f32) -> f32 {
     }
 }
 
-pub fn fluid_convex(val: f32) -> f32 {
+pub fn convex(val: f32) -> f32 {
     if val < 0.0 {
         0.0
     } else if val > 127.0 {

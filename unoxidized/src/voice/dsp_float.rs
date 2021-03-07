@@ -142,7 +142,7 @@ impl Voice {
                 dsp_phase = (dsp_phase as u64)
                     .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
                     as Phase as Phase;
-                self.has_looped = 1 as i32
+                self.has_looped = true;
             }
 
             /* break out if filled buffer */
@@ -245,7 +245,7 @@ impl Voice {
                 dsp_phase = (dsp_phase as u64)
                     .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
                     as Phase as Phase;
-                self.has_looped = 1 as i32
+                self.has_looped = true;
             }
 
             /* break out if filled buffer */
@@ -295,7 +295,7 @@ impl Voice {
         let mut start_index: usize;
         let mut start_point: i16;
 
-        if self.has_looped != 0 {
+        if self.has_looped {
             /* set start_index and start point if looped or not */
             start_index = self.loopstart as usize;
             /* last point in loop (wrap around) */
@@ -410,8 +410,8 @@ impl Voice {
                 dsp_phase = (dsp_phase as u64)
                     .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
                     as Phase as Phase;
-                if self.has_looped == 0 {
-                    self.has_looped = 1 as i32;
+                if !self.has_looped {
+                    self.has_looped = true;
                     start_index = self.loopstart as usize;
                     start_point = dsp_data[(self.loopend - 1) as usize];
                 }
@@ -462,7 +462,7 @@ impl Voice {
         let mut start_points: [i16; 3] = [0; 3];
         let mut end_points: [i16; 3] = [0; 3];
 
-        if self.has_looped != 0 {
+        if self.has_looped {
             /* set start_index and start point if looped or not */
 
             start_index = self.loopstart as usize;
@@ -664,8 +664,8 @@ impl Voice {
                     .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
                     as Phase;
 
-                if self.has_looped == 0 {
-                    self.has_looped = 1 as i32;
+                if !self.has_looped {
+                    self.has_looped = true;
                     start_index = self.loopstart as usize;
                     start_points[0] = dsp_data[(self.loopend - 1) as usize];
                     start_points[1] = dsp_data[(self.loopend - 2) as usize];

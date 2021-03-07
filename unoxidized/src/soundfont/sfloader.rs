@@ -8,13 +8,12 @@ use crate::gen::{self, Gen};
 use crate::modulator::Mod;
 use crate::soundfont::Sample;
 use crate::synth::Synth;
-use crate::voice::FluidVoiceAddMod;
+use crate::voice::VoiceAddMode;
 use std::path::Path;
 
 const GEN_SET: GenFlags = 1;
 const GEN_VELOCITY: u32 = 47;
 const GEN_KEYNUM: u32 = 46;
-const FLUID_VOICE_ADD: FluidVoiceAddMod = 1;
 const GEN_OVERRIDEROOTKEY: GenType = 58;
 const GEN_EXCLUSIVECLASS: GenType = 57;
 const GEN_SAMPLEMODE: GenType = 54;
@@ -27,7 +26,6 @@ const GEN_STARTLOOPADDROFS: GenType = 2;
 const GEN_ENDADDROFS: GenType = 1;
 const GEN_STARTADDROFS: GenType = 0;
 const GEN_LAST: GenType = 60;
-const FLUID_VOICE_OVERWRITE: FluidVoiceAddMod = 0;
 type GenType = u32;
 type GenFlags = u32;
 
@@ -465,7 +463,7 @@ impl Synth {
                                          * modulators.  SF 2.01 page 69, 'bullet' 6 */
                                         self.voices[voice_id.0].add_mod(
                                             mod_0.as_ref().unwrap(),
-                                            FLUID_VOICE_OVERWRITE,
+                                            VoiceAddMode::Overwrite,
                                         );
                                     }
                                 }
@@ -550,7 +548,7 @@ impl Synth {
                                             /* Preset modulators -add- to existing instrument /
                                              * default modulators.  SF2.01 page 70 first bullet on
                                              * page */
-                                            self.voices[voice_id.0].add_mod(m, FLUID_VOICE_ADD);
+                                            self.voices[voice_id.0].add_mod(m, VoiceAddMode::Add);
                                         }
                                     }
                                 }

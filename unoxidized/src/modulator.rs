@@ -1,6 +1,6 @@
 use super::channel::Channel;
-use super::conv::fluid_concave;
-use super::conv::fluid_convex;
+use super::conv::concave;
+use super::conv::convex;
 use super::voice::Voice;
 
 pub type ModFlags = u32;
@@ -231,36 +231,36 @@ impl Mod {
                 1 => v1 = 1.0f32 - v1 / range1,
                 2 => v1 = -1.0f32 + 2.0f32 * v1 / range1,
                 3 => v1 = 1.0f32 - 2.0f32 * v1 / range1,
-                4 => v1 = fluid_concave(v1),
-                5 => v1 = fluid_concave(127 as i32 as f32 - v1),
+                4 => v1 = concave(v1),
+                5 => v1 = concave(127 as i32 as f32 - v1),
                 6 => {
                     v1 = if v1 > 64 as i32 as f32 {
-                        fluid_concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                        concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
                     } else {
-                        -fluid_concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        -concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
                     }
                 }
                 7 => {
                     v1 = if v1 > 64 as i32 as f32 {
-                        -fluid_concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                        -concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
                     } else {
-                        fluid_concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
                     }
                 }
-                8 => v1 = fluid_convex(v1),
-                9 => v1 = fluid_convex(127 as i32 as f32 - v1),
+                8 => v1 = convex(v1),
+                9 => v1 = convex(127 as i32 as f32 - v1),
                 10 => {
                     v1 = if v1 > 64 as i32 as f32 {
-                        fluid_convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                        convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
                     } else {
-                        -fluid_convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        -convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
                     }
                 }
                 11 => {
                     v1 = if v1 > 64 as i32 as f32 {
-                        -fluid_convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                        -convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
                     } else {
-                        fluid_convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
                     }
                 }
                 12 => {
@@ -319,36 +319,36 @@ impl Mod {
                 1 => v2 = 1.0f32 - v2 / range2,
                 2 => v2 = -1.0f32 + 2.0f32 * v2 / range2,
                 3 => v2 = -1.0f32 + 2.0f32 * v2 / range2,
-                4 => v2 = fluid_concave(v2),
-                5 => v2 = fluid_concave(127 as i32 as f32 - v2),
+                4 => v2 = concave(v2),
+                5 => v2 = concave(127 as i32 as f32 - v2),
                 6 => {
                     v2 = if v2 > 64 as i32 as f32 {
-                        fluid_concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                        concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
                     } else {
-                        -fluid_concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        -concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
                     }
                 }
                 7 => {
                     v2 = if v2 > 64 as i32 as f32 {
-                        -fluid_concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                        -concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
                     } else {
-                        fluid_concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
                     }
                 }
-                8 => v2 = fluid_convex(v2),
-                9 => v2 = 1.0f32 - fluid_convex(v2),
+                8 => v2 = convex(v2),
+                9 => v2 = 1.0f32 - convex(v2),
                 10 => {
                     v2 = if v2 > 64 as i32 as f32 {
-                        -fluid_convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                        -convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
                     } else {
-                        fluid_convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
                     }
                 }
                 11 => {
                     v2 = if v2 > 64 as i32 as f32 {
-                        -fluid_convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                        -convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
                     } else {
-                        fluid_convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
                     }
                 }
                 12 => {

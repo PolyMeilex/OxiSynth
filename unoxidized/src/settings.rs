@@ -17,7 +17,7 @@ pub struct SynthSettings {
     /// Def: 0.2
     /// Min: 0.0
     /// Max: 10.0
-    pub gain: f64,
+    pub gain: f32,
     /// Def: 1
     /// Min: 1
     /// Max: 256

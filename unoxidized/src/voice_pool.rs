@@ -1,6 +1,6 @@
 use crate::channel::Channel;
 use crate::gen::GenParam;
-use crate::voice::{Voice, VoiceId, VoiceStatus, FLUID_VOICE_ENVATTACK};
+use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
 
 pub struct VoicePool {
     voices: Vec<Voice>,
@@ -81,7 +81,7 @@ impl VoicePool {
                     this_voice_prio -= 1000.0;
                 }
                 this_voice_prio -= noteid.wrapping_sub(voice.id) as f32;
-                if voice.volenv_section != FLUID_VOICE_ENVATTACK as i32 {
+                if voice.volenv_section != VoiceEnvelope::Attack as i32 {
                     this_voice_prio =
                         (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
                 }
