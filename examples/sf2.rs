@@ -3,6 +3,10 @@ use soundfont_rs::{data::SFData, SoundFont2};
 fn main() {
     let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
 
+    // Load from memory
+    // use std::io::Cursor;
+    // let mut file = Cursor::new(include_bytes!("../testdata/sin.sf2"));
+
     let data = SFData::load(&mut file);
     let sf2 = SoundFont2::from_data(data);
 
