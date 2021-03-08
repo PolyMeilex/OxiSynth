@@ -674,7 +674,7 @@ pub fn gen_init(channel: &Channel) -> [Gen; 60] {
     out
 }
 
-pub fn fluid_gen_scale_nrpn(gen: i16, data: i32) -> f32 {
+pub fn gen_scale_nrpn(gen: i16, data: i32) -> f32 {
     let mut value: f32 = data as f32 - 8192.0f32;
     value = if value < -(8192 as i32) as f32 {
         -(8192 as i32) as f32

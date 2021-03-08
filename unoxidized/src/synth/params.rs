@@ -138,7 +138,7 @@ impl Synth {
         self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
     }
 
-    pub fn get_channel_preset(&mut self, chan: u8) -> Option<&mut Preset> {
+    pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Preset> {
         if chan < self.settings.synth.midi_channels {
             self.channel[chan as usize].get_preset()
         } else {
