@@ -9,7 +9,7 @@ mod reverb;
 mod tuning;
 mod write;
 
-use crate::{engine, Settings};
+use crate::{oxi, Settings};
 
 /**
 The synth object
@@ -27,7 +27,7 @@ The API for sending MIDI events is probably what you expect:
 `Synth::noteon()`, `Synth::noteoff()`, ...
  */
 pub struct Synth {
-    handle: engine::synth::Synth,
+    handle: oxi::synth::Synth,
 }
 
 unsafe impl Send for Synth {}
@@ -40,7 +40,7 @@ impl Synth {
      */
     pub fn new(settings: Settings) -> Self {
         Synth {
-            handle: engine::synth::Synth::new(settings),
+            handle: oxi::synth::Synth::new(settings),
         }
     }
 
@@ -51,12 +51,6 @@ impl Synth {
         self.handle.set_sample_rate(sample_rate);
     }
 
-    // /**
-    // Get a reference to the settings of the synthesizer.
-    //  */
-    // pub fn get_settings(&mut self) -> SettingsRef<'_> {
-    //     SettingsRef::from_ptr(&mut self.handle.old_settings)
-    // }
 }
 
 #[cfg(test)]

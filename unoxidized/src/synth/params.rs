@@ -1,9 +1,14 @@
+use crate::settings::Settings;
 use crate::synth::BankOffset;
 use crate::synth::InterpMethod;
 use crate::synth::Preset;
 use crate::synth::Synth;
 
 impl Synth {
+    pub fn get_settings(&self) -> &Settings {
+        &self.settings
+    }
+
     /**
     Set the master gain
      */

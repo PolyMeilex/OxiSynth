@@ -1,4 +1,5 @@
-use crate::{engine, Synth};
+use crate::{oxi, Synth};
+use oxi::tuning::Tuning;
 
 /**
  * Tuning
@@ -61,7 +62,7 @@ impl Synth {
         tuning_bank: u32,
         tuning_prog: u32,
         keys_pitch: KP,
-    ) -> std::result::Result<(), ()>
+    ) -> Result<(), ()>
     where
         KP: AsRef<[(u32, f64)]>,
     {
@@ -95,7 +96,7 @@ impl Synth {
     /**
     Get the iterator throught the list of available tunings.
      */
-    pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a engine::tuning::Tuning> {
+    pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a Tuning> {
         self.handle.tuning_iter()
     }
 
@@ -117,7 +118,7 @@ impl Synth {
 
     This function returns the only name of a tuning.
      */
-    pub fn tuning_dump_name(&self, bank: u32, prog: u32) -> std::result::Result<&str, ()> {
+    pub fn tuning_dump_name(&self, bank: u32, prog: u32) -> Result<&str, ()> {
         self.handle.tuning_dump(bank, prog).map(|t| t.0)
     }
 
@@ -126,7 +127,7 @@ impl Synth {
 
     This function returns the only pitch values of a tuning.
      */
-    pub fn tuning_dump_pitch(&self, bank: u32, prog: u32) -> std::result::Result<&[f64; 128], ()> {
+    pub fn tuning_dump_pitch(&self, bank: u32, prog: u32) -> Result<&[f64; 128], ()> {
         self.handle.tuning_dump(bank, prog).map(|t| t.1)
     }
 }

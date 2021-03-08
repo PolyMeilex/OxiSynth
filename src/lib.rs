@@ -1,6 +1,5 @@
-pub(crate) use unoxidized as engine;
+pub(crate) use unoxidized as oxi;
 
-mod private;
 mod settings;
 mod synth;
 

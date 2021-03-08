@@ -1,6 +1,6 @@
-use crate::{engine, Synth};
+use crate::{oxi, Synth};
 
-use engine::{chorus::ChorusMode, synth::chorus::ChorusParams};
+use oxi::{chorus::ChorusMode, synth::chorus::ChorusParams};
 
 impl Synth {
     /**

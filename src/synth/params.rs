@@ -1,11 +1,18 @@
 use crate::Synth;
 
-use crate::engine::channel::InterpMethod;
+use crate::oxi::{channel::InterpMethod, settings::Settings};
 
 /**
 Synthesis parameters
  */
 impl Synth {
+    /**
+    Get a reference to the settings of the synthesizer.
+     */
+    pub fn get_settings(&self) -> &Settings {
+        &self.handle.get_settings()
+    }
+
     /**
     Set the master gain
      */

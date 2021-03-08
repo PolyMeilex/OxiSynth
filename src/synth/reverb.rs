@@ -1,6 +1,6 @@
 use crate::Synth;
 
-use crate::engine::synth::reverb::ReverbParams;
+use crate::oxi::synth::reverb::ReverbParams;
 
 /**
 Reverb

@@ -83,7 +83,6 @@ impl Synth {
 
     The `len` must corresponds to the lenghtes of buffers.
      */
-    #[allow(clippy::missing_safety_doc)] // TODO: Remove after closing https://github.com/rust-lang/rust-clippy/issues/5593
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn write_i16(
@@ -132,7 +131,6 @@ impl Synth {
 
     The `len` must corresponds to the lenghtes of buffers.
      */
-    #[allow(clippy::missing_safety_doc)] // TODO: Remove after closing https://github.com/rust-lang/rust-clippy/issues/5593
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn write_f64(
