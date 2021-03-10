@@ -36,8 +36,7 @@ impl SoundFont2 {
             end: usize,
         ) -> Vec<Zone> {
             let mut zone_items = Vec::new();
-            let mut j = start;
-            while j < end {
+            for j in start..end {
                 let curr = zones.get(j).unwrap();
                 let next = zones.get(j + 1);
 
@@ -51,13 +50,11 @@ impl SoundFont2 {
 
                     let mut list = Vec::new();
 
-                    let mut i = start;
-                    while i < end {
+                    for i in start..end {
                         let item = modulators.get(i);
                         if let Some(item) = item {
                             list.push(item.to_owned());
                         }
-                        i += 1;
                     }
                     list
                 };
@@ -72,20 +69,16 @@ impl SoundFont2 {
 
                     let mut list = Vec::new();
 
-                    let mut i = start;
-                    while i < end {
+                    for i in start..end {
                         let item = generators.get(i);
                         if let Some(item) = item {
                             list.push(item.to_owned());
                         }
-                        i += 1;
                     }
                     list
                 };
 
                 zone_items.push(Zone { mod_list, gen_list });
-
-                j += 1
             }
             zone_items
         }
@@ -98,6 +91,7 @@ impl SoundFont2 {
 
             let iter = headers.iter();
             let mut iter_peek = headers.iter();
+            // `iter_peek` has to be one item ahead of `iter`
             iter_peek.next();
 
             let mut list = Vec::new();
@@ -116,6 +110,7 @@ impl SoundFont2 {
 
                 let zone_items = get_zones(&zones, &modulators, &generators, start, end);
 
+                // Ignore Terminator
                 if header.name != "EOS" {
                     list.push(Instrument {
                         header: header.clone(),
@@ -134,6 +129,7 @@ impl SoundFont2 {
 
             let iter = headers.iter();
             let mut iter_peek = headers.iter();
+            // `iter_peek` has to be one item ahead of `iter`
             iter_peek.next();
 
             let mut list = Vec::new();
@@ -151,6 +147,7 @@ impl SoundFont2 {
 
                 let zone_items = get_zones(&zones, &modulators, &generators, start, end);
 
+                // Ignore Terminator
                 if header.name != "EOP" {
                     list.push(Preset {
                         header: header.clone(),
@@ -170,6 +167,7 @@ impl SoundFont2 {
                 .hydra
                 .sample_headers
                 .into_iter()
+                // Ignore Terminator
                 .filter(|h| h.name != "EOS")
                 .collect(),
             sample_data: data.sample_data,
