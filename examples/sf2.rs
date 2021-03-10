@@ -7,7 +7,7 @@ fn main() {
     // use std::io::Cursor;
     // let mut file = Cursor::new(include_bytes!("../testdata/sin.sf2"));
 
-    let data = SFData::load(&mut file);
+    let data = SFData::load(&mut file).unwrap();
     let sf2 = SoundFont2::from_data(data);
 
     for p in sf2.presets.iter() {

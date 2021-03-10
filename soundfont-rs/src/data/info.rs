@@ -1,4 +1,5 @@
 use super::utils::Reader;
+use crate::error::ParseError;
 use riff::Chunk;
 
 use std::io::{Read, Seek};
@@ -39,7 +40,7 @@ pub struct SFInfo {
 }
 
 impl SFInfo {
-    pub fn read<F: Read + Seek>(info: &Chunk, file: &mut F) -> SFInfo {
+    pub fn read<F: Read + Seek>(info: &Chunk, file: &mut F) -> Result<SFInfo, ParseError> {
         assert_eq!(info.id().as_str(), "LIST");
         assert_eq!(info.read_type(file).unwrap().as_str(), "INFO");
 
@@ -67,63 +68,63 @@ impl SFInfo {
                 "ifil" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
                     version = Some(SFVersion {
-                        major: data.read_u16(),
-                        minor: data.read_u16(),
+                        major: data.read_u16()?,
+                        minor: data.read_u16()?,
                     });
                 }
                 // <isng-ck> Refers to the target Sound Engine
                 "isng" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    sound_engine = Some(data.read_string(ch.len() as usize));
+                    sound_engine = Some(data.read_string(ch.len() as usize)?);
                 }
                 // <INAM-ck> Refers to the Sound Font Bank Name
                 "INAM" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    bank_name = Some(data.read_string(ch.len() as usize));
+                    bank_name = Some(data.read_string(ch.len() as usize)?);
                 }
 
                 // [<irom-ck>] Refers to the Sound ROM Name
                 "irom" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    rom_name = Some(data.read_string(ch.len() as usize));
+                    rom_name = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<iver-ck>] Refers to the Sound ROM Version
                 "iver" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
                     rom_version = Some(SFVersion {
-                        major: data.read_u16(),
-                        minor: data.read_u16(),
+                        major: data.read_u16()?,
+                        minor: data.read_u16()?,
                     });
                 }
                 // [<ICRD-ck>] Refers to the Date of Creation of the Bank
                 "ICRD" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    creation_date = Some(data.read_string(ch.len() as usize));
+                    creation_date = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<IENG-ck>] Sound Designers and Engineers for the Bank
                 "IENG" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    engineers = Some(data.read_string(ch.len() as usize));
+                    engineers = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<IPRD-ck>] Product for which the Bank was intended
                 "IPRD" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    product = Some(data.read_string(ch.len() as usize));
+                    product = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<ICOP-ck>] Contains any Copyright message
                 "ICOP" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    copyright = Some(data.read_string(ch.len() as usize));
+                    copyright = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<ICMT-ck>] Contains any Comments on the Bank
                 "ICMT" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    comments = Some(data.read_string(ch.len() as usize));
+                    comments = Some(data.read_string(ch.len() as usize)?);
                 }
                 // [<ISFT-ck>] The SoundFont tools used to create and alter the bank
                 "ISFT" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    software = Some(data.read_string(ch.len() as usize));
+                    software = Some(data.read_string(ch.len() as usize)?);
                 }
                 unknown => {
                     panic!("Unexpected: {} in 'info'", unknown);
@@ -131,7 +132,7 @@ impl SFInfo {
             }
         }
 
-        SFInfo {
+        Ok(SFInfo {
             version: version.unwrap(),
             sound_engine: sound_engine.unwrap_or_default(),
             bank_name: bank_name.unwrap_or_default(),
@@ -145,6 +146,6 @@ impl SFInfo {
             copyright,
             comments,
             software,
-        }
+        })
     }
 }

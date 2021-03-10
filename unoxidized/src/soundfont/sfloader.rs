@@ -20,6 +20,15 @@ pub(super) struct DefaultSoundFont {
 impl DefaultSoundFont {
     pub(super) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
         let data = sf2::data::SFData::load(file);
+
+        let data = match data {
+            Ok(data) => data,
+            Err(err) => {
+                log::error!("{:#?}", err);
+                return Err(());
+            }
+        };
+
         let mut sf2 = sf2::SoundFont2::from_data(data);
         sf2.sort_presets();
 

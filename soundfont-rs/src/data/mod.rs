@@ -4,6 +4,7 @@ pub mod hydra;
 pub mod info;
 pub mod sample_data;
 
+use crate::error::ParseError;
 use std::io::{Read, Seek};
 
 pub use hydra::*;
@@ -18,7 +19,7 @@ pub struct SFData {
 }
 
 impl SFData {
-    pub fn load<F: Read + Seek>(file: &mut F) -> SFData {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<SFData, ParseError> {
         let sfbk = riff::Chunk::read(file, 0).unwrap();
         assert_eq!(sfbk.id().as_str(), "RIFF");
         assert_eq!(sfbk.read_type(file).unwrap().as_str(), "sfbk");
@@ -31,13 +32,13 @@ impl SFData {
             let ty = ch.read_type(file).unwrap();
             match ty.as_str() {
                 "INFO" => {
-                    info = Some(SFInfo::read(ch, file));
+                    info = Some(SFInfo::read(ch, file)?);
                 }
                 "sdta" => {
                     sample_data = Some(SFSampleData::read(ch, file));
                 }
                 "pdta" => {
-                    hydra = Some(SFHydra::read(ch, file));
+                    hydra = Some(SFHydra::read(ch, file)?);
                 }
                 unknown => {
                     panic!("Unexpected: {} in sfbk", unknown);
@@ -45,10 +46,10 @@ impl SFData {
             }
         }
 
-        SFData {
+        Ok(SFData {
             info: info.unwrap(),
             sample_data: sample_data.unwrap(),
             hydra: hydra.unwrap(),
-        }
+        })
     }
 }

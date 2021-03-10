@@ -1,4 +1,5 @@
 use super::super::utils::Reader;
+use crate::error::ParseError;
 use riff::Chunk;
 use std::io::{Read, Seek};
 
@@ -19,29 +20,29 @@ pub struct SFSampleHeader {
 }
 
 impl SFSampleHeader {
-    pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20).trim_end().to_owned();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let name: String = reader.read_string(20)?.trim_end().to_owned();
         // 20
 
-        let start: u32 = reader.read_u32();
+        let start: u32 = reader.read_u32()?;
         // 24
-        let end: u32 = reader.read_u32();
+        let end: u32 = reader.read_u32()?;
         // 28
-        let loop_start: u32 = reader.read_u32();
+        let loop_start: u32 = reader.read_u32()?;
         // 32
-        let loop_end: u32 = reader.read_u32();
+        let loop_end: u32 = reader.read_u32()?;
         // 36
 
-        let sample_rate: u32 = reader.read_u32();
+        let sample_rate: u32 = reader.read_u32()?;
         // 40
 
-        let origpitch: u8 = reader.read_u8();
+        let origpitch: u8 = reader.read_u8()?;
         // 41
-        let pitchadj: i8 = reader.read_i8();
+        let pitchadj: i8 = reader.read_i8()?;
         // 42
-        let sample_link: u16 = reader.read_u16();
+        let sample_link: u16 = reader.read_u16()?;
         // 44
-        let sample_type: u16 = reader.read_u16();
+        let sample_type: u16 = reader.read_u16()?;
 
         let sample_type = match sample_type {
             0 => SFSampleLink::None,
@@ -63,7 +64,7 @@ impl SFSampleHeader {
             }
         };
 
-        Self {
+        Ok(Self {
             name,
             start,
             end,
@@ -74,10 +75,10 @@ impl SFSampleHeader {
             pitchadj,
             sample_link,
             sample_type,
-        }
+        })
     }
 
-    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert_eq!(phdr.id().as_str(), "shdr");
 
         let size = phdr.len();

@@ -1,4 +1,5 @@
 use super::super::utils::Reader;
+use crate::error::ParseError;
 use riff::Chunk;
 use std::io::{Read, Seek};
 
@@ -62,8 +63,8 @@ pub struct SFGenerator {
 }
 
 impl SFGenerator {
-    pub fn read(reader: &mut Reader) -> Self {
-        let id: u16 = reader.read_u16();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let id: u16 = reader.read_u16()?;
 
         let ty: SFGeneratorType = if id <= 60 {
             unsafe { std::mem::transmute(id) }
@@ -74,20 +75,20 @@ impl SFGenerator {
         let amount = match ty {
             SFGeneratorType::KeyRange | SFGeneratorType::VelRange => {
                 SFGeneratorAmount::Range(SFGeneratorAmountRange {
-                    low: reader.read_u8(),
-                    high: reader.read_u8(),
+                    low: reader.read_u8()?,
+                    high: reader.read_u8()?,
                 })
             }
             SFGeneratorType::Instrument | SFGeneratorType::SampleID => {
-                SFGeneratorAmount::U16(reader.read_u16())
+                SFGeneratorAmount::U16(reader.read_u16()?)
             }
-            _ => SFGeneratorAmount::I16(reader.read_i16()),
+            _ => SFGeneratorAmount::I16(reader.read_i16()?),
         };
 
-        Self { ty, amount }
+        Ok(Self { ty, amount })
     }
 
-    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert!(pmod.id().as_str() == "pgen" || pmod.id().as_str() == "igen");
 
         let size = pmod.len();

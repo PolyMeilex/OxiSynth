@@ -1,4 +1,5 @@
 pub mod data;
+pub mod error;
 
 use data::{
     SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInfo,

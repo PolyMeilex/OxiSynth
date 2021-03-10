@@ -1,3 +1,5 @@
+use crate::error::ParseError;
+
 use super::super::utils::Reader;
 use riff::Chunk;
 use std::io::{Read, Seek};
@@ -9,17 +11,17 @@ pub struct SFBag {
 }
 
 impl SFBag {
-    pub fn read(reader: &mut Reader) -> Self {
-        let generator_id: u16 = reader.read_u16();
-        let modulator_id: u16 = reader.read_u16();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let generator_id: u16 = reader.read_u16()?;
+        let modulator_id: u16 = reader.read_u16()?;
 
-        Self {
+        Ok(Self {
             generator_id,
             modulator_id,
-        }
+        })
     }
 
-    pub fn read_all<F: Read + Seek>(pbag: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(pbag: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert!(pbag.id().as_str() == "pbag" || pbag.id().as_str() == "ibag");
 
         let size = pbag.len();

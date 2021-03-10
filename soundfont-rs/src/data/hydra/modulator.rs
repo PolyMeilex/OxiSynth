@@ -1,3 +1,5 @@
+use crate::error::ParseError;
+
 use super::super::utils::Reader;
 use riff::Chunk;
 use std::io::{Read, Seek};
@@ -12,23 +14,23 @@ pub struct SFModulator {
 }
 
 impl SFModulator {
-    pub fn read(reader: &mut Reader) -> Self {
-        let src: u16 = reader.read_u16();
-        let dest: u16 = reader.read_u16();
-        let amount: i16 = reader.read_i16();
-        let amt_src: u16 = reader.read_u16();
-        let transform: u16 = reader.read_u16();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let src: u16 = reader.read_u16()?;
+        let dest: u16 = reader.read_u16()?;
+        let amount: i16 = reader.read_i16()?;
+        let amt_src: u16 = reader.read_u16()?;
+        let transform: u16 = reader.read_u16()?;
 
-        Self {
+        Ok(Self {
             src,
             dest,
             amount,
             amt_src,
             transform,
-        }
+        })
     }
 
-    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert!(pmod.id().as_str() == "pmod" || pmod.id().as_str() == "imod");
 
         let size = pmod.len();

@@ -1,4 +1,5 @@
 use super::super::utils::Reader;
+use crate::error::ParseError;
 use riff::Chunk;
 use std::io::{Read, Seek};
 
@@ -9,14 +10,14 @@ pub struct SFInstrumentHeader {
 }
 
 impl SFInstrumentHeader {
-    pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20).trim_end().to_owned();
-        let bag_id: u16 = reader.read_u16();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let name: String = reader.read_string(20)?.trim_end().to_owned();
+        let bag_id: u16 = reader.read_u16()?;
 
-        Self { name, bag_id }
+        Ok(Self { name, bag_id })
     }
 
-    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert_eq!(phdr.id().as_str(), "inst");
 
         let size = phdr.len();

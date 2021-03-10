@@ -16,6 +16,7 @@ pub use instrument::SFInstrumentHeader;
 pub mod sample;
 pub use sample::SFSampleHeader;
 
+use crate::error::ParseError;
 use riff::Chunk;
 
 use std::io::{Read, Seek};
@@ -36,7 +37,7 @@ pub struct SFHydra {
 }
 
 impl SFHydra {
-    pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Self {
+    pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
         assert_eq!(pdta.id().as_str(), "LIST");
         assert_eq!(pdta.read_type(file).unwrap().as_str(), "pdta");
 
@@ -59,30 +60,30 @@ impl SFHydra {
 
             match id.as_str() {
                 // The Preset Headers
-                "phdr" => preset_headers = Some(SFPresetHeader::read_all(ch, file)),
+                "phdr" => preset_headers = Some(SFPresetHeader::read_all(ch, file)?),
                 // The Preset Index list
-                "pbag" => preset_bags = Some(SFBag::read_all(ch, file)),
+                "pbag" => preset_bags = Some(SFBag::read_all(ch, file)?),
                 // The Preset Modulator list
-                "pmod" => preset_modulators = Some(SFModulator::read_all(ch, file)),
+                "pmod" => preset_modulators = Some(SFModulator::read_all(ch, file)?),
                 // The Preset Generator list
-                "pgen" => preset_generators = Some(SFGenerator::read_all(ch, file)),
+                "pgen" => preset_generators = Some(SFGenerator::read_all(ch, file)?),
                 // The Instrument Names and Indices
-                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(ch, file)),
+                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(ch, file)?),
                 // The Instrument Index list
-                "ibag" => instrument_bags = Some(SFBag::read_all(ch, file)),
+                "ibag" => instrument_bags = Some(SFBag::read_all(ch, file)?),
                 // The Instrument Modulator list
-                "imod" => instrument_modulators = Some(SFModulator::read_all(ch, file)),
+                "imod" => instrument_modulators = Some(SFModulator::read_all(ch, file)?),
                 // The Instrument Generator list
-                "igen" => instrument_generators = Some(SFGenerator::read_all(ch, file)),
+                "igen" => instrument_generators = Some(SFGenerator::read_all(ch, file)?),
                 // The Sample Headers
-                "shdr" => sample_headers = Some(SFSampleHeader::read_all(ch, file)),
+                "shdr" => sample_headers = Some(SFSampleHeader::read_all(ch, file)?),
                 unknown => {
                     panic!("Unexpected: {} in hydra", unknown);
                 }
             }
         }
 
-        Self {
+        Ok(Self {
             preset_headers: preset_headers.unwrap(),
             preset_bags: preset_bags.unwrap(),
             preset_modulators: preset_modulators.unwrap(),
@@ -94,7 +95,7 @@ impl SFHydra {
             instrument_generators: instrument_generators.unwrap(),
 
             sample_headers: sample_headers.unwrap(),
-        }
+        })
     }
 
     pub fn pop_terminators(&mut self) {

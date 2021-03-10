@@ -1,4 +1,5 @@
 use super::super::utils::Reader;
+use crate::error::ParseError;
 use riff::Chunk;
 
 use std::io::{Read, Seek};
@@ -22,17 +23,17 @@ pub struct SFPresetHeader {
 }
 
 impl SFPresetHeader {
-    pub fn read(reader: &mut Reader) -> Self {
-        let name: String = reader.read_string(20).trim_end().to_owned();
-        let preset: u16 = reader.read_u16();
-        let bank: u16 = reader.read_u16();
-        let bag_id: u16 = reader.read_u16();
+    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+        let name: String = reader.read_string(20)?.trim_end().to_owned();
+        let preset: u16 = reader.read_u16()?;
+        let bank: u16 = reader.read_u16()?;
+        let bag_id: u16 = reader.read_u16()?;
 
-        let library: u32 = reader.read_u32();
-        let genre: u32 = reader.read_u32();
-        let morphology: u32 = reader.read_u32();
+        let library: u32 = reader.read_u32()?;
+        let genre: u32 = reader.read_u32()?;
+        let morphology: u32 = reader.read_u32()?;
 
-        Self {
+        Ok(Self {
             name,
             preset,
             bank,
@@ -40,10 +41,10 @@ impl SFPresetHeader {
             library,
             genre,
             morphology,
-        }
+        })
     }
 
-    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Vec<Self> {
+    pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
         assert_eq!(phdr.id().as_str(), "phdr");
 
         let size = phdr.len();
