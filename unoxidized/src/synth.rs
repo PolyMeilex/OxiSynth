@@ -155,13 +155,16 @@ impl Synth {
             ),
             noteid: 0,
             storeid: 0 as _,
+
             nbuf,
-            left_buf: Vec::new(),
-            right_buf: Vec::new(),
+            left_buf: vec![[0.0; 64]; nbuf as usize],
+            right_buf: vec![[0.0; 64]; nbuf as usize],
+
             fx_left_buf: [[0f32; 64]; 2],
             fx_right_buf: [[0f32; 64]; 2],
             reverb: ReverbModel::new(),
             chorus: Chorus::new(settings.synth.sample_rate as f32),
+
             cur: 64,
             tuning: Vec::new(),
             min_note_length_ticks,
@@ -175,9 +178,6 @@ impl Synth {
         for i in 0..synth.settings.synth.midi_channels {
             synth.channel.push(Channel::new(&synth, i));
         }
-
-        synth.left_buf.resize(synth.nbuf as usize, [0f32; 64]);
-        synth.right_buf.resize(synth.nbuf as usize, [0f32; 64]);
 
         synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
 
