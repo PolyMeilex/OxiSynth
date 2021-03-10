@@ -1,24 +1,6 @@
 use crate::synth::Synth;
 use crate::synth::FLUID_SYNTH_PLAYING;
 
-lazy_static! {
-    static ref RAND_TABLE: [[f32; 48000]; 2] = {
-        let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
-
-        for c in 0..2 {
-            let mut dp = 0.0;
-            for i in 0..(48000 - 1) {
-                let r: i32 = rand::random();
-                let d = r as f32 / 2147483647.0 - 0.5;
-                rand[c][i] = d - dp;
-                dp = d;
-            }
-            rand[c][48000 - 1] = 0.0 - dp;
-        }
-        rand
-    };
-}
-
 impl Synth {
     fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
         // clean the audio buffers
@@ -248,6 +230,7 @@ impl Synth {
         self.cur = l;
     }
 
+    #[cfg(feature = "i16-out")]
     pub fn write_s16(
         &mut self,
         len: usize,
@@ -280,14 +263,14 @@ impl Synth {
              * dithering.
              */
 
-            let mut left_sample = roundi(
+            let mut left_sample = f32::round(
                 self.left_buf[0][cur as usize] * 32766.0f32
                     + RAND_TABLE[0 as i32 as usize][di as usize],
-            ) as f32;
-            let mut right_sample = roundi(
+            );
+            let mut right_sample = f32::round(
                 self.right_buf[0][cur as usize] * 32766.0f32
                     + RAND_TABLE[1 as i32 as usize][di as usize],
-            ) as f32;
+            );
 
             di += 1;
             if di >= 48000 as i32 {
@@ -322,11 +305,21 @@ impl Synth {
     }
 }
 
-/* A portable replacement for roundf(), seems it may actually be faster too! */
-fn roundi(x: f32) -> i32 {
-    if x >= 0.0f32 {
-        (x + 0.5f32) as i32
-    } else {
-        (x - 0.5f32) as i32
-    }
+#[cfg(feature = "i16-out")]
+lazy_static! {
+    static ref RAND_TABLE: [[f32; 48000]; 2] = {
+        let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
+
+        for c in 0..2 {
+            let mut dp = 0.0;
+            for i in 0..(48000 - 1) {
+                let r: i32 = rand::random();
+                let d = r as f32 / 2147483647.0 - 0.5;
+                rand[c][i] = d - dp;
+                dp = d;
+            }
+            rand[c][48000 - 1] = 0.0 - dp;
+        }
+        rand
+    };
 }

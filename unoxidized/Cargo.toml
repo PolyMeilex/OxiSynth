@@ -4,16 +4,21 @@ version = "0.1.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
 edition = "2018"
 
+[features]
+i16-out=["getrandom","rand"]
+
 [dependencies]
 bitflags = "^1.2"
 lazy_static = "1.4.0"
 
-getrandom = { version = "0.2", features = ["js"] }
-rand = "0.8.3"
-
 log = "0.4.14"
 
-soundfont-rs={path="../soundfont-rs"}
+soundfont-rs = { path="../soundfont-rs" }
 
 num-traits = "0.2"
 num-derive = "0.3.3"
+
+
+# i16-out
+getrandom = { version = "0.2", features = ["js"], optional = true }
+rand = { version= "0.8.3", optional= true }

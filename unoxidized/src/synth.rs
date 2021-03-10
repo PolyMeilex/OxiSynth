@@ -74,18 +74,24 @@ pub struct Synth {
     noteid: usize,
     storeid: usize,
     nbuf: u8,
+
     left_buf: Vec<[f32; 64]>,
     right_buf: Vec<[f32; 64]>,
+
     fx_left_buf: [[f32; 64]; 2],
     fx_right_buf: [[f32; 64]; 2],
     reverb: ReverbModel,
     chorus: Chorus,
+
     cur: usize,
-    dither_index: i32,
+
     tuning: Vec<Vec<Option<Tuning>>>,
     pub(crate) min_note_length_ticks: u32,
 
     pub(crate) settings: Settings,
+
+    #[cfg(feature = "i16-out")]
+    dither_index: i32,
 }
 
 impl Synth {
@@ -157,11 +163,13 @@ impl Synth {
             reverb: ReverbModel::new(),
             chorus: Chorus::new(settings.synth.sample_rate as f32),
             cur: 64,
-            dither_index: 0,
             tuning: Vec::new(),
             min_note_length_ticks,
 
             settings,
+
+            #[cfg(feature = "i16-out")]
+            dither_index: 0,
         };
 
         for i in 0..synth.settings.synth.midi_channels {

@@ -5,6 +5,7 @@ pub trait IsSamples {
     fn write_samples(self, synth: &mut Synth);
 }
 
+#[cfg(feature = "i16-out")]
 impl IsSamples for &mut [i16] {
     /// Write samples interleaved
     fn write_samples(self, synth: &mut Synth) {
@@ -16,6 +17,7 @@ impl IsSamples for &mut [i16] {
     }
 }
 
+#[cfg(feature = "i16-out")]
 impl IsSamples for (&mut [i16], &mut [i16]) {
     /// Write samples non-interleaved
     fn write_samples(self, synth: &mut Synth) {
@@ -83,6 +85,7 @@ impl Synth {
 
     The `len` must corresponds to the lenghtes of buffers.
      */
+    #[cfg(feature = "i16-out")]
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn write_i16(
