@@ -69,7 +69,7 @@ impl SFGenerator {
         let ty: SFGeneratorType = if id <= 60 {
             unsafe { std::mem::transmute(id) }
         } else {
-            panic!("Unknown Generator Type: {}", id);
+            return Err(ParseError::UnknownGeneratorType(id));
         };
 
         let amount = match ty {

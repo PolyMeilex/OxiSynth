@@ -12,6 +12,8 @@ pub enum ParseError {
     InvalidModulatorChunkSize(u32),
     InvalidPresetChunkSize(u32),
     InvalidSampleChunkSize(u32),
+
+    UnknownGeneratorType(u16),
 }
 
 impl From<Utf8Error> for ParseError {
