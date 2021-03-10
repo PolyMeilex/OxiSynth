@@ -246,9 +246,7 @@ impl Synth {
             .map(|(id, _)| VoiceId(id));
 
         if voice_id.is_none() {
-            voice_id = self
-                .voices
-                .free_voice_by_kill(self.settings.synth.polyphony, self.noteid);
+            voice_id = self.voices.free_voice_by_kill(self.noteid);
         }
 
         if let Some(voice_id) = voice_id {

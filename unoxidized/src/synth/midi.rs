@@ -33,7 +33,6 @@ impl Synth {
             &self.channel,
             midi_chan,
             key,
-            self.settings.synth.polyphony,
             self.noteid,
             self.min_note_length_ticks,
         );
@@ -169,7 +168,6 @@ impl Synth {
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_PITCHWHEEL,
-                self.settings.synth.polyphony,
             )
         }
 
@@ -210,7 +208,6 @@ impl Synth {
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_PITCHWHEELSENS,
-                self.settings.synth.polyphony,
             );
         }
 
@@ -308,7 +305,6 @@ impl Synth {
                 self.channel[chan as usize].channum,
                 0,
                 FLUID_MOD_CHANNELPRESSURE,
-                self.settings.synth.polyphony,
             );
         }
 

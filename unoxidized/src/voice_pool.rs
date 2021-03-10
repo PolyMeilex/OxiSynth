@@ -4,6 +4,7 @@ use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
 
 pub struct VoicePool {
     voices: Vec<Voice>,
+    polyphony_limit: usize,
 }
 
 impl VoicePool {
@@ -14,7 +15,10 @@ impl VoicePool {
             voices.push(Voice::new(output_rate))
         }
 
-        Self { voices }
+        Self {
+            voices,
+            polyphony_limit: len,
+        }
     }
 
     pub(crate) fn set_sample_rate(&mut self, sample_rate: f32) {
@@ -23,16 +27,32 @@ impl VoicePool {
         }
     }
 
+    /// Set the polyphony limit
+    pub(crate) fn set_polyphony_limit(&mut self, polyphony: usize) -> Result<(), ()> {
+        if polyphony < 1 || polyphony > self.voices.len() {
+            Err(())
+        } else {
+            self.polyphony_limit = polyphony;
+
+            /* turn off any voices above the new limit */
+            for i in polyphony..self.voices.len() {
+                let voice = &mut self.voices[i];
+                if voice.is_playing() {
+                    voice.off();
+                }
+            }
+
+            Ok(())
+        }
+    }
+
     pub(crate) fn damp_voices(
         &mut self,
         channels: &[Channel],
         chan: u8,
-        polyphony: u16,
         min_note_length_ticks: u32,
     ) {
-        for i in 0..polyphony {
-            let voice = &mut self.voices[i as usize];
-
+        for voice in self.voices.iter_mut().take(self.polyphony_limit) {
             if voice.chan == chan && voice.status == VoiceStatus::Sustained {
                 voice.noteoff(channels, min_note_length_ticks);
             }
@@ -45,31 +65,33 @@ impl VoicePool {
         chan: u8,
         is_cc: i32,
         ctrl: u16,
-        polyphony: u16,
     ) {
-        for i in 0..polyphony {
-            let voice = &mut self.voices[i as usize];
+        for voice in self.voices.iter_mut().take(self.polyphony_limit) {
             if voice.chan == chan {
                 voice.modulate(channels, is_cc, ctrl);
             }
         }
     }
 
-    pub(crate) fn modulate_voices_all(&mut self, channels: &[Channel], chan: u8, polyphony: u16) {
-        for i in 0..polyphony {
-            let voice = &mut self.voices[i as usize];
+    pub(crate) fn modulate_voices_all(&mut self, channels: &[Channel], chan: u8) {
+        for voice in self.voices.iter_mut().take(self.polyphony_limit) {
             if voice.chan == chan {
                 voice.modulate_all(channels);
             }
         }
     }
 
-    pub(crate) fn free_voice_by_kill(&mut self, polyphony: u16, noteid: usize) -> Option<VoiceId> {
+    pub(crate) fn free_voice_by_kill(&mut self, noteid: usize) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut best_voice_index: Option<usize> = None;
 
         {
-            for (id, voice) in self.voices.iter_mut().take(polyphony as usize).enumerate() {
+            for (id, voice) in self
+                .voices
+                .iter_mut()
+                .take(self.polyphony_limit)
+                .enumerate()
+            {
                 if voice.is_available() {
                     return Some(VoiceId(id));
                 }
@@ -101,7 +123,7 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn kill_by_exclusive_class(&mut self, new_voice: VoiceId, polyphony: u16) {
+    pub(crate) fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let excl_class = {
             let new_voice = &mut self.voices[new_voice.0];
             let excl_class: i32 = (new_voice.gen[GenParam::ExclusiveClass as usize].val
@@ -112,7 +134,7 @@ impl VoicePool {
         };
 
         if excl_class != 0 {
-            for i in 0..polyphony {
+            for i in 0..self.polyphony_limit {
                 let new_voice = &self.voices[new_voice.0];
                 let existing_voice = &self.voices[i as usize];
 
@@ -134,8 +156,8 @@ impl VoicePool {
         }
     }
 
-    pub(crate) fn start_voice(&mut self, channels: &[Channel], voice_id: VoiceId, polyphony: u16) {
-        self.kill_by_exclusive_class(voice_id, polyphony);
+    pub(crate) fn start_voice(&mut self, channels: &[Channel], voice_id: VoiceId) {
+        self.kill_by_exclusive_class(voice_id);
         self.voices[voice_id.0].start(channels);
     }
 
@@ -144,12 +166,10 @@ impl VoicePool {
         channels: &[Channel],
         chan: u8,
         key: u8,
-        polyphony: u16,
         noteid: usize,
         min_note_length_ticks: u32,
     ) {
-        for i in 0..polyphony {
-            let voice = &mut self.voices[i as usize];
+        for voice in self.voices.iter_mut().take(self.polyphony_limit) {
             if voice.is_playing() && voice.chan == chan && voice.key == key && voice.id != noteid {
                 voice.noteoff(channels, min_note_length_ticks);
             }
@@ -158,9 +178,9 @@ impl VoicePool {
 }
 
 impl VoicePool {
-    pub fn len(&self) -> usize {
-        self.voices.len()
-    }
+    // pub fn len(&self) -> usize {
+    //     self.voices.len()
+    // }
 
     pub fn iter(&self) -> std::slice::Iter<'_, Voice> {
         self.voices.iter()

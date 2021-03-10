@@ -243,12 +243,8 @@ impl Synth {
             64 => {
                 if value < 64 {
                     // sustain off
-                    self.voices.damp_voices(
-                        &self.channel,
-                        channum,
-                        self.settings.synth.polyphony,
-                        self.min_note_length_ticks,
-                    )
+                    self.voices
+                        .damp_voices(&self.channel, channum, self.min_note_length_ticks)
                 } else {
                     // sustain on
                 }
@@ -305,11 +301,7 @@ impl Synth {
             121 => {
                 self.channel[chan_id].init_ctrl(1);
 
-                self.voices.modulate_voices_all(
-                    &self.channel,
-                    channum,
-                    self.settings.synth.polyphony,
-                );
+                self.voices.modulate_voices_all(&self.channel, channum);
             }
 
             // DATA_ENTRY_MSB
@@ -401,13 +393,9 @@ impl Synth {
 
             // RPN_MSB | RPN_LSB
             101 | 100 => self.channel[chan_id].nrpn_active = 0,
-            _ => self.voices.modulate_voices(
-                &self.channel,
-                self.channel[chan_id].channum,
-                1,
-                num,
-                self.settings.synth.polyphony,
-            ),
+            _ => self
+                .voices
+                .modulate_voices(&self.channel, self.channel[chan_id].channum, 1, num),
         }
     }
 }
