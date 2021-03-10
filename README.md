@@ -4,7 +4,7 @@
 
 ### Showcase
 OxiSynth running in browser, with Boomwhacker soundfont bundled:
-[https://oxisynth.netlify.app/](oxisynth.netlify.app)
+[https://oxisynth.netlify.app](https://oxisynth.netlify.app)
 
 
 ### Project Structure
