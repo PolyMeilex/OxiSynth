@@ -79,11 +79,11 @@ impl Synth {
         tuning_bank: u32,
         tuning_prog: u32,
     ) -> Result<(), ()> {
-        Synth::zero_ok(self.handle.select_tuning(chan, tuning_bank, tuning_prog))
+        self.handle.select_tuning(chan, tuning_bank, tuning_prog)
     }
 
     pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
-        Synth::zero_ok(self.handle.activate_tuning(chan, bank, prog))
+        self.handle.activate_tuning(chan, bank, prog)
     }
 
     /**

@@ -1,6 +1,4 @@
 use crate::synth::Synth;
-use crate::synth::FLUID_FAILED;
-use crate::synth::FLUID_OK;
 use crate::tuning::Tuning;
 
 impl Synth {
@@ -83,27 +81,27 @@ impl Synth {
     /**
     Select a tuning for a channel.
      */
-    pub fn select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> i32 {
+    pub fn select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
         let tuning;
         if !(bank < 128) {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if !(prog < 128) {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         tuning = self.get_tuning(bank, prog);
         if tuning.is_none() {
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         if chan >= self.settings.synth.midi_channels {
             log::warn!("Channel out of range",);
-            return FLUID_FAILED as i32;
+            return Err(());
         }
         self.channel[chan as usize].tuning = Some(tuning.unwrap().clone());
-        return FLUID_OK as i32;
+        Ok(())
     }
 
-    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> i32 {
+    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
         self.select_tuning(chan, bank, prog)
     }
 

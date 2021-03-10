@@ -3,7 +3,6 @@ mod count;
 mod font;
 mod gen;
 mod midi;
-mod misc;
 mod params;
 mod reverb;
 mod tuning;
@@ -50,7 +49,6 @@ impl Synth {
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.handle.set_sample_rate(sample_rate);
     }
-
 }
 
 #[cfg(test)]

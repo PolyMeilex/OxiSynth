@@ -36,7 +36,6 @@ type ModSrc = u8;
 type GenType = u8;
 type C2RustUnnamed = i32;
 
-const FLUID_FAILED: C2RustUnnamed = -1;
 const FLUID_SYNTH_PLAYING: SynthStatus = 1;
 
 const FLUID_MOD_POSITIVE: ModFlags = 0;
