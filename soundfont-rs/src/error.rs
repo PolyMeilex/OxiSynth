@@ -5,6 +5,13 @@ use std::str::Utf8Error;
 pub enum ParseError {
     StringError(Utf8Error),
     NumSliceError(TryFromSliceError),
+
+    InvalidBagChunkSize(u32),
+    InvalidGeneratorChunkSize(u32),
+    InvalidInstrumentChunkSize(u32),
+    InvalidModulatorChunkSize(u32),
+    InvalidPresetChunkSize(u32),
+    InvalidSampleChunkSize(u32),
 }
 
 impl From<Utf8Error> for ParseError {

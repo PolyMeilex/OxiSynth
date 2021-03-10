@@ -93,15 +93,15 @@ impl SFGenerator {
 
         let size = pmod.len();
         if size % 4 != 0 || size == 0 {
-            panic!("Preset generator chunk size mismatch");
+            Err(ParseError::InvalidGeneratorChunkSize(size))
+        } else {
+            let amount = size / 4;
+
+            let data = pmod.read_contents(file).unwrap();
+            let mut reader = Reader::new(data);
+
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
-
-        let amount = size / 4;
-
-        let data = pmod.read_contents(file).unwrap();
-        let mut reader = Reader::new(data);
-
-        (0..amount).map(|_| Self::read(&mut reader)).collect()
     }
 }
 

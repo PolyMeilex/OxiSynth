@@ -1,5 +1,4 @@
 use crate::error::ParseError;
-use std::array::TryFromSliceError;
 use std::convert::TryInto;
 
 pub struct Reader {

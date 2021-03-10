@@ -22,14 +22,14 @@ impl SFInstrumentHeader {
 
         let size = phdr.len();
         if size % 22 != 0 || size == 0 {
-            panic!("Instrument header chunk size is invalid");
+            Err(ParseError::InvalidInstrumentChunkSize(size))
+        } else {
+            let amount = size / 22;
+
+            let data = phdr.read_contents(file).unwrap();
+            let mut reader = Reader::new(data);
+
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
-
-        let amount = size / 22;
-
-        let data = phdr.read_contents(file).unwrap();
-        let mut reader = Reader::new(data);
-
-        (0..amount).map(|_| Self::read(&mut reader)).collect()
     }
 }

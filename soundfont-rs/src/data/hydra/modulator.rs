@@ -35,14 +35,14 @@ impl SFModulator {
 
         let size = pmod.len();
         if size % 10 != 0 || size == 0 {
-            panic!("Preset modulator chunk size mismatch");
+            Err(ParseError::InvalidModulatorChunkSize(size))
+        } else {
+            let amount = size / 10;
+
+            let data = pmod.read_contents(file).unwrap();
+            let mut reader = Reader::new(data);
+
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
-
-        let amount = size / 10;
-
-        let data = pmod.read_contents(file).unwrap();
-        let mut reader = Reader::new(data);
-
-        (0..amount).map(|_| Self::read(&mut reader)).collect()
     }
 }

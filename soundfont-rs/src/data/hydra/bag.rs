@@ -26,14 +26,14 @@ impl SFBag {
 
         let size = pbag.len();
         if size % 4 != 0 || size == 0 {
-            panic!("Preset bag chunk size is invalid");
+            Err(ParseError::InvalidBagChunkSize(size))
+        } else {
+            let amount = size / 4;
+
+            let data = pbag.read_contents(file).unwrap();
+            let mut reader = Reader::new(data);
+
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
-
-        let amount = size / 4;
-
-        let data = pbag.read_contents(file).unwrap();
-        let mut reader = Reader::new(data);
-
-        (0..amount).map(|_| Self::read(&mut reader)).collect()
     }
 }

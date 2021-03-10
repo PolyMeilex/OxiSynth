@@ -49,14 +49,14 @@ impl SFPresetHeader {
 
         let size = phdr.len();
         if size % 38 != 0 || size == 0 {
-            panic!("Preset header chunk size is invalid");
+            Err(ParseError::InvalidPresetChunkSize(size))
+        } else {
+            let amount = size / 38;
+
+            let data = phdr.read_contents(file).unwrap();
+            let mut reader = Reader::new(data);
+
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
-
-        let amount = size / 38;
-
-        let data = phdr.read_contents(file).unwrap();
-        let mut reader = Reader::new(data);
-
-        (0..amount).map(|_| Self::read(&mut reader)).collect()
     }
 }
