@@ -23,25 +23,28 @@ impl SFData {
         let sfbk = riff::Chunk::read(file, 0).unwrap();
         assert_eq!(sfbk.id().as_str(), "RIFF");
         assert_eq!(sfbk.read_type(file).unwrap().as_str(), "sfbk");
+
         let chunks: Vec<_> = sfbk.iter(file).collect();
+
         let mut info = None;
         let mut sample_data = None;
         let mut hydra = None;
-        for ch in chunks.iter() {
+
+        for ch in chunks.into_iter() {
             assert_eq!(ch.id().as_str(), "LIST");
             let ty = ch.read_type(file).unwrap();
             match ty.as_str() {
                 "INFO" => {
-                    info = Some(SFInfo::read(ch, file)?);
+                    info = Some(SFInfo::read(&ch, file)?);
                 }
                 "sdta" => {
-                    sample_data = Some(SFSampleData::read(ch, file));
+                    sample_data = Some(SFSampleData::read(&ch, file)?);
                 }
                 "pdta" => {
-                    hydra = Some(SFHydra::read(ch, file)?);
+                    hydra = Some(SFHydra::read(&ch, file)?);
                 }
-                unknown => {
-                    panic!("Unexpected: {} in sfbk", unknown);
+                _ => {
+                    return Err(ParseError::UnexpectedMemeberOfRoot(ch));
                 }
             }
         }

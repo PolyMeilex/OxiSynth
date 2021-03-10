@@ -1,6 +1,8 @@
 use std::array::TryFromSliceError;
 use std::str::Utf8Error;
 
+use riff::Chunk;
+
 #[derive(Debug)]
 pub enum ParseError {
     StringError(Utf8Error),
@@ -14,6 +16,12 @@ pub enum ParseError {
     InvalidSampleChunkSize(u32),
 
     UnknownGeneratorType(u16),
+    UnknownSampleType(u16),
+
+    UnexpectedMemeberOfRoot(Chunk),
+    UnexpectedMemeberOfHydra(Chunk),
+    UnexpectedMemeberOfInfo(Chunk),
+    UnexpectedMemeberOfSampleData(Chunk),
 }
 
 impl From<Utf8Error> for ParseError {

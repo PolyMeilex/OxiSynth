@@ -60,7 +60,7 @@ impl SFSampleHeader {
             0x18 => SFSampleLink::VorbisLinkedSample,
 
             v => {
-                panic!("Unknown SFSampleLink, {:?}", v);
+                return Err(ParseError::UnknownSampleType(v));
             }
         };
 

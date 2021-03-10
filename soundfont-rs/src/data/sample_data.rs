@@ -1,3 +1,4 @@
+use crate::error::ParseError;
 use riff::Chunk;
 
 use std::io::{Read, Seek};
@@ -18,7 +19,7 @@ pub struct SFSampleData {
 }
 
 impl SFSampleData {
-    pub fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Self {
+    pub fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
         assert_eq!(sdta.id().as_str(), "LIST");
         assert_eq!(sdta.read_type(file).unwrap().as_str(), "sdta");
 
@@ -37,12 +38,12 @@ impl SFSampleData {
                 "sm23" => {
                     sm24 = Some(ch);
                 }
-                unknown => {
-                    panic!("Unexpected: {} in sdta", unknown);
+                _ => {
+                    return Err(ParseError::UnexpectedMemeberOfSampleData(ch));
                 }
             }
         }
 
-        SFSampleData { smpl, sm24 }
+        Ok(SFSampleData { smpl, sm24 })
     }
 }

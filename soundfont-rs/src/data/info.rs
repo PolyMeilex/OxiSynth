@@ -60,7 +60,7 @@ impl SFInfo {
         let mut comments = None;
         let mut software = None;
 
-        for ch in children.iter() {
+        for ch in children.into_iter() {
             let id = ch.id();
 
             match id.as_str() {
@@ -126,14 +126,16 @@ impl SFInfo {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
                     software = Some(data.read_string(ch.len() as usize)?);
                 }
-                unknown => {
-                    panic!("Unexpected: {} in 'info'", unknown);
+                _ => {
+                    return Err(ParseError::UnexpectedMemeberOfInfo(ch));
                 }
             }
         }
 
         Ok(SFInfo {
             version: version.unwrap(),
+            // Those two are requited by the specs, but you can often find files without them
+            // so that's why `unwrap_or_default` is used.
             sound_engine: sound_engine.unwrap_or_default(),
             bank_name: bank_name.unwrap_or_default(),
 

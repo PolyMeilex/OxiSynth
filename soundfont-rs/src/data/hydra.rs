@@ -55,30 +55,30 @@ impl SFHydra {
 
         let mut sample_headers = None;
 
-        for ch in chunks.iter() {
+        for ch in chunks.into_iter() {
             let id = ch.id();
 
             match id.as_str() {
                 // The Preset Headers
-                "phdr" => preset_headers = Some(SFPresetHeader::read_all(ch, file)?),
+                "phdr" => preset_headers = Some(SFPresetHeader::read_all(&ch, file)?),
                 // The Preset Index list
-                "pbag" => preset_bags = Some(SFBag::read_all(ch, file)?),
+                "pbag" => preset_bags = Some(SFBag::read_all(&ch, file)?),
                 // The Preset Modulator list
-                "pmod" => preset_modulators = Some(SFModulator::read_all(ch, file)?),
+                "pmod" => preset_modulators = Some(SFModulator::read_all(&ch, file)?),
                 // The Preset Generator list
-                "pgen" => preset_generators = Some(SFGenerator::read_all(ch, file)?),
+                "pgen" => preset_generators = Some(SFGenerator::read_all(&ch, file)?),
                 // The Instrument Names and Indices
-                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(ch, file)?),
+                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(&ch, file)?),
                 // The Instrument Index list
-                "ibag" => instrument_bags = Some(SFBag::read_all(ch, file)?),
+                "ibag" => instrument_bags = Some(SFBag::read_all(&ch, file)?),
                 // The Instrument Modulator list
-                "imod" => instrument_modulators = Some(SFModulator::read_all(ch, file)?),
+                "imod" => instrument_modulators = Some(SFModulator::read_all(&ch, file)?),
                 // The Instrument Generator list
-                "igen" => instrument_generators = Some(SFGenerator::read_all(ch, file)?),
+                "igen" => instrument_generators = Some(SFGenerator::read_all(&ch, file)?),
                 // The Sample Headers
-                "shdr" => sample_headers = Some(SFSampleHeader::read_all(ch, file)?),
-                unknown => {
-                    panic!("Unexpected: {} in hydra", unknown);
+                "shdr" => sample_headers = Some(SFSampleHeader::read_all(&ch, file)?),
+                _ => {
+                    return Err(ParseError::UnexpectedMemeberOfHydra(ch));
                 }
             }
         }
