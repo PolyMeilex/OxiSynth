@@ -1,5 +1,4 @@
 use crate::synth::Synth;
-use crate::synth::FLUID_SYNTH_PLAYING;
 
 impl Synth {
     fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
@@ -10,13 +9,12 @@ impl Synth {
                 self.right_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
             }
 
-            for i in 0..2 {
-                self.fx_left_buf[i as usize]
-                    .iter_mut()
-                    .for_each(|v| *v = 0.0);
-                self.fx_right_buf[i as usize]
-                    .iter_mut()
-                    .for_each(|v| *v = 0.0);
+            {
+                self.fx_left_buf.reverb.iter_mut().for_each(|v| *v = 0.0);
+                self.fx_left_buf.chorus.iter_mut().for_each(|v| *v = 0.0);
+
+                self.fx_right_buf.reverb.iter_mut().for_each(|v| *v = 0.0);
+                self.fx_right_buf.chorus.iter_mut().for_each(|v| *v = 0.0);
             }
         }
 
@@ -43,26 +41,19 @@ impl Synth {
         if do_not_mix_fx_to_out != 0 {
             /* send to reverb */
             if self.settings.synth.reverb_active {
-                self.reverb.process_replace(
-                    // reverb_buf
-                    &mut self.fx_left_buf[0],
-                    &mut self.fx_right_buf[0],
-                );
+                self.reverb
+                    .process_replace(&mut self.fx_left_buf.reverb, &mut self.fx_right_buf.reverb);
             }
             /* send to chorus */
             if self.settings.synth.chorus_active {
-                self.chorus.process_replace(
-                    // chorus_buf
-                    &mut self.fx_left_buf[1],
-                    &mut self.fx_right_buf[1],
-                );
+                self.chorus
+                    .process_replace(&mut self.fx_left_buf.chorus, &mut self.fx_right_buf.chorus);
             }
         } else {
             /* send to reverb */
             if self.settings.synth.reverb_active {
                 self.reverb.process_mix(
-                    // reverb_buf
-                    &mut self.fx_left_buf[0],
+                    &mut self.fx_left_buf.reverb,
                     &mut self.left_buf[0],
                     &mut self.right_buf[0],
                 );
@@ -70,8 +61,7 @@ impl Synth {
             /* send to chorus */
             if self.settings.synth.chorus_active {
                 self.chorus.process_mix(
-                    // chorus_buf
-                    &mut self.fx_left_buf[1],
+                    &mut self.fx_left_buf.chorus,
                     &mut self.left_buf[0],
                     &mut self.right_buf[0],
                 );
@@ -81,39 +71,30 @@ impl Synth {
     }
 
     pub fn read_next(&mut self) -> (f32, f32) {
-        if self.state != FLUID_SYNTH_PLAYING as u32 {
-            (0.0, 0.0)
-        } else {
-            let mut l = self.cur;
-            let mut i: usize = 0;
-            let len = 1;
+        let mut l = self.cur;
+        let mut i: usize = 0;
+        let len = 1;
 
-            let mut out = (0.0, 0.0);
+        let mut out = (0.0, 0.0);
 
-            while i < len {
-                /* fill up the buffers as needed */
-                if l == 64 {
-                    self.one_block(0);
-                    l = 0;
-                }
-
-                out = (self.left_buf[0][l], self.right_buf[0][l]);
-
-                i += 1;
-                l += 1;
+        while i < len {
+            /* fill up the buffers as needed */
+            if l == 64 {
+                self.one_block(0);
+                l = 0;
             }
-            self.cur = l;
 
-            out
+            out = (self.left_buf[0][l], self.right_buf[0][l]);
+
+            i += 1;
+            l += 1;
         }
+        self.cur = l;
+
+        out
     }
 
     pub fn write<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
-        /* make sure we're playing */
-        if self.state != FLUID_SYNTH_PLAYING as u32 {
-            return;
-        }
-
         let mut l = self.cur;
         let mut i: usize = 0;
 
@@ -145,11 +126,6 @@ impl Synth {
         roff: usize,
         rincr: usize,
     ) {
-        /* make sure we're playing */
-        if self.state != FLUID_SYNTH_PLAYING as u32 {
-            return;
-        }
-
         let mut l = self.cur;
         let mut i: usize = 0;
         let mut j = loff;
@@ -183,11 +159,6 @@ impl Synth {
         roff: usize,
         rincr: usize,
     ) {
-        /* make sure we're playing */
-        if self.state != FLUID_SYNTH_PLAYING as u32 {
-            return;
-        }
-
         let mut l = self.cur;
         let mut i: usize = 0;
         let mut j = loff;

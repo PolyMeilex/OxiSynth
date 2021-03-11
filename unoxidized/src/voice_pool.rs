@@ -1,3 +1,4 @@
+use crate::synth::FxBuf;
 use crate::channel::Channel;
 use crate::gen::GenParam;
 use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
@@ -217,7 +218,7 @@ impl VoicePool {
         audio_groups: u8,
         dsp_left_buf: &mut [[f32; 64]],
         dsp_right_buf: &mut [[f32; 64]],
-        fx_left_buf: &mut [[f32; 64]; 2],
+        fx_left_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
     ) {

@@ -19,7 +19,7 @@ fn synth_sf2() {
     {
         let mut samples = [0f32; 44100 * 2];
 
-        synth.set_polyphony(5);
+        synth.set_polyphony(5).unwrap();
 
         synth.note_on(0, 60, 127).unwrap();
         synth.note_on(0, 70, 127).unwrap();
@@ -36,7 +36,7 @@ fn synth_sf2() {
         }
 
         for n in 1..5 {
-            synth.set_polyphony(5 - n);
+            synth.set_polyphony(5 - n).unwrap();
             {
                 synth.write(samples.as_mut());
 

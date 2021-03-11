@@ -29,14 +29,9 @@ use super::{
     chorus::ChorusMode,
 };
 
-pub const FLUID_OK: C2RustUnnamed = 0;
-
 type ModFlags = u8;
 type ModSrc = u8;
 type GenType = u8;
-type C2RustUnnamed = i32;
-
-const FLUID_SYNTH_PLAYING: SynthStatus = 1;
 
 const FLUID_MOD_POSITIVE: ModFlags = 0;
 const FLUID_MOD_UNIPOLAR: ModFlags = 0;
@@ -54,16 +49,19 @@ const FLUID_MOD_VELOCITY: ModSrc = 2;
 pub(crate) const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 
-type SynthStatus = u32;
-
 #[derive(Copy, Clone)]
 pub struct BankOffset {
     pub sfont_id: u32,
     pub offset: u32,
 }
 
+#[derive(Clone)]
+pub(crate) struct FxBuf {
+    pub reverb: [f32; 64],
+    pub chorus: [f32; 64],
+}
+
 pub struct Synth {
-    state: u32,
     ticks: u32,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
@@ -78,8 +76,9 @@ pub struct Synth {
     left_buf: Vec<[f32; 64]>,
     right_buf: Vec<[f32; 64]>,
 
-    fx_left_buf: [[f32; 64]; 2],
-    fx_right_buf: [[f32; 64]; 2],
+    fx_left_buf: FxBuf,
+    fx_right_buf: FxBuf,
+
     reverb: ReverbModel,
     chorus: Chorus,
 
@@ -142,7 +141,6 @@ impl Synth {
         };
 
         let mut synth = Self {
-            state: FLUID_SYNTH_PLAYING,
             ticks: 0,
             sfont: Vec::new(),
             sfont_id: 0 as _,
@@ -160,8 +158,15 @@ impl Synth {
             left_buf: vec![[0.0; 64]; nbuf as usize],
             right_buf: vec![[0.0; 64]; nbuf as usize],
 
-            fx_left_buf: [[0f32; 64]; 2],
-            fx_right_buf: [[0f32; 64]; 2],
+            fx_left_buf: FxBuf {
+                reverb: [0.0; 64],
+                chorus: [0.0; 64],
+            },
+            fx_right_buf: FxBuf {
+                reverb: [0.0; 64],
+                chorus: [0.0; 64],
+            },
+
             reverb: ReverbModel::new(),
             chorus: Chorus::new(settings.synth.sample_rate as f32),
 

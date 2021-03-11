@@ -1,5 +1,6 @@
 mod dsp_float;
 
+use crate::synth::FxBuf;
 use crate::{
     channel::{Channel, ChannelId, InterpMethod},
     conv::{
@@ -58,7 +59,7 @@ pub enum LoopMode {
 pub struct VoiceId(pub(crate) usize);
 
 #[derive(Clone)]
-pub struct Voice {
+pub(crate) struct Voice {
     pub(crate) id: usize,
     pub(crate) status: VoiceStatus,
     pub(crate) chan: u8,
@@ -853,7 +854,7 @@ impl Voice {
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32; 64],
         dsp_right_buf: &mut [f32; 64],
-        fx_left_buf: &mut [[f32; 64]; 2],
+        fx_left_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
     ) {
@@ -1187,7 +1188,7 @@ impl Voice {
         count: usize,
         dsp_left_buf: &mut [f32],
         dsp_right_buf: &mut [f32],
-        fx_left_buf: &mut [[f32; 64]; 2],
+        fx_left_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
     ) {
@@ -1281,7 +1282,7 @@ impl Voice {
             if self.amp_reverb != 0.0 {
                 for dsp_i in 0..count {
                     // dsp_reverb_buf
-                    fx_left_buf[0][dsp_i] += self.amp_reverb * dsp_buf[dsp_i];
+                    fx_left_buf.reverb[dsp_i] += self.amp_reverb * dsp_buf[dsp_i];
                 }
             }
         }
@@ -1290,7 +1291,7 @@ impl Voice {
             if self.amp_chorus != 0.0 {
                 for dsp_i in 0..count {
                     // dsp_chorus_buf
-                    fx_left_buf[1][dsp_i] += self.amp_chorus * dsp_buf[dsp_i];
+                    fx_left_buf.chorus[dsp_i] += self.amp_chorus * dsp_buf[dsp_i];
                 }
             }
         }
