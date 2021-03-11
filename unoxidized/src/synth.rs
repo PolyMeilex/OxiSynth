@@ -237,17 +237,7 @@ impl Synth {
         vel: u8,
     ) -> Option<VoiceId> {
         /* check if there's an available synthesis process */
-        let mut voice_id = self
-            .voices
-            .iter()
-            .take(self.settings.synth.polyphony as usize)
-            .enumerate()
-            .find(|(_, v)| v.is_available())
-            .map(|(id, _)| VoiceId(id));
-
-        if voice_id.is_none() {
-            voice_id = self.voices.free_voice_by_kill(self.noteid);
-        }
+        let voice_id = self.voices.request_new_voice(self.noteid);
 
         if let Some(voice_id) = voice_id {
             log::trace!(

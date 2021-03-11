@@ -271,6 +271,25 @@ impl VoicePool {
 }
 
 impl VoicePool {
+    pub fn request_new_voice(&mut self, noteid: usize) -> Option<VoiceId> {
+        // find free synthesis process
+        let voice_id = self
+            .voices
+            .iter()
+            .take(self.polyphony_limit)
+            .enumerate()
+            .find(|(_, v)| v.is_available())
+            .map(|(id, _)| VoiceId(id));
+
+        match voice_id {
+            Some(id) => Some(id),
+            // If none was found, free one by kill
+            None => self.free_voice_by_kill(noteid),
+        }
+    }
+}
+
+impl VoicePool {
     // pub fn len(&self) -> usize {
     //     self.voices.len()
     // }
