@@ -28,15 +28,9 @@ impl VoicePool {
     }
 
     /// Set the polyphony limit
-    pub fn set_polyphony_limit(&mut self, polyphony: usize) -> Result<(), ()> {
-        if polyphony < 1 {
-            Err(())
-        } else {
-            /* remove any voices above the new limit */
-            self.voices.resize(polyphony, Voice::new(self.sample_rate));
-
-            Ok(())
-        }
+    pub fn set_polyphony_limit(&mut self, polyphony: usize) {
+        /* remove any voices above the new limit */
+        self.voices.resize(polyphony, Voice::new(self.sample_rate));
     }
 
     pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) {

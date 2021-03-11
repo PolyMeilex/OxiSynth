@@ -35,8 +35,14 @@ impl Synth {
     Set the polyphony limit
      */
     pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), ()> {
-        self.settings.synth.polyphony = polyphony;
-        self.voices.set_polyphony_limit(polyphony as usize)
+        if polyphony < 1 {
+            Err(())
+        } else {
+            self.settings.synth.polyphony = polyphony;
+            self.voices.set_polyphony_limit(polyphony as usize);
+
+            Ok(())
+        }
     }
 
     /**
