@@ -14,7 +14,7 @@ impl Synth {
     /**
     Send a noteoff message.
      */
-    pub fn note_off(&mut self, chan: u8, key: u8) -> Result<(), ()> {
+    pub fn note_off(&mut self, chan: u8, key: u8) {
         self.handle.noteoff(chan, key)
     }
 

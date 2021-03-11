@@ -43,7 +43,7 @@ fn synth_sf2() {
             // pcm.write(&out).unwrap();
             // }
 
-            synth.note_off(0, n).unwrap();
+            synth.note_off(0, n);
         }
         for n in 0..50 {
             synth.note_on(0, 100 - n, 127).unwrap();
@@ -54,7 +54,7 @@ fn synth_sf2() {
             })
             .unwrap();
 
-            synth.note_off(0, 100 - n).unwrap();
+            synth.note_off(0, 100 - n);
         }
     }
 

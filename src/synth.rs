@@ -77,7 +77,7 @@ mod test {
         })
         .unwrap();
 
-        synth.note_off(0, 60).unwrap();
+        synth.note_off(0, 60);
 
         synth.write(samples.as_mut());
         pcm.write(unsafe {

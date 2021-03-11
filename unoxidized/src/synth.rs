@@ -51,7 +51,7 @@ const FLUID_MOD_CONCAVE: ModFlags = 4;
 const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
 const FLUID_MOD_SWITCH: ModFlags = 12;
 const FLUID_MOD_VELOCITY: ModSrc = 2;
-const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
+pub(crate) const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 
 type SynthStatus = u32;

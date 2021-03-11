@@ -20,14 +20,8 @@ impl Synth {
         }
         self.channel[chan as usize].gen[param as usize] = value;
         self.channel[chan as usize].gen_abs[param as usize] = 0 as i32 as i8;
-        let mut i = 0;
-        while i < self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan == chan as u8 {
-                voice.set_param(param, value, 0 as i32);
-            }
-            i += 1
-        }
+
+        self.voices.set_gen(chan, param, value);
 
         Ok(())
     }

@@ -486,7 +486,7 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) -> i32 {
+    pub(crate) fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -513,7 +513,6 @@ impl Voice {
             }
             i += 1
         }
-        return FLUID_OK as i32;
     }
 
     pub(crate) fn modulate_all(&mut self, channels: &[Channel]) -> i32 {
@@ -851,8 +850,8 @@ impl Voice {
         &mut self,
         channels: &[Channel],
         min_note_length_ticks: u32,
-        dsp_left_buf: &mut [f32],
-        dsp_right_buf: &mut [f32],
+        dsp_left_buf: &mut [f32; 64],
+        dsp_right_buf: &mut [f32; 64],
         fx_left_buf: &mut [[f32; 64]; 2],
         reverb_active: bool,
         chorus_active: bool,

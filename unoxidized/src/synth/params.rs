@@ -21,12 +21,7 @@ impl Synth {
             gain
         };
 
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing() {
-                voice.set_gain(gain);
-            }
-        }
+        self.voices.set_gain(gain)
     }
 
     /**

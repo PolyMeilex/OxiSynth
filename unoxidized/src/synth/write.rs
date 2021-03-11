@@ -26,35 +26,16 @@ impl Synth {
          * in that case. */
 
         /* call all playing synthesis processes */
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing() {
-                /* The output associated with a MIDI channel is wrapped around
-                 * using the number of audio groups as modulo divider.  This is
-                 * typically the number of output channels on the 'sound card',
-                 * as long as the LADSPA Fx unit is not used. In case of LADSPA
-                 * unit, think of it as subgroups on a mixer.
-                 *
-                 * For example: Assume that the number of groups is set to 2.
-                 * Then MIDI channel 1, 3, 5, 7 etc. go to output 1, channels 2,
-                 * 4, 6, 8 etc to output 2.  Or assume 3 groups: Then MIDI
-                 * channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
-                 * output 2, 3, 6, 9, 12 etc to output 3.
-                 */
-                let mut auchan = self.channel[voice.get_channel().unwrap().0].get_num();
-                auchan %= self.settings.synth.audio_groups as u8;
-
-                voice.write(
-                    &self.channel,
-                    self.min_note_length_ticks,
-                    &mut self.left_buf[auchan as usize],
-                    &mut self.right_buf[auchan as usize],
-                    &mut self.fx_left_buf,
-                    self.settings.synth.reverb_active,
-                    self.settings.synth.chorus_active,
-                );
-            }
-        }
+        self.voices.write_voices(
+            &self.channel,
+            self.min_note_length_ticks,
+            self.settings.synth.audio_groups,
+            &mut self.left_buf,
+            &mut self.right_buf,
+            &mut self.fx_left_buf,
+            self.settings.synth.reverb_active,
+            self.settings.synth.chorus_active,
+        );
 
         /* if multi channel output, don't mix the output of the chorus and
         reverb in the final output. The effects outputs are send

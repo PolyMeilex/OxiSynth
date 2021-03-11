@@ -1,6 +1,4 @@
 use crate::synth::Synth;
-use crate::synth::FLUID_MOD_KEYPRESSURE;
-use crate::synth::FLUID_OK;
 
 impl Synth {
     /**
@@ -12,7 +10,8 @@ impl Synth {
             return Err(());
         }
         if vel == 0 {
-            return self.noteoff(midi_chan, key);
+            self.noteoff(midi_chan, key);
+            return Ok(());
         }
         if self.channel[midi_chan as usize].preset.is_none() {
             log::trace!(
@@ -59,34 +58,9 @@ impl Synth {
     /**
     Send a noteoff message.
      */
-    pub fn noteoff(&mut self, chan: u8, key: u8) -> Result<(), ()> {
-        let mut status = Err(());
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_on() && voice.chan == chan && voice.key == key {
-                log::trace!(
-                    "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                    voice.chan,
-                    voice.key,
-                    0 as i32,
-                    voice.id,
-                    (voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0f32) as f64,
-                    (voice.ticks as f32 / 44100.0f32) as f64,
-                    {
-                        let mut used_voices: i32 = 0 as i32;
-                        for _ in 0..self.settings.synth.polyphony {
-                            if !voice.is_available() {
-                                used_voices += 1
-                            }
-                        }
-                        used_voices
-                    }
-                );
-                voice.noteoff(&self.channel, self.min_note_length_ticks);
-                status = Ok(());
-            }
-        }
-        return status;
+    pub fn noteoff(&mut self, chan: u8, key: u8) {
+        self.voices
+            .noteoff(&self.channel, self.min_note_length_ticks, chan, key)
     }
 
     /**
@@ -130,21 +104,12 @@ impl Synth {
     }
 
     pub fn all_notes_off(&mut self, chan: u8) {
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing() && voice.chan == chan {
-                voice.noteoff(&self.channel, self.min_note_length_ticks);
-            }
-        }
+        self.voices
+            .all_notes_off(&self.channel, self.min_note_length_ticks, chan)
     }
 
     pub fn all_sounds_off(&mut self, chan: u8) {
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing() && voice.chan == chan {
-                voice.off();
-            }
-        }
+        self.voices.all_sounds_off(chan)
     }
 
     /**
@@ -315,7 +280,6 @@ impl Synth {
     Set key pressure (aftertouch)
      */
     pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
-        let mut result: i32 = FLUID_OK as i32;
         if key > 127 {
             return Err(());
         }
@@ -326,21 +290,10 @@ impl Synth {
         log::trace!("keypressure\t{}\t{}\t{}", chan, key, val);
 
         self.channel[chan as usize].key_pressure[key as usize] = val as i8;
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.chan == chan && voice.key == key {
-                result = voice.modulate(&self.channel, 0, FLUID_MOD_KEYPRESSURE as u16);
-                if result != FLUID_OK as i32 {
-                    break;
-                }
-            }
-        }
 
-        if result == FLUID_OK {
-            Ok(())
-        } else {
-            Err(())
-        }
+        self.voices.key_pressure(&self.channel, chan, key);
+
+        Ok(())
     }
 
     /**
@@ -443,12 +396,7 @@ impl Synth {
     Respond to the MIDI command 'system reset' (0xFF, big red 'panic' button)
      */
     pub fn system_reset(&mut self) {
-        for i in 0..self.settings.synth.polyphony {
-            let voice = &mut self.voices[i as usize];
-            if voice.is_playing() {
-                voice.off();
-            }
-        }
+        self.voices.system_reset();
 
         for i in 0..self.settings.synth.midi_channels {
             // channel.reset()
