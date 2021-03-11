@@ -45,6 +45,7 @@ impl Default for InterpMethod {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ChannelId(pub usize);
 
 #[derive(Clone)]

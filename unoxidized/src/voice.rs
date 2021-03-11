@@ -40,7 +40,7 @@ pub(crate) enum VoiceAddMode {
 
 const FLUID_OK: i32 = 0;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum VoiceStatus {
     Clean,
     On,
@@ -57,6 +57,7 @@ pub enum LoopMode {
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
 
+#[derive(Clone)]
 pub struct Voice {
     pub(crate) id: usize,
     pub(crate) status: VoiceStatus,
