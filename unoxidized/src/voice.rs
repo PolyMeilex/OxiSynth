@@ -60,40 +60,40 @@ pub struct VoiceId(pub(crate) usize);
 
 #[derive(Clone)]
 pub(crate) struct Voice {
-    pub(crate) id: usize,
-    pub(crate) status: VoiceStatus,
-    pub(crate) chan: u8,
-    pub(crate) key: u8,
-    pub(crate) vel: u8,
+    pub id: usize,
+    pub status: VoiceStatus,
+    pub chan: u8,
+    pub key: u8,
+    pub vel: u8,
 
     channel_id: Option<ChannelId>,
-    pub(crate) gen: [Gen; 60],
+    pub gen: [Gen; 60],
     mod_0: [Mod; 64],
     mod_count: usize,
-    pub(crate) has_looped: bool,
-    pub(crate) sample: Option<Rc<Sample>>,
+    pub has_looped: bool,
+    pub sample: Option<Rc<Sample>>,
     check_sample_sanity_flag: i32,
     output_rate: f32,
-    pub(crate) start_time: u32,
-    pub(crate) ticks: u32,
+    pub start_time: u32,
+    pub ticks: u32,
     noteoff_ticks: u32,
-    pub(crate) amp: f32,
-    pub(crate) phase: Phase,
-    pub(crate) phase_incr: f32,
-    pub(crate) amp_incr: f32,
+    pub amp: f32,
+    pub phase: Phase,
+    pub phase_incr: f32,
+    pub amp_incr: f32,
     pitch: f32,
     attenuation: f32,
     min_attenuation_c_b: f32,
     root_pitch: f32,
-    pub(crate) start: i32,
-    pub(crate) end: i32,
-    pub(crate) loopstart: i32,
-    pub(crate) loopend: i32,
+    pub start: i32,
+    pub end: i32,
+    pub loopstart: i32,
+    pub loopend: i32,
     synth_gain: f32,
     volenv_data: [EnvData; 7],
     volenv_count: u32,
-    pub(crate) volenv_section: i32,
-    pub(crate) volenv_val: f32,
+    pub volenv_section: i32,
+    pub volenv_val: f32,
     amplitude_that_reaches_noise_floor_nonloop: f32,
     amplitude_that_reaches_noise_floor_loop: f32,
     modenv_data: [EnvData; 7],
@@ -149,7 +149,7 @@ pub struct EnvData {
 }
 
 impl Voice {
-    pub(crate) fn new(output_rate: f32) -> Voice {
+    pub fn new(output_rate: f32) -> Voice {
         let mut volenv_data = [EnvData::default(); 7];
         {
             let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
@@ -264,7 +264,7 @@ impl Voice {
         }
     }
 
-    pub(crate) fn init(
+    pub fn init(
         &mut self,
         sample: Rc<Sample>,
         channel: &Channel,
@@ -311,15 +311,15 @@ impl Voice {
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
     }
 
-    pub(crate) fn is_available(&self) -> bool {
+    pub fn is_available(&self) -> bool {
         self.status == VoiceStatus::Clean || self.status == VoiceStatus::Off
     }
 
-    pub(crate) fn is_on(&self) -> bool {
+    pub fn is_on(&self) -> bool {
         self.status == VoiceStatus::On && self.volenv_section < VoiceEnvelope::Release as i32
     }
 
-    pub(crate) fn is_playing(&self) -> bool {
+    pub fn is_playing(&self) -> bool {
         self.status == VoiceStatus::On || self.status == VoiceStatus::Sustained
     }
 
@@ -330,7 +330,7 @@ impl Voice {
     /// mode == FLUID_VOICE_OVERWRITE: Identical modulators on instrument level are overwritten
     /// mode == FLUID_VOICE_DEFAULT: This is a default modulator, there can be no identical modulator.
     ///                             Don't check.
-    pub(crate) fn add_mod(&mut self, mod_0: &Mod, mode: VoiceAddMode) {
+    pub fn add_mod(&mut self, mod_0: &Mod, mode: VoiceAddMode) {
         /*
          * Some soundfonts come with a huge number of non-standard
          * controllers, because they have been designed for one particular
@@ -379,12 +379,12 @@ impl Voice {
         };
     }
 
-    pub(crate) fn gen_incr(&mut self, i: u32, val: f64) {
+    pub fn gen_incr(&mut self, i: u32, val: f64) {
         self.gen[i as usize].val += val;
         self.gen[i as usize].flags = GEN_SET as u8;
     }
 
-    pub(crate) fn gen_set(&mut self, i: GenParam, val: f64) {
+    pub fn gen_set(&mut self, i: GenParam, val: f64) {
         self.gen[i as usize].val = val;
         self.gen[i as usize].flags = GEN_SET as u8;
     }
@@ -398,7 +398,7 @@ impl Voice {
      * or channel.  fluid_voice_kill_excl gets called, when 'voice' is to
      * be killed for that reason.
      */
-    pub(crate) fn kill_excl(&mut self) {
+    pub fn kill_excl(&mut self) {
         if !self.is_playing() {
             return;
         }
@@ -426,13 +426,13 @@ impl Voice {
         self.update_param(GenParam::ModEnvRelease);
     }
 
-    pub(crate) fn start(&mut self, channels: &[Channel]) {
+    pub fn start(&mut self, channels: &[Channel]) {
         self.calculate_runtime_synthesis_parameters(channels);
         self.check_sample_sanity_flag = (1 as i32) << 1 as i32;
         self.status = VoiceStatus::On;
     }
 
-    pub(crate) fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) -> i32 {
+    pub fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) -> i32 {
         let at_tick = min_note_length_ticks;
 
         if at_tick > self.ticks {
@@ -488,7 +488,7 @@ impl Voice {
         return FLUID_OK as i32;
     }
 
-    pub(crate) fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
+    pub fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -517,7 +517,7 @@ impl Voice {
         }
     }
 
-    pub(crate) fn modulate_all(&mut self, channels: &[Channel]) -> i32 {
+    pub fn modulate_all(&mut self, channels: &[Channel]) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -542,7 +542,7 @@ impl Voice {
 
     /// Turns off a voice, meaning that it is not processed
     /// anymore by the DSP loop.
-    pub(crate) fn off(&mut self) {
+    pub fn off(&mut self) {
         self.chan = 0xff as i32 as u8;
         self.volenv_section = VoiceEnvelope::Finished as i32;
         self.volenv_count = 0 as i32 as u32;
@@ -554,7 +554,7 @@ impl Voice {
         }
     }
 
-    pub(crate) fn get_channel(&self) -> Option<&ChannelId> {
+    pub fn get_channel(&self) -> Option<&ChannelId> {
         self.channel_id.as_ref()
     }
 
