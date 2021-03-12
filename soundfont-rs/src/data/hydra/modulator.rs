@@ -5,6 +5,7 @@ use riff::Chunk;
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
+#[derive(Debug, Clone)]
 pub enum GeneralPalette {
     /// No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
     NoController,
@@ -52,6 +53,7 @@ impl From<u8> for GeneralPalette {
 /// 8.2.1 Source Enumerator Controller Palettes
 ///
 /// The SoundFont format supports two distinct controller palettes.
+#[derive(Debug, Clone)]
 pub enum ControllerPalette {
     /// General Controller palette of controllers is selected.
     ///
@@ -70,6 +72,7 @@ pub enum ControllerPalette {
 }
 
 /// 8.2.2 Source Directions
+#[derive(Debug, Clone)]
 pub enum SourceDirection {
     /// The direction of the controller should be from the minimum value to the maximum value. So, for example, if the controller source is Key Number, then Key Number value of 0 corresponds to the minimum possible controller output, and Key Number value of 127 corresponds to the maximum possible controller input.
     Positive,
@@ -80,6 +83,7 @@ pub enum SourceDirection {
 // 8.2.3 Source Polarities
 //
 /// The SoundFont 2.01 format supports two polarities for any controller. The polarity if specified by bit 9 of the source enumeration field.
+#[derive(Debug, Clone)]
 pub enum SourcePolarity {
     /// The controller should be mapped with a minimum value of 0 and a maximum value of 1. This is also called Unipolar. Thus it behaves similar to the Modulation Wheel controller of the MIDI specification.
     Unipolar,
@@ -91,6 +95,7 @@ pub enum SourcePolarity {
 /// Specifies Continuity of the controller
 ///
 /// The SoundFont 2.01 format may be used to support various types of controllers. This field completes the definition of the controller. A controller type specifies how the minimum value approaches the maximum value.
+#[derive(Debug, Clone)]
 pub enum SourceType {
     /// The SoundFont modulator controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
     Linear,
@@ -122,6 +127,7 @@ impl From<u8> for SourceType {
 #[allow(dead_code)]
 /// 8.2  Modulator Source Enumerators  
 /// Flags telling the polarity of a modulator.
+#[derive(Debug, Clone)]
 pub struct ModulatorSource {
     index: u8,
     controller_palette: ControllerPalette,
@@ -178,6 +184,7 @@ impl From<u16> for ModulatorSource {
 
 #[allow(dead_code)]
 /// 8.3  Modulator Transform Enumerators
+#[derive(Debug, Clone)]
 pub enum ModulatorTransform {
     /// The output value of the multiplier is to be fed directly to the summing node of the given destination.
     Linear = 0,
