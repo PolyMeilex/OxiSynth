@@ -244,10 +244,10 @@ pub enum GeneratorType {
 
 #[cfg(test)]
 mod test {
-    use super::GeneratorEnum;
+    use super::GeneratorType;
     #[test]
     fn gen_enum() {
-        assert_eq!(SFGeneratorEnum::Unused5 as u16, 59);
-        assert_eq!(SFGeneratorEnum::EndOper as u16, 60);
+        assert_eq!(GeneratorType::Unused5 as u16, 59);
+        assert_eq!(GeneratorType::EndOper as u16, 60);
     }
 }
