@@ -176,10 +176,10 @@ impl PresetZone {
         for sfgen in sfzone
             .gen_list
             .iter()
-            .filter(|g| g.ty != sf2::data::SFGeneratorType::Instrument)
+            .filter(|g| g.ty != sf2::data::GeneratorType::Instrument)
         {
             match sfgen.ty {
-                sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
+                sf2::data::GeneratorType::KeyRange | sf2::data::GeneratorType::VelRange => {
                     let amount = sfgen.amount.as_range().unwrap();
                     zone.keylo = amount.low;
                     zone.keyhi = amount.high;
@@ -277,10 +277,10 @@ impl InstrumentZone {
         for new_gen in new_zone
             .gen_list
             .iter()
-            .filter(|g| g.ty != sf2::data::SFGeneratorType::SampleID)
+            .filter(|g| g.ty != sf2::data::GeneratorType::SampleID)
         {
             match new_gen.ty {
-                sf2::data::SFGeneratorType::KeyRange | sf2::data::SFGeneratorType::VelRange => {
+                sf2::data::GeneratorType::KeyRange | sf2::data::GeneratorType::VelRange => {
                     let amount = new_gen.amount.as_range().unwrap();
                     keylo = amount.low;
                     keyhi = amount.high;

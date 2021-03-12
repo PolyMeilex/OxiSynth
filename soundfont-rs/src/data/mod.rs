@@ -13,13 +13,13 @@ pub use sample_data::*;
 
 #[derive(Debug)]
 pub struct SFData {
-    pub info: SFInfo,
-    pub sample_data: SFSampleData,
-    pub hydra: SFHydra,
+    pub info: Info,
+    pub sample_data: SampleData,
+    pub hydra: Hydra,
 }
 
 impl SFData {
-    pub fn load<F: Read + Seek>(file: &mut F) -> Result<SFData, ParseError> {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
         let sfbk = riff::Chunk::read(file, 0).unwrap();
         assert_eq!(sfbk.id().as_str(), "RIFF");
         assert_eq!(sfbk.read_type(file).unwrap().as_str(), "sfbk");
@@ -35,13 +35,13 @@ impl SFData {
             let ty = ch.read_type(file).unwrap();
             match ty.as_str() {
                 "INFO" => {
-                    info = Some(SFInfo::read(&ch, file)?);
+                    info = Some(Info::read(&ch, file)?);
                 }
                 "sdta" => {
-                    sample_data = Some(SFSampleData::read(&ch, file)?);
+                    sample_data = Some(SampleData::read(&ch, file)?);
                 }
                 "pdta" => {
-                    hydra = Some(SFHydra::read(&ch, file)?);
+                    hydra = Some(Hydra::read(&ch, file)?);
                 }
                 _ => {
                     return Err(ParseError::UnexpectedMemeberOfRoot(ch));

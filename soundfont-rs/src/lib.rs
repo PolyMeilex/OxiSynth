@@ -2,37 +2,37 @@ pub mod data;
 pub mod error;
 
 use data::{
-    SFBag, SFData, SFGenerator, SFGeneratorAmountRange, SFGeneratorType, SFInfo,
-    SFInstrumentHeader, SFModulator, SFPresetHeader, SFSampleData, SFSampleHeader,
+    Bag, Generator, GeneratorAmountRange, GeneratorType, Info, InstrumentHeader, Modulator,
+    PresetHeader, SFData, SampleData, SampleHeader,
 };
 
 #[derive(Debug)]
 pub struct Preset {
-    pub header: SFPresetHeader,
+    pub header: PresetHeader,
     pub zones: Vec<Zone>,
 }
 
 #[derive(Debug)]
 pub struct Instrument {
-    pub header: SFInstrumentHeader,
+    pub header: InstrumentHeader,
     pub zones: Vec<Zone>,
 }
 
 #[derive(Debug)]
 pub struct SoundFont2 {
-    pub info: SFInfo,
+    pub info: Info,
     pub presets: Vec<Preset>,
     pub instruments: Vec<Instrument>,
-    pub sample_headers: Vec<SFSampleHeader>,
-    pub sample_data: SFSampleData,
+    pub sample_headers: Vec<SampleHeader>,
+    pub sample_data: SampleData,
 }
 
 impl SoundFont2 {
     pub fn from_data(data: SFData) -> Self {
         fn get_zones(
-            zones: &[SFBag],
-            modulators: &[SFModulator],
-            generators: &[SFGenerator],
+            zones: &[Bag],
+            modulators: &[Modulator],
+            generators: &[Generator],
             start: usize,
             end: usize,
         ) -> Vec<Zone> {
@@ -194,33 +194,33 @@ impl SoundFont2 {
 
 #[derive(Debug, Clone)]
 pub struct Zone {
-    pub mod_list: Vec<SFModulator>,
-    pub gen_list: Vec<SFGenerator>,
+    pub mod_list: Vec<Modulator>,
+    pub gen_list: Vec<Generator>,
 }
 
 impl Zone {
     pub fn key_range(&self) -> Option<&i16> {
         self.gen_list
             .iter()
-            .find(|g| g.ty == SFGeneratorType::KeyRange)
+            .find(|g| g.ty == GeneratorType::KeyRange)
             .map(|g| g.amount.as_i16().unwrap())
     }
-    pub fn vel_range(&self) -> Option<&SFGeneratorAmountRange> {
+    pub fn vel_range(&self) -> Option<&GeneratorAmountRange> {
         self.gen_list
             .iter()
-            .find(|g| g.ty == SFGeneratorType::VelRange)
+            .find(|g| g.ty == GeneratorType::VelRange)
             .map(|g| g.amount.as_range().unwrap())
     }
     pub fn instrument(&self) -> Option<&u16> {
         self.gen_list
             .iter()
-            .find(|g| g.ty == SFGeneratorType::Instrument)
+            .find(|g| g.ty == GeneratorType::Instrument)
             .map(|g| g.amount.as_u16().unwrap())
     }
     pub fn sample(&self) -> Option<&u16> {
         self.gen_list
             .iter()
-            .find(|g| g.ty == SFGeneratorType::SampleID)
+            .find(|g| g.ty == GeneratorType::SampleID)
             .map(|g| g.amount.as_u16().unwrap())
     }
 }

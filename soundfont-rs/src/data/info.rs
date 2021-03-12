@@ -5,16 +5,16 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug)]
-pub struct SFVersion {
+pub struct Version {
     major: u16,
     minor: u16,
 }
 
 /// Supplemental Information
 #[derive(Debug)]
-pub struct SFInfo {
+pub struct Info {
     /// Refers to the version of the Sound Font RIFF file
-    pub version: SFVersion,
+    pub version: Version,
     /// Refers to the target Sound Engine
     pub sound_engine: String,
     /// Refers to the Sound Font Bank Name
@@ -23,7 +23,7 @@ pub struct SFInfo {
     /// Refers to the Sound ROM Name
     pub rom_name: Option<String>,
     /// Refers to the Sound ROM Version
-    pub rom_version: Option<SFVersion>,
+    pub rom_version: Option<Version>,
 
     /// Refers to the Date of Creation of the Bank
     pub creation_date: Option<String>,
@@ -39,8 +39,8 @@ pub struct SFInfo {
     pub software: Option<String>,
 }
 
-impl SFInfo {
-    pub fn read<F: Read + Seek>(info: &Chunk, file: &mut F) -> Result<SFInfo, ParseError> {
+impl Info {
+    pub fn read<F: Read + Seek>(info: &Chunk, file: &mut F) -> Result<Self, ParseError> {
         assert_eq!(info.id().as_str(), "LIST");
         assert_eq!(info.read_type(file).unwrap().as_str(), "INFO");
 
@@ -67,7 +67,7 @@ impl SFInfo {
                 // <ifil-ck> Refers to the version of the Sound Font RIFF file
                 "ifil" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    version = Some(SFVersion {
+                    version = Some(Version {
                         major: data.read_u16()?,
                         minor: data.read_u16()?,
                     });
@@ -91,7 +91,7 @@ impl SFInfo {
                 // [<iver-ck>] Refers to the Sound ROM Version
                 "iver" => {
                     let mut data = Reader::new(ch.read_contents(file).unwrap());
-                    rom_version = Some(SFVersion {
+                    rom_version = Some(Version {
                         major: data.read_u16()?,
                         minor: data.read_u16()?,
                     });
@@ -132,7 +132,7 @@ impl SFInfo {
             }
         }
 
-        Ok(SFInfo {
+        Ok(Info {
             version: version.unwrap(),
             // Those two are requited by the specs, but you can often find files without them
             // so that's why `unwrap_or_default` is used.

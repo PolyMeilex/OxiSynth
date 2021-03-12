@@ -4,24 +4,24 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
-pub enum SFGeneratorAmount {
+pub enum GeneratorAmount {
     I16(i16),
     U16(u16),
-    Range(SFGeneratorAmountRange),
+    Range(GeneratorAmountRange),
 }
 
-pub union SFGeneratorAmountUnion {
+pub union GeneratorAmountUnion {
     pub sword: i16,
     pub uword: u16,
-    pub range: SFGeneratorAmountRange,
+    pub range: GeneratorAmountRange,
 }
 
-impl SFGeneratorAmount {
-    pub fn get_union(&self) -> SFGeneratorAmountUnion {
+impl GeneratorAmount {
+    pub fn get_union(&self) -> GeneratorAmountUnion {
         match self.clone() {
-            SFGeneratorAmount::I16(sword) => SFGeneratorAmountUnion { sword },
-            SFGeneratorAmount::U16(uword) => SFGeneratorAmountUnion { uword },
-            SFGeneratorAmount::Range(range) => SFGeneratorAmountUnion { range },
+            GeneratorAmount::I16(sword) => GeneratorAmountUnion { sword },
+            GeneratorAmount::U16(uword) => GeneratorAmountUnion { uword },
+            GeneratorAmount::Range(range) => GeneratorAmountUnion { range },
         }
     }
 
@@ -41,7 +41,7 @@ impl SFGeneratorAmount {
         }
     }
 
-    pub fn as_range(&self) -> Option<&SFGeneratorAmountRange> {
+    pub fn as_range(&self) -> Option<&GeneratorAmountRange> {
         if let Self::Range(r) = self {
             Some(r)
         } else {
@@ -51,38 +51,38 @@ impl SFGeneratorAmount {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct SFGeneratorAmountRange {
+pub struct GeneratorAmountRange {
     pub low: u8,
     pub high: u8,
 }
 
 #[derive(Debug, Clone)]
-pub struct SFGenerator {
-    pub ty: SFGeneratorType,
-    pub amount: SFGeneratorAmount,
+pub struct Generator {
+    pub ty: GeneratorType,
+    pub amount: GeneratorAmount,
 }
 
-impl SFGenerator {
+impl Generator {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let id: u16 = reader.read_u16()?;
 
-        let ty: SFGeneratorType = if id <= 60 {
+        let ty: GeneratorType = if id <= 60 {
             unsafe { std::mem::transmute(id) }
         } else {
             return Err(ParseError::UnknownGeneratorType(id));
         };
 
         let amount = match ty {
-            SFGeneratorType::KeyRange | SFGeneratorType::VelRange => {
-                SFGeneratorAmount::Range(SFGeneratorAmountRange {
+            GeneratorType::KeyRange | GeneratorType::VelRange => {
+                GeneratorAmount::Range(GeneratorAmountRange {
                     low: reader.read_u8()?,
                     high: reader.read_u8()?,
                 })
             }
-            SFGeneratorType::Instrument | SFGeneratorType::SampleID => {
-                SFGeneratorAmount::U16(reader.read_u16()?)
+            GeneratorType::Instrument | GeneratorType::SampleID => {
+                GeneratorAmount::U16(reader.read_u16()?)
             }
-            _ => SFGeneratorAmount::I16(reader.read_i16()?),
+            _ => GeneratorAmount::I16(reader.read_i16()?),
         };
 
         Ok(Self { ty, amount })
@@ -107,7 +107,7 @@ impl SFGenerator {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(u16)]
-pub enum SFGeneratorType {
+pub enum GeneratorType {
     /// Sample start address offset (0-32767)
     StartAddrsOffset = 0,
     ///< Sample end address offset (-32767-0)
@@ -244,7 +244,7 @@ pub enum SFGeneratorType {
 
 #[cfg(test)]
 mod test {
-    use super::SFGeneratorEnum;
+    use super::GeneratorEnum;
     #[test]
     fn gen_enum() {
         assert_eq!(SFGeneratorEnum::Unused5 as u16, 59);

@@ -4,7 +4,7 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
-pub struct SFSampleHeader {
+pub struct SampleHeader {
     pub name: String,
 
     pub start: u32,
@@ -16,10 +16,10 @@ pub struct SFSampleHeader {
     pub origpitch: u8,
     pub pitchadj: i8,
     pub sample_link: u16,
-    pub sample_type: SFSampleLink,
+    pub sample_type: SampleLink,
 }
 
-impl SFSampleHeader {
+impl SampleHeader {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         // 20
@@ -45,19 +45,19 @@ impl SFSampleHeader {
         let sample_type: u16 = reader.read_u16()?;
 
         let sample_type = match sample_type {
-            0 => SFSampleLink::None,
-            1 => SFSampleLink::MonoSample,
-            2 => SFSampleLink::RightSample,
-            4 => SFSampleLink::LeftSample,
-            8 => SFSampleLink::LinkedSample,
-            0x8001 => SFSampleLink::RomMonoSample,
-            0x8002 => SFSampleLink::RomRightSample,
-            0x8004 => SFSampleLink::RomLeftSample,
-            0x8008 => SFSampleLink::RomLinkedSample,
-            0x11 => SFSampleLink::VorbisMonoSample,
-            0x12 => SFSampleLink::VorbisRightSample,
-            0x14 => SFSampleLink::VorbisLeftSample,
-            0x18 => SFSampleLink::VorbisLinkedSample,
+            0 => SampleLink::None,
+            1 => SampleLink::MonoSample,
+            2 => SampleLink::RightSample,
+            4 => SampleLink::LeftSample,
+            8 => SampleLink::LinkedSample,
+            0x8001 => SampleLink::RomMonoSample,
+            0x8002 => SampleLink::RomRightSample,
+            0x8004 => SampleLink::RomLeftSample,
+            0x8008 => SampleLink::RomLinkedSample,
+            0x11 => SampleLink::VorbisMonoSample,
+            0x12 => SampleLink::VorbisRightSample,
+            0x14 => SampleLink::VorbisLeftSample,
+            0x18 => SampleLink::VorbisLinkedSample,
 
             v => {
                 return Err(ParseError::UnknownSampleType(v));
@@ -97,7 +97,7 @@ impl SFSampleHeader {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy)]
-pub enum SFSampleLink {
+pub enum SampleLink {
     None = 0,
 
     /// Value used for mono samples
@@ -120,7 +120,7 @@ pub enum SFSampleLink {
     VorbisLinkedSample = 0x18,
 }
 
-impl SFSampleLink {
+impl SampleLink {
     pub fn is_mono(&self) -> bool {
         match self {
             Self::MonoSample | Self::RomMonoSample | Self::VorbisMonoSample => true,

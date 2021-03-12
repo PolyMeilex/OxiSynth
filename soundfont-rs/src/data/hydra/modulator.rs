@@ -44,7 +44,7 @@ pub struct ModulatorSource {
 }
 
 #[derive(Debug, Clone)]
-pub struct SFModulator {
+pub struct Modulator {
     pub src: u16,  // TODO: ModulatorSource
     pub dest: u16, // TODO: SFGeneratorType
     pub amount: i16,
@@ -52,7 +52,7 @@ pub struct SFModulator {
     pub transform: u16,
 }
 
-impl SFModulator {
+impl Modulator {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let src: u16 = reader.read_u16()?;
         let dest: u16 = reader.read_u16()?;

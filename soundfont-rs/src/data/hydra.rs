@@ -1,20 +1,20 @@
 pub mod generator;
-pub use generator::{SFGenerator, SFGeneratorAmount, SFGeneratorAmountRange, SFGeneratorType};
+pub use generator::{Generator, GeneratorAmount, GeneratorAmountRange, GeneratorType};
 
 pub mod modulator;
-pub use modulator::SFModulator;
+pub use modulator::Modulator;
 
 pub mod bag;
-pub use bag::SFBag;
+pub use bag::Bag;
 
 pub mod preset;
-pub use preset::SFPresetHeader;
+pub use preset::PresetHeader;
 
 pub mod instrument;
-pub use instrument::SFInstrumentHeader;
+pub use instrument::InstrumentHeader;
 
 pub mod sample;
-pub use sample::SFSampleHeader;
+pub use sample::SampleHeader;
 
 use crate::error::ParseError;
 use riff::Chunk;
@@ -22,21 +22,21 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug)]
-pub struct SFHydra {
-    pub preset_headers: Vec<SFPresetHeader>,
-    pub preset_bags: Vec<SFBag>,
-    pub preset_modulators: Vec<SFModulator>,
-    pub preset_generators: Vec<SFGenerator>,
+pub struct Hydra {
+    pub preset_headers: Vec<PresetHeader>,
+    pub preset_bags: Vec<Bag>,
+    pub preset_modulators: Vec<Modulator>,
+    pub preset_generators: Vec<Generator>,
 
-    pub instrument_headers: Vec<SFInstrumentHeader>,
-    pub instrument_bags: Vec<SFBag>,
-    pub instrument_modulators: Vec<SFModulator>,
-    pub instrument_generators: Vec<SFGenerator>,
+    pub instrument_headers: Vec<InstrumentHeader>,
+    pub instrument_bags: Vec<Bag>,
+    pub instrument_modulators: Vec<Modulator>,
+    pub instrument_generators: Vec<Generator>,
 
-    pub sample_headers: Vec<SFSampleHeader>,
+    pub sample_headers: Vec<SampleHeader>,
 }
 
-impl SFHydra {
+impl Hydra {
     pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
         assert_eq!(pdta.id().as_str(), "LIST");
         assert_eq!(pdta.read_type(file).unwrap().as_str(), "pdta");
@@ -60,23 +60,23 @@ impl SFHydra {
 
             match id.as_str() {
                 // The Preset Headers
-                "phdr" => preset_headers = Some(SFPresetHeader::read_all(&ch, file)?),
+                "phdr" => preset_headers = Some(PresetHeader::read_all(&ch, file)?),
                 // The Preset Index list
-                "pbag" => preset_bags = Some(SFBag::read_all(&ch, file)?),
+                "pbag" => preset_bags = Some(Bag::read_all(&ch, file)?),
                 // The Preset Modulator list
-                "pmod" => preset_modulators = Some(SFModulator::read_all(&ch, file)?),
+                "pmod" => preset_modulators = Some(Modulator::read_all(&ch, file)?),
                 // The Preset Generator list
-                "pgen" => preset_generators = Some(SFGenerator::read_all(&ch, file)?),
+                "pgen" => preset_generators = Some(Generator::read_all(&ch, file)?),
                 // The Instrument Names and Indices
-                "inst" => instrument_headers = Some(SFInstrumentHeader::read_all(&ch, file)?),
+                "inst" => instrument_headers = Some(InstrumentHeader::read_all(&ch, file)?),
                 // The Instrument Index list
-                "ibag" => instrument_bags = Some(SFBag::read_all(&ch, file)?),
+                "ibag" => instrument_bags = Some(Bag::read_all(&ch, file)?),
                 // The Instrument Modulator list
-                "imod" => instrument_modulators = Some(SFModulator::read_all(&ch, file)?),
+                "imod" => instrument_modulators = Some(Modulator::read_all(&ch, file)?),
                 // The Instrument Generator list
-                "igen" => instrument_generators = Some(SFGenerator::read_all(&ch, file)?),
+                "igen" => instrument_generators = Some(Generator::read_all(&ch, file)?),
                 // The Sample Headers
-                "shdr" => sample_headers = Some(SFSampleHeader::read_all(&ch, file)?),
+                "shdr" => sample_headers = Some(SampleHeader::read_all(&ch, file)?),
                 _ => {
                     return Err(ParseError::UnexpectedMemeberOfHydra(ch));
                 }

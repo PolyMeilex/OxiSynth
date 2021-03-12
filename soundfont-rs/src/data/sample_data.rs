@@ -5,7 +5,7 @@ use std::io::{Read, Seek};
 
 /// The Sample Binary Data
 #[derive(Debug)]
-pub struct SFSampleData {
+pub struct SampleData {
     /// The smpl sub-chunk, if present, contains one or more “samples” of digital audio information in the form of linearly coded sixteen bit, signed, little endian (least significant byte first) words.  Each sample is followed by a minimum of forty-six zero valued sample data points.  These zero valued data points are necessary to guarantee that any reasonable upward pitch shift using any reasonable interpolator can loop on zero data at the end of the sound.
     pub smpl: Option<Chunk>,
     /// The sm24 sub-chunk, if present, contains the least significant byte counterparts to each sample data point contained in the smpl chunk. Note this means for every two bytes in the [smpl] sub-chunk there is a 1-byte counterpart in [sm24] sub-chunk.
@@ -18,7 +18,7 @@ pub struct SFSampleData {
     pub sm24: Option<Chunk>,
 }
 
-impl SFSampleData {
+impl SampleData {
     pub fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
         assert_eq!(sdta.id().as_str(), "LIST");
         assert_eq!(sdta.read_type(file).unwrap().as_str(), "sdta");
@@ -44,6 +44,6 @@ impl SFSampleData {
             }
         }
 
-        Ok(SFSampleData { smpl, sm24 })
+        Ok(Self { smpl, sm24 })
     }
 }

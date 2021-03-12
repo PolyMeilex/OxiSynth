@@ -26,7 +26,7 @@ pub const GEN_FILTERFC: GenType = 8;
 
 use crate::gen::GenParam;
 
-use soundfont_rs::data::modulator::SFModulator;
+use soundfont_rs::data::modulator::Modulator as SFModulator;
 
 #[derive(Copy, Debug, PartialEq)]
 pub(crate) struct Mod {

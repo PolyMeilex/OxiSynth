@@ -87,10 +87,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    fn import_sfont(
-        sfsample: &sf2::data::SFSampleHeader,
-        data: Rc<Vec<i16>>,
-    ) -> Result<Sample, ()> {
+    fn import_sfont(sfsample: &sf2::data::SampleHeader, data: Rc<Vec<i16>>) -> Result<Sample, ()> {
         let mut sample = Sample {
             name: sfsample.name.clone(),
             start: sfsample.start,

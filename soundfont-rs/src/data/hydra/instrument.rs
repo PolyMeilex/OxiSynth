@@ -4,12 +4,12 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
-pub struct SFInstrumentHeader {
+pub struct InstrumentHeader {
     pub name: String,
     pub bag_id: u16,
 }
 
-impl SFInstrumentHeader {
+impl InstrumentHeader {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         let bag_id: u16 = reader.read_u16()?;

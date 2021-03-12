@@ -5,12 +5,12 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug)]
-pub struct SFBag {
+pub struct Bag {
     pub generator_id: u16,
     pub modulator_id: u16,
 }
 
-impl SFBag {
+impl Bag {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let generator_id: u16 = reader.read_u16()?;
         let modulator_id: u16 = reader.read_u16()?;

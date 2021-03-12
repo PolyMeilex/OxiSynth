@@ -5,7 +5,7 @@ use riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
-pub struct SFPresetHeader {
+pub struct PresetHeader {
     /// The name of the preset
     pub name: String,
     /// The MIDI preset number which to apply to the preset.
@@ -22,7 +22,7 @@ pub struct SFPresetHeader {
     pub morphology: u32,
 }
 
-impl SFPresetHeader {
+impl PresetHeader {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         let preset: u16 = reader.read_u16()?;
