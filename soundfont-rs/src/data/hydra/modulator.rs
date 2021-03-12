@@ -4,10 +4,49 @@ use super::super::utils::Reader;
 use riff::Chunk;
 use std::io::{Read, Seek};
 
+/// 8.2.1 Source Enumerator Controller Palettes
+pub enum ControllerPalette {
+    General,
+    Midi,
+}
+
+/// 8.2.2 Source Directions
+pub enum SourceDirection {
+    Positive,
+    Negative,
+}
+
+// 8.2.3 Source Polarities
+pub enum SourcePolarity {
+    Unipolar,
+    Bipolar,
+}
+
+/// 8.2.4 Source Types
+/// Specifies Continuity of the controller
+pub enum SourceTypes {
+    Linear,
+    Concave,
+    Convex,
+    Switch,
+}
+
+#[allow(dead_code)]
+/// 8.2  Modulator Source Enumerators  
+/// Flags telling the polarity of a modulator.
+pub struct ModulatorSource {
+    index: u8,
+    controller_palette: ControllerPalette,
+    direction: SourceDirection,
+    polarity: SourcePolarity,
+    /// Specifies Continuity of the controller
+    src_type: SourceTypes,
+}
+
 #[derive(Debug, Clone)]
 pub struct SFModulator {
-    pub src: u16,
-    pub dest: u16,
+    pub src: u16,  // TODO: ModulatorSource
+    pub dest: u16, // TODO: SFGeneratorType
     pub amount: i16,
     pub amt_src: u16,
     pub transform: u16,
