@@ -2,7 +2,46 @@ use crate::error::ParseError;
 
 use super::super::utils::Reader;
 use riff::Chunk;
+use std::convert::TryInto;
 use std::io::{Read, Seek};
+
+pub enum GeneralPalette {
+    /// No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
+    NoController,
+    /// The controller source to be used is the velocity value which is sent from the MIDI note-on command which generated the given sound.
+    NoteOnVelocity,
+    /// The controller source to be used is the key number value which was sent from the MIDI note-on command which generated the given sound.
+    NoteOnKeyNumber,
+    /// The controller source to be used is the poly-pressure amount that is sent from the MIDI poly-pressure command.
+    PolyPressure,
+    /// The controller source to be used is the channel pressure amount that is sent from the MIDI channel-pressure command.
+    ChannelPressure,
+    /// The controller source to be used is the pitch wheel amount which is sent from the MIDI pitch wheel command.
+    PitchWheel,
+    /// The controller source to be used is the pitch wheel sensitivity amount which is sent from the MIDI RPN 0 pitch wheel sensitivity command.
+    PitchWheelSensitivity,
+    /// The controller source is the output of another modulator. This is NOT SUPPORTED as an Amount Source.
+    Link,
+
+    /// If such a value is encountered, the entire modulator structure should be ignored.
+    Unknown(u8),
+}
+
+impl From<u8> for GeneralPalette {
+    fn from(ty: u8) -> Self {
+        match ty {
+            0 => Self::NoController,
+            2 => Self::NoteOnVelocity,
+            3 => Self::NoteOnKeyNumber,
+            10 => Self::PolyPressure,
+            13 => Self::ChannelPressure,
+            14 => Self::PitchWheel,
+            16 => Self::PitchWheelSensitivity,
+            127 => Self::Link,
+            v => Self::Unknown(v),
+        }
+    }
+}
 
 // TODO: ControllerPalette should contain an index. probably like so...
 // enum ControllerPalette {
@@ -25,17 +64,17 @@ pub enum ControllerPalette {
     /// - 14 Pitch Wheel
     /// - 16 Pitch Wheel Sensitivity
     /// - 127 Link
-    General = 0,
+    General(GeneralPalette),
     /// MIDI Controller Palette is selected. The `index` field value corresponds to one of the 128 MIDI Continuous Controller messages as defined in the MIDI specification.
-    Midi = 1,
+    Midi(u8),
 }
 
 /// 8.2.2 Source Directions
 pub enum SourceDirection {
     /// The direction of the controller should be from the minimum value to the maximum value. So, for example, if the controller source is Key Number, then Key Number value of 0 corresponds to the minimum possible controller output, and Key Number value of 127 corresponds to the maximum possible controller input.
-    Positive = 0,
+    Positive,
     /// The direction of the controller should be from the maximum value to the minimum value. So, for example, if the controller source is Key Number, then a Key Number value of 0 corresponds to the maximum possible controller output, and the Key Number value of 127 corresponds to the minimum possible controller input.
-    Negative = 1,
+    Negative,
 }
 
 // 8.2.3 Source Polarities
@@ -43,26 +82,41 @@ pub enum SourceDirection {
 /// The SoundFont 2.01 format supports two polarities for any controller. The polarity if specified by bit 9 of the source enumeration field.
 pub enum SourcePolarity {
     /// The controller should be mapped with a minimum value of 0 and a maximum value of 1. This is also called Unipolar. Thus it behaves similar to the Modulation Wheel controller of the MIDI specification.
-    Unipolar = 0,
+    Unipolar,
     /// The controller sound be mapped with a minimum value of -1 and a maximum value of 1. This is also called Bipolar. Thus it behaves similar to the Pitch Wheel controller of the MIDI specification.
-    Bipolar = 1,
+    Bipolar,
 }
 
 /// 8.2.4 Source Types
 /// Specifies Continuity of the controller
 ///
 /// The SoundFont 2.01 format may be used to support various types of controllers. This field completes the definition of the controller. A controller type specifies how the minimum value approaches the maximum value.
-pub enum SourceTypes {
+pub enum SourceType {
     /// The SoundFont modulator controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-    Linear = 0,
+    Linear,
     /// The SoundFont modulator controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The concave characteristic follows variations of the mathematical equation:
     ///
     /// `output = log(sqrt(value^2)/(max value)^2)`
-    Concave = 1,
+    Concave,
     /// The SoundFont modulator controller moves in a convex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The convex curve is the same curve as the concave curve, except the start and end points are reversed.
-    Convex = 2,
+    Convex,
     /// The SoundFont modulator controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-    Switch = 3,
+    Switch,
+
+    /// If such a value is encountered, the entire modulator structure should be ignored.
+    Unknown(u8),
+}
+
+impl From<u8> for SourceType {
+    fn from(ty: u8) -> Self {
+        match ty {
+            0 => Self::Linear,
+            1 => Self::Concave,
+            2 => Self::Convex,
+            3 => Self::Switch,
+            v => Self::Unknown(v),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -74,7 +128,52 @@ pub struct ModulatorSource {
     direction: SourceDirection,
     polarity: SourcePolarity,
     /// Specifies Continuity of the controller
-    src_type: SourceTypes,
+    src_type: SourceType,
+}
+
+impl From<u16> for ModulatorSource {
+    fn from(src: u16) -> Self {
+        // Index of source 1, seven-bit value, SF2.01 section 8.2, page 50
+        let index: u8 = (src & 0b1111111)
+            .try_into()
+            .expect("Index is longer than 7 bits!");
+        // Bit 7: CC flag SF 2.01 section 8.2.1 page 50
+        let controller_palette = if src & 1 << 7 != 0 {
+            ControllerPalette::Midi(index)
+        } else {
+            ControllerPalette::General(index.into())
+        };
+
+        // Bit 8: D flag SF 2.01 section 8.2.2 page 51
+        let direction = if src & 1 << 8 != 0 {
+            SourceDirection::Negative
+        } else {
+            SourceDirection::Positive
+        };
+
+        // Bit 9: P flag SF 2.01 section 8.2.3 page 51
+        let polarity = if src & 1 << 9 != 0 {
+            SourcePolarity::Bipolar
+        } else {
+            SourcePolarity::Unipolar
+        };
+
+        // modulator source types: SF2.01 section 8.2.1 page 52
+        let ty = src >> 10;
+        // type is a 6-bit value
+        let ty: u8 = (ty & 0b111111)
+            .try_into()
+            .expect("Mod source type is longer than 6 bits!");
+        let src_type: SourceType = ty.into();
+
+        Self {
+            index,
+            controller_palette,
+            direction,
+            polarity,
+            src_type,
+        }
+    }
 }
 
 #[allow(dead_code)]
