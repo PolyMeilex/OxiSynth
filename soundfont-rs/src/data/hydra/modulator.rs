@@ -4,31 +4,65 @@ use super::super::utils::Reader;
 use riff::Chunk;
 use std::io::{Read, Seek};
 
+// TODO: ControllerPalette should contain an index. probably like so...
+// enum ControllerPalette {
+//      General(GeneralEnum),
+//      Midi(u8)
+// }
+//
 /// 8.2.1 Source Enumerator Controller Palettes
+///
+/// The SoundFont format supports two distinct controller palettes.
 pub enum ControllerPalette {
-    General,
-    Midi,
+    /// General Controller palette of controllers is selected.
+    ///
+    /// The `index` field value corresponds to one of the following controller sources.  
+    /// - 0  No Controller
+    /// - 2  Note-On Velocity
+    /// - 3  Note-On Key Number
+    /// - 10 Poly Pressure
+    /// - 13 Channel Pressure
+    /// - 14 Pitch Wheel
+    /// - 16 Pitch Wheel Sensitivity
+    /// - 127 Link
+    General = 0,
+    /// MIDI Controller Palette is selected. The `index` field value corresponds to one of the 128 MIDI Continuous Controller messages as defined in the MIDI specification.
+    Midi = 1,
 }
 
 /// 8.2.2 Source Directions
 pub enum SourceDirection {
-    Positive,
-    Negative,
+    /// The direction of the controller should be from the minimum value to the maximum value. So, for example, if the controller source is Key Number, then Key Number value of 0 corresponds to the minimum possible controller output, and Key Number value of 127 corresponds to the maximum possible controller input.
+    Positive = 0,
+    /// The direction of the controller should be from the maximum value to the minimum value. So, for example, if the controller source is Key Number, then a Key Number value of 0 corresponds to the maximum possible controller output, and the Key Number value of 127 corresponds to the minimum possible controller input.
+    Negative = 1,
 }
 
 // 8.2.3 Source Polarities
+//
+/// The SoundFont 2.01 format supports two polarities for any controller. The polarity if specified by bit 9 of the source enumeration field.
 pub enum SourcePolarity {
-    Unipolar,
-    Bipolar,
+    /// The controller should be mapped with a minimum value of 0 and a maximum value of 1. This is also called Unipolar. Thus it behaves similar to the Modulation Wheel controller of the MIDI specification.
+    Unipolar = 0,
+    /// The controller sound be mapped with a minimum value of -1 and a maximum value of 1. This is also called Bipolar. Thus it behaves similar to the Pitch Wheel controller of the MIDI specification.
+    Bipolar = 1,
 }
 
 /// 8.2.4 Source Types
 /// Specifies Continuity of the controller
+///
+/// The SoundFont 2.01 format may be used to support various types of controllers. This field completes the definition of the controller. A controller type specifies how the minimum value approaches the maximum value.
 pub enum SourceTypes {
-    Linear,
-    Concave,
-    Convex,
-    Switch,
+    /// The SoundFont modulator controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+    Linear = 0,
+    /// The SoundFont modulator controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The concave characteristic follows variations of the mathematical equation:
+    ///
+    /// `output = log(sqrt(value^2)/(max value)^2)`
+    Concave = 1,
+    /// The SoundFont modulator controller moves in a convex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The convex curve is the same curve as the concave curve, except the start and end points are reversed.
+    Convex = 2,
+    /// The SoundFont modulator controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+    Switch = 3,
 }
 
 #[allow(dead_code)]
@@ -43,13 +77,28 @@ pub struct ModulatorSource {
     src_type: SourceTypes,
 }
 
+#[allow(dead_code)]
+/// 8.3  Modulator Transform Enumerators
+pub enum ModulatorTransform {
+    /// The output value of the multiplier is to be fed directly to the summing node of the given destination.
+    Linear = 0,
+    /// The output value of the multiplier is to be the absolute value of the input value, as defined by the relationship:
+    ///
+    /// `output = square root ((input value)^2)`
+    ///
+    /// or alternatively:
+    ///
+    /// `output = output * sgn(output)`
+    Absolute = 2,
+}
+
 #[derive(Debug, Clone)]
 pub struct Modulator {
     pub src: u16,  // TODO: ModulatorSource
-    pub dest: u16, // TODO: SFGeneratorType
+    pub dest: u16, // TODO: GeneratorType
     pub amount: i16,
-    pub amt_src: u16,
-    pub transform: u16,
+    pub amt_src: u16,   // TODO: ModulatorSource
+    pub transform: u16, // TODO: ModulatorTransform
 }
 
 impl Modulator {
