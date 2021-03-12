@@ -6,20 +6,23 @@ use super::voice::Voice;
 pub type ModFlags = u32;
 pub const FLUID_MOD_CC: ModFlags = 16;
 pub const FLUID_MOD_GC: ModFlags = 0;
-pub const FLUID_MOD_SWITCH: ModFlags = 12;
+
 pub const FLUID_MOD_LINEAR: ModFlags = 0;
+const FLUID_MOD_CONVEX: ModFlags = 8;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+pub const FLUID_MOD_SWITCH: ModFlags = 12;
+
 pub const FLUID_MOD_UNIPOLAR: ModFlags = 0;
+
 pub const FLUID_MOD_NEGATIVE: ModFlags = 1;
 pub const FLUID_MOD_POSITIVE: ModFlags = 0;
+
 pub type ModSrc = u32;
 pub const FLUID_MOD_VELOCITY: ModSrc = 2;
 pub type GenType = u32;
 
 pub const GEN_FILTERFC: GenType = 8;
-
-const FLUID_MOD_CONVEX: ModFlags = 8;
-const FLUID_MOD_CONCAVE: ModFlags = 4;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
 
 use crate::gen::GenParam;
 
@@ -43,7 +46,9 @@ impl From<&SFModulator> for Mod {
         let mut amount = mod_src.amount as f64;
 
         // Source
-        let src1 = (mod_src.src & 127) as u8;
+
+        // Index of source 1, seven-bit value, SF2.01 section 8.2, page 50
+        let src1 = (mod_src.src & 0b1111111) as u8;
         let flags1 = {
             let mut flags1 = 0u8;
 
@@ -89,7 +94,9 @@ impl From<&SFModulator> for Mod {
 
         // Dest
         let dest = mod_src.dest as u8; // index of controlled generator
-        let src2 = (mod_src.amt_src & 127) as u8; // index of source 2, seven-bit value, SF2.01 section 8.2, p.50
+
+        // index of source 2, seven-bit value, SF2.01 section 8.2, p.50
+        let src2 = (mod_src.amt_src & 0b1111111) as u8;
 
         // Amount source
         let flags2 = {
@@ -188,10 +195,27 @@ impl Mod {
     }
 
     pub fn get_value(&self, chan: &Channel, voice: &Voice) -> f32 {
-        let mut v1: f32;
-        let mut v2: f32 = 1.0f32;
-        let mut range1: f32 = 127.0f32;
-        let range2: f32 = 127.0f32;
+        /* 'special treatment' for default controller
+         *
+         *  Reference: SF2.01 section 8.4.2
+         *
+         * The GM default controller 'vel-to-filter cut off' is not clearly
+         * defined: If implemented according to the specs, the filter
+         * frequency jumps between vel=63 and vel=64.  To maintain
+         * compatibility with existing sound fonts, the implementation is
+         * 'hardcoded', it is impossible to implement using only one
+         * modulator otherwise.
+         *
+         * I assume here, that the 'intention' of the paragraph is one
+         * octave (1200 cents) filter frequency shift between vel=127 and
+         * vel=64.  'amount' is (-2400), at least as long as the controller
+         * is set to default.
+         *
+         * Further, the 'appearance' of the modulator (source enumerator,
+         * destination enumerator, flags etc) is different from that
+         * described in section 8.4.2, but it matches the definition used in
+         * several SF2.1 sound fonts (where it is used only to turn it off).
+         * */
         if self.src2 as i32 == FLUID_MOD_VELOCITY as i32
             && self.src1 as i32 == FLUID_MOD_VELOCITY as i32
             && self.flags1 as i32
@@ -208,195 +232,264 @@ impl Mod {
         {
             return 0 as i32 as f32;
         }
-        if self.src1 as i32 > 0 as i32 {
-            if self.flags1 as i32 & FLUID_MOD_CC as i32 != 0 {
-                v1 = chan.get_cc(self.src1 as i32) as f32
+
+        let mut range1: f32 = 127.0f32;
+        /* get the initial value of the first source */
+        let mut v1 = if self.src1 as i32 > 0 as i32 {
+            let v1 = if self.flags1 as i32 & FLUID_MOD_CC as i32 != 0 {
+                chan.get_cc(self.src1 as i32) as f32
             } else {
-                match self.src1 as i32 {
-                    0 => v1 = range1,
-                    2 => v1 = voice.vel as f32,
-                    3 => v1 = voice.key as f32,
-                    10 => v1 = chan.key_pressure[voice.key as usize] as f32,
-                    13 => v1 = chan.channel_pressure as f32,
+                /* source 1 is one of the direct controllers */
+                match self.src1 {
+                    // FLUID_MOD_NONE
+                    0 => range1,
+                    // FLUID_MOD_VELOCITY
+                    2 => voice.vel as f32,
+                    // FLUID_MOD_KEY
+                    3 => voice.key as f32,
+                    // FLUID_MOD_KEYPRESSURE
+                    10 => chan.key_pressure[voice.key as usize] as f32,
+                    // FLUID_MOD_CHANNELPRESSURE
+                    13 => chan.channel_pressure as f32,
+                    // FLUID_MOD_PITCHWHEEL
                     14 => {
-                        v1 = chan.pitch_bend as f32;
-                        range1 = 0x4000 as i32 as f32
+                        range1 = 0x4000 as f32;
+                        chan.pitch_bend as f32
                     }
-                    16 => v1 = chan.pitch_wheel_sensitivity as f32,
-                    _ => v1 = 0.0f32,
+                    // FLUID_MOD_PITCHWHEELSENS
+                    16 => chan.pitch_wheel_sensitivity as f32,
+                    _ => 0.0,
                 }
-            }
-            match self.flags1 as i32 & 0xf as i32 {
-                0 => v1 /= range1,
-                1 => v1 = 1.0f32 - v1 / range1,
-                2 => v1 = -1.0f32 + 2.0f32 * v1 / range1,
-                3 => v1 = 1.0f32 - 2.0f32 * v1 / range1,
-                4 => v1 = concave(v1),
-                5 => v1 = concave(127 as i32 as f32 - v1),
+            };
+
+            /* transform the input value */
+            let v1 = match self.flags1 as i32 & 0xf as i32 {
+                /* linear, unipolar, positive */
+                0 => v1 / range1,
+                /* linear, unipolar, negative */
+                1 => 1.0 - v1 / range1,
+                /* linear, bipolar, positive */
+                2 => -1.0 + 2.0 * v1 / range1,
+                /* linear, bipolar, negative */
+                3 => 1.0 - 2.0 * v1 / range1,
+                /* concave, unipolar, positive */
+                4 => concave(v1),
+                /* concave, unipolar, negative */
+                5 => concave(127.0 - v1),
+                /* concave, bipolar, positive */
                 6 => {
-                    v1 = if v1 > 64 as i32 as f32 {
-                        concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                    if v1 > 64.0 {
+                        concave(2.0 * (v1 - 64.0))
                     } else {
-                        -concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        -concave(2.0 * (64.0 - v1))
                     }
                 }
+                /* concave, bipolar, negative */
                 7 => {
-                    v1 = if v1 > 64 as i32 as f32 {
-                        -concave(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                    if v1 > 64.0 {
+                        -concave(2.0 * (v1 - 64.0))
                     } else {
-                        concave(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        concave(2.0 * (64.0 - v1))
                     }
                 }
-                8 => v1 = convex(v1),
-                9 => v1 = convex(127 as i32 as f32 - v1),
+                /* convex, unipolar, positive */
+                8 => convex(v1),
+                /* convex, unipolar, negative */
+                9 => convex(127.0 - v1),
+                /* convex, bipolar, positive */
                 10 => {
-                    v1 = if v1 > 64 as i32 as f32 {
-                        convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                    if v1 > 64.0 {
+                        convex(2.0 * (v1 - 64.0))
                     } else {
-                        -convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        -convex(2.0 * (64.0 - v1))
                     }
                 }
+                /* convex, bipolar, negative */
                 11 => {
-                    v1 = if v1 > 64 as i32 as f32 {
-                        -convex(2 as i32 as f32 * (v1 - 64 as i32 as f32))
+                    if v1 > 64.0 {
+                        -convex(2.0 * (v1 - 64.0))
                     } else {
-                        convex(2 as i32 as f32 * (64 as i32 as f32 - v1))
+                        convex(2.0 * (64.0 - v1))
                     }
                 }
+                /* switch, unipolar, positive */
                 12 => {
-                    v1 = if v1 >= 64 as i32 as f32 {
-                        1.0f32
+                    if v1 >= 64.0 {
+                        1.0
                     } else {
-                        0.0f32
+                        0.0
                     }
                 }
+                /* switch, unipolar, negative */
                 13 => {
-                    v1 = if v1 >= 64 as i32 as f32 {
-                        0.0f32
+                    if v1 >= 64.0 {
+                        0.0
                     } else {
-                        1.0f32
+                        1.0
                     }
                 }
+                /* switch, bipolar, positive */
                 14 => {
-                    v1 = if v1 >= 64 as i32 as f32 {
-                        1.0f32
+                    if v1 >= 64.0 {
+                        1.0
                     } else {
-                        -1.0f32
+                        -1.0
                     }
                 }
+                /* switch, bipolar, negative */
                 15 => {
-                    v1 = if v1 >= 64 as i32 as f32 {
-                        -1.0f32
+                    if v1 >= 64.0 {
+                        -1.0
                     } else {
-                        1.0f32
+                        1.0
                     }
                 }
-                _ => {}
-            }
+                _ => v1,
+            };
+
+            v1
         } else {
-            return 0.0f32;
+            return 0.0;
+        };
+
+        /* no need to go further */
+        if v1 == 0.0 {
+            return 0.0;
         }
-        if v1 == 0.0f32 {
-            return 0.0f32;
-        }
-        if self.src2 as i32 > 0 as i32 {
-            if self.flags2 as i32 & FLUID_MOD_CC as i32 != 0 {
-                v2 = chan.get_cc(self.src2 as i32) as f32
+
+        let range2: f32 = 127.0f32;
+        /* get the second input source */
+        let v2 = if self.src2 as i32 > 0 as i32 {
+            let v2 = if self.flags2 as i32 & FLUID_MOD_CC as i32 != 0 {
+                chan.get_cc(self.src2 as i32) as f32
             } else {
-                match self.src2 as i32 {
-                    0 => v2 = range2,
-                    2 => v2 = voice.vel as f32,
-                    3 => v2 = voice.key as f32,
-                    10 => v2 = chan.key_pressure[voice.key as usize] as f32,
-                    13 => v2 = chan.channel_pressure as f32,
-                    14 => v2 = chan.pitch_bend as f32,
-                    16 => v2 = chan.pitch_wheel_sensitivity as f32,
-                    _ => v1 = 0.0f32,
+                match self.src2 {
+                    // FLUID_MOD_NONE
+                    0 => range2,
+                    // FLUID_MOD_VELOCITY
+                    2 => voice.vel as f32,
+                    // FLUID_MOD_KEY
+                    3 => voice.key as f32,
+                    // FLUID_MOD_KEYPRESSURE
+                    10 => chan.key_pressure[voice.key as usize] as f32,
+                    // FLUID_MOD_CHANNELPRESSURE
+                    13 => chan.channel_pressure as f32,
+                    // FLUID_MOD_PITCHWHEEL
+                    14 => chan.pitch_bend as f32,
+                    // FLUID_MOD_PITCHWHEELSENS
+                    16 => chan.pitch_wheel_sensitivity as f32,
+                    _ => {
+                        // https://github.com/divideconcept/FluidLite/blob/fdd05bad03cdb24d1f78b5fe3453842890c1b0e8/src/fluid_mod.c#L282
+                        // why is this setting v1 to 0.0?
+                        v1 = 0.0;
+                        1.0
+                    }
                 }
-            }
-            match self.flags2 as i32 & 0xf as i32 {
-                0 => v2 /= range2,
-                1 => v2 = 1.0f32 - v2 / range2,
-                2 => v2 = -1.0f32 + 2.0f32 * v2 / range2,
-                3 => v2 = -1.0f32 + 2.0f32 * v2 / range2,
-                4 => v2 = concave(v2),
-                5 => v2 = concave(127 as i32 as f32 - v2),
+            };
+
+            /* transform the second input value */
+            let v2 = match self.flags2 as i32 & 0xf as i32 {
+                /* linear, unipolar, positive */
+                0 => v2 / range2,
+                /* linear, unipolar, negative */
+                1 => 1.0 - v2 / range2,
+                /* linear, bipolar, positive */
+                2 => -1.0 + 2.0 * v2 / range2,
+                /* linear, bipolar, negative */
+                3 => -1.0 + 2.0 * v2 / range2,
+                /* concave, unipolar, positive */
+                4 => concave(v2),
+                /* concave, unipolar, negative */
+                5 => concave(127.0 - v2),
+                /* concave, bipolar, positive */
                 6 => {
-                    v2 = if v2 > 64 as i32 as f32 {
-                        concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                    if v2 > 64.0 {
+                        concave(2.0 * (v2 - 64.0))
                     } else {
-                        -concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        -concave(2.0 * (64.0 - v2))
                     }
                 }
+                /* concave, bipolar, negative */
                 7 => {
-                    v2 = if v2 > 64 as i32 as f32 {
-                        -concave(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                    if v2 > 64.0 {
+                        -concave(2.0 * (v2 - 64.0))
                     } else {
-                        concave(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        concave(2.0 * (64.0 - v2))
                     }
                 }
-                8 => v2 = convex(v2),
-                9 => v2 = 1.0f32 - convex(v2),
+                /* convex, unipolar, positive */
+                8 => convex(v2),
+                /* convex, unipolar, negative */
+                9 => 1.0 - convex(v2),
+                /* convex, bipolar, positive */
                 10 => {
-                    v2 = if v2 > 64 as i32 as f32 {
-                        -convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                    if v2 > 64.0 {
+                        -convex(2.0 * (v2 - 64.0))
                     } else {
-                        convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        convex(2.0 * (64.0 - v2))
                     }
                 }
+                /* convex, bipolar, negative */
                 11 => {
-                    v2 = if v2 > 64 as i32 as f32 {
-                        -convex(2 as i32 as f32 * (v2 - 64 as i32 as f32))
+                    if v2 > 64.0 {
+                        -convex(2.0 * (v2 - 64.0))
                     } else {
-                        convex(2 as i32 as f32 * (64 as i32 as f32 - v2))
+                        convex(2.0 * (64.0 - v2))
                     }
                 }
+                /* switch, unipolar, positive */
                 12 => {
-                    v2 = if v2 >= 64 as i32 as f32 {
-                        1.0f32
+                    if v2 >= 64.0 {
+                        1.0
                     } else {
-                        0.0f32
+                        0.0
                     }
                 }
+                /* switch, unipolar, negative */
                 13 => {
-                    v2 = if v2 >= 64 as i32 as f32 {
-                        0.0f32
+                    if v2 >= 64.0 {
+                        0.0
                     } else {
-                        1.0f32
+                        1.0
                     }
                 }
+                /* switch, bipolar, positive */
                 14 => {
-                    v2 = if v2 >= 64 as i32 as f32 {
-                        1.0f32
+                    if v2 >= 64.0 {
+                        1.0
                     } else {
-                        -1.0f32
+                        -1.0
                     }
                 }
+                /* switch, bipolar, negative */
                 15 => {
-                    v2 = if v2 >= 64 as i32 as f32 {
-                        -1.0f32
+                    if v2 >= 64.0 {
+                        -1.0
                     } else {
-                        1.0f32
+                        1.0
                     }
                 }
-                _ => {}
-            }
+                _ => v2,
+            };
+
+            v2
         } else {
-            v2 = 1.0f32
-        }
+            1.0
+        };
+
         return self.amount as f32 * v1 * v2;
     }
 
     pub fn test_identity(&self, mod2: &Mod) -> bool {
-        if self.dest as i32 != mod2.dest as i32 {
+        if self.dest != mod2.dest {
             false
-        } else if self.src1 as i32 != mod2.src1 as i32 {
+        } else if self.src1 != mod2.src1 {
             false
-        } else if self.src2 as i32 != mod2.src2 as i32 {
+        } else if self.src2 != mod2.src2 {
             false
-        } else if self.flags1 as i32 != mod2.flags1 as i32 {
+        } else if self.flags1 != mod2.flags1 {
             false
-        } else if self.flags2 as i32 != mod2.flags2 as i32 {
+        } else if self.flags2 != mod2.flags2 {
             false
         } else {
             true

@@ -33,20 +33,6 @@ type ModFlags = u8;
 type ModSrc = u8;
 type GenType = u8;
 
-const FLUID_MOD_POSITIVE: ModFlags = 0;
-const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-const FLUID_MOD_LINEAR: ModFlags = 0;
-const FLUID_MOD_GC: ModFlags = 0;
-const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
-const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-const FLUID_MOD_CC: ModFlags = 16;
-const FLUID_MOD_NEGATIVE: ModFlags = 1;
-const FLUID_MOD_CONCAVE: ModFlags = 4;
-const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
-const FLUID_MOD_SWITCH: ModFlags = 12;
-const FLUID_MOD_VELOCITY: ModSrc = 2;
-pub(crate) const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 const GEN_LAST: GenType = 60;
 
 #[derive(Copy, Clone)]
@@ -310,6 +296,21 @@ impl Synth {
         }
     }
 }
+
+const FLUID_MOD_POSITIVE: ModFlags = 0;
+const FLUID_MOD_UNIPOLAR: ModFlags = 0;
+const FLUID_MOD_LINEAR: ModFlags = 0;
+const FLUID_MOD_GC: ModFlags = 0;
+const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
+const FLUID_MOD_BIPOLAR: ModFlags = 2;
+const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
+const FLUID_MOD_CC: ModFlags = 16;
+const FLUID_MOD_NEGATIVE: ModFlags = 1;
+const FLUID_MOD_CONCAVE: ModFlags = 4;
+const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
+const FLUID_MOD_SWITCH: ModFlags = 12;
+const FLUID_MOD_VELOCITY: ModSrc = 2;
+pub(crate) const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
 
 static DEFAULT_VEL2ATT_MOD: Mod = Mod {
     dest: GenParam::Attenuation,
