@@ -2,7 +2,7 @@ use crate::error::ParseError;
 
 use super::super::utils::Reader;
 use riff::Chunk;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
 pub enum GeneralPalette {
@@ -189,6 +189,17 @@ pub enum ModulatorTransform {
     ///
     /// `output = output * sgn(output)`
     Absolute = 2,
+}
+
+impl TryFrom<u16> for ModulatorTransform {
+    type Error = u16;
+    fn try_from(v: u16) -> Result<Self, Self::Error> {
+        match v {
+            0 => Ok(Self::Linear),
+            2 => Ok(Self::Absolute),
+            v => Err(v),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
