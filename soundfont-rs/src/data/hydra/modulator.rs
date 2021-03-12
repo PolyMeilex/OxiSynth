@@ -219,12 +219,22 @@ pub struct Modulator {
 }
 
 impl Modulator {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
-        let src: u16 = reader.read_u16()?;
-        let dest: u16 = reader.read_u16()?;
-        let amount: i16 = reader.read_i16()?;
-        let amt_src: u16 = reader.read_u16()?;
-        let transform: u16 = reader.read_u16()?;
+    pub fn read(reader: &mut Reader, terminal: bool) -> Result<Self, ParseError> {
+        let mut src: u16 = reader.read_u16()?;
+        let mut dest: u16 = reader.read_u16()?;
+        let mut amount: i16 = reader.read_i16()?;
+        let mut amt_src: u16 = reader.read_u16()?;
+        let mut transform: u16 = reader.read_u16()?;
+
+        // "The terminal record conventionally contains zero in all fields, and is always ignored."
+        // This sadly is not always true, so let's zero it out ourselfs.
+        if terminal {
+            src = 0;
+            dest = 0;
+            amount = 0;
+            amt_src = 0;
+            transform = 0;
+        }
 
         Ok(Self {
             src,
@@ -247,7 +257,9 @@ impl Modulator {
             let data = pmod.read_contents(file).unwrap();
             let mut reader = Reader::new(data);
 
-            (0..amount).map(|_| Self::read(&mut reader)).collect()
+            (0..amount)
+                .map(|id| Self::read(&mut reader, id == amount - 1))
+                .collect()
         }
     }
 }
