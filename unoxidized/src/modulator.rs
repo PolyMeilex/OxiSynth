@@ -26,7 +26,7 @@ pub const GEN_FILTERFC: GenType = 8;
 
 use crate::gen::GenParam;
 
-use soundfont_rs::data::modulator::Modulator as SFModulator;
+use soundfont_rs::data::modulator::{Modulator as SFModulator, ModulatorTransform};
 
 #[derive(Copy, Debug, PartialEq)]
 pub(crate) struct Mod {
@@ -146,7 +146,7 @@ impl From<&SFModulator> for Mod {
         /* SF2.01 only uses the 'linear' transform (0).
          * Deactivate the modulator by setting the amount to 0 in any other case.
          */
-        if mod_src.transform as i32 != 0 as i32 {
+        if mod_src.transform != ModulatorTransform::Linear {
             amount = 0.0;
         }
 
