@@ -17,6 +17,7 @@ pub enum ParseError {
 
     UnknownGeneratorType(u16),
     UnknownSampleType(u16),
+    UnknownModulatorTransform(u16),
 
     UnexpectedMemeberOfRoot(Chunk),
     UnexpectedMemeberOfHydra(Chunk),

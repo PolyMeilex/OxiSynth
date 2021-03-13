@@ -1,3 +1,4 @@
+use crate::data::generator::GeneratorType;
 use crate::error::ParseError;
 
 use super::super::utils::Reader;
@@ -246,12 +247,12 @@ pub enum ModulatorTransform {
 }
 
 impl TryFrom<u16> for ModulatorTransform {
-    type Error = u16;
+    type Error = ParseError;
     fn try_from(v: u16) -> Result<Self, Self::Error> {
         match v {
             0 => Ok(Self::Linear),
             2 => Ok(Self::Absolute),
-            v => Err(v),
+            v => Err(ParseError::UnknownModulatorTransform(v)),
         }
     }
 }
@@ -259,10 +260,10 @@ impl TryFrom<u16> for ModulatorTransform {
 #[derive(Debug, Clone, Copy)]
 pub struct Modulator {
     pub src: ModulatorSource,
-    pub dest: u16, // TODO: GeneratorType
+    pub dest: GeneratorType,
     pub amount: i16,
-    pub amt_src: ModulatorSource,      // TODO: ModulatorSource
-    pub transform: ModulatorTransform, // TODO: ModulatorTransform
+    pub amt_src: ModulatorSource,
+    pub transform: ModulatorTransform,
 }
 
 impl Modulator {
@@ -285,10 +286,10 @@ impl Modulator {
 
         Ok(Self {
             src: src.into(),
-            dest,
+            dest: dest.try_into()?,
             amount,
             amt_src: amt_src.into(),
-            transform: transform.try_into().expect("Unknown Transform"),
+            transform: transform.try_into()?,
         })
     }
 

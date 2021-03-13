@@ -1,6 +1,7 @@
 use super::super::utils::Reader;
 use crate::error::ParseError;
 use riff::Chunk;
+use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
@@ -66,11 +67,7 @@ impl Generator {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let id: u16 = reader.read_u16()?;
 
-        let ty: GeneratorType = if id <= 60 {
-            unsafe { std::mem::transmute(id) }
-        } else {
-            return Err(ParseError::UnknownGeneratorType(id));
-        };
+        let ty: GeneratorType = id.try_into()?;
 
         let amount = match ty {
             GeneratorType::KeyRange | GeneratorType::VelRange => {
@@ -240,6 +237,17 @@ pub enum GeneratorType {
     Unused5 = 59,
 
     EndOper = 60,
+}
+
+impl TryFrom<u16> for GeneratorType {
+    type Error = ParseError;
+    fn try_from(id: u16) -> Result<Self, Self::Error> {
+        if id <= 60 {
+            Ok(unsafe { std::mem::transmute(id) })
+        } else {
+            Err(ParseError::UnknownGeneratorType(id))
+        }
+    }
 }
 
 #[cfg(test)]
