@@ -166,7 +166,7 @@ checksum = "b9b1a3d5f46d53f4a3478e2be4a5a5ce5108ea58b100dcd139830eae7f79a3a1"
 
 [[package]]
 name = "soundfont"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "riff",
 ]

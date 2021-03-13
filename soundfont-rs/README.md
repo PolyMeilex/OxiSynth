@@ -1,9 +1,9 @@
 # soundfont-rs
 
-Pure rust soundfont file reader
+WIP! Pure rust soundfont file reader
 
 Suported formats:
 
 - [x] sf2
-- [ ] sf3
+- [x] sf3 🚧
 - [ ] sfz

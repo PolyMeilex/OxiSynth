@@ -1,8 +1,14 @@
 [package]
 name = "soundfont"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
 edition = "2018"
+
+description = "sf2 file parser"
+keywords = ["sf2","soundfont"]
+license = "MIT"
+repository = "https://github.com/PolyMeilex/OxiSynth"
+documentation = "https://docs.rs/soundfont"
 
 
 [dependencies]
