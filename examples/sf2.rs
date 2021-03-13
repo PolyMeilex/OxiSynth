@@ -1,4 +1,4 @@
-use soundfont_rs::{data::SFData, SoundFont2};
+use soundfont::{data::SFData, SoundFont2};
 
 fn main() {
     let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
