@@ -13,27 +13,19 @@ use crate::voice::VoiceId;
 use crate::voice_pool::VoicePool;
 use std::rc::Rc;
 
-use crate::gen::GenParam;
-
 use super::chorus::Chorus;
-use super::modulator::Mod;
 use super::reverb::ReverbModel;
 use super::settings::Settings;
 use super::soundfont::Preset;
 use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
-use super::voice::VoiceAddMode;
 use super::{
     channel::{Channel, InterpMethod},
     chorus::ChorusMode,
 };
 
-type ModFlags = u8;
-type ModSrc = u8;
-type GenType = u8;
-
-const GEN_LAST: GenType = 60;
+const GEN_LAST: u8 = 60;
 
 #[derive(Copy, Clone)]
 pub struct BankOffset {
@@ -264,6 +256,9 @@ impl Synth {
                 self.gain as f32,
             );
 
+            use crate::modulator::default::*;
+            use crate::voice::VoiceAddMode;
+
             voice.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
             voice.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
             voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
@@ -296,128 +291,3 @@ impl Synth {
         }
     }
 }
-
-const FLUID_MOD_POSITIVE: ModFlags = 0;
-const FLUID_MOD_UNIPOLAR: ModFlags = 0;
-const FLUID_MOD_LINEAR: ModFlags = 0;
-const FLUID_MOD_GC: ModFlags = 0;
-const FLUID_MOD_PITCHWHEELSENS: ModSrc = 16;
-const FLUID_MOD_BIPOLAR: ModFlags = 2;
-const FLUID_MOD_PITCHWHEEL: ModSrc = 14;
-const FLUID_MOD_CC: ModFlags = 16;
-const FLUID_MOD_NEGATIVE: ModFlags = 1;
-const FLUID_MOD_CONCAVE: ModFlags = 4;
-const FLUID_MOD_CHANNELPRESSURE: ModSrc = 13;
-const FLUID_MOD_SWITCH: ModFlags = 12;
-const FLUID_MOD_VELOCITY: ModSrc = 2;
-pub(crate) const FLUID_MOD_KEYPRESSURE: ModSrc = 10;
-
-static DEFAULT_VEL2ATT_MOD: Mod = Mod {
-    dest: GenParam::Attenuation,
-    amount: 960.0,
-
-    src1: FLUID_MOD_VELOCITY,
-    flags1: FLUID_MOD_GC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_VEL2FILTER_MOD: Mod = Mod {
-    dest: GenParam::FilterFc,
-    amount: -2400.0,
-
-    src1: FLUID_MOD_VELOCITY,
-    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
-
-    src2: FLUID_MOD_VELOCITY,
-    flags2: FLUID_MOD_GC | FLUID_MOD_SWITCH | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-};
-
-static DEFAULT_AT2VIBLFO_MOD: Mod = Mod {
-    dest: GenParam::VibLfoToPitch,
-    amount: 50.0,
-
-    src1: FLUID_MOD_CHANNELPRESSURE,
-    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_MOD2VIBLFO_MOD: Mod = Mod {
-    dest: GenParam::VibLfoToPitch,
-    amount: 50.0,
-
-    src1: 1,
-    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_ATT_MOD: Mod = Mod {
-    dest: GenParam::Attenuation,
-    amount: 960.0,
-
-    src1: 7,
-    flags1: FLUID_MOD_CC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_PAN_MOD: Mod = Mod {
-    amount: 500.0,
-    dest: GenParam::Pan,
-
-    src1: 10,
-    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_EXPR_MOD: Mod = Mod {
-    amount: 960.0,
-    dest: GenParam::Attenuation,
-
-    src1: 11,
-    flags1: FLUID_MOD_CC | FLUID_MOD_CONCAVE | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_REVERB_MOD: Mod = Mod {
-    amount: 200.0,
-    dest: GenParam::ReverbSend,
-
-    src1: 91,
-    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_CHORUS_MOD: Mod = Mod {
-    amount: 200.0,
-    dest: GenParam::ChorusSend,
-
-    src1: 93,
-    flags1: FLUID_MOD_CC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: 0,
-    flags2: 0,
-};
-
-static DEFAULT_PITCH_BEND_MOD: Mod = Mod {
-    amount: 12700.0,
-    dest: GenParam::Pitch,
-
-    src1: FLUID_MOD_PITCHWHEEL,
-    flags1: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE,
-
-    src2: FLUID_MOD_PITCHWHEELSENS,
-    flags2: FLUID_MOD_GC | FLUID_MOD_LINEAR | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE,
-};

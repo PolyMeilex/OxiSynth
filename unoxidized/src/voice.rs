@@ -12,11 +12,11 @@ use crate::{
     soundfont::Sample,
 };
 
+use soundfont_rs::data::modulator::{ControllerPalette, GeneralPalette};
+
 use std::rc::Rc;
 
 type Phase = u64;
-
-const MOD_CC: u32 = 16;
 
 const GEN_ABS_NRPN: u32 = 2;
 const GEN_SET: u32 = 1;
@@ -336,21 +336,17 @@ impl Voice {
          * controllers, because they have been designed for one particular
          * sound card.  Discard them, maybe print a warning.
          */
-        if mod_0.flags1 as i32 & MOD_CC as i32 == 0
-            && (mod_0.src1 != 0     // SF2.01 section 8.2.1: Constant value */
-                && mod_0.src1 != 2  // Note-on velocity 
-                && mod_0.src1 != 3  // Note-on key number 
-                && mod_0.src1 != 10 // Poly pressure 
-                && mod_0.src1 != 13 // Channel pressure 
-                && mod_0.src1 != 14 // Pitch wheel 
-                && mod_0.src1 != 16/* Pitch wheel sensitivity */)
-        {
-            log::warn!(
-                "Ignoring invalid controller, using non-CC source {}.",
-                mod_0.src1 as i32
-            );
-            return;
+        match &mod_0.src.controller_palette {
+            ControllerPalette::General(g) => match g {
+                GeneralPalette::Unknown(_) | GeneralPalette::Link => {
+                    log::warn!("Ignoring invalid controller, using non-CC source {:?}.", g);
+                    return;
+                }
+                _ => {}
+            },
+            _ => {}
         }
+
         if mode == VoiceAddMode::Add {
             /* if identical modulator exists, add them */
             for m in self.mod_0.iter_mut().take(self.mod_count) {
@@ -489,16 +485,23 @@ impl Voice {
     }
 
     pub fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
+        #[inline(always)]
+        fn mod_has_source(m: &Mod, cc: i32, ctrl: u8) -> bool {
+            let a1 = (m.src.index == ctrl) && m.src.is_cc() && (cc != 0);
+            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && (cc == 0);
+            let a3 = a1 || a2;
+
+            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && (cc != 0);
+            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && (cc == 0);
+            let b3 = b1 || b2;
+
+            a3 || b3
+        }
+
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & MOD_CC as i32 != 0 && cc != 0
-                || mod_0.src1 == ctrl as u8 && mod_0.flags1 as i32 & MOD_CC as i32 == 0 && cc == 0
-                || (mod_0.src2 == ctrl as u8 && mod_0.flags2 as i32 & MOD_CC as i32 != 0 && cc != 0
-                    || mod_0.src2 == ctrl as u8
-                        && mod_0.flags2 as i32 & MOD_CC as i32 == 0
-                        && cc == 0)
-            {
+            if mod_has_source(&mod_0, cc, ctrl as u8) {
                 let gen = mod_0.get_dest();
                 let mut modval = 0.0;
 
@@ -566,24 +569,20 @@ impl Voice {
     /// voice.attenuation has to be initialized.
     fn get_lower_boundary_for_attenuation(&mut self, channels: &[Channel]) -> f32 {
         const MOD_PITCHWHEEL: i32 = 14;
-        const MOD_BIPOLAR: i32 = 2;
 
         let mut possible_att_reduction_c_b = 0.0;
         for i in 0..self.mod_count {
             let mod_0 = &self.mod_0[i as usize];
 
             /* Modulator has attenuation as target and can change over time? */
-            if mod_0.dest == GenParam::Attenuation
-                && (mod_0.flags1 as i32 & MOD_CC as i32 != 0
-                    || mod_0.flags2 as i32 & MOD_CC as i32 != 0)
-            {
+            if mod_0.dest == GenParam::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc()) {
                 let current_val: f32 =
                     mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
                 let mut v = mod_0.amount.abs() as f32;
 
-                if mod_0.src1 as i32 == MOD_PITCHWHEEL as i32
-                    || mod_0.flags1 as i32 & MOD_BIPOLAR as i32 != 0
-                    || mod_0.flags2 as i32 & MOD_BIPOLAR as i32 != 0
+                if mod_0.src.index as i32 == MOD_PITCHWHEEL as i32
+                    || mod_0.src.is_bipolar()
+                    || mod_0.src2.is_bipolar()
                     || mod_0.amount < 0.0
                 {
                     /* Can this modulator produce a negative contribution? */

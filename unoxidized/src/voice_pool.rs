@@ -1,6 +1,6 @@
-use crate::synth::FxBuf;
 use crate::channel::Channel;
 use crate::gen::GenParam;
+use crate::synth::FxBuf;
 use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
 
 pub(crate) struct VoicePool {
@@ -88,11 +88,11 @@ impl VoicePool {
     }
 
     pub fn key_pressure(&mut self, channels: &[Channel], chan: u8, key: u8) {
-        use crate::synth::FLUID_MOD_KEYPRESSURE;
+        const MOD_KEYPRESSURE: u16 = 10;
 
         for voice in self.voices.iter_mut() {
             if voice.chan == chan && voice.key == key {
-                voice.modulate(channels, 0, FLUID_MOD_KEYPRESSURE as u16);
+                voice.modulate(channels, 0, MOD_KEYPRESSURE);
             }
         }
     }

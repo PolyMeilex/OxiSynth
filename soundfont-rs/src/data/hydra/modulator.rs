@@ -5,23 +5,23 @@ use riff::Chunk;
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GeneralPalette {
-    /// No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
+    /// 0: No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
     NoController,
-    /// The controller source to be used is the velocity value which is sent from the MIDI note-on command which generated the given sound.
+    /// 2: The controller source to be used is the velocity value which is sent from the MIDI note-on command which generated the given sound.
     NoteOnVelocity,
-    /// The controller source to be used is the key number value which was sent from the MIDI note-on command which generated the given sound.
+    /// 3: The controller source to be used is the key number value which was sent from the MIDI note-on command which generated the given sound.
     NoteOnKeyNumber,
-    /// The controller source to be used is the poly-pressure amount that is sent from the MIDI poly-pressure command.
+    /// 10: The controller source to be used is the poly-pressure amount that is sent from the MIDI poly-pressure command.
     PolyPressure,
-    /// The controller source to be used is the channel pressure amount that is sent from the MIDI channel-pressure command.
+    /// 13: The controller source to be used is the channel pressure amount that is sent from the MIDI channel-pressure command.
     ChannelPressure,
-    /// The controller source to be used is the pitch wheel amount which is sent from the MIDI pitch wheel command.
+    /// 14: The controller source to be used is the pitch wheel amount which is sent from the MIDI pitch wheel command.
     PitchWheel,
-    /// The controller source to be used is the pitch wheel sensitivity amount which is sent from the MIDI RPN 0 pitch wheel sensitivity command.
+    /// 16: The controller source to be used is the pitch wheel sensitivity amount which is sent from the MIDI RPN 0 pitch wheel sensitivity command.
     PitchWheelSensitivity,
-    /// The controller source is the output of another modulator. This is NOT SUPPORTED as an Amount Source.
+    /// 127: The controller source is the output of another modulator. This is NOT SUPPORTED as an Amount Source.
     Link,
 
     /// If such a value is encountered, the entire modulator structure should be ignored.
@@ -53,7 +53,7 @@ impl From<u8> for GeneralPalette {
 /// 8.2.1 Source Enumerator Controller Palettes
 ///
 /// The SoundFont format supports two distinct controller palettes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControllerPalette {
     /// General Controller palette of controllers is selected.
     ///
@@ -72,22 +72,22 @@ pub enum ControllerPalette {
 }
 
 /// 8.2.2 Source Directions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SourceDirection {
-    /// The direction of the controller should be from the minimum value to the maximum value. So, for example, if the controller source is Key Number, then Key Number value of 0 corresponds to the minimum possible controller output, and Key Number value of 127 corresponds to the maximum possible controller input.
+    /// 0: The direction of the controller should be from the minimum value to the maximum value. So, for example, if the controller source is Key Number, then Key Number value of 0 corresponds to the minimum possible controller output, and Key Number value of 127 corresponds to the maximum possible controller input.
     Positive,
-    /// The direction of the controller should be from the maximum value to the minimum value. So, for example, if the controller source is Key Number, then a Key Number value of 0 corresponds to the maximum possible controller output, and the Key Number value of 127 corresponds to the minimum possible controller input.
+    /// 1: The direction of the controller should be from the maximum value to the minimum value. So, for example, if the controller source is Key Number, then a Key Number value of 0 corresponds to the maximum possible controller output, and the Key Number value of 127 corresponds to the minimum possible controller input.
     Negative,
 }
 
 // 8.2.3 Source Polarities
 //
 /// The SoundFont 2.01 format supports two polarities for any controller. The polarity if specified by bit 9 of the source enumeration field.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SourcePolarity {
-    /// The controller should be mapped with a minimum value of 0 and a maximum value of 1. This is also called Unipolar. Thus it behaves similar to the Modulation Wheel controller of the MIDI specification.
+    /// 0: The controller should be mapped with a minimum value of 0 and a maximum value of 1. This is also called Unipolar. Thus it behaves similar to the Modulation Wheel controller of the MIDI specification.
     Unipolar,
-    /// The controller sound be mapped with a minimum value of -1 and a maximum value of 1. This is also called Bipolar. Thus it behaves similar to the Pitch Wheel controller of the MIDI specification.
+    /// 1: The controller sound be mapped with a minimum value of -1 and a maximum value of 1. This is also called Bipolar. Thus it behaves similar to the Pitch Wheel controller of the MIDI specification.
     Bipolar,
 }
 
@@ -95,17 +95,17 @@ pub enum SourcePolarity {
 /// Specifies Continuity of the controller
 ///
 /// The SoundFont 2.01 format may be used to support various types of controllers. This field completes the definition of the controller. A controller type specifies how the minimum value approaches the maximum value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SourceType {
-    /// The SoundFont modulator controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+    /// 0: The SoundFont modulator controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
     Linear,
-    /// The SoundFont modulator controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The concave characteristic follows variations of the mathematical equation:
+    /// 1: The SoundFont modulator controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The concave characteristic follows variations of the mathematical equation:
     ///
     /// `output = log(sqrt(value^2)/(max value)^2)`
     Concave,
-    /// The SoundFont modulator controller moves in a convex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The convex curve is the same curve as the concave curve, except the start and end points are reversed.
+    /// 2: The SoundFont modulator controller moves in a convex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits. The convex curve is the same curve as the concave curve, except the start and end points are reversed.
     Convex,
-    /// The SoundFont modulator controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+    /// 3: The SoundFont modulator controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
     Switch,
 
     /// If such a value is encountered, the entire modulator structure should be ignored.
@@ -124,17 +124,64 @@ impl From<u8> for SourceType {
     }
 }
 
-#[allow(dead_code)]
 /// 8.2  Modulator Source Enumerators  
 /// Flags telling the polarity of a modulator.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModulatorSource {
-    index: u8,
-    controller_palette: ControllerPalette,
-    direction: SourceDirection,
-    polarity: SourcePolarity,
+    pub index: u8,
+    pub controller_palette: ControllerPalette,
+    pub direction: SourceDirection,
+    pub polarity: SourcePolarity,
     /// Specifies Continuity of the controller
-    src_type: SourceType,
+    pub ty: SourceType,
+}
+
+impl ModulatorSource {
+    #[inline]
+    pub fn is_linear(&self) -> bool {
+        self.ty == SourceType::Linear
+    }
+    #[inline]
+    pub fn is_concave(&self) -> bool {
+        self.ty == SourceType::Concave
+    }
+    #[inline]
+    pub fn is_convex(&self) -> bool {
+        self.ty == SourceType::Convex
+    }
+    #[inline]
+    pub fn is_switch(&self) -> bool {
+        self.ty == SourceType::Switch
+    }
+
+    #[inline]
+    pub fn is_unipolar(&self) -> bool {
+        self.polarity == SourcePolarity::Unipolar
+    }
+    #[inline]
+    pub fn is_bipolar(&self) -> bool {
+        self.polarity == SourcePolarity::Bipolar
+    }
+
+    #[inline]
+    pub fn is_positive(&self) -> bool {
+        self.direction == SourceDirection::Positive
+    }
+    #[inline]
+    pub fn is_negative(&self) -> bool {
+        self.direction == SourceDirection::Negative
+    }
+
+    #[inline]
+    pub fn is_cc(&self) -> bool {
+        std::mem::discriminant(&self.controller_palette)
+            == std::mem::discriminant(&ControllerPalette::Midi(0))
+    }
+    #[inline]
+    pub fn is_gc(&self) -> bool {
+        std::mem::discriminant(&self.controller_palette)
+            == std::mem::discriminant(&ControllerPalette::General(GeneralPalette::NoController))
+    }
 }
 
 impl From<u16> for ModulatorSource {
@@ -170,32 +217,32 @@ impl From<u16> for ModulatorSource {
         let ty: u8 = (ty & 0b111111)
             .try_into()
             .expect("Mod source type is longer than 6 bits!");
-        let src_type: SourceType = ty.into();
+        let ty: SourceType = ty.into();
 
         Self {
             index,
             controller_palette,
             direction,
             polarity,
-            src_type,
+            ty,
         }
     }
 }
 
 #[allow(dead_code)]
 /// 8.3  Modulator Transform Enumerators
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModulatorTransform {
-    /// The output value of the multiplier is to be fed directly to the summing node of the given destination.
-    Linear = 0,
-    /// The output value of the multiplier is to be the absolute value of the input value, as defined by the relationship:
+    /// 0: The output value of the multiplier is to be fed directly to the summing node of the given destination.
+    Linear,
+    /// 2: The output value of the multiplier is to be the absolute value of the input value, as defined by the relationship:
     ///
     /// `output = square root ((input value)^2)`
     ///
     /// or alternatively:
     ///
     /// `output = output * sgn(output)`
-    Absolute = 2,
+    Absolute,
 }
 
 impl TryFrom<u16> for ModulatorTransform {
@@ -209,12 +256,12 @@ impl TryFrom<u16> for ModulatorTransform {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Modulator {
-    pub src: u16,  // TODO: ModulatorSource
+    pub src: ModulatorSource,
     pub dest: u16, // TODO: GeneratorType
     pub amount: i16,
-    pub amt_src: u16,                  // TODO: ModulatorSource
+    pub amt_src: ModulatorSource,      // TODO: ModulatorSource
     pub transform: ModulatorTransform, // TODO: ModulatorTransform
 }
 
@@ -237,10 +284,10 @@ impl Modulator {
         }
 
         Ok(Self {
-            src,
+            src: src.into(),
             dest,
             amount,
-            amt_src,
+            amt_src: amt_src.into(),
             transform: transform.try_into().expect("Unknown Transform"),
         })
     }
@@ -265,129 +312,215 @@ impl Modulator {
 }
 
 /// 8.4  Default Modulators
-mod default_modulators {
-    // TODO: default_modulators
+pub mod default_modulators {
+    use super::*;
+    use crate::data::generator::GeneratorType;
+    use SourceDirection::*;
+    use SourcePolarity::*;
+    use SourceType::*;
 
-    // use super::*;
-    // use crate::data::generator::GeneratorType;
+    macro_rules! zero_mod {
+        () => {
+            ModulatorSource {
+                index: 0,
+                controller_palette: ControllerPalette::General(GeneralPalette::NoController),
+                direction: Positive,
+                polarity: Unipolar,
+                ty: Linear,
+            }
+        };
+    }
 
-    // /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation
-    // static DEFAULT_VEL2ATT_MOD: Modulator = Modulator {
-    //     dest: GeneratorType::InitialAttenuation,
-    //     amount: 960,
+    /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation
+    pub static DEFAULT_VEL2ATT_MOD: Modulator = Modulator {
+        dest: GeneratorType::InitialAttenuation as _,
+        amount: 960,
 
-    //     src1: 2,
-    //     flags1: MOD_GC | MOD_CONCAVE | MOD_UNIPOLAR | MOD_NEGATIVE,
+        src: ModulatorSource {
+            index: 2,
+            controller_palette: ControllerPalette::General(GeneralPalette::NoteOnVelocity),
+            direction: Negative,
+            polarity: Unipolar,
+            ty: Concave,
+        },
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    // /// 8.4.2  MIDI Note-On Velocity to Filter Cutoff
-    // static DEFAULT_VEL2FILTER_MOD: Modulator = Modulator {
-    //     dest: GeneratorType::InitialFilterFc,
-    //     amount: -2400,
+    /// 8.4.2  MIDI Note-On Velocity to Filter Cutoff
+    pub static DEFAULT_VEL2FILTER_MOD: Modulator = Modulator {
+        dest: GeneratorType::InitialFilterFc as _,
+        amount: -2400,
 
-    //     src1: 2,
-    //     flags1: MOD_GC | MOD_LINEAR | MOD_UNIPOLAR | MOD_NEGATIVE,
+        src: ModulatorSource {
+            index: 2,
+            controller_palette: ControllerPalette::General(GeneralPalette::NoteOnVelocity),
+            direction: Negative,
+            polarity: Unipolar,
+            ty: Linear,
+        },
 
-    //     src2: 2,
-    //     flags2: MOD_GC | MOD_SWITCH | MOD_UNIPOLAR | MOD_POSITIVE,
-    // };
+        // Note:
+        // In SF2.01 it used to be 0x502
+        // But in SF2.04 it is just 0x0
+        // I belive that 0x502 was causing a problem in FS:
+        // You can read about 0x502 problem here: https://github.com/FluidSynth/fluidsynth/blob/e4241469d49551b92478afbd2209939ff89441d5/src/synth/fluid_synth.c#L324
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    // /// 8.4.3  MIDI Channel Pressure to Vibrato LFO Pitch Depth
-    // static DEFAULT_AT2VIBLFO_MOD: Modulator = Modulator {
-    //     dest: GeneratorType::VibLfoToPitch,
-    //     amount: 50,
+    /// 8.4.3  MIDI Channel Pressure to Vibrato LFO Pitch Depth
+    pub static DEFAULT_AT2VIBLFO_MOD: Modulator = Modulator {
+        dest: GeneratorType::VibLfoToPitch as _,
+        amount: 50,
 
-    //     src1: 13,
-    //     flags1: MOD_GC | MOD_LINEAR | MOD_UNIPOLAR | MOD_POSITIVE,
+        src: ModulatorSource {
+            index: 13,
+            controller_palette: ControllerPalette::General(GeneralPalette::ChannelPressure),
+            direction: Positive,
+            polarity: Unipolar,
+            ty: Linear,
+        },
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    // /// 8.4.4  MIDI Continuous Controller 1 to Vibrato LFO Pitch Depth
-    // static DEFAULT_MOD2VIBLFO_MOD: Modulator = Modulator {
-    //     dest: GeneratorType::VibLfoToPitch,
-    //     amount: 50,
+    /// 8.4.4  MIDI Continuous Controller 1 to Vibrato LFO Pitch Depth
+    pub static DEFAULT_MOD2VIBLFO_MOD: Modulator = Modulator {
+        dest: GeneratorType::VibLfoToPitch as _,
+        amount: 50,
 
-    //     src1: 1,
-    //     flags1: MOD_CC | MOD_LINEAR | MOD_UNIPOLAR | MOD_POSITIVE,
+        src: ModulatorSource {
+            index: 1,
+            controller_palette: ControllerPalette::Midi(1),
+            direction: Positive,
+            polarity: Unipolar,
+            ty: Linear,
+        },
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    // /// 8.4.5  MIDI Continuous Controller 7 to Initial Attenuation
-    // static DEFAULT_ATT_MOD: Modulator = Modulator {
-    //     dest: GeneratorType::InitialAttenuation,
-    //     amount: 960,
+    /// 8.4.5  MIDI Continuous Controller 7 to Initial Attenuation
+    pub static DEFAULT_ATT_MOD: Modulator = Modulator {
+        dest: GeneratorType::InitialAttenuation as _,
+        amount: 960,
 
-    //     src1: 7,
-    //     flags1: MOD_CC | MOD_CONCAVE | MOD_UNIPOLAR | MOD_NEGATIVE,
+        src: ModulatorSource {
+            index: 7,
+            controller_palette: ControllerPalette::Midi(7),
+            direction: Negative,
+            polarity: Unipolar,
+            ty: Concave,
+        },
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    // /// 8.4.6  MIDI Continuous Controller 10 to Pan Position
-    // static DEFAULT_PAN_MOD: Modulator = Modulator {
-    //     amount: 500,
-    //     dest: GeneratorType::Pan,
+    /// 8.4.6  MIDI Continuous Controller 10 to Pan Position
+    pub static DEFAULT_PAN_MOD: Modulator = Modulator {
+        dest: GeneratorType::Pan as _,
 
-    //     src1: 10,
-    //     flags1: MOD_CC | MOD_LINEAR | MOD_BIPOLAR | MOD_POSITIVE,
+        // Amount: 500. The SF specs 8.4.6, says: "Amount = 1000 tenths of a percent".
+        // The center value (64) corresponds to 50%, so it follows that amount = 50% x 1000/% = 500.
+        amount: 500,
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        src: ModulatorSource {
+            index: 10,
+            controller_palette: ControllerPalette::Midi(10),
+            direction: Positive,
+            polarity: Bipolar,
+            ty: Linear,
+        },
 
-    // /// 8.4.7  MIDI Continuous Controller 11 to Initial Attenuation
-    // static DEFAULT_EXPR_MOD: Modulator = Modulator {
-    //     amount: 960,
-    //     dest: GeneratorType::InitialAttenuation,
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    //     src1: 11,
-    //     flags1: MOD_CC | MOD_CONCAVE | MOD_UNIPOLAR | MOD_NEGATIVE,
+    /// 8.4.7  MIDI Continuous Controller 11 to Initial Attenuation
+    pub static DEFAULT_EXPR_MOD: Modulator = Modulator {
+        dest: GeneratorType::InitialAttenuation as _,
+        amount: 960,
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        src: ModulatorSource {
+            index: 11,
+            controller_palette: ControllerPalette::Midi(11),
+            direction: Negative,
+            polarity: Unipolar,
+            ty: Concave,
+        },
 
-    // /// 8.4.8  MIDI Continuous Controller 91 to Reverb Effects Send
-    // static DEFAULT_REVERB_MOD: Modulator = Modulator {
-    //     amount: 200,
-    //     dest: GeneratorType::ReverbEffectsSend,
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    //     src1: 91,
-    //     flags1: MOD_CC | MOD_LINEAR | MOD_UNIPOLAR | MOD_POSITIVE,
+    /// 8.4.8  MIDI Continuous Controller 91 to Reverb Effects Send
+    pub static DEFAULT_REVERB_MOD: Modulator = Modulator {
+        dest: GeneratorType::ReverbEffectsSend as _,
+        amount: 200,
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        src: ModulatorSource {
+            index: 91,
+            controller_palette: ControllerPalette::Midi(91),
+            direction: Positive,
+            polarity: Unipolar,
+            ty: Linear,
+        },
 
-    // /// 8.4.9  MIDI Continuous Controller 93 to Chorus Effects Send
-    // static DEFAULT_CHORUS_MOD: Modulator = Modulator {
-    //     amount: 200,
-    //     dest: GeneratorType::ChorusSend,
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    //     src1: 93,
-    //     flags1: MOD_CC | MOD_LINEAR | MOD_UNIPOLAR | MOD_POSITIVE,
+    /// 8.4.9  MIDI Continuous Controller 93 to Chorus Effects Send
+    pub static DEFAULT_CHORUS_MOD: Modulator = Modulator {
+        dest: GeneratorType::ChorusEffectsSend as _,
+        amount: 200,
 
-    //     src2: 0,
-    //     flags2: 0,
-    // };
+        src: ModulatorSource {
+            index: 93,
+            controller_palette: ControllerPalette::Midi(93),
+            direction: Positive,
+            polarity: Unipolar,
+            ty: Linear,
+        },
 
-    // /// 8.4.10  MIDI Pitch Wheel to Initial Pitch Controlled by MIDI Pitch Wheel Sensitivity
-    // static DEFAULT_PITCH_BEND_MOD: Modulator = Modulator {
-    //     amount: 12700,
-    //     dest: GeneratorType::Pitch,
+        amt_src: zero_mod!(),
+        transform: ModulatorTransform::Linear,
+    };
 
-    //     src1: 14, // PITCHWHEEL
-    //     flags1: MOD_GC | MOD_LINEAR | MOD_BIPOLAR | MOD_POSITIVE,
+    /// 8.4.10  MIDI Pitch Wheel to Initial Pitch Controlled by MIDI Pitch Wheel Sensitivity
+    ///
+    /// Initial Pitch is not a "standard" generator (SF 2.04)
+    ///
+    /// That's why this mod is an const fn and  
+    /// user has to decide the destination themself.
+    pub const fn default_pitch_bend_mod(dest: GeneratorType) -> Modulator {
+        Modulator {
+            dest: dest as _,
+            amount: 12700,
 
-    //     src2: 16, // PITCHWHEELSENS
-    //     flags2: MOD_GC | MOD_LINEAR | MOD_UNIPOLAR | MOD_POSITIVE,
-    // };
+            src: ModulatorSource {
+                index: 14,
+                controller_palette: ControllerPalette::General(GeneralPalette::PitchWheel),
+                direction: Positive,
+                polarity: Bipolar,
+                ty: Linear,
+            },
+
+            amt_src: ModulatorSource {
+                index: 16,
+                controller_palette: ControllerPalette::General(
+                    GeneralPalette::PitchWheelSensitivity,
+                ),
+                direction: Positive,
+                polarity: Unipolar,
+                ty: Linear,
+            },
+            transform: ModulatorTransform::Linear,
+        }
+    }
 }
