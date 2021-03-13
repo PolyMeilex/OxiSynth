@@ -91,15 +91,19 @@ impl Voice {
     /// No interpolation. Just take the sample, which is closest to
     /// the playback pointer.  Questionable quality, but very
     /// efficient.
-    pub fn dsp_float_interpolate_none(&mut self, dsp_buf: &mut [f32; 64]) -> usize {
+    pub fn dsp_float_interpolate_none(
+        &mut self,
+        dsp_buf: &mut [f32; 64],
+        dsp_amp_incr: f32,
+        phase_incr: f32,
+    ) -> usize {
         let mut dsp_phase: Phase = self.phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
         let mut dsp_amp: f32 = self.amp;
-        let dsp_amp_incr: f32 = self.amp_incr;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
-            | ((self.phase_incr as f64 - self.phase_incr as f64) * 4294967296.0) as u64;
+        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
+            | ((phase_incr as f64 - phase_incr as f64) * 4294967296.0) as u64;
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -160,16 +164,19 @@ impl Voice {
     /// Straight line interpolation.
     /// Returns number of samples processed (usually FLUID_BUFSIZE but could be
     /// smaller if end of sample occurs).
-    pub fn dsp_float_interpolate_linear(&mut self, dsp_buf: &mut [f32; 64]) -> usize {
+    pub fn dsp_float_interpolate_linear(
+        &mut self,
+        dsp_buf: &mut [f32; 64],
+        dsp_amp_incr: f32,
+        phase_incr: f32,
+    ) -> usize {
         let mut dsp_phase: Phase = self.phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
         let mut dsp_amp: f32 = self.amp;
-        let dsp_amp_incr: f32 = self.amp_incr;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
-            | ((self.phase_incr as f64 - self.phase_incr as i32 as f64) * 4294967296.0f64) as u32
-                as u64;
+        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
+            | ((phase_incr as f64 - phase_incr as i32 as f64) * 4294967296.0f64) as u32 as u64;
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -265,18 +272,21 @@ impl Voice {
     /// 4th order (cubic) interpolation.
     /// Returns number of samples processed (usually FLUID_BUFSIZE but could be
     /// smaller if end of sample occurs).
-    pub fn dsp_float_interpolate_4th_order(&mut self, dsp_buf: &mut [f32; 64]) -> usize {
+    pub fn dsp_float_interpolate_4th_order(
+        &mut self,
+        dsp_buf: &mut [f32; 64],
+        dsp_amp_incr: f32,
+        phase_incr: f32,
+    ) -> usize {
         let mut dsp_phase: Phase = self.phase;
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
         let mut dsp_amp: f32 = self.amp;
-        let dsp_amp_incr: f32 = self.amp_incr;
         let end_point1: i16;
         let end_point2: i16;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
-            | ((self.phase_incr as f64 - self.phase_incr as i32 as f64) * 4294967296.0f64) as u32
-                as u64;
+        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
+            | ((phase_incr as f64 - phase_incr as i32 as f64) * 4294967296.0f64) as u32 as u64;
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -431,14 +441,18 @@ impl Voice {
         dsp_i
     }
 
-    pub fn dsp_float_interpolate_7th_order(&mut self, dsp_buf: &mut [f32; 64]) -> usize {
+    pub fn dsp_float_interpolate_7th_order(
+        &mut self,
+        dsp_buf: &mut [f32; 64],
+        dsp_amp_incr: f32,
+        phase_incr: f32,
+    ) -> usize {
         let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
         let mut dsp_amp: f32 = self.amp;
-        let dsp_amp_incr: f32 = self.amp_incr;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (self.phase_incr as u64) << 32 as i32
-            | ((self.phase_incr as f64 - (self).phase_incr as f64) * 4294967296.0f64) as u32 as u64;
+        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
+            | ((phase_incr as f64 - phase_incr as f64) * 4294967296.0f64) as u32 as u64;
 
         let dsp_phase = self.phase;
         /* add 1/2 sample to dsp_phase since 7th order interpolation is centered on

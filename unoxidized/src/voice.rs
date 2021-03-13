@@ -61,82 +61,109 @@ pub struct VoiceId(pub(crate) usize);
 #[derive(Clone)]
 pub(crate) struct Voice {
     pub id: usize,
-    pub status: VoiceStatus,
     pub chan: u8,
     pub key: u8,
     pub vel: u8,
 
+    interp_method: InterpMethod,
     channel_id: Option<ChannelId>,
-    pub gen: [Gen; 60],
-    mod_0: [Mod; 64],
     mod_count: usize,
-    pub has_looped: bool,
+
     pub sample: Option<Rc<Sample>>,
-    check_sample_sanity_flag: i32,
-    output_rate: f32,
     pub start_time: u32,
+
     pub ticks: u32,
     noteoff_ticks: u32,
-    pub amp: f32,
-    pub phase: Phase,
-    pub phase_incr: f32,
-    pub amp_incr: f32,
-    pitch: f32,
-    attenuation: f32,
-    min_attenuation_c_b: f32,
-    root_pitch: f32,
-    pub start: i32,
-    pub end: i32,
-    pub loopstart: i32,
-    pub loopend: i32,
-    synth_gain: f32,
-    volenv_data: [EnvData; 7],
+
+    debug: i32,
+    pub has_looped: bool,
+
+    filter_startup: i32,
+
     volenv_count: u32,
     pub volenv_section: i32,
     pub volenv_val: f32,
-    amplitude_that_reaches_noise_floor_nonloop: f32,
-    amplitude_that_reaches_noise_floor_loop: f32,
-    modenv_data: [EnvData; 7],
+
+    pub amp: f32,
     modenv_count: u32,
     modenv_section: i32,
     modenv_val: f32,
-    modenv_to_fc: f32,
-    modenv_to_pitch: f32,
+
     modlfo_val: f32,
-    modlfo_delay: u32,
-    modlfo_incr: f32,
-    modlfo_to_fc: f32,
-    modlfo_to_pitch: f32,
-    modlfo_to_vol: f32,
     viblfo_val: f32,
-    viblfo_delay: u32,
-    viblfo_incr: f32,
-    viblfo_to_pitch: f32,
-    fres: f32,
-    last_fres: f32,
-    q_lin: f32,
-    filter_gain: f32,
+
     hist1: f32,
     hist2: f32,
-    filter_startup: i32,
-    b02: f32,
-    b1: f32,
-    a1: f32,
-    a2: f32,
-    b02_incr: f32,
-    b1_incr: f32,
-    a1_incr: f32,
-    a2_incr: f32,
-    filter_coeff_incr_count: i32,
+
+    pub gen: [Gen; 60],
+    synth_gain: f32,
+
+    amplitude_that_reaches_noise_floor_nonloop: f32,
+    amplitude_that_reaches_noise_floor_loop: f32,
+
+    pub status: VoiceStatus,
+    check_sample_sanity_flag: i32,
+    min_attenuation_c_b: f32,
+
+    last_fres: f32,
+
+    // GenParams
     pan: f32,
     amp_left: f32,
     amp_right: f32,
+
+    attenuation: f32,
+    pitch: f32,
+
     reverb_send: f32,
     amp_reverb: f32,
     chorus_send: f32,
     amp_chorus: f32,
-    interp_method: InterpMethod,
-    debug: i32,
+
+    root_pitch: f32,
+    fres: f32,
+
+    q_lin: f32,
+    filter_gain: f32,
+
+    modlfo_to_pitch: f32,
+    modlfo_to_vol: f32,
+    modlfo_to_fc: f32,
+    modlfo_delay: u32,
+    modlfo_incr: f32,
+
+    viblfo_incr: f32,
+    viblfo_delay: u32,
+    viblfo_to_pitch: f32,
+
+    modenv_to_pitch: f32,
+    modenv_to_fc: f32,
+
+    pub start: i32,
+    pub end: i32,
+    pub loopstart: i32,
+    pub loopend: i32,
+
+    //
+    volenv_data: [EnvData; 7],
+    modenv_data: [EnvData; 7],
+    mod_0: [Mod; 64],
+
+    output_rate: f32,
+
+    pub phase: Phase,
+
+    filter_coeff_incr_count: i32,
+
+    a1: f32,
+    a2: f32,
+    b02: f32,
+    b1: f32,
+
+    a1_incr: f32,
+    a2_incr: f32,
+    b02_incr: f32,
+    b1_incr: f32,
 }
 
 #[derive(Copy, Default, Clone)]
@@ -203,8 +230,6 @@ impl Voice {
             noteoff_ticks: 0,
             amp: 0.0,
             phase: 0 as Phase,
-            phase_incr: 0.0,
-            amp_incr: 0.0,
             pitch: 0.0,
             attenuation: 0.0,
             min_attenuation_c_b: 0.0,
@@ -279,33 +304,44 @@ impl Voice {
         self.chan = channel.get_num();
         self.key = key;
         self.vel = vel;
+
         self.interp_method = channel.get_interp_method();
         self.channel_id = Some(channel_id);
         self.mod_count = 0;
+
         self.sample = Some(sample);
         self.start_time = start_time;
+
         self.ticks = 0 as i32 as u32;
         self.noteoff_ticks = 0 as i32 as u32;
+
         self.debug = 0 as i32;
         self.has_looped = false;
+
         self.last_fres = -(1 as i32) as f32;
         self.filter_startup = 1 as i32;
+
         self.volenv_count = 0 as i32 as u32;
         self.volenv_section = 0 as i32;
         self.volenv_val = 0.0f32;
+
         self.amp = 0.0f32;
         self.modenv_count = 0 as i32 as u32;
         self.modenv_section = 0 as i32;
         self.modenv_val = 0.0f32;
+
         self.modlfo_val = 0.0f32;
         self.viblfo_val = 0.0f32;
+
         self.hist1 = 0 as i32 as f32;
         self.hist2 = 0 as i32 as f32;
+
         self.gen = gen::gen_init(&*channel);
         self.synth_gain = gain;
         if (self.synth_gain as f64) < 0.0000001f64 {
             self.synth_gain = 0.0000001f32
         }
+
         self.amplitude_that_reaches_noise_floor_nonloop =
             (0.00003f64 / self.synth_gain as f64) as f32;
         self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
@@ -858,7 +894,6 @@ impl Voice {
         chorus_active: bool,
     ) {
         let current_block: u64;
-        let mut fres;
         let target_amp; /* target amplitude */
 
         let mut dsp_buf: [f32; 64] = [0.; 64];
@@ -1033,14 +1068,14 @@ impl Voice {
                 3632332525568699835 => {}
                 _ => {
                     /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
-                    self.amp_incr = (target_amp - self.amp) / 64 as i32 as f32;
+                    let amp_incr = (target_amp - self.amp) / 64 as i32 as f32;
                     /* no volume and not changing? - No need to process */
-                    if !(self.amp == 0.0f32 && self.amp_incr == 0.0f32) {
+                    if !(self.amp == 0.0 && amp_incr == 0.0) {
                         /* Calculate the number of samples, that the DSP loop advances
                          * through the original waveform with each step in the output
                          * buffer. It is the ratio between the frequencies of original
                          * waveform and output waveform.*/
-                        self.phase_incr = ct2hz_real(
+                        let mut phase_incr = ct2hz_real(
                             self.pitch
                                 + self.modlfo_val * self.modlfo_to_pitch
                                 + self.viblfo_val * self.viblfo_to_pitch
@@ -1048,14 +1083,14 @@ impl Voice {
                         ) / self.root_pitch;
 
                         /* if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage) */
-                        if self.phase_incr == 0 as i32 as f32 {
-                            self.phase_incr = 1 as i32 as f32
+                        if phase_incr == 0.0 {
+                            phase_incr = 1.0;
                         }
 
                         /*************** resonant filter ******************/
 
                         /* calculate the frequency of the resonant filter in Hz */
-                        fres = ct2hz(
+                        let fres = ct2hz(
                             self.fres
                                 + self.modlfo_val * self.modlfo_to_fc
                                 + self.modenv_val * self.modenv_to_fc,
@@ -1073,14 +1108,16 @@ impl Voice {
                          * Tassart for pointing me to this bug. By turning the filter on and
                          * clipping the maximum filter frequency at 0.45*srate, the filter
                          * is used as an anti-aliasing filter. */
-                        if fres > 0.45f32 * self.output_rate {
-                            fres = 0.45f32 * self.output_rate
+                        let fres = if fres > 0.45f32 * self.output_rate {
+                            0.45 * self.output_rate
                         } else if fres < 5 as i32 as f32 {
-                            fres = 5 as i32 as f32
-                        }
+                            5.0
+                        } else {
+                            fres
+                        };
 
                         /* if filter enabled and there is a significant frequency change.. */
-                        if f64::abs((fres - self.last_fres) as f64) > 0.01f64 {
+                        if f64::abs((fres - self.last_fres) as f64) > 0.01 {
                             /* The filter coefficients have to be recalculated (filter
                              * parameters have changed). Recalculation for various reasons is
                              * forced by setting last_fres to -1.  The flag filter_startup
@@ -1101,8 +1138,8 @@ impl Voice {
                                     as f32;
                             let sin_coeff: f32 = f64::sin(omega.into()) as f32;
                             let cos_coeff: f32 = f64::cos(omega.into()) as f32;
-                            let alpha_coeff: f32 = sin_coeff / (2.0f32 * (self).q_lin);
-                            let a0_inv: f32 = 1.0f32 / (1.0f32 + alpha_coeff);
+                            let alpha_coeff: f32 = sin_coeff / (2.0f32 * self.q_lin);
+                            let a0_inv: f32 = 1.0 / (1.0 + alpha_coeff);
 
                             /* Calculate the filter coefficients. All coefficients are
                              * normalized by a0. Think of `a1' as `a1/a0'.
@@ -1137,10 +1174,10 @@ impl Voice {
                                  * the filter is still too 'grainy', then increase this number
                                  * at will.
                                  */
-                                self.a1_incr = (a1_temp - (self).a1) / 64 as i32 as f32;
-                                self.a2_incr = (a2_temp - (self).a2) / 64 as i32 as f32;
-                                self.b02_incr = (b02_temp - (self).b02) / 64 as i32 as f32;
-                                self.b1_incr = (b1_temp - (self).b1) / 64 as i32 as f32;
+                                self.a1_incr = (a1_temp - self.a1) / 64 as i32 as f32;
+                                self.a2_incr = (a2_temp - self.a2) / 64 as i32 as f32;
+                                self.b02_incr = (b02_temp - self.b02) / 64 as i32 as f32;
+                                self.b1_incr = (b1_temp - self.b1) / 64 as i32 as f32;
                                 /* Have to add the increments filter_coeff_incr_count times. */
                                 self.filter_coeff_incr_count = 64 as i32
                             }
@@ -1148,14 +1185,24 @@ impl Voice {
                         }
 
                         let count = match self.interp_method {
-                            InterpMethod::None => self.dsp_float_interpolate_none(&mut dsp_buf),
-                            InterpMethod::Linear => self.dsp_float_interpolate_linear(&mut dsp_buf),
-                            InterpMethod::FourthOrder => {
-                                self.dsp_float_interpolate_4th_order(&mut dsp_buf)
+                            InterpMethod::None => {
+                                self.dsp_float_interpolate_none(&mut dsp_buf, amp_incr, phase_incr)
                             }
-                            InterpMethod::SeventhOrder => {
-                                self.dsp_float_interpolate_7th_order(&mut dsp_buf)
-                            }
+                            InterpMethod::Linear => self.dsp_float_interpolate_linear(
+                                &mut dsp_buf,
+                                amp_incr,
+                                phase_incr,
+                            ),
+                            InterpMethod::FourthOrder => self.dsp_float_interpolate_4th_order(
+                                &mut dsp_buf,
+                                amp_incr,
+                                phase_incr,
+                            ),
+                            InterpMethod::SeventhOrder => self.dsp_float_interpolate_7th_order(
+                                &mut dsp_buf,
+                                amp_incr,
+                                phase_incr,
+                            ),
                         };
 
                         if count > 0 {
@@ -1200,10 +1247,6 @@ impl Voice {
         let mut dsp_a2: f32 = self.a2;
         let mut dsp_b02: f32 = self.b02;
         let mut dsp_b1: f32 = self.b1;
-        let dsp_a1_incr: f32 = self.a1_incr;
-        let dsp_a2_incr: f32 = self.a2_incr;
-        let dsp_b02_incr: f32 = self.b02_incr;
-        let dsp_b1_incr: f32 = self.b1_incr;
         let mut dsp_filter_coeff_incr_count: i32 = self.filter_coeff_incr_count;
 
         let mut dsp_centernode;
@@ -1232,10 +1275,10 @@ impl Voice {
                 dsp_filter_coeff_incr_count = dsp_filter_coeff_incr_count - 1;
 
                 if fresh0 > 0 {
-                    dsp_a1 += dsp_a1_incr;
-                    dsp_a2 += dsp_a2_incr;
-                    dsp_b02 += dsp_b02_incr;
-                    dsp_b1 += dsp_b1_incr
+                    dsp_a1 += self.a1_incr;
+                    dsp_a2 += self.a2_incr;
+                    dsp_b02 += self.b02_incr;
+                    dsp_b1 += self.b1_incr;
                 }
             }
         }
