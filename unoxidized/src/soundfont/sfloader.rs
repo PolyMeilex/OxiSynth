@@ -1,4 +1,4 @@
-use soundfont_rs as sf2;
+use soundfont as sf2;
 use std::rc::Rc;
 
 use std::io::{Read, Seek, SeekFrom};

@@ -1,5 +1,5 @@
 [package]
-name = "soundfont-rs"
+name = "soundfont"
 version = "0.1.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
 edition = "2018"

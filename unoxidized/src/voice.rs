@@ -12,7 +12,7 @@ use crate::{
     soundfont::Sample,
 };
 
-use soundfont_rs::data::modulator::{ControllerPalette, GeneralPalette};
+use soundfont::data::modulator::{ControllerPalette, GeneralPalette};
 
 use std::rc::Rc;
 

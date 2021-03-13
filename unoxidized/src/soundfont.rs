@@ -2,7 +2,7 @@ mod sfloader;
 
 use sfloader::DefaultPreset;
 use sfloader::DefaultSoundFont;
-use soundfont_rs as sf2;
+use soundfont as sf2;
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::rc::Rc;

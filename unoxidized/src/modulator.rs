@@ -5,7 +5,7 @@ use super::voice::Voice;
 
 use crate::gen::GenParam;
 
-use soundfont_rs::data::modulator::{
+use soundfont::data::modulator::{
     ControllerPalette, GeneralPalette, Modulator as SFModulator, ModulatorSource,
     ModulatorTransform, SourceDirection, SourcePolarity, SourceType,
 };
@@ -369,8 +369,8 @@ impl Mod {
 
 pub(crate) mod default {
     use super::Mod;
-    use soundfont_rs::data::generator::GeneratorType;
-    use soundfont_rs::data::modulator::default_modulators;
+    use soundfont::data::generator::GeneratorType;
+    use soundfont::data::modulator::default_modulators;
 
     lazy_static! {
         /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation
