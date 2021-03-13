@@ -393,6 +393,7 @@ pub mod default_modulators {
         amount: 50,
 
         src: ModulatorSource {
+            // Modulation Wheel or Lever
             index: 1,
             controller_palette: ControllerPalette::Midi(1),
             direction: Positive,
@@ -410,6 +411,7 @@ pub mod default_modulators {
         amount: 960,
 
         src: ModulatorSource {
+            // Channel Volume (formerly Main Volume)
             index: 7,
             controller_palette: ControllerPalette::Midi(7),
             direction: Negative,
@@ -430,6 +432,7 @@ pub mod default_modulators {
         amount: 500,
 
         src: ModulatorSource {
+            // Pan
             index: 10,
             controller_palette: ControllerPalette::Midi(10),
             direction: Positive,
@@ -447,6 +450,7 @@ pub mod default_modulators {
         amount: 960,
 
         src: ModulatorSource {
+            // Expression Controller
             index: 11,
             controller_palette: ControllerPalette::Midi(11),
             direction: Negative,
@@ -464,6 +468,7 @@ pub mod default_modulators {
         amount: 200,
 
         src: ModulatorSource {
+            // Effects 1 Depth
             index: 91,
             controller_palette: ControllerPalette::Midi(91),
             direction: Positive,
@@ -481,6 +486,7 @@ pub mod default_modulators {
         amount: 200,
 
         src: ModulatorSource {
+            // Effects 3 Depth
             index: 93,
             controller_palette: ControllerPalette::Midi(93),
             direction: Positive,
