@@ -123,8 +123,6 @@ impl Synth {
             synth.channel.push(Channel::new(&synth, i));
         }
 
-        synth.reverb.set_reverb_params(0.2, 0.0, 0.5, 0.9);
-
         if synth.settings.drums_channel_active {
             synth.bank_select(9, 128).ok();
         }

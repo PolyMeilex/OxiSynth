@@ -186,7 +186,7 @@ impl Reverb {
                 },
             ],
         };
-        rev.update();
+        rev.set_reverb(&Default::default());
         return rev;
     }
 
