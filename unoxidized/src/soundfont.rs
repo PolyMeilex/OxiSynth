@@ -1,6 +1,6 @@
 pub(crate) mod loader;
 
-use loader::{DefaultPreset, DefaultSoundFont};
+use loader::{PresetData, SoundFontData};
 
 use std::io::{Read, Seek};
 use std::path::Path;
@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Preset {
-    pub(crate) data: Rc<DefaultPreset>,
+    pub(crate) data: Rc<PresetData>,
     pub sfont_id: usize,
 }
 
@@ -27,16 +27,13 @@ impl Preset {
 }
 
 pub struct SoundFont {
-    data: DefaultSoundFont,
+    data: SoundFontData,
     pub(crate) id: usize,
 }
 
 impl SoundFont {
-    pub(crate) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
-        DefaultSoundFont::load(file).map(|defsfont| Self {
-            data: defsfont,
-            id: 0,
-        })
+    pub(crate) fn load<F: Read + Seek>(file: &mut F, id: usize) -> Result<Self, ()> {
+        SoundFontData::load(file).map(|defsfont| Self { data: defsfont, id })
     }
 
     pub fn get_id(&self) -> usize {

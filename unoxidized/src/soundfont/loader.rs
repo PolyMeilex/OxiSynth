@@ -10,12 +10,12 @@ use crate::synth::modulator::Mod;
 
 const GEN_SET: u32 = 1;
 
-pub(crate) struct DefaultSoundFont {
+pub(crate) struct SoundFontData {
     pub filename: PathBuf,
-    pub presets: Vec<Rc<DefaultPreset>>,
+    pub presets: Vec<Rc<PresetData>>,
 }
 
-impl DefaultSoundFont {
+impl SoundFontData {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
         let data = sf2::data::SFData::load(file);
 
@@ -50,11 +50,11 @@ impl DefaultSoundFont {
 
         let mut presets = Vec::new();
         for sfpreset in sf2.presets.iter() {
-            let preset = DefaultPreset::import_sfont(&sf2, sfpreset, &samples)?;
+            let preset = PresetData::import(&sf2, sfpreset, &samples)?;
             presets.push(Rc::new(preset));
         }
 
-        Ok(DefaultSoundFont {
+        Ok(Self {
             filename: PathBuf::from(""),
             presets,
         })
@@ -92,7 +92,7 @@ impl DefaultSoundFont {
     }
 }
 
-pub(crate) struct DefaultPreset {
+pub(crate) struct PresetData {
     pub name: String,
     pub bank: u32,
     pub num: u32,
@@ -100,13 +100,13 @@ pub(crate) struct DefaultPreset {
     pub zones: Vec<PresetZone>,
 }
 
-impl DefaultPreset {
-    fn import_sfont(
+impl PresetData {
+    fn import(
         sf2: &sf2::SoundFont2,
         sfpreset: &sf2::Preset,
         samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
-        let mut preset = DefaultPreset {
+        let mut preset = Self {
             name: String::new(),
             bank: 0 as i32 as u32,
             num: 0 as i32 as u32,
@@ -128,7 +128,7 @@ impl DefaultPreset {
 
         for (id, sfzone) in sfpreset.zones.iter().enumerate() {
             let name = format!("{}/{}", sfpreset.header.name, id);
-            let zone = PresetZone::import_sfont(name, sf2, sfzone, samples)?;
+            let zone = PresetZone::import(name, sf2, sfzone, samples)?;
 
             if id == 0 && zone.inst.is_none() {
                 preset.global_zone = Some(zone);
@@ -154,7 +154,7 @@ pub(crate) struct PresetZone {
 }
 
 impl PresetZone {
-    fn import_sfont(
+    fn import(
         name: String,
         sf2: &sf2::SoundFont2,
         sfzone: &sf2::Zone,
@@ -190,7 +190,7 @@ impl PresetZone {
             }
         }
         if let Some(id) = sfzone.instrument() {
-            let inst = Instrument::import_sfont(sf2, &sf2.instruments[*id as usize], samples)?;
+            let inst = Instrument::import(sf2, &sf2.instruments[*id as usize], samples)?;
 
             zone.inst = Some(inst);
         }
@@ -217,7 +217,7 @@ pub(crate) struct Instrument {
 }
 
 impl Instrument {
-    fn import_sfont(
+    fn import(
         sf2: &sf2::SoundFont2,
         new_inst: &sf2::Instrument,
         samples: &Vec<Rc<Sample>>,
@@ -235,7 +235,7 @@ impl Instrument {
         }
         for (id, new_zone) in new_inst.zones.iter().enumerate() {
             let name = format!("{}/{}", new_inst.header.name, id);
-            let zone = InstrumentZone::import_sfont(name, sf2, new_zone, samples)?;
+            let zone = InstrumentZone::import(name, sf2, new_zone, samples)?;
             if id == 0 && zone.sample.is_none() {
                 inst.global_zone = Some(zone);
             } else {
@@ -261,7 +261,7 @@ pub(crate) struct InstrumentZone {
 }
 
 impl InstrumentZone {
-    fn import_sfont(
+    fn import(
         name: String,
         sf2: &sf2::SoundFont2,
         new_zone: &sf2::Zone,
