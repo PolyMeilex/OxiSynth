@@ -1,3 +1,6 @@
+mod public;
+pub use public::*;
+
 const DC_OFFSET: f32 = 1e-8;
 const STEREO_SPREAD: usize = 23;
 
@@ -27,13 +30,13 @@ const ALLPASSTUNING_L4: usize = 225;
 const ALLPASSTUNING_R4: usize = 225 + STEREO_SPREAD;
 
 #[derive(Clone)]
-pub struct Comb {
-    pub feedback: f32,
-    pub filterstore: f32,
-    pub damp1: f32,
-    pub damp2: f32,
-    pub buffer: Vec<f32>,
-    pub bufidx: usize,
+struct Comb {
+    feedback: f32,
+    filterstore: f32,
+    damp1: f32,
+    damp2: f32,
+    buffer: Vec<f32>,
+    bufidx: usize,
 }
 
 impl Comb {
@@ -70,10 +73,10 @@ impl Comb {
 }
 
 #[derive(Clone)]
-pub struct AllPass {
-    pub feedback: f32,
-    pub buffer: Vec<f32>,
-    pub bufidx: usize,
+struct AllPass {
+    feedback: f32,
+    buffer: Vec<f32>,
+    bufidx: usize,
 }
 
 impl AllPass {
@@ -104,7 +107,7 @@ struct LRPair<T> {
 }
 
 #[derive(Clone)]
-pub struct ReverbModel {
+pub struct Reverb {
     pub(crate) active: bool,
 
     roomsize: f32,
@@ -118,8 +121,8 @@ pub struct ReverbModel {
     allpass: [LRPair<AllPass>; 4],
 }
 
-impl ReverbModel {
-    pub fn new(active: bool) -> Self {
+impl Reverb {
+    pub(crate) fn new(active: bool) -> Self {
         let mut rev = Self {
             active,
 
@@ -187,7 +190,7 @@ impl ReverbModel {
         return rev;
     }
 
-    pub fn reset(self: &mut Self) {
+    pub(crate) fn reset(self: &mut Self) {
         self.comb = [
             LRPair {
                 l: Comb::new(COMBTUNING_L1),
@@ -242,7 +245,7 @@ impl ReverbModel {
         ];
     }
 
-    pub fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
+    pub(crate) fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
         for k in 0..64 {
             let mut out_r = 0f32;
             let mut out_l = 0f32;
@@ -268,7 +271,7 @@ impl ReverbModel {
         }
     }
 
-    pub fn process_mix(
+    pub(crate) fn process_mix(
         &mut self,
         in_0: &mut [f32; 64],
         left_out: &mut [f32; 64],
@@ -297,7 +300,7 @@ impl ReverbModel {
         }
     }
 
-    pub fn update(&mut self) {
+    pub(crate) fn update(&mut self) {
         self.wet1 = self.wet * (self.width / 2f32 + 0.5f32);
         self.wet2 = self.wet * ((1f32 - self.width) / 2f32);
         for comb in self.comb.iter_mut() {
@@ -306,48 +309,5 @@ impl ReverbModel {
             comb.l.set_damp(self.damp);
             comb.r.set_damp(self.damp);
         }
-    }
-
-    pub fn set_room_size(&mut self, value: f32) {
-        self.roomsize = value * 0.28f32 + 0.7f32;
-        self.update();
-    }
-
-    pub fn get_room_size(&self) -> f32 {
-        return (self.roomsize - 0.7f32) / 0.28f32;
-    }
-
-    pub fn set_damp(&mut self, value: f32) {
-        self.damp = value * 1.0f32;
-        self.update();
-    }
-
-    pub fn get_damp(&self) -> f32 {
-        return self.damp / 1.0f32;
-    }
-
-    pub fn set_level(&mut self, mut value: f32) {
-        value = if value < 0.0f32 {
-            0.0f32
-        } else if value > 1.0f32 {
-            1.0f32
-        } else {
-            value
-        };
-        self.wet = value * 3.0f32;
-        self.update();
-    }
-
-    pub fn get_level(&self) -> f32 {
-        return self.wet / 3.0f32;
-    }
-
-    pub fn set_width(&mut self, value: f32) {
-        self.width = value;
-        self.update();
-    }
-
-    pub fn get_width(&self) -> f32 {
-        return self.width;
     }
 }

@@ -3,7 +3,6 @@ pub mod font;
 pub mod gen;
 pub mod midi;
 pub mod params;
-pub mod reverb;
 pub mod tuning;
 pub mod write;
 
@@ -11,7 +10,7 @@ use crate::voice_pool::VoicePool;
 
 use super::channel::{Channel, InterpMethod};
 use super::chorus::Chorus;
-use super::reverb::ReverbModel;
+use super::reverb::Reverb;
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use super::soundfont::Preset;
 use super::soundfont::SoundFont;
@@ -50,7 +49,7 @@ pub struct Synth {
     fx_left_buf: FxBuf,
     fx_right_buf: FxBuf,
 
-    pub reverb: ReverbModel,
+    pub reverb: Reverb,
     pub chorus: Chorus,
 
     cur: usize,
@@ -107,7 +106,7 @@ impl Synth {
                 chorus: [0.0; 64],
             },
 
-            reverb: ReverbModel::new(reverb_active),
+            reverb: Reverb::new(reverb_active),
             chorus: Chorus::new(settings.sample_rate, chorus_active),
 
             cur: 64,
@@ -124,7 +123,7 @@ impl Synth {
             synth.channel.push(Channel::new(&synth, i));
         }
 
-        synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
+        synth.reverb.set_reverb_params(0.2, 0.0, 0.5, 0.9);
 
         if synth.settings.drums_channel_active {
             synth.bank_select(9, 128).ok();
