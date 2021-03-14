@@ -1,3 +1,4 @@
+use crate::oxi::SoundFontId;
 use crate::Synth;
 
 /**
@@ -91,7 +92,7 @@ impl Synth {
     /**
     Select a sfont.
      */
-    pub fn sfont_select(&mut self, chan: u8, sfont_id: usize) -> Result<(), &str> {
+    pub fn sfont_select(&mut self, chan: u8, sfont_id: SoundFontId) -> Result<(), &str> {
         self.handle.sfont_select(chan, sfont_id)
     }
 
@@ -104,7 +105,7 @@ impl Synth {
     pub fn program_select(
         &mut self,
         chan: u8,
-        sfont_id: usize,
+        sfont_id: SoundFontId,
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), &str> {
@@ -115,7 +116,7 @@ impl Synth {
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(usize, u32, u32), &str> {
+    pub fn get_program(&self, chan: u8) -> Result<(SoundFontId, u32, u32), &str> {
         self.handle.get_program(chan)
     }
 

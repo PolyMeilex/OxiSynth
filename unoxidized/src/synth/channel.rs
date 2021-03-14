@@ -1,5 +1,6 @@
 use crate::generator::{gen_scale_nrpn, GenParam};
 use crate::soundfont::Preset;
+use crate::soundfont::SoundFontId;
 use crate::synth::Synth;
 use crate::tuning::Tuning;
 
@@ -52,7 +53,7 @@ pub(crate) struct ChannelId(pub usize);
 pub(crate) struct Channel {
     pub(crate) channum: u8,
 
-    sfontnum: usize,
+    sfontnum: SoundFontId,
 
     banknum: u32,
     prognum: u8,
@@ -82,7 +83,7 @@ impl Channel {
     pub fn new(synth: &Synth, num: u8) -> Self {
         let mut chan = Self {
             channum: num,
-            sfontnum: 0,
+            sfontnum: SoundFontId(0),
             banknum: 0,
             prognum: 0,
 
@@ -114,7 +115,7 @@ impl Channel {
     pub fn init(&mut self, preset: Option<Preset>) {
         self.prognum = 0;
         self.banknum = 0;
-        self.sfontnum = 0;
+        self.sfontnum = SoundFontId(0);
 
         self.preset = preset;
         self.interp_method = Default::default();
@@ -225,11 +226,11 @@ impl Channel {
         self.interp_method
     }
 
-    pub fn get_sfontnum(&self) -> usize {
+    pub fn get_sfontnum(&self) -> SoundFontId {
         self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: usize) {
+    pub fn set_sfontnum(&mut self, sfontnum: SoundFontId) {
         self.sfontnum = sfontnum;
     }
 }

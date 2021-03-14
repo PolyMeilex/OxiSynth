@@ -18,4 +18,4 @@ pub use synth::{generator, InterpolationMethod, Synth};
 mod conv;
 
 pub mod soundfont;
-pub use self::soundfont::SoundFont;
+pub use self::soundfont::{SoundFont, SoundFontId};

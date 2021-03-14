@@ -11,7 +11,7 @@ use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 use channel::Channel;
 
-use crate::soundfont::{Preset, SoundFont};
+use crate::soundfont::{Preset, SoundFont, SoundFontId};
 
 use voice_pool::VoicePool;
 
@@ -21,7 +21,7 @@ use std::convert::TryInto;
 
 #[derive(Copy, Clone)]
 pub struct BankOffset {
-    pub sfont_id: usize,
+    pub sfont_id: SoundFontId,
     pub offset: u32,
 }
 
@@ -142,14 +142,14 @@ impl Synth {
 
     pub(crate) fn get_preset(
         &mut self,
-        sfontnum: usize,
+        sfont_id: SoundFontId,
         banknum: u32,
         prognum: u8,
     ) -> Option<Preset> {
-        let sfont = self.get_sfont_by_id(sfontnum);
+        let sfont = self.get_sfont_by_id(sfont_id);
         if let Some(sfont) = sfont {
             let offset = self
-                .get_bank_offset(sfontnum)
+                .get_bank_offset(sfont_id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
             let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);

@@ -1,3 +1,4 @@
+use crate::soundfont::SoundFontId;
 use crate::synth::Synth;
 
 impl Synth {
@@ -229,7 +230,7 @@ impl Synth {
         sfont_id = if let Some(preset) = &preset {
             preset.sfont_id
         } else {
-            0
+            SoundFontId(0)
         };
         self.channels[chan as usize].set_sfontnum(sfont_id);
         self.channels[chan as usize].set_preset(preset);
@@ -300,7 +301,7 @@ impl Synth {
     /**
     Select a sfont.
      */
-    pub fn sfont_select(&mut self, chan: u8, sfont_id: usize) -> Result<(), &str> {
+    pub fn sfont_select(&mut self, chan: u8, sfont_id: SoundFontId) -> Result<(), &str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             channel.set_sfontnum(sfont_id);
             Ok(())
@@ -319,7 +320,7 @@ impl Synth {
     pub fn program_select(
         &mut self,
         chan: u8,
-        sfont_id: usize,
+        sfont_id: SoundFontId,
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), &str> {
@@ -328,7 +329,7 @@ impl Synth {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             if preset.is_none() {
                 log::error!(
-                    "There is no preset with bank number {} and preset number {} in SoundFont {}",
+                    "There is no preset with bank number {} and preset number {} in SoundFont {:?}",
                     bank_num,
                     preset_num,
                     sfont_id
@@ -350,7 +351,7 @@ impl Synth {
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(usize, u32, u32), &str> {
+    pub fn get_program(&self, chan: u8) -> Result<(SoundFontId, u32, u32), &str> {
         if let Some(channel) = self.channels.get(chan as usize) {
             Ok((
                 channel.get_sfontnum(),

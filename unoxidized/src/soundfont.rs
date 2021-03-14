@@ -9,7 +9,7 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct Preset {
     pub(crate) data: Rc<PresetData>,
-    pub sfont_id: usize,
+    pub sfont_id: SoundFontId,
 }
 
 impl Preset {
@@ -26,17 +26,29 @@ impl Preset {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SoundFontId(pub(crate) usize);
+
+impl SoundFontId {
+    pub fn inner(&self) -> usize {
+        self.0
+    }
+}
+
 pub struct SoundFont {
     data: SoundFontData,
-    pub(crate) id: usize,
+    pub(crate) id: SoundFontId,
 }
 
 impl SoundFont {
     pub(crate) fn load<F: Read + Seek>(file: &mut F, id: usize) -> Result<Self, ()> {
-        SoundFontData::load(file).map(|defsfont| Self { data: defsfont, id })
+        SoundFontData::load(file).map(|defsfont| Self {
+            data: defsfont,
+            id: SoundFontId(id),
+        })
     }
 
-    pub fn get_id(&self) -> usize {
+    pub fn get_id(&self) -> SoundFontId {
         self.id
     }
 

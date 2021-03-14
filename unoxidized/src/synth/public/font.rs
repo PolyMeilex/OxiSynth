@@ -1,3 +1,4 @@
+use crate::soundfont::SoundFontId;
 use crate::synth::SoundFont;
 use crate::synth::Synth;
 
@@ -15,18 +16,21 @@ impl Synth {
         &mut self,
         file: &mut F,
         reset_presets: bool,
-    ) -> Result<usize, ()> {
+    ) -> Result<SoundFontId, ()> {
         let sfont = SoundFont::load(file, self.sfont_id + 1);
 
         match sfont {
             Ok(sfont) => {
-                self.sfont_id += 1;
+                let id = sfont.get_id();
 
                 self.sfont.insert(0, sfont);
+                self.sfont_id += 1;
+
                 if reset_presets {
                     self.program_reset();
                 }
-                Ok(self.sfont_id)
+
+                Ok(id)
             }
             Err(err) => {
                 log::error!("Failed to load SoundFont");
@@ -38,7 +42,7 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: usize, reset_presets: bool) -> Result<(), ()> {
+    pub fn sfunload(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
         let sfont = self.get_sfont_by_id(id);
         if let Some(id) = sfont.map(|sfont| sfont.id) {
             self.sfont.retain(|s| s.id != id);
@@ -50,7 +54,7 @@ impl Synth {
 
             Ok(())
         } else {
-            log::error!("No SoundFont with id = {}", id);
+            log::error!("No SoundFont with id = {:?}", id);
 
             Err(())
         }
@@ -93,7 +97,7 @@ impl Synth {
     fluid_synth_add_sfont(). The synthesizer does not delete the
     SoundFont; this is responsability of the caller.
      */
-    pub fn remove_sfont(&mut self, id: usize) {
+    pub fn remove_sfont(&mut self, id: SoundFontId) {
         self.sfont.retain(|s| s.id != id);
         self.remove_bank_offset(id);
         self.program_reset();
@@ -119,7 +123,7 @@ impl Synth {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&self, id: usize) -> Option<&SoundFont> {
+    pub fn get_sfont_by_id(&self, id: SoundFontId) -> Option<&SoundFont> {
         self.sfont.iter().find(|x| x.id == id)
     }
 }

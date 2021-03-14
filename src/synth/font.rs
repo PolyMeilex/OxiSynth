@@ -1,4 +1,4 @@
-use crate::oxi::SoundFont;
+use crate::oxi::{SoundFont, SoundFontId};
 use crate::Synth;
 use std::io::{Read, Seek};
 
@@ -17,7 +17,7 @@ impl Synth {
         &mut self,
         file: &mut P,
         reset_presets: bool,
-    ) -> Result<usize, ()> {
+    ) -> Result<SoundFontId, ()> {
         self.handle.sfload(file, reset_presets)
     }
 
@@ -32,7 +32,7 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: usize, reset_presets: bool) -> Result<(), ()> {
+    pub fn sfunload(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
         self.handle.sfunload(id, reset_presets)
     }
 
@@ -56,7 +56,7 @@ impl Synth {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&mut self, id: usize) -> Option<&SoundFont> {
+    pub fn get_sfont_by_id(&mut self, id: SoundFontId) -> Option<&SoundFont> {
         self.handle.get_sfont_by_id(id)
     }
 
@@ -65,7 +65,7 @@ impl Synth {
     fluid_synth_add_sfont(). The synthesizer does not delete the
     SoundFont; this is responsability of the caller.
      */
-    pub fn remove_sfont(&mut self, id: usize) {
+    pub fn remove_sfont(&mut self, id: SoundFontId) {
         self.handle.remove_sfont(id);
     }
 
@@ -73,14 +73,14 @@ impl Synth {
     Offset the bank numbers in a SoundFont.
     Returns -1 if an error occured (out of memory or negative offset)
      */
-    pub fn set_bank_offset(&mut self, sfont_id: usize, offset: u32) {
+    pub fn set_bank_offset(&mut self, sfont_id: SoundFontId, offset: u32) {
         self.handle.set_bank_offset(sfont_id, offset)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset(&self, sfont_id: usize) -> Option<u32> {
+    pub fn get_bank_offset(&self, sfont_id: SoundFontId) -> Option<u32> {
         self.handle.get_bank_offset(sfont_id).map(|o| o.offset)
     }
 }
@@ -95,17 +95,56 @@ mod test {
         assert_eq!(synth.sfcount(), 0);
 
         // Load first font
-        {
+        let sin = {
             let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
 
             let id = synth.sfload(&mut file, true).unwrap();
-            assert_eq!(id, 1);
+            assert_eq!(id.inner(), 1);
 
             assert_eq!(synth.sfcount(), 1);
 
             let font = synth.get_sfont(0).unwrap();
 
-            assert_eq!(font.get_id(), 1);
+            assert_eq!(font.get_id().inner(), 1);
+
+            let preset = font.get_preset(0, 0).unwrap();
+
+            assert_eq!(preset.get_name(), "Sine Wave");
+            assert_eq!(preset.get_banknum(), 0);
+            assert_eq!(preset.get_num(), 0);
+            id
+        };
+
+        // Load next font
+        let boom = {
+            let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+
+            let id = synth.sfload(&mut file, true).unwrap();
+            assert_eq!(id.inner(), 2);
+
+            assert_eq!(synth.sfcount(), 2);
+
+            let font = synth.get_sfont(0).unwrap();
+            assert_eq!(font.get_id().inner(), 2);
+
+            let preset = font.get_preset(0, 0).unwrap();
+
+            assert_eq!(preset.get_name(), "Boomwhacker");
+            assert_eq!(preset.get_banknum(), 0);
+            assert_eq!(preset.get_num(), 0);
+            id
+        };
+
+        // Check If Sin Font Is Second
+        {
+            let font = synth.get_sfont(1).unwrap();
+            assert_eq!(font.get_id().inner(), 1);
+        }
+
+        // Check Sin ID
+        {
+            let font = synth.get_sfont_by_id(sin).unwrap();
+            assert_eq!(font.get_id().inner(), 1);
 
             let preset = font.get_preset(0, 0).unwrap();
 
@@ -113,30 +152,16 @@ mod test {
             assert_eq!(preset.get_banknum(), 0);
             assert_eq!(preset.get_num(), 0);
         }
-
-        // Load next font
+        // Check Boomwhacker ID
         {
-            let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
-
-            let id = synth.sfload(&mut file, true).unwrap();
-            assert_eq!(id, 2);
-
-            assert_eq!(synth.sfcount(), 2);
-
-            let font = synth.get_sfont(0).unwrap();
-            assert_eq!(font.get_id(), 2);
+            let font = synth.get_sfont_by_id(boom).unwrap();
+            assert_eq!(font.get_id().inner(), 2);
 
             let preset = font.get_preset(0, 0).unwrap();
 
             assert_eq!(preset.get_name(), "Boomwhacker");
             assert_eq!(preset.get_banknum(), 0);
             assert_eq!(preset.get_num(), 0);
-        }
-
-        // Check If Sin Font Is Still There
-        {
-            let font = synth.get_sfont(1).unwrap();
-            assert_eq!(font.get_id(), 1);
         }
     }
 }
