@@ -56,8 +56,6 @@ impl Default for SynthDescriptor {
 }
 
 pub struct Settings {
-    pub(crate) reverb_active: bool,
-    pub(crate) chorus_active: bool,
     pub(crate) drums_channel_active: bool,
 
     /// Def: 256
@@ -180,8 +178,6 @@ impl TryFrom<SynthDescriptor> for Settings {
         let min_note_length = desc.min_note_length;
 
         Ok(Self {
-            reverb_active: desc.reverb_active,
-            chorus_active: desc.chorus_active,
             drums_channel_active: desc.drums_channel_active,
 
             polyphony,

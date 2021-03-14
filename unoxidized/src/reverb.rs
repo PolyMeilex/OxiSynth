@@ -105,6 +105,8 @@ struct LRPair<T> {
 
 #[derive(Clone)]
 pub struct ReverbModel {
+    pub(crate) active: bool,
+
     roomsize: f32,
     damp: f32,
     wet: f32,
@@ -117,8 +119,10 @@ pub struct ReverbModel {
 }
 
 impl ReverbModel {
-    pub fn new() -> Self {
+    pub fn new(active: bool) -> Self {
         let mut rev = Self {
+            active,
+
             roomsize: 0.5f32 * 0.28f32 + 0.7f32,
             damp: 0.2f32 * 1.0f32,
             wet: 1f32 * 3.0f32,

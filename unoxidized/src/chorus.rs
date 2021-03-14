@@ -1,3 +1,6 @@
+mod public;
+pub use public::*;
+
 const MIN_SPEED_HZ: f32 = 0.29;
 
 /* Length of one delay line in samples:
@@ -11,24 +14,11 @@ const MAX_SAMPLES_LN2: usize = 12;
 const MAX_SAMPLES: usize = 1 << (MAX_SAMPLES_LN2 - 1);
 // const MAX_SAMPLES_ANDMASK: usize = MAX_SAMPLES - 1;
 
-/**
-Chorus type
- */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u32)]
-pub enum ChorusMode {
-    Sine = 0,
-    Triangle = 1,
-}
-
-impl Default for ChorusMode {
-    fn default() -> Self {
-        ChorusMode::Sine
-    }
-}
 
 #[derive(Clone)]
 pub struct Chorus {
+    pub(crate) active: bool,
+
     type_0: ChorusMode,
     new_type: ChorusMode,
     depth_ms: f32,
@@ -49,8 +39,10 @@ pub struct Chorus {
 }
 
 impl Chorus {
-    pub fn new(sample_rate: f32) -> Self {
+    pub(crate) fn new(sample_rate: f32, active: bool) -> Self {
         let mut chorus = Self {
+            active,
+
             type_0: ChorusMode::Sine,
             new_type: ChorusMode::Sine,
             depth_ms: 0f32,
@@ -91,63 +83,22 @@ impl Chorus {
             }
         }
         chorus.init();
-        return chorus;
+
+        chorus
     }
 
-    pub fn init(&mut self) {
-        for i in 0..((1 as i32) << 12 as i32 - 1 as i32) {
-            self.chorusbuf[i as usize] = 0.0f32;
+    pub(crate) fn init(&mut self) {
+        // Init
+        {
+            for i in 0..((1 as i32) << 12 as i32 - 1 as i32) {
+                self.chorusbuf[i as usize] = 0.0f32;
+            }
+            self.set_chorus(&Default::default());
+            self.update();
         }
-
-        self.set_nr(3);
-        self.set_level(2.0);
-        self.set_speed_hz(0.3);
-        self.set_depth_ms(8.0);
-        self.set_mode(ChorusMode::Sine);
-        self.update();
     }
 
-    pub fn set_nr(&mut self, nr: u32) {
-        self.new_number_blocks = nr;
-    }
-
-    pub fn get_nr(&self) -> u32 {
-        self.number_blocks
-    }
-
-    pub fn set_level(&mut self, level: f32) {
-        self.new_level = level;
-    }
-
-    pub fn get_level(&self) -> f32 {
-        self.level
-    }
-
-    pub fn set_speed_hz(&mut self, speed_hz: f32) {
-        self.new_speed_hz = speed_hz;
-    }
-
-    pub fn get_speed_hz(&self) -> f32 {
-        self.speed_hz
-    }
-
-    pub fn set_depth_ms(&mut self, depth_ms: f32) {
-        self.new_depth_ms = depth_ms;
-    }
-
-    pub fn get_depth_ms(&self) -> f32 {
-        self.depth_ms
-    }
-
-    pub fn set_mode(&mut self, mode: ChorusMode) {
-        self.new_type = mode;
-    }
-
-    pub fn get_mode(&self) -> ChorusMode {
-        self.type_0
-    }
-
-    pub fn update(&mut self) {
+    pub(crate) fn update(&mut self) {
         let mut modulation_depth_samples: i32;
         if self.new_number_blocks > 99 {
             log::warn!(
@@ -225,7 +176,7 @@ impl Chorus {
         self.number_blocks = self.new_number_blocks;
     }
 
-    pub fn process_mix(
+    pub(crate) fn process_mix(
         &mut self,
         in_0: &mut [f32; 64],
         left_out: &mut [f32; 64],
@@ -263,7 +214,7 @@ impl Chorus {
         }
     }
 
-    pub fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
+    pub(crate) fn process_replace(&mut self, left_out: &mut [f32; 64], right_out: &mut [f32; 64]) {
         for sample_index in 0..64 {
             // Don't ask me why only left buf is considered an input...
             let d_in = left_out[sample_index];
@@ -297,7 +248,7 @@ impl Chorus {
         }
     }
 
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.init();
     }
 }

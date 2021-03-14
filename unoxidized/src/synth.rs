@@ -1,4 +1,3 @@
-pub mod chorus;
 pub mod count;
 pub mod font;
 pub mod gen;
@@ -10,16 +9,13 @@ pub mod write;
 
 use crate::voice_pool::VoicePool;
 
+use super::channel::{Channel, InterpMethod};
 use super::chorus::Chorus;
 use super::reverb::ReverbModel;
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use super::soundfont::Preset;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
-use super::{
-    channel::{Channel, InterpMethod},
-    chorus::ChorusMode,
-};
 use std::convert::TryInto;
 
 const GEN_LAST: u8 = 60;
@@ -54,8 +50,8 @@ pub struct Synth {
     fx_left_buf: FxBuf,
     fx_right_buf: FxBuf,
 
-    reverb: ReverbModel,
-    chorus: Chorus,
+    pub reverb: ReverbModel,
+    pub chorus: Chorus,
 
     cur: usize,
 
@@ -70,6 +66,9 @@ pub struct Synth {
 
 impl Synth {
     pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
+        let chorus_active = desc.chorus_active;
+        let reverb_active = desc.reverb_active;
+
         let settings: Settings = desc.try_into()?;
 
         let min_note_length_ticks =
@@ -108,8 +107,8 @@ impl Synth {
                 chorus: [0.0; 64],
             },
 
-            reverb: ReverbModel::new(),
-            chorus: Chorus::new(settings.sample_rate as f32),
+            reverb: ReverbModel::new(reverb_active),
+            chorus: Chorus::new(settings.sample_rate, chorus_active),
 
             cur: 64,
             tuning: Vec::new(),
@@ -138,7 +137,7 @@ impl Synth {
         self.settings.sample_rate = sample_rate;
         self.voices.set_sample_rate(sample_rate);
 
-        self.chorus = Chorus::new(sample_rate);
+        self.chorus = Chorus::new(sample_rate, self.chorus.active);
     }
 
     pub(crate) fn get_preset(
