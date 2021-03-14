@@ -170,14 +170,14 @@ impl VoicePool {
                 let existing_voice = &self.voices[i as usize];
 
                 if existing_voice.is_playing() {
-                    if !(existing_voice.chan as i32 != new_voice.chan as i32) {
-                        if !((existing_voice.gen[GenParam::ExclusiveClass as usize].val as f32
-                            + existing_voice.gen[GenParam::ExclusiveClass as usize].mod_0 as f32
-                            + existing_voice.gen[GenParam::ExclusiveClass as usize].nrpn as f32)
+                    if existing_voice.chan as i32 == new_voice.chan as i32 {
+                        if (existing_voice.gen[GenParam::ExclusiveClass as usize].val
+                            + existing_voice.gen[GenParam::ExclusiveClass as usize].mod_0
+                            + existing_voice.gen[GenParam::ExclusiveClass as usize].nrpn)
                             as i32
-                            != excl_class)
+                            == excl_class
                         {
-                            if !(existing_voice.id == new_voice.id) {
+                            if existing_voice.id != new_voice.id {
                                 self.voices[i as usize].kill_excl();
                             }
                         }

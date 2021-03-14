@@ -192,34 +192,34 @@ impl Voice {
         {
             let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
 
-            sustain.count = 0xffffffff as u32;
-            sustain.coeff = 1.0f32;
-            sustain.incr = 0.0f32;
-            sustain.min = -1.0f32;
-            sustain.max = 2.0f32;
+            sustain.count = 0xffffffff;
+            sustain.coeff = 1.0;
+            sustain.incr = 0.0;
+            sustain.min = -1.0;
+            sustain.max = 2.0;
 
             let finished = &mut volenv_data[VoiceEnvelope::Finished as usize];
-            finished.count = 0xffffffff as u32;
-            finished.coeff = 0.0f32;
-            finished.incr = 0.0f32;
-            finished.min = -1.0f32;
-            finished.max = 1.0f32;
+            finished.count = 0xffffffff;
+            finished.coeff = 0.0;
+            finished.incr = 0.0;
+            finished.min = -1.0;
+            finished.max = 1.0;
         }
         let mut modenv_data = [EnvData::default(); 7];
         {
             let sustain = &mut modenv_data[VoiceEnvelope::Sustain as usize];
-            sustain.count = 0xffffffff as u32;
-            sustain.coeff = 1.0f32;
-            sustain.incr = 0.0f32;
-            sustain.min = -1.0f32;
-            sustain.max = 2.0f32;
+            sustain.count = 0xffffffff;
+            sustain.coeff = 1.0;
+            sustain.incr = 0.0;
+            sustain.min = -1.0;
+            sustain.max = 2.0;
 
             let finished = &mut modenv_data[VoiceEnvelope::Finished as usize];
-            finished.count = 0xffffffff as u32;
-            finished.coeff = 0.0f32;
-            finished.incr = 0.0f32;
-            finished.min = -1.0f32;
-            finished.max = 1.0f32;
+            finished.count = 0xffffffff;
+            finished.coeff = 0.0;
+            finished.incr = 0.0;
+            finished.min = -1.0;
+            finished.max = 1.0;
         }
 
         let synth_gain = if desc.gain < 0.0000001 {
@@ -275,7 +275,7 @@ impl Voice {
             mod_0: [Mod::default(); 64],
             check_sample_sanity_flag: 0,
             output_rate,
-            phase: 0 as Phase,
+            phase: 0,
             pitch: 0.0,
             attenuation: 0.0,
             min_attenuation_c_b: 0.0,
@@ -392,15 +392,14 @@ impl Voice {
          * controllers, because they have been designed for one particular
          * sound card.  Discard them, maybe print a warning.
          */
-        match &mod_0.src.controller_palette {
-            ControllerPalette::General(g) => match g {
+        if let ControllerPalette::General(g) = &mod_0.src.controller_palette {
+            match g {
                 GeneralPalette::Unknown(_) | GeneralPalette::Link => {
                     log::warn!("Ignoring invalid controller, using non-CC source {:?}.", g);
                     return;
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
 
         if mode == VoiceAddMode::Add {
@@ -425,9 +424,8 @@ impl Voice {
         Also, default modulators (VOICE_DEFAULT) are added without
         checking, if the same modulator already exists. */
         if self.mod_count < 64 {
-            let fresh7 = self.mod_count;
-            self.mod_count = self.mod_count + 1;
-            self.mod_0[fresh7 as usize] = mod_0.clone();
+            self.mod_0[self.mod_count] = mod_0.clone();
+            self.mod_count += 1;
         };
     }
 
@@ -477,9 +475,9 @@ impl Voice {
         /* If the voice is not yet in release state, put it into release state */
         if self.volenv_section != VoiceEnvelope::Release as i32 {
             self.volenv_section = VoiceEnvelope::Release as i32;
-            self.volenv_count = 0 as i32 as u32;
+            self.volenv_count = 0;
             self.modenv_section = VoiceEnvelope::Release as i32;
-            self.modenv_count = 0 as i32 as u32
+            self.modenv_count = 0;
         }
 
         /* Speed up the volume envelope */
@@ -494,17 +492,17 @@ impl Voice {
 
     pub fn start(&mut self, channels: &[Channel]) {
         self.calculate_runtime_synthesis_parameters(channels);
-        self.check_sample_sanity_flag = (1 as i32) << 1 as i32;
+        self.check_sample_sanity_flag = 1i32 << 1i32;
         self.status = VoiceStatus::On;
     }
 
-    pub fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) -> i32 {
+    pub fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) {
         let at_tick = min_note_length_ticks;
 
         if at_tick > self.ticks {
             /* Delay noteoff */
             self.noteoff_ticks = at_tick;
-            return FLUID_OK as i32;
+            return;
         }
 
         let sustained = {
@@ -524,16 +522,11 @@ impl Voice {
                  * volenv_val to achieve equievalent amplitude during the release phase
                  * for seamless volume transition.
                  */
-                if self.volenv_val > 0 as i32 as f32 {
+                if self.volenv_val > 0.0 {
                     let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
-                    let amp: f32 = (self.volenv_val as f64
-                        * f64::powf(10.0f64, (lfo / -(200 as i32) as f32) as f64))
-                        as f32;
-                    let mut env_value: f32 = -((-(200 as i32) as f64 * f64::ln(amp as f64)
-                        / f64::ln(10.0f64)
-                        - lfo as f64)
-                        / 960.0f64
-                        - 1 as i32 as f64) as f32;
+                    let amp: f32 = self.volenv_val * f32::powf(10.0, lfo / -200.0);
+                    let mut env_value: f32 =
+                        -((-200.0 * f32::ln(amp) / f32::ln(10.0) - lfo) / 960.0 - 1.0) as f32;
                     env_value = if (env_value as f64) < 0.0f64 {
                         0.0f64
                     } else if env_value as f64 > 1.0f64 {
@@ -545,11 +538,10 @@ impl Voice {
                 }
             }
             self.volenv_section = VoiceEnvelope::Release as i32;
-            self.volenv_count = 0 as i32 as u32;
+            self.volenv_count = 0;
             self.modenv_section = VoiceEnvelope::Release as i32;
-            self.modenv_count = 0 as i32 as u32
+            self.modenv_count = 0;
         }
-        return FLUID_OK as i32;
     }
 
     pub fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
@@ -612,11 +604,11 @@ impl Voice {
     /// Turns off a voice, meaning that it is not processed
     /// anymore by the DSP loop.
     pub fn off(&mut self) {
-        self.chan = 0xff as i32 as u8;
+        self.chan = 0xff;
         self.volenv_section = VoiceEnvelope::Finished as i32;
-        self.volenv_count = 0 as i32 as u32;
+        self.volenv_count = 0;
         self.modenv_section = VoiceEnvelope::Finished as i32;
-        self.modenv_count = 0 as i32 as u32;
+        self.modenv_count = 0;
         self.status = VoiceStatus::Off;
     }
 
@@ -674,7 +666,7 @@ impl Voice {
         lower_bound
     }
 
-    fn calculate_runtime_synthesis_parameters(&mut self, channels: &[Channel]) -> i32 {
+    fn calculate_runtime_synthesis_parameters(&mut self, channels: &[Channel]) {
         let list_of_generators_to_initialize: [GenParam; 34] = [
             GenParam::StartAddrOfs,
             GenParam::EndAddrOfs,
@@ -737,7 +729,6 @@ impl Voice {
         }
 
         self.min_attenuation_c_b = self.get_lower_boundary_for_attenuation(channels);
-        return FLUID_OK as i32;
     }
 
     /// Make sure, that sample start / end point and loop points are in
@@ -806,7 +797,7 @@ impl Voice {
             }
 
             /* Loop too short? Then don't loop. */
-            if self.loopend < self.loopstart + 2 as i32 {
+            if self.loopend < self.loopstart + 2 {
                 self.gen[GenParam::SampleMode as i32 as usize].val =
                     LoopMode::UnLooped as i32 as f64
             }
@@ -830,8 +821,8 @@ impl Voice {
         }
 
         /* Run startup specific code (only once, when the voice is started) */
-        if self.check_sample_sanity_flag & (1 as i32) << 1 as i32 != 0 {
-            if max_index_loop - min_index_loop < 2 as i32 {
+        if self.check_sample_sanity_flag & 1i32 << 1i32 != 0 {
+            if max_index_loop - min_index_loop < 2 {
                 if self.gen[GenParam::SampleMode as i32 as usize].val as i32
                     == LoopMode::UntilRelease as i32
                     || self.gen[GenParam::SampleMode as i32 as usize].val as i32
@@ -844,7 +835,7 @@ impl Voice {
 
             /* Set the initial phase of the voice (using the result from the
             start offset modulators). */
-            self.phase = (self.start as u64) << 32 as i32
+            self.phase = (self.start as u64) << 32i32
         }
 
         /* Is this voice run in loop mode, or does it run straight to the
@@ -865,15 +856,15 @@ impl Voice {
              * the sample, enter the loop and proceed as expected => no
              * actions required.
              */
-            let index_in_sample: i32 = (self.phase >> 32 as i32) as u32 as i32;
+            let index_in_sample: i32 = (self.phase >> 32i32) as u32 as i32;
             if index_in_sample >= self.loopend {
-                self.phase = (self.loopstart as u64) << 32 as i32
+                self.phase = (self.loopstart as u64) << 32i32
             }
         }
 
         /* Sample sanity has been assured. Don't check again, until some
         sample parameter is changed by modulation. */
-        self.check_sample_sanity_flag = 0 as i32;
+        self.check_sample_sanity_flag = 0;
     }
 
     pub fn set_param(&mut self, gen: GenParam, nrpn_value: f32, abs: i32) {
@@ -893,10 +884,10 @@ impl Voice {
         }
 
         self.synth_gain = gain;
-        self.amp_left = pan(self.pan, 1 as i32) * gain / 32768.0f32;
-        self.amp_right = pan(self.pan, 0 as i32) * gain / 32768.0f32;
-        self.amp_reverb = self.reverb_send * gain / 32768.0f32;
-        self.amp_chorus = self.chorus_send * gain / 32768.0f32;
+        self.amp_left = pan(self.pan, 1) * gain / 32768.0;
+        self.amp_right = pan(self.pan, 0) * gain / 32768.0;
+        self.amp_reverb = self.reverb_send * gain / 32768.0;
+        self.amp_chorus = self.chorus_send * gain / 32768.0;
     }
 
     pub fn write(
@@ -920,7 +911,7 @@ impl Voice {
         }
 
         /******************* sample **********************/
-        if self.noteoff_ticks != 0 as i32 as u32 && self.ticks >= self.noteoff_ticks {
+        if self.noteoff_ticks != 0 && self.ticks >= self.noteoff_ticks {
             self.noteoff(channels, min_note_length_ticks);
         }
 
@@ -946,11 +937,11 @@ impl Voice {
         if x < env_data.min {
             x = env_data.min;
             self.volenv_section += 1;
-            self.volenv_count = 0 as i32 as u32
+            self.volenv_count = 0;
         } else if x > env_data.max {
             x = env_data.max;
             self.volenv_section += 1;
-            self.volenv_count = 0 as i32 as u32
+            self.volenv_count = 0;
         }
 
         self.volenv_val = x;
@@ -978,11 +969,11 @@ impl Voice {
         if x < env_data.min {
             x = env_data.min;
             self.modenv_section += 1;
-            self.modenv_count = 0 as i32 as u32
+            self.modenv_count = 0;
         } else if x > env_data.max {
             x = env_data.max;
             self.modenv_section += 1;
-            self.modenv_count = 0 as i32 as u32
+            self.modenv_count = 0;
         }
 
         self.modenv_val = x;
@@ -1020,7 +1011,7 @@ impl Voice {
          * - amplitude envelope
          */
 
-        if !(self.volenv_section == VoiceEnvelope::Delay as i32) {
+        if self.volenv_section != VoiceEnvelope::Delay as i32 {
             if self.volenv_section == VoiceEnvelope::Attack as i32 {
                 /* the envelope is in the attack section: ramp linearly to max value.
                  * A positive modlfo_to_vol should increase volume (negative attenuation).
@@ -1080,7 +1071,7 @@ impl Voice {
                 3632332525568699835 => {}
                 _ => {
                     /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
-                    let amp_incr = (target_amp - self.amp) / 64 as i32 as f32;
+                    let amp_incr = (target_amp - self.amp) / 64.0;
                     /* no volume and not changing? - No need to process */
                     if !(self.amp == 0.0 && amp_incr == 0.0) {
                         /* Calculate the number of samples, that the DSP loop advances
@@ -1120,9 +1111,9 @@ impl Voice {
                          * Tassart for pointing me to this bug. By turning the filter on and
                          * clipping the maximum filter frequency at 0.45*srate, the filter
                          * is used as an anti-aliasing filter. */
-                        let fres = if fres > 0.45f32 * self.output_rate {
+                        let fres = if fres > 0.45 * self.output_rate {
                             0.45 * self.output_rate
-                        } else if fres < 5 as i32 as f32 {
+                        } else if fres < 5.0 {
                             5.0
                         } else {
                             fres
@@ -1175,8 +1166,8 @@ impl Voice {
                                 self.a2 = a2_temp;
                                 self.b02 = b02_temp;
                                 self.b1 = b1_temp;
-                                self.filter_coeff_incr_count = 0 as i32;
-                                self.filter_startup = 0 as i32
+                                self.filter_coeff_incr_count = 0;
+                                self.filter_startup = 0;
                             } else {
                                 /* The filter frequency is changed.  Calculate an increment
                                  * factor, so that the new setting is reached after one buffer
@@ -1186,12 +1177,12 @@ impl Voice {
                                  * the filter is still too 'grainy', then increase this number
                                  * at will.
                                  */
-                                self.a1_incr = (a1_temp - self.a1) / 64 as i32 as f32;
-                                self.a2_incr = (a2_temp - self.a2) / 64 as i32 as f32;
-                                self.b02_incr = (b02_temp - self.b02) / 64 as i32 as f32;
-                                self.b1_incr = (b1_temp - self.b1) / 64 as i32 as f32;
+                                self.a1_incr = (a1_temp - self.a1) / 64.0;
+                                self.a2_incr = (a2_temp - self.a2) / 64.0;
+                                self.b02_incr = (b02_temp - self.b02) / 64.0;
+                                self.b1_incr = (b1_temp - self.b1) / 64.0;
                                 /* Have to add the increments filter_coeff_incr_count times. */
-                                self.filter_coeff_incr_count = 64 as i32
+                                self.filter_coeff_incr_count = 64;
                             }
                             self.last_fres = fres
                         }
@@ -1236,7 +1227,7 @@ impl Voice {
                 }
             }
         }
-        self.ticks = self.ticks.wrapping_add(64 as u32);
+        self.ticks += self.ticks.wrapping_add(64);
     }
 
     #[inline]
@@ -1275,7 +1266,7 @@ impl Voice {
          * changing towards its new setting. The other, if the filter
          * doesn't change.
          */
-        if dsp_filter_coeff_incr_count > 0 as i32 {
+        if dsp_filter_coeff_incr_count > 0 {
             /* Increment is added to each filter coefficient filter_coeff_incr_count times. */
             for dsp_i in 0..count {
                 /* The filter is implemented in Direct-II form. */
@@ -1284,7 +1275,7 @@ impl Voice {
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
                 let fresh0 = dsp_filter_coeff_incr_count;
-                dsp_filter_coeff_incr_count = dsp_filter_coeff_incr_count - 1;
+                dsp_filter_coeff_incr_count -= 1;
 
                 if fresh0 > 0 {
                     dsp_a1 += self.a1_incr;
@@ -1388,8 +1379,8 @@ impl Voice {
             timecents = -12000.0;
         }
         let seconds = tc2sec(timecents);
-        let buffers = ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32;
-        return buffers;
+        // buffers
+        ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32
     }
 
     /// The value of a generator (gen) has changed.  (The different
@@ -1492,7 +1483,7 @@ impl Voice {
                  * inverted with respect to the root note (so subtract it, not add).
                  */
                 //FIXME: use flag instead of -1
-                if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 as f64 {
+                if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 {
                     self.root_pitch = (self.gen[GenParam::OverrideRootKey as usize].val * 100.0
                         - self.sample.pitchadj as f64) as f32
                 } else {
@@ -1819,7 +1810,7 @@ impl Voice {
                 };
 
                 let count =
-                    (1 as u32).wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
                 self.volenv_data[VoiceEnvelope::Attack as usize].count = count;
                 self.volenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
                 self.volenv_data[VoiceEnvelope::Attack as usize].incr =
@@ -1878,7 +1869,7 @@ impl Voice {
                 };
 
                 let count =
-                    (1 as u32).wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
                 self.volenv_data[VoiceEnvelope::Release as usize].count = count;
                 self.volenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
                 self.volenv_data[VoiceEnvelope::Release as usize].incr =
@@ -1918,7 +1909,7 @@ impl Voice {
                 };
 
                 let count =
-                    (1 as u32).wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
                 self.modenv_data[VoiceEnvelope::Attack as usize].count = count;
                 self.modenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
                 self.modenv_data[VoiceEnvelope::Attack as usize].incr =
@@ -1977,7 +1968,7 @@ impl Voice {
                 };
 
                 let count =
-                    (1 as u32).wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
                 self.modenv_data[VoiceEnvelope::Release as usize].count = count;
                 self.modenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
                 self.modenv_data[VoiceEnvelope::Release as usize].incr =

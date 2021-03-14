@@ -65,9 +65,9 @@ impl Synth {
     changes will be available for newly triggered notes only.
      */
     pub fn tune_notes(&mut self, bank: u32, prog: u32, key_pitch: &[(u32, f64)]) -> Result<(), ()> {
-        if !(bank < 128) {
+        if bank > 128 {
             Err(())
-        } else if !(prog < 128) {
+        } else if prog > 128 {
             Err(())
         } else {
             let tuning = self.create_tuning(bank, prog, "Unnamed".into())?;

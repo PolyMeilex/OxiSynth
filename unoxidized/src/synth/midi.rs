@@ -8,7 +8,7 @@ impl Synth {
         if key >= 128 {
             log::error!("Key out of range");
             Err("Key out of range")
-        } else if vel <= 0 || vel >= 128 {
+        } else if vel >= 128 {
             log::error!("Velocity out of range");
             Err("Velocity out of range")
         } else if let Some(channel) = self.channels.get_mut(midi_chan as usize) {
@@ -208,8 +208,8 @@ impl Synth {
         if preset.is_none() {
             subst_bank = banknum as i32;
             subst_prog = prognum;
-            if banknum != 128 as i32 as u32 {
-                subst_bank = 0 as i32;
+            if banknum != 128 {
+                subst_bank = 0;
                 preset = self.find_preset(0, prognum);
                 if preset.is_none() && prognum != 0 {
                     preset = self.find_preset(0, 0);
