@@ -1,7 +1,7 @@
 use crate::channel::Channel;
 use crate::gen::GenParam;
 use crate::synth::FxBuf;
-use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
+use crate::voice::{Voice, VoiceDescriptor, VoiceEnvelope, VoiceId, VoiceStatus};
 
 pub(crate) struct VoicePool {
     voices: Vec<Voice>,
@@ -232,7 +232,7 @@ impl VoicePool {
                  * channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
                  * output 2, 3, 6, 9, 12 etc to output 3.
                  */
-                let mut auchan = channels[voice.get_channel().unwrap().0].get_num();
+                let mut auchan = channels[voice.get_channel().0].get_num();
                 auchan %= audio_groups as u8;
 
                 voice.write(
@@ -250,10 +250,11 @@ impl VoicePool {
 }
 
 impl VoicePool {
-    pub fn request_new_voice<F: FnOnce(&mut Voice)>(
+    pub fn request_new_voice<A: FnOnce(&mut Voice)>(
         &mut self,
         noteid: usize,
-        init: F,
+        desc: VoiceDescriptor,
+        after: A,
     ) -> Result<VoiceId, ()> {
         // find free synthesis process
         let voice_id = self
@@ -264,23 +265,30 @@ impl VoicePool {
             .map(|(id, _)| VoiceId(id));
 
         let voice_id = match voice_id {
-            Some(id) => Some(id),
+            Some(id) => {
+                self.voices[id.0].reinit(desc);
+                Some(id)
+            }
             // If none free voice was found:
             None => {
                 // Check if we can add a new voice
                 if self.voices.len() < self.polyphony_limit {
                     // If we can we do...
-                    self.voices.push(Voice::new(self.sample_rate));
+                    self.voices.push(Voice::new(self.sample_rate, desc));
                     Some(VoiceId(self.voices.len() - 1))
                 } else {
                     // If we can't we free already existing one...
-                    self.free_voice_by_kill(noteid)
+                    let id = self.free_voice_by_kill(noteid);
+                    if let Some(id) = id {
+                        self.voices[id.0].reinit(desc);
+                    }
+                    id
                 }
             }
         };
 
         if let Some(id) = voice_id {
-            init(&mut self.voices[id.0]);
+            after(&mut self.voices[id.0]);
             Ok(id)
         } else {
             Err(())

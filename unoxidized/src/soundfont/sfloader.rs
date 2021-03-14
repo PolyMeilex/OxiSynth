@@ -9,7 +9,7 @@ use crate::gen::{self, Gen};
 use crate::modulator::Mod;
 use crate::soundfont::Sample;
 use crate::synth::Synth;
-use crate::voice::VoiceAddMode;
+use crate::voice::{VoiceAddMode, VoiceDescriptor};
 
 const GEN_SET: u32 = 1;
 
@@ -395,31 +395,31 @@ impl Synth {
                                 let ticks = self.ticks;
                                 let gain = self.gain as f32;
 
+                                let desc = VoiceDescriptor {
+                                    sample,
+                                    channel,
+                                    channel_id: ChannelId(chan as usize),
+                                    key,
+                                    vel,
+                                    id: storeid,
+                                    start_time: ticks,
+                                    gain,
+                                };
+
                                 /* check if there's an available synthesis process */
-                                let voice_id = self.voices.request_new_voice(self.noteid, |voice| {
+                                let voice_id = self.voices.request_new_voice(self.noteid,desc, |voice| {
                                     // Init Voice
-                                    {
-                                        log::trace!(
-                                            "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}",
-                                            chan,
-                                            key,
-                                            vel,
-                                            storeid,
-                                            ticks as f32 / 44100.0,
-                                            0.0,
-                                        );
-                                        voice.init(
-                                            sample,
-                                            channel,
-                                            ChannelId(chan as usize),
-                                            key,
-                                            vel,
-                                            storeid,
-                                            ticks,
-                                            gain,
-                                        );
-                                        voice.add_default_mods();
-                                    }
+                                    voice.add_default_mods();
+
+                                    log::trace!(
+                                        "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}",
+                                        chan,
+                                        key,
+                                        vel,
+                                        storeid,
+                                        ticks as f32 / 44100.0,
+                                        0.0,
+                                    );
 
                                     // Instrument level, generators
                                     for i in 0..GEN_LAST {

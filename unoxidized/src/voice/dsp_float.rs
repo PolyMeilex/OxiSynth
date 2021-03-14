@@ -98,7 +98,7 @@ impl Voice {
         phase_incr: f32,
     ) -> usize {
         let mut dsp_phase: Phase = self.phase;
-        let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
+        let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
@@ -171,7 +171,7 @@ impl Voice {
         phase_incr: f32,
     ) -> usize {
         let mut dsp_phase: Phase = self.phase;
-        let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
+        let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
@@ -279,7 +279,7 @@ impl Voice {
         phase_incr: f32,
     ) -> usize {
         let mut dsp_phase: Phase = self.phase;
-        let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
+        let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
         let end_point1: i16;
         let end_point2: i16;
@@ -447,7 +447,7 @@ impl Voice {
         dsp_amp_incr: f32,
         phase_incr: f32,
     ) -> usize {
-        let dsp_data: &[i16] = &self.sample.as_ref().unwrap().data;
+        let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */

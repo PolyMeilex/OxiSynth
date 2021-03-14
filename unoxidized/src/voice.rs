@@ -58,6 +58,17 @@ pub enum LoopMode {
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
 
+pub(crate) struct VoiceDescriptor<'a> {
+    pub sample: Rc<Sample>,
+    pub channel: &'a Channel,
+    pub channel_id: ChannelId,
+    pub key: u8,
+    pub vel: u8,
+    pub id: usize,
+    pub start_time: u32,
+    pub gain: f32,
+}
+
 #[derive(Clone)]
 pub(crate) struct Voice {
     pub id: usize,
@@ -66,10 +77,10 @@ pub(crate) struct Voice {
     pub vel: u8,
 
     interp_method: InterpMethod,
-    channel_id: Option<ChannelId>,
+    channel_id: ChannelId,
     mod_count: usize,
 
-    pub sample: Option<Rc<Sample>>,
+    pub sample: Rc<Sample>,
     pub start_time: u32,
 
     pub ticks: u32,
@@ -176,7 +187,7 @@ pub struct EnvData {
 }
 
 impl Voice {
-    pub fn new(output_rate: f32) -> Voice {
+    pub fn new(output_rate: f32, desc: VoiceDescriptor) -> Voice {
         let mut volenv_data = [EnvData::default(); 7];
         {
             let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
@@ -211,24 +222,59 @@ impl Voice {
             finished.max = 1.0f32;
         }
 
+        let synth_gain = if desc.gain < 0.0000001 {
+            0.0000001
+        } else {
+            desc.gain
+        };
+
         Voice {
-            id: 0,
-            status: VoiceStatus::Clean,
-            chan: 0xff,
-            key: 0,
-            vel: 0,
-            channel_id: None,
-            gen: [Gen::default(); 60],
-            mod_0: [Mod::default(); 64],
+            id: desc.id,
+            chan: desc.channel.get_num(),
+            key: desc.key,
+            vel: desc.vel,
+
+            interp_method: desc.channel.get_interp_method(),
+            channel_id: desc.channel_id,
             mod_count: 0,
-            has_looped: false,
-            sample: None,
-            check_sample_sanity_flag: 0,
-            output_rate,
-            start_time: 0,
+
+            sample: desc.sample,
+            start_time: desc.start_time,
+
             ticks: 0,
             noteoff_ticks: 0,
+
+            debug: 0,
+            has_looped: false,
+
+            last_fres: -1.0,
+            filter_startup: 1,
+
+            volenv_count: 0,
+            volenv_section: 0,
+            volenv_val: 0.0,
+
             amp: 0.0,
+            modenv_count: 0,
+            modenv_section: 0,
+            modenv_val: 0.0,
+
+            modlfo_val: 0.0,
+            viblfo_val: 0.0,
+
+            hist1: 0.0,
+            hist2: 0.0,
+
+            gen: gen::gen_init(&desc.channel),
+            synth_gain,
+
+            amplitude_that_reaches_noise_floor_nonloop: 0.00003 / synth_gain,
+            amplitude_that_reaches_noise_floor_loop: 0.00003 / synth_gain,
+
+            status: VoiceStatus::Clean,
+            mod_0: [Mod::default(); 64],
+            check_sample_sanity_flag: 0,
+            output_rate,
             phase: 0 as Phase,
             pitch: 0.0,
             attenuation: 0.0,
@@ -238,36 +284,21 @@ impl Voice {
             end: 0,
             loopstart: 0,
             loopend: 0,
-            synth_gain: 0.0,
             volenv_data: volenv_data,
-            volenv_count: 0,
-            volenv_section: 0,
-            volenv_val: 0.0,
-            amplitude_that_reaches_noise_floor_nonloop: 0.0,
-            amplitude_that_reaches_noise_floor_loop: 0.0,
             modenv_data: modenv_data,
-            modenv_count: 0,
-            modenv_section: 0,
-            modenv_val: 0.0,
             modenv_to_fc: 0.0,
             modenv_to_pitch: 0.0,
-            modlfo_val: 0.0,
             modlfo_delay: 0,
             modlfo_incr: 0.0,
             modlfo_to_fc: 0.0,
             modlfo_to_pitch: 0.0,
             modlfo_to_vol: 0.0,
-            viblfo_val: 0.0,
             viblfo_delay: 0,
             viblfo_incr: 0.0,
             viblfo_to_pitch: 0.0,
             fres: 0.0,
-            last_fres: 0.0,
             q_lin: 0.0,
             filter_gain: 0.0,
-            hist1: 0.0,
-            hist2: 0.0,
-            filter_startup: 0,
             b02: 0.0,
             b1: 0.0,
             a1: 0.0,
@@ -284,67 +315,56 @@ impl Voice {
             amp_reverb: 0.0,
             chorus_send: 0.0,
             amp_chorus: 0.0,
-            interp_method: InterpMethod::None,
-            debug: 0,
         }
     }
 
-    pub fn init(
-        &mut self,
-        sample: Rc<Sample>,
-        channel: &Channel,
-        channel_id: ChannelId,
-        key: u8,
-        vel: u8,
-        id: usize,
-        start_time: u32,
-        gain: f32,
-    ) {
-        self.id = id;
-        self.chan = channel.get_num();
-        self.key = key;
-        self.vel = vel;
+    pub fn reinit(&mut self, desc: VoiceDescriptor) {
+        self.id = desc.id;
+        self.chan = desc.channel.get_num();
+        self.key = desc.key;
+        self.vel = desc.vel;
 
-        self.interp_method = channel.get_interp_method();
-        self.channel_id = Some(channel_id);
+        self.interp_method = desc.channel.get_interp_method();
+        self.channel_id = desc.channel_id;
         self.mod_count = 0;
 
-        self.sample = Some(sample);
-        self.start_time = start_time;
+        self.sample = desc.sample;
+        self.start_time = desc.start_time;
 
-        self.ticks = 0 as i32 as u32;
-        self.noteoff_ticks = 0 as i32 as u32;
+        self.ticks = 0;
+        self.noteoff_ticks = 0;
 
-        self.debug = 0 as i32;
+        self.debug = 0;
         self.has_looped = false;
 
-        self.last_fres = -(1 as i32) as f32;
-        self.filter_startup = 1 as i32;
+        self.last_fres = -1.0;
+        self.filter_startup = 1;
 
-        self.volenv_count = 0 as i32 as u32;
-        self.volenv_section = 0 as i32;
-        self.volenv_val = 0.0f32;
+        self.volenv_count = 0;
+        self.volenv_section = 0;
+        self.volenv_val = 0.0;
 
-        self.amp = 0.0f32;
-        self.modenv_count = 0 as i32 as u32;
-        self.modenv_section = 0 as i32;
-        self.modenv_val = 0.0f32;
+        self.amp = 0.0;
+        self.modenv_count = 0;
+        self.modenv_section = 0;
+        self.modenv_val = 0.0;
 
-        self.modlfo_val = 0.0f32;
-        self.viblfo_val = 0.0f32;
+        self.modlfo_val = 0.0;
+        self.viblfo_val = 0.0;
 
-        self.hist1 = 0 as i32 as f32;
-        self.hist2 = 0 as i32 as f32;
+        self.hist1 = 0.0;
+        self.hist2 = 0.0;
 
-        self.gen = gen::gen_init(&*channel);
-        self.synth_gain = gain;
-        if (self.synth_gain as f64) < 0.0000001f64 {
-            self.synth_gain = 0.0000001f32
-        }
+        self.gen = gen::gen_init(&desc.channel);
 
-        self.amplitude_that_reaches_noise_floor_nonloop =
-            (0.00003f64 / self.synth_gain as f64) as f32;
-        self.amplitude_that_reaches_noise_floor_loop = (0.00003f64 / self.synth_gain as f64) as f32;
+        self.synth_gain = if desc.gain < 0.0000001 {
+            0.0000001
+        } else {
+            desc.gain
+        };
+
+        self.amplitude_that_reaches_noise_floor_nonloop = 0.00003 / self.synth_gain;
+        self.amplitude_that_reaches_noise_floor_loop = 0.00003 / self.synth_gain;
     }
 
     pub fn is_available(&self) -> bool {
@@ -487,13 +507,11 @@ impl Voice {
             return FLUID_OK as i32;
         }
 
-        let sustained = if let Some(channel_id) = &self.channel_id {
+        let sustained = {
             const SUSTAIN_SWITCH: usize = 64;
-            let channel = &channels[channel_id.0];
+            let channel = &channels[self.channel_id.0];
             // check is channel is sustained
             channel.cc[SUSTAIN_SWITCH] >= 64
-        } else {
-            false
         };
 
         if sustained {
@@ -558,8 +576,7 @@ impl Voice {
                 let mut k = 0;
                 while k < self.mod_count {
                     if self.mod_0[k].dest == gen {
-                        modval += self.mod_0[k]
-                            .get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
+                        modval += self.mod_0[k].get_value(&channels[self.channel_id.0], self);
                     }
                     k += 1
                 }
@@ -580,8 +597,7 @@ impl Voice {
             let mut k = 0;
             while k < self.mod_count {
                 if self.mod_0[k].dest == gen {
-                    modval += self.mod_0[k]
-                        .get_value(&channels[self.channel_id.as_ref().unwrap().0], self)
+                    modval += self.mod_0[k].get_value(&channels[self.channel_id.0], self)
                 }
                 k += 1
             }
@@ -602,13 +618,10 @@ impl Voice {
         self.modenv_section = VoiceEnvelope::Finished as i32;
         self.modenv_count = 0 as i32 as u32;
         self.status = VoiceStatus::Off;
-        if self.sample.is_some() {
-            self.sample = None;
-        }
     }
 
-    pub fn get_channel(&self) -> Option<&ChannelId> {
-        self.channel_id.as_ref()
+    pub fn get_channel(&self) -> &ChannelId {
+        &self.channel_id
     }
 
     /// A lower boundary for the attenuation (as in 'the minimum
@@ -626,8 +639,7 @@ impl Voice {
 
             /* Modulator has attenuation as target and can change over time? */
             if mod_0.dest == GenParam::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc()) {
-                let current_val: f32 =
-                    mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
+                let current_val: f32 = mod_0.get_value(&channels[self.channel_id.0], self);
                 let mut v = mod_0.amount.abs() as f32;
 
                 if mod_0.src.index as i32 == MOD_PITCHWHEEL as i32
@@ -703,13 +715,13 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i];
-            let modval: f32 = mod_0.get_value(&channels[self.channel_id.as_ref().unwrap().0], self);
+            let modval: f32 = mod_0.get_value(&channels[self.channel_id.0], self);
             let dest_gen_index = mod_0.dest as usize;
             let mut dest_gen = &mut self.gen[dest_gen_index];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
-        let tuning = &channels[self.channel_id.as_ref().unwrap().0].tuning;
+        let tuning = &channels[self.channel_id.0].tuning;
         if let Some(tuning) = tuning {
             self.gen[GenParam::Pitch as usize].val = tuning.pitch[60]
                 + self.gen[GenParam::ScaleTune as usize].val / 100.0f32 as f64
@@ -731,13 +743,13 @@ impl Voice {
     /// Make sure, that sample start / end point and loop points are in
     /// proper order. When starting up, calculate the initial phase.
     pub fn check_sample_sanity(&mut self) {
-        let min_index_nonloop = self.sample.as_ref().unwrap().start as i32;
-        let max_index_nonloop = self.sample.as_ref().unwrap().end as i32;
+        let min_index_nonloop = self.sample.start as i32;
+        let max_index_nonloop = self.sample.end as i32;
 
         /* make sure we have enough samples surrounding the loop */
-        let min_index_loop = self.sample.as_ref().unwrap().start as i32;
+        let min_index_loop = self.sample.start as i32;
         /* 'end' is last valid sample, loopend can be + 1 */
-        let max_index_loop = self.sample.as_ref().unwrap().end as i32 + 1;
+        let max_index_loop = self.sample.end as i32 + 1;
 
         if self.check_sample_sanity_flag == 0 {
             return;
@@ -801,24 +813,14 @@ impl Voice {
 
             /* The loop points may have changed. Obtain a new estimate for the loop volume. */
             /* Is the voice loop within the sample loop? */
-            if self.loopstart >= self.sample.as_ref().unwrap().loopstart as i32
-                && self.loopend <= self.sample.as_ref().unwrap().loopend as i32
+            if self.loopstart >= self.sample.loopstart as i32
+                && self.loopend <= self.sample.loopend as i32
             {
                 /* Is there a valid peak amplitude available for the loop? */
-                if self
-                    .sample
-                    .as_ref()
-                    .unwrap()
-                    .amplitude_that_reaches_noise_floor_is_valid
-                    != 0
-                {
-                    self.amplitude_that_reaches_noise_floor_loop = (self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .amplitude_that_reaches_noise_floor
-                        / self.synth_gain as f64)
-                        as f32
+                if self.sample.amplitude_that_reaches_noise_floor_is_valid != 0 {
+                    self.amplitude_that_reaches_noise_floor_loop =
+                        (self.sample.amplitude_that_reaches_noise_floor / self.synth_gain as f64)
+                            as f32
                 } else {
                     /* Worst case */
                     self.amplitude_that_reaches_noise_floor_loop =
@@ -918,10 +920,6 @@ impl Voice {
         }
 
         /******************* sample **********************/
-        if self.sample.is_none() {
-            self.off();
-            return;
-        }
         if self.noteoff_ticks != 0 as i32 as u32 && self.ticks >= self.noteoff_ticks {
             self.noteoff(channels, min_note_length_ticks);
         }
@@ -1496,18 +1494,14 @@ impl Voice {
                 //FIXME: use flag instead of -1
                 if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 as f64 {
                     self.root_pitch = (self.gen[GenParam::OverrideRootKey as usize].val * 100.0
-                        - self.sample.as_ref().unwrap().pitchadj as f64)
-                        as f32
+                        - self.sample.pitchadj as f64) as f32
                 } else {
-                    self.root_pitch = self.sample.as_ref().unwrap().origpitch as f32 * 100.0
-                        - self.sample.as_ref().unwrap().pitchadj as f32
+                    self.root_pitch =
+                        self.sample.origpitch as f32 * 100.0 - self.sample.pitchadj as f32
                 }
                 self.root_pitch = ct2hz(self.root_pitch);
 
-                if self.sample.is_some() {
-                    self.root_pitch *=
-                        self.output_rate / self.sample.as_ref().unwrap().samplerate as f32
-                }
+                self.root_pitch *= self.output_rate / self.sample.samplerate as f32
             }
 
             GenParam::FilterFc => {
@@ -1749,59 +1743,43 @@ impl Voice {
              * move the loop start point forward => valid again.
              */
             GenParam::StartAddrOfs | GenParam::StartAddrCoarseOfs => {
-                if self.sample.is_some() {
-                    self.start = self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .start
-                        .wrapping_add(gen_sum!(GenParam::StartAddrOfs) as u32)
-                        .wrapping_add(32768 * gen_sum!(GenParam::StartAddrCoarseOfs) as u32)
-                        as i32;
-                    self.check_sample_sanity_flag = 1 << 0;
-                }
+                self.start = self
+                    .sample
+                    .start
+                    .wrapping_add(gen_sum!(GenParam::StartAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GenParam::StartAddrCoarseOfs) as u32)
+                    as i32;
+                self.check_sample_sanity_flag = 1 << 0;
             }
 
             GenParam::EndAddrOfs | GenParam::EndAddrCoarseOfs => {
-                if self.sample.is_some() {
-                    self.end = self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .end
-                        .wrapping_add(gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
-                        .wrapping_add(32768 * gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
-                        as i32;
-                    self.check_sample_sanity_flag = 1 << 0;
-                }
+                self.end = self
+                    .sample
+                    .end
+                    .wrapping_add(gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
+                    as i32;
+                self.check_sample_sanity_flag = 1 << 0;
             }
 
             GenParam::StartLoopAddrOfs | GenParam::StartLoopAddrCoarseOfs => {
-                if self.sample.is_some() {
-                    self.loopstart = self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .loopstart
-                        .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
-                        .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
-                        as i32;
-                    self.check_sample_sanity_flag = 1 << 0;
-                }
+                self.loopstart = self
+                    .sample
+                    .loopstart
+                    .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
+                    as i32;
+                self.check_sample_sanity_flag = 1 << 0;
             }
 
             GenParam::EndLoopAddrOfs | GenParam::EndLoopAddrCoarseOfs => {
-                if self.sample.is_some() {
-                    self.loopend = self
-                        .sample
-                        .as_ref()
-                        .unwrap()
-                        .loopend
-                        .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
-                        .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
-                        as i32;
-                    self.check_sample_sanity_flag = 1 << 0;
-                }
+                self.loopend = self
+                    .sample
+                    .loopend
+                    .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
+                    as i32;
+                self.check_sample_sanity_flag = 1 << 0;
             }
 
             /* volume envelope
