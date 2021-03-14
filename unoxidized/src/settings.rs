@@ -1,11 +1,8 @@
 pub const EFFECTS_CHANNELS: u8 = 2;
 
 pub struct Settings {
-    pub dump: bool,
-
     pub reverb_active: bool,
     pub chorus_active: bool,
-    pub ladspa_active: bool,
     pub drums_channel_active: bool,
 
     /// Def: 256
@@ -41,11 +38,8 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            dump: false,
-
             reverb_active: true,
             chorus_active: true,
-            ladspa_active: false,
             drums_channel_active: true,
 
             polyphony: 256,
