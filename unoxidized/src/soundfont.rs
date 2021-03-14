@@ -1,5 +1,4 @@
-mod loader;
-mod noteon;
+pub(crate) mod loader;
 
 use loader::{DefaultPreset, DefaultSoundFont};
 
@@ -9,7 +8,7 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Preset {
-    data: Rc<DefaultPreset>,
+    pub(crate) data: Rc<DefaultPreset>,
     pub sfont_id: usize,
 }
 

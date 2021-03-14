@@ -4,9 +4,9 @@ use super::super::{
     channel::{Channel, ChannelId, InterpolationMethod},
     generator::{self, Gen, GenParam},
     modulator::Mod,
-    soundfont::Sample,
     FxBuf,
 };
+use crate::soundfont::Sample;
 
 use crate::conv::{
     act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,

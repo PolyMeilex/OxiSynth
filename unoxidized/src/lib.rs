@@ -6,13 +6,16 @@ extern crate lazy_static;
 pub mod chorus;
 pub mod reverb;
 
-mod settings;
+pub mod settings;
 pub use settings::{Settings, SettingsError, SynthDescriptor};
 
 pub mod tuning;
 pub use tuning::Tuning;
 
 pub mod synth;
-pub use synth::{generator, InterpolationMethod, SoundFont, Synth};
+pub use synth::{generator, InterpolationMethod, Synth};
 
 mod conv;
+
+pub mod soundfont;
+pub use self::soundfont::SoundFont;

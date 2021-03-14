@@ -1,5 +1,5 @@
-use super::soundfont::Preset;
 use crate::generator::{gen_scale_nrpn, GenParam};
+use crate::soundfont::Preset;
 use crate::synth::Synth;
 use crate::tuning::Tuning;
 

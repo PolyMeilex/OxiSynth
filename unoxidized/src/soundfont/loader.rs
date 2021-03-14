@@ -4,13 +4,13 @@ use std::rc::Rc;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
-use super::super::modulator::Mod;
 use super::Sample;
 use crate::generator::{self, Gen};
+use crate::synth::modulator::Mod;
 
 const GEN_SET: u32 = 1;
 
-pub(super) struct DefaultSoundFont {
+pub(crate) struct DefaultSoundFont {
     pub filename: PathBuf,
     pub presets: Vec<Rc<DefaultPreset>>,
 }
@@ -92,7 +92,7 @@ impl DefaultSoundFont {
     }
 }
 
-pub(super) struct DefaultPreset {
+pub(crate) struct DefaultPreset {
     pub name: String,
     pub bank: u32,
     pub num: u32,
@@ -141,7 +141,7 @@ impl DefaultPreset {
     }
 }
 
-pub(super) struct PresetZone {
+pub(crate) struct PresetZone {
     #[allow(dead_code)]
     pub name: String,
     pub inst: Option<Instrument>,
@@ -210,7 +210,7 @@ impl PresetZone {
 }
 
 #[derive(Clone)]
-pub(super) struct Instrument {
+pub(crate) struct Instrument {
     pub name: String,
     pub global_zone: Option<InstrumentZone>,
     pub zones: Vec<InstrumentZone>,
@@ -249,7 +249,7 @@ impl Instrument {
 
 #[derive(Clone)]
 #[repr(C)]
-pub(super) struct InstrumentZone {
+pub(crate) struct InstrumentZone {
     pub name: String,
     pub sample: Option<Rc<Sample>>,
     pub keylo: u8,
