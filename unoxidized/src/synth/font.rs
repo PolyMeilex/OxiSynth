@@ -11,13 +11,18 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<F: Read + Seek>(&mut self, file: &mut F, reset_presets: bool) -> Result<u32, ()> {
+    pub fn sfload<F: Read + Seek>(
+        &mut self,
+        file: &mut F,
+        reset_presets: bool,
+    ) -> Result<usize, ()> {
         let sfont = SoundFont::load(file);
 
         match sfont {
             Ok(mut sfont) => {
-                self.sfont_id = self.sfont_id.wrapping_add(1);
+                self.sfont_id += 1;
                 sfont.id = self.sfont_id;
+
                 self.sfont.insert(0, sfont);
                 if reset_presets {
                     self.program_reset();
@@ -34,7 +39,7 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: u32, reset_presets: bool) -> Result<(), ()> {
+    pub fn sfunload(&mut self, id: usize, reset_presets: bool) -> Result<(), ()> {
         let sfont = self.get_sfont_by_id(id);
         if let Some(id) = sfont.map(|sfont| sfont.id) {
             self.sfont.retain(|s| s.id != id);
@@ -89,7 +94,7 @@ impl Synth {
     fluid_synth_add_sfont(). The synthesizer does not delete the
     SoundFont; this is responsability of the caller.
      */
-    pub fn remove_sfont(&mut self, id: u32) {
+    pub fn remove_sfont(&mut self, id: usize) {
         self.sfont.retain(|s| s.id != id);
         self.remove_bank_offset(id);
         self.program_reset();
@@ -115,11 +120,11 @@ impl Synth {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&self, id: u32) -> Option<&SoundFont> {
+    pub fn get_sfont_by_id(&self, id: usize) -> Option<&SoundFont> {
         self.sfont.iter().find(|x| x.id == id)
     }
 
-    pub fn get_sfont_by_id_mut(&mut self, id: u32) -> Option<&mut SoundFont> {
+    pub fn get_sfont_by_id_mut(&mut self, id: usize) -> Option<&mut SoundFont> {
         self.sfont.iter_mut().find(|x| x.id == id)
     }
 }

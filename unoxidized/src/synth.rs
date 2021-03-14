@@ -17,11 +17,9 @@ use super::soundfont::SoundFont;
 use super::tuning::Tuning;
 use std::convert::TryInto;
 
-const GEN_LAST: u8 = 60;
-
 #[derive(Copy, Clone)]
 pub struct BankOffset {
-    pub sfont_id: u32,
+    pub sfont_id: usize,
     pub offset: u32,
 }
 
@@ -33,14 +31,19 @@ pub(crate) struct FxBuf {
 
 pub struct Synth {
     pub(crate) ticks: u32,
+
     sfont: Vec<SoundFont>,
-    sfont_id: u32,
+    sfont_id: usize,
+
     bank_offsets: Vec<BankOffset>,
     pub(crate) gain: f32,
-    pub(crate) channel: Vec<Channel>,
+
+    pub(crate) channels: Vec<Channel>,
     pub(crate) voices: VoicePool,
+
     pub(crate) noteid: usize,
     pub(crate) storeid: usize,
+
     nbuf: u8,
 
     left_buf: Vec<[f32; 64]>,
@@ -88,7 +91,7 @@ impl Synth {
             sfont_id: 0 as _,
             bank_offsets: Vec::new(),
             gain: settings.gain,
-            channel: Vec::new(),
+            channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,
             storeid: 0 as _,
@@ -120,7 +123,7 @@ impl Synth {
         };
 
         for i in 0..synth.settings.midi_channels {
-            synth.channel.push(Channel::new(&synth, i));
+            synth.channels.push(Channel::new(&synth, i));
         }
 
         if synth.settings.drums_channel_active {
@@ -139,7 +142,7 @@ impl Synth {
 
     pub(crate) fn get_preset(
         &mut self,
-        sfontnum: u32,
+        sfontnum: usize,
         banknum: u32,
         prognum: u8,
     ) -> Option<Preset> {
@@ -172,12 +175,13 @@ impl Synth {
     }
 
     pub(crate) fn update_presets(&mut self) {
-        for chan in 0..(self.settings.midi_channels as usize) {
-            let sfontnum = self.channel[chan].get_sfontnum();
-            let banknum = self.channel[chan].get_banknum();
-            let prognum = self.channel[chan].get_prognum();
+        for id in 0..self.channels.len() {
+            let sfontnum = self.channels[id].get_sfontnum();
+            let banknum = self.channels[id].get_banknum();
+            let prognum = self.channels[id].get_prognum();
+
             let preset = self.get_preset(sfontnum, banknum, prognum);
-            self.channel[chan].set_preset(preset);
+            self.channels[id].set_preset(preset);
         }
     }
 }

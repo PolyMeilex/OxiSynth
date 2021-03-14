@@ -4,7 +4,7 @@ impl Synth {
     /**
     Returns the number of MIDI channels that the synthesizer uses internally
      */
-    pub fn count_midi_channels(&self) -> u8 {
+    pub fn count_midi_channels(&self) -> usize {
         self.handle.count_midi_channels()
     }
 

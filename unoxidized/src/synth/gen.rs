@@ -1,7 +1,4 @@
-use crate::synth::Synth;
-use crate::synth::GEN_LAST;
-
-use crate::gen::GenParam;
+use crate::{gen::GenParam, synth::Synth};
 
 impl Synth {
     /**
@@ -13,17 +10,18 @@ impl Synth {
     parameter numbers and ranges are described in the SoundFont 2.01
     specification, paragraph 8.1.3, page 48.
      */
-    pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) -> Result<(), ()> {
-        if chan >= self.settings.midi_channels {
-            log::warn!("Channel out of range");
-            return Err(());
+    pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) -> Result<(), &'static str> {
+        if let Some(channel) = self.channels.get_mut(chan as usize) {
+            channel.gen[param as usize] = value;
+            channel.gen_abs[param as usize] = 0;
+
+            self.voices.set_gen(chan, param, value);
+
+            Ok(())
+        } else {
+            log::error!("Channel out of range");
+            Err("Channel out of range")
         }
-        self.channel[chan as usize].gen[param as usize] = value;
-        self.channel[chan as usize].gen_abs[param as usize] = 0 as i32 as i8;
-
-        self.voices.set_gen(chan, param, value);
-
-        Ok(())
     }
 
     /**
@@ -32,15 +30,12 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn get_gen(&self, chan: u8, param: GenParam) -> f32 {
-        if chan >= self.settings.midi_channels {
-            log::warn!("Channel out of range");
-            0.0
-        } else if (param as u8) >= GEN_LAST {
-            log::warn!("Parameter number out of range");
-            0.0
+    pub fn get_gen(&self, chan: u8, param: GenParam) -> Result<f32, &'static str> {
+        if let Some(channel) = self.channels.get(chan as usize) {
+            Ok(channel.gen[param as usize])
         } else {
-            self.channel[chan as usize].gen[param as usize]
+            log::error!("Channel out of range");
+            Err("Channel out of range")
         }
     }
 }

@@ -338,7 +338,7 @@ impl InstrumentZone {
 
 impl Synth {
     /// noteon
-    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) -> Result<(), ()> {
+    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) {
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
             zone.keylo <= key
                 && zone.keyhi >= key
@@ -358,7 +358,7 @@ impl Synth {
             sample.sampletype & 0x8000
         }
 
-        let preset = &self.channel[chan as usize].preset.as_ref().unwrap().data;
+        let preset = &self.channels[chan as usize].preset.as_ref().unwrap().data;
 
         // list for 'sorting' preset modulators
         let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();
@@ -577,7 +577,7 @@ impl Synth {
 
                             let desc = VoiceDescriptor {
                                 sample: sample.as_ref().unwrap().clone(),
-                                channel: &self.channel[chan as usize],
+                                channel: &self.channels[chan as usize],
                                 channel_id: ChannelId(chan as usize),
                                 key,
                                 vel,
@@ -599,7 +599,7 @@ impl Synth {
                                 );
 
                                 // add the synthesis process to the synthesis loop.
-                                self.voices.start_voice(&self.channel, voice_id);
+                                self.voices.start_voice(&self.channels, voice_id);
                             } else {
                                 log::warn!(
                                     "Failed to allocate a synthesis process. (chan={},key={})",
@@ -612,7 +612,5 @@ impl Synth {
                 }
             }
         }
-
-        Ok(())
     }
 }

@@ -51,7 +51,9 @@ pub(crate) struct ChannelId(pub usize);
 #[derive(Clone)]
 pub struct Channel {
     pub(crate) channum: u8,
-    sfontnum: u32,
+
+    sfontnum: usize,
+
     banknum: u32,
     prognum: u8,
 
@@ -223,11 +225,11 @@ impl Channel {
         self.interp_method
     }
 
-    pub fn get_sfontnum(&self) -> u32 {
+    pub fn get_sfontnum(&self) -> usize {
         self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: u32) {
+    pub fn set_sfontnum(&mut self, sfontnum: usize) {
         self.sfontnum = sfontnum;
     }
 }
@@ -235,9 +237,9 @@ impl Channel {
 impl Synth {
     // TODO: writing self.channel[id] every time is stupid, there has to be a better way
     pub(crate) fn channel_cc(&mut self, chan_id: usize, num: u16, value: u16) {
-        self.channel[chan_id].cc[num as usize] = value as u8;
+        self.channels[chan_id].cc[num as usize] = value as u8;
 
-        let channum = self.channel[chan_id].channum;
+        let channum = self.channels[chan_id].channum;
 
         match num {
             // SUSTAIN_SWITCH
@@ -245,7 +247,7 @@ impl Synth {
                 if value < 64 {
                     // sustain off
                     self.voices
-                        .damp_voices(&self.channel, channum, self.min_note_length_ticks)
+                        .damp_voices(&self.channels, channum, self.min_note_length_ticks)
                 } else {
                     // sustain on
                 }
@@ -258,7 +260,7 @@ impl Synth {
                     return;
                 }
 
-                let chan = &mut self.channel[chan_id];
+                let chan = &mut self.channels[chan_id];
 
                 chan.bank_msb = (value & 0x7f) as u8;
 
@@ -279,7 +281,7 @@ impl Synth {
                     return;
                 }
 
-                let chan = &mut self.channel[chan_id];
+                let chan = &mut self.channels[chan_id];
 
                 /* FIXME: according to the Downloadable Sounds II specification,
                 bit 31 should be set when we receive the message on channel
@@ -300,19 +302,18 @@ impl Synth {
 
             // ALL_CTRL_OFF
             121 => {
-                self.channel[chan_id].init_ctrl(1);
-
-                self.voices.modulate_voices_all(&self.channel, channum);
+                self.channels[chan_id].init_ctrl(1);
+                self.voices.modulate_voices_all(&self.channels, channum);
             }
 
             // DATA_ENTRY_MSB
             6 => {
                 let data: i32 = ((value as i32) << 7 as i32)
-                    + self.channel[chan_id].cc[DATA_ENTRY_LSB as usize] as i32;
+                    + self.channels[chan_id].cc[DATA_ENTRY_LSB as usize] as i32;
 
-                if self.channel[chan_id].nrpn_active != 0 {
+                if self.channels[chan_id].nrpn_active != 0 {
                     let (channum, nrpn_select, nrpn_msb, nrpn_lsb) = {
-                        let channel = &self.channel[chan_id];
+                        let channel = &self.channels[chan_id];
                         (
                             channel.channum,
                             channel.nrpn_select,
@@ -332,12 +333,12 @@ impl Synth {
                             self.set_gen(channum, param, val).unwrap();
                         }
 
-                        self.channel[chan_id].nrpn_select = 0; // Reset to 0
+                        self.channels[chan_id].nrpn_select = 0; // Reset to 0
                     }
                 }
                 /* RPN is active: MSB = 0? */
-                else if self.channel[chan_id].cc[RPN_MSB as usize] == 0 {
-                    match self.channel[chan_id].cc[RPN_LSB as usize] {
+                else if self.channels[chan_id].cc[RPN_MSB as usize] == 0 {
+                    match self.channels[chan_id].cc[RPN_LSB as usize] {
                         // RPN_PITCH_BEND_RANGE
                         0 => {
                             self.pitch_wheel_sens(chan_id as u8, value).ok();
@@ -345,7 +346,7 @@ impl Synth {
                         // RPN_CHANNEL_FINE_TUNE
                         1 => {
                             self.set_gen(
-                                self.channel[chan_id].channum,
+                                self.channels[chan_id].channum,
                                 GenParam::FineTune,
                                 ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
                             )
@@ -354,7 +355,7 @@ impl Synth {
                         // RPN_CHANNEL_COARSE_TUNE
                         2 => {
                             self.set_gen(
-                                self.channel[chan_id].channum,
+                                self.channels[chan_id].channum,
                                 GenParam::CoarseTune,
                                 (value - 64) as f32,
                             )
@@ -368,7 +369,7 @@ impl Synth {
 
             // NRPN_MSB
             99 => {
-                let chan = &mut self.channel[chan_id];
+                let chan = &mut self.channels[chan_id];
                 chan.cc[NRPN_LSB as usize] = 0;
                 chan.nrpn_select = 0;
                 chan.nrpn_active = 1;
@@ -376,7 +377,7 @@ impl Synth {
 
             // NRPN_LSB
             98 => {
-                let chan = &mut self.channel[chan_id];
+                let chan = &mut self.channels[chan_id];
                 // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
                 if chan.cc[NRPN_MSB as usize] == 120 {
                     if value == 100 {
@@ -393,10 +394,11 @@ impl Synth {
             }
 
             // RPN_MSB | RPN_LSB
-            101 | 100 => self.channel[chan_id].nrpn_active = 0,
-            _ => self
-                .voices
-                .modulate_voices(&self.channel, self.channel[chan_id].channum, 1, num),
+            101 | 100 => self.channels[chan_id].nrpn_active = 0,
+            _ => {
+                self.voices
+                    .modulate_voices(&self.channels, self.channels[chan_id].channum, 1, num)
+            }
         }
     }
 }

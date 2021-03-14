@@ -82,23 +82,22 @@ impl Synth {
     Select a tuning for a channel.
      */
     pub fn select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
-        let tuning;
-        if !(bank < 128) {
-            return Err(());
+        if bank > 128 {
+            Err(())
+        } else if prog > 128 {
+            Err(())
+        } else if let Some(tuning) = self.get_tuning(bank, prog).map(|t| t.clone()) {
+            if let Some(channel) = self.channels.get_mut(chan as usize) {
+                channel.tuning = Some(tuning);
+                Ok(())
+            } else {
+                log::error!("Channel out of range");
+                Err(())
+            }
+        } else {
+            log::error!("No Tuning found");
+            Err(())
         }
-        if !(prog < 128) {
-            return Err(());
-        }
-        tuning = self.get_tuning(bank, prog);
-        if tuning.is_none() {
-            return Err(());
-        }
-        if chan >= self.settings.midi_channels {
-            log::warn!("Channel out of range",);
-            return Err(());
-        }
-        self.channel[chan as usize].tuning = Some(tuning.unwrap().clone());
-        Ok(())
     }
 
     pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
@@ -109,12 +108,12 @@ impl Synth {
     Set the tuning to the default well-tempered tuning on a channel.
      */
     pub fn reset_tuning(&mut self, chan: u8) -> Result<(), ()> {
-        if chan >= self.settings.midi_channels {
-            log::warn!("Channel out of range");
-            Err(())
-        } else {
-            self.channel[chan as usize].tuning = None;
+        if let Some(channel) = self.channels.get_mut(chan as usize) {
+            channel.tuning = None;
             Ok(())
+        } else {
+            log::error!("Channel out of range");
+            Err(())
         }
     }
 

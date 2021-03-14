@@ -10,7 +10,7 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct Preset {
     data: Rc<DefaultPreset>,
-    pub sfont_id: u32,
+    pub sfont_id: usize,
 }
 
 impl Preset {
@@ -29,7 +29,7 @@ impl Preset {
 
 pub struct SoundFont {
     data: DefaultSoundFont,
-    pub(crate) id: u32,
+    pub(crate) id: usize,
 }
 
 impl SoundFont {
@@ -40,7 +40,7 @@ impl SoundFont {
         })
     }
 
-    pub fn get_id(&self) -> u32 {
+    pub fn get_id(&self) -> usize {
         self.id
     }
 

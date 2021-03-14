@@ -25,7 +25,7 @@ impl Synth {
 
         /* call all playing synthesis processes */
         self.voices.write_voices(
-            &self.channel,
+            &self.channels,
             self.min_note_length_ticks,
             self.settings.audio_groups,
             &mut self.left_buf,

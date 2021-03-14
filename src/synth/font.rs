@@ -13,7 +13,11 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<P: Read + Seek>(&mut self, file: &mut P, reset_presets: bool) -> Result<u32, ()> {
+    pub fn sfload<P: Read + Seek>(
+        &mut self,
+        file: &mut P,
+        reset_presets: bool,
+    ) -> Result<usize, ()> {
         self.handle.sfload(file, reset_presets)
     }
 
@@ -28,7 +32,7 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: u32, reset_presets: bool) -> Result<(), ()> {
+    pub fn sfunload(&mut self, id: usize, reset_presets: bool) -> Result<(), ()> {
         self.handle.sfunload(id, reset_presets)
     }
 
@@ -52,7 +56,7 @@ impl Synth {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&mut self, id: u32) -> Option<&SoundFont> {
+    pub fn get_sfont_by_id(&mut self, id: usize) -> Option<&SoundFont> {
         self.handle.get_sfont_by_id(id)
     }
 
@@ -61,7 +65,7 @@ impl Synth {
     fluid_synth_add_sfont(). The synthesizer does not delete the
     SoundFont; this is responsability of the caller.
      */
-    pub fn remove_sfont(&mut self, id: u32) {
+    pub fn remove_sfont(&mut self, id: usize) {
         self.handle.remove_sfont(id);
     }
 
@@ -69,14 +73,14 @@ impl Synth {
     Offset the bank numbers in a SoundFont.
     Returns -1 if an error occured (out of memory or negative offset)
      */
-    pub fn set_bank_offset(&mut self, sfont_id: u32, offset: u32) {
+    pub fn set_bank_offset(&mut self, sfont_id: usize, offset: u32) {
         self.handle.set_bank_offset(sfont_id, offset)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset(&self, sfont_id: u32) -> Option<u32> {
+    pub fn get_bank_offset(&self, sfont_id: usize) -> Option<u32> {
         self.handle.get_bank_offset(sfont_id).map(|o| o.offset)
     }
 }

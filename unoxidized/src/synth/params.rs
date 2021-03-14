@@ -71,21 +71,13 @@ impl Synth {
      */
     pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) {
         if let Some(chan) = chan {
-            let ch = self
-                .channel
-                .iter_mut()
-                .take(self.settings.midi_channels as usize)
-                .find(|ch| ch.get_num() == chan);
+            let ch = self.channels.iter_mut().find(|ch| ch.get_num() == chan);
 
             if let Some(ch) = ch {
                 ch.set_interp_method(interp_method);
             }
         } else {
-            for ch in self
-                .channel
-                .iter_mut()
-                .take(self.settings.midi_channels as usize)
-            {
+            for ch in self.channels.iter_mut() {
                 ch.set_interp_method(interp_method);
             }
         }
@@ -94,14 +86,14 @@ impl Synth {
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset(&self, sfont_id: u32) -> Option<&BankOffset> {
+    pub fn get_bank_offset(&self, sfont_id: usize) -> Option<&BankOffset> {
         self.bank_offsets.iter().find(|x| x.sfont_id == sfont_id)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset_mut(&mut self, sfont_id: u32) -> Option<&mut BankOffset> {
+    fn get_bank_offset_mut(&mut self, sfont_id: usize) -> Option<&mut BankOffset> {
         self.bank_offsets
             .iter_mut()
             .find(|x| x.sfont_id == sfont_id)
@@ -111,7 +103,7 @@ impl Synth {
     Offset the bank numbers in a SoundFont.
     Returns -1 if an error occured (out of memory or negative offset)
      */
-    pub fn set_bank_offset(&mut self, sfont_id: u32, offset: u32) {
+    pub fn set_bank_offset(&mut self, sfont_id: usize, offset: u32) {
         let bank_offset = self.get_bank_offset_mut(sfont_id);
 
         if let Some(mut bank_offset) = bank_offset {
@@ -122,14 +114,15 @@ impl Synth {
         }
     }
 
-    pub fn remove_bank_offset(&mut self, sfont_id: u32) {
+    pub fn remove_bank_offset(&mut self, sfont_id: usize) {
         self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
     }
 
     pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Preset> {
-        if chan < self.settings.midi_channels {
-            self.channel[chan as usize].get_preset()
+        if let Some(channel) = self.channels.get(chan as usize) {
+            channel.get_preset()
         } else {
+            log::warn!("Channel out of range");
             None
         }
     }
