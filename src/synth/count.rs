@@ -27,6 +27,6 @@ impl Synth {
     Returns the number of effects channels that the synthesizer uses internally
      */
     pub fn count_effects_channels(&self) -> u8 {
-        self.handle.count_effects_channels() 
+        self.handle.count_effects_channels()
     }
 }

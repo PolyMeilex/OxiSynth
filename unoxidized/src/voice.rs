@@ -411,6 +411,20 @@ impl Voice {
         };
     }
 
+    pub fn add_default_mods(&mut self) {
+        use crate::modulator::default::*;
+        self.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_MOD2VIBLFO_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_ATT_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_PAN_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_EXPR_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_REVERB_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_CHORUS_MOD, VoiceAddMode::Default);
+        self.add_mod(&DEFAULT_PITCH_BEND_MOD, VoiceAddMode::Default);
+    }
+
     pub fn gen_incr(&mut self, i: u32, val: f64) {
         self.gen[i as usize].val += val;
         self.gen[i as usize].flags = GEN_SET as u8;

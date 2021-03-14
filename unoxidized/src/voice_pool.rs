@@ -254,7 +254,11 @@ impl VoicePool {
 }
 
 impl VoicePool {
-    pub fn request_new_voice(&mut self, noteid: usize) -> Option<VoiceId> {
+    pub fn request_new_voice<F: FnOnce(&mut Voice)>(
+        &mut self,
+        noteid: usize,
+        init: F,
+    ) -> Result<VoiceId, ()> {
         // find free synthesis process
         let voice_id = self
             .voices
@@ -263,33 +267,17 @@ impl VoicePool {
             .find(|(_, v)| v.is_available())
             .map(|(id, _)| VoiceId(id));
 
-        match voice_id {
+        let voice_id = match voice_id {
             Some(id) => Some(id),
             // If none was found, free one by kill
             None => self.free_voice_by_kill(noteid),
+        };
+
+        if let Some(id) = voice_id {
+            init(&mut self.voices[id.0]);
+            Ok(id)
+        } else {
+            Err(())
         }
-    }
-}
-
-impl VoicePool {
-    // pub fn len(&self) -> usize {
-    //     self.voices.len()
-    // }
-
-    // pub fn iter(&self) -> std::slice::Iter<'_, Voice> {
-    //     self.voices.iter()
-    // }
-}
-
-impl std::ops::Index<usize> for VoicePool {
-    type Output = Voice;
-    fn index(&self, id: usize) -> &Self::Output {
-        &self.voices[id]
-    }
-}
-
-impl std::ops::IndexMut<usize> for VoicePool {
-    fn index_mut(&mut self, id: usize) -> &mut Self::Output {
-        &mut self.voices[id]
     }
 }

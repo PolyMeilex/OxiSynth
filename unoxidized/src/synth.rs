@@ -8,16 +8,12 @@ pub mod reverb;
 pub mod tuning;
 pub mod write;
 
-use crate::channel::ChannelId;
-use crate::voice::VoiceId;
 use crate::voice_pool::VoicePool;
-use std::rc::Rc;
 
 use super::chorus::Chorus;
 use super::reverb::ReverbModel;
 use super::settings::Settings;
 use super::soundfont::Preset;
-use super::soundfont::Sample;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
 use super::{
@@ -40,15 +36,15 @@ pub(crate) struct FxBuf {
 }
 
 pub struct Synth {
-    ticks: u32,
+    pub(crate) ticks: u32,
     sfont: Vec<SoundFont>,
     sfont_id: u32,
     bank_offsets: Vec<BankOffset>,
-    gain: f32,
+    pub(crate) gain: f32,
     pub(crate) channel: Vec<Channel>,
     pub(crate) voices: VoicePool,
-    noteid: usize,
-    storeid: usize,
+    pub(crate) noteid: usize,
+    pub(crate) storeid: usize,
     nbuf: u8,
 
     left_buf: Vec<[f32; 64]>,
@@ -210,75 +206,6 @@ impl Synth {
             }
         }
         return None;
-    }
-
-    pub(crate) fn alloc_voice(
-        &mut self,
-        sample: Rc<Sample>,
-        chan: u8,
-        key: u8,
-        vel: u8,
-    ) -> Option<VoiceId> {
-        /* check if there's an available synthesis process */
-        let voice_id = self.voices.request_new_voice(self.noteid);
-
-        if let Some(voice_id) = voice_id {
-            log::trace!(
-                "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}",
-                chan,
-                key,
-                vel,
-                self.storeid,
-                self.ticks as f32 / 44100.0,
-                0.0,
-                {
-                    let mut k = 0;
-                    for i in 0..self.settings.synth.polyphony {
-                        if !self.voices[i as usize].is_available() {
-                            k += 1
-                        }
-                    }
-                    k
-                }
-            );
-
-            let channel = &mut self.channel[chan as usize];
-
-            let voice = &mut self.voices[voice_id.0];
-            voice.init(
-                sample,
-                channel,
-                ChannelId(chan as usize),
-                key,
-                vel,
-                self.storeid,
-                self.ticks,
-                self.gain as f32,
-            );
-
-            use crate::modulator::default::*;
-            use crate::voice::VoiceAddMode;
-
-            voice.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_MOD2VIBLFO_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_ATT_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_PAN_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_EXPR_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_REVERB_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_CHORUS_MOD, VoiceAddMode::Default);
-            voice.add_mod(&DEFAULT_PITCH_BEND_MOD, VoiceAddMode::Default);
-
-            Some(voice_id)
-        } else {
-            log::warn!(
-                "Failed to allocate a synthesis process. (chan={},key={})",
-                chan,
-                key
-            );
-            None
-        }
     }
 
     pub(crate) fn update_presets(&mut self) {
