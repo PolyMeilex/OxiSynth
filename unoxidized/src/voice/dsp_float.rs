@@ -68,7 +68,7 @@ lazy_static! {
 }
 
 /// Return the index and the fractional part, respectively.
-#[inline]
+#[inline(always)]
 fn phase_fract(dsp_phase: usize) -> usize {
     dsp_phase & 0xffffffff
 }
@@ -80,11 +80,29 @@ fn phase_fract(dsp_phase: usize) -> usize {
  * resolution (32 bits). It would be unpractical to keep a set of interpolation
  * coefficients for each possible fractional part...
  */
-#[inline]
+#[inline(always)]
 fn phase_fract_to_tablerow(dsp_phase: usize) -> usize {
     const INTERP_BITS_MASK: usize = 0xff000000;
     const INTERP_BITS_SHIFT: usize = 24;
     (phase_fract(dsp_phase) & INTERP_BITS_MASK) >> INTERP_BITS_SHIFT
+}
+
+/// Purpose:
+///
+/// Sets the phase a to a phase increment given in b.
+/// For example, assume b is 0.9. After setting a to it, adding a to
+/// the playing pointer will advance it by 0.9 samples.
+#[inline(always)]
+fn phase_set_float(b: f32) -> u64 {
+    const FRACT_MAX: f64 = 4294967296.0;
+
+    let float = b as f64;
+    let double = b as f64;
+    let int = b as i32;
+
+    let left = (float as u64) << 32i32;
+    let right = ((double - (int as f64)) * FRACT_MAX) as u64;
+    left | right
 }
 
 impl Voice {
@@ -102,8 +120,7 @@ impl Voice {
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
-            | ((phase_incr as f64 - phase_incr as f64) * 4294967296.0) as u64;
+        let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -175,8 +192,7 @@ impl Voice {
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
-            | ((phase_incr as f64 - phase_incr as i32 as f64) * 4294967296.0f64) as u32 as u64;
+        let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -285,8 +301,7 @@ impl Voice {
         let end_point2: i16;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
-            | ((phase_incr as f64 - phase_incr as i32 as f64) * 4294967296.0f64) as u32 as u64;
+        let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
@@ -451,13 +466,12 @@ impl Voice {
         let mut dsp_amp: f32 = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
-        let dsp_phase_incr = (phase_incr as u64) << 32 as i32
-            | ((phase_incr as f64 - phase_incr as f64) * 4294967296.0f64) as u32 as u64;
+        let dsp_phase_incr = phase_set_float(phase_incr);
 
         let dsp_phase = self.phase;
         /* add 1/2 sample to dsp_phase since 7th order interpolation is centered on
          * the 4th sample point */
-        let mut dsp_phase = dsp_phase.wrapping_add(0x80000000 as Phase) as Phase;
+        let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
 
         /* voice is currently looping? */
         let looping =
@@ -470,7 +484,7 @@ impl Voice {
             self.loopend - 1
         } else {
             self.end
-        }) - 3 as i32) as usize;
+        }) - 3) as usize;
 
         let mut start_index: usize;
         let mut start_points: [i16; 3] = [0; 3];
@@ -675,7 +689,7 @@ impl Voice {
             /* go back to loop start */
             if dsp_phase_index > end_index {
                 dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
+                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32i32)
                     as Phase;
 
                 if !self.has_looped {
@@ -698,7 +712,7 @@ impl Voice {
 
         /* sub 1/2 sample from dsp_phase since 7th order interpolation is centered on
          * the 4th sample point (correct back to real value) */
-        dsp_phase = (dsp_phase as u64).wrapping_sub(0x80000000 as u32 as Phase) as Phase as Phase;
+        let dsp_phase = dsp_phase.wrapping_sub(0x80000000);
 
         self.phase = dsp_phase;
         self.amp = dsp_amp;
