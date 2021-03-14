@@ -12,11 +12,11 @@ use soundfont::data::modulator::{
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Mod {
-    pub(crate) dest: GenParam,
-    pub(crate) amount: f64,
+    pub dest: GenParam,
+    pub amount: f64,
 
-    pub(crate) src: ModulatorSource,
-    pub(crate) src2: ModulatorSource,
+    pub src: ModulatorSource,
+    pub src2: ModulatorSource,
 }
 
 impl From<&SFModulator> for Mod {

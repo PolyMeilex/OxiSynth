@@ -141,18 +141,18 @@ pub enum GenParam {
 }
 
 #[derive(Copy, Default, Debug, PartialEq, Clone)]
-pub struct Gen {
-    pub(crate) flags: u8,
-    pub(crate) val: f64,
-    pub(crate) mod_0: f64,
-    pub(crate) nrpn: f64,
+pub(crate) struct Gen {
+    pub flags: u8,
+    pub val: f64,
+    pub mod_0: f64,
+    pub nrpn: f64,
 }
-pub type GenFlags = u32;
-pub const GEN_ABS_NRPN: GenFlags = 2;
-pub const GEN_UNUSED: GenFlags = 0;
-pub const FLUID_OK: C2RustUnnamed = 0;
+
+const GEN_ABS_NRPN: u8 = 2;
+const GEN_UNUSED: u8 = 0;
+
 #[derive(Copy, Clone)]
-pub struct GenInfo {
+pub(crate) struct GenInfo {
     pub num: GenParam,
     pub init: i8,
     pub nrpn_scale: i8,
@@ -160,9 +160,8 @@ pub struct GenInfo {
     pub max: f32,
     pub def: f32,
 }
-pub type C2RustUnnamed = i32;
 
-pub static GEN_INFO: [GenInfo; 60] = [
+pub(crate) static GEN_INFO: [GenInfo; 60] = [
     GenInfo {
         num: GenParam::StartAddrOfs,
         init: 1,
@@ -648,11 +647,11 @@ pub static GEN_INFO: [GenInfo; 60] = [
 /// Flag the generators as unused.
 ///
 /// This also sets the generator values to default, but they will be overwritten anyway, if used.
-pub fn get_default_values() -> [Gen; 60] {
+pub(crate) fn get_default_values() -> [Gen; 60] {
     let mut out = [Gen::default(); 60];
 
     for (id, gen) in out.iter_mut().enumerate() {
-        gen.flags = GEN_UNUSED as i32 as u8;
+        gen.flags = GEN_UNUSED;
         gen.mod_0 = 0.0;
         gen.nrpn = 0.0;
         gen.val = GEN_INFO[id].def as f64;
@@ -661,25 +660,25 @@ pub fn get_default_values() -> [Gen; 60] {
     out
 }
 
-pub fn gen_init(channel: &Channel) -> [Gen; 60] {
+pub(crate) fn gen_init(channel: &Channel) -> [Gen; 60] {
     let mut out = get_default_values();
 
     for (id, gen) in out.iter_mut().enumerate() {
         gen.nrpn = channel.gen[id] as f64;
         if channel.gen_abs[id] != 0 {
-            gen.flags = GEN_ABS_NRPN as i32 as u8
+            gen.flags = GEN_ABS_NRPN;
         }
     }
 
     out
 }
 
-pub fn gen_scale_nrpn(gen: i16, data: i32) -> f32 {
-    let mut value: f32 = data as f32 - 8192.0f32;
-    value = if value < -(8192 as i32) as f32 {
-        -(8192 as i32) as f32
-    } else if value > 8192 as i32 as f32 {
-        8192 as i32 as f32
+pub(crate) fn gen_scale_nrpn(gen: i16, data: i32) -> f32 {
+    let value = data as f32 - 8192.0;
+    let value = if value < -8192.0 {
+        -8192.0
+    } else if value > 8192.0 {
+        8192.0
     } else {
         value
     };

@@ -49,7 +49,7 @@ impl Default for InterpMethod {
 pub(crate) struct ChannelId(pub usize);
 
 #[derive(Clone)]
-pub struct Channel {
+pub(crate) struct Channel {
     pub(crate) channum: u8,
 
     sfontnum: usize,
