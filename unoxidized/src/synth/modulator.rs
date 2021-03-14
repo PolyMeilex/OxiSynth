@@ -1,7 +1,7 @@
-use crate::channel::Channel;
+use super::channel::Channel;
+use super::voice_pool::Voice;
 use crate::conv::concave;
 use crate::conv::convex;
-use crate::voice_pool::Voice;
 
 use crate::generator::GenParam;
 
@@ -11,7 +11,7 @@ use soundfont::data::modulator::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Mod {
+pub(crate) struct Mod {
     pub dest: GenParam,
     pub amount: f64,
 

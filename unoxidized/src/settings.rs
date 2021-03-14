@@ -1,7 +1,5 @@
 use std::convert::TryFrom;
 
-pub const EFFECTS_CHANNELS: u8 = 2;
-
 pub struct SynthDescriptor {
     pub reverb_active: bool,
     pub chorus_active: bool,

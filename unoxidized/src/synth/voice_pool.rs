@@ -2,7 +2,7 @@ mod voice;
 
 pub(crate) use voice::{Voice, VoiceAddMode, VoiceDescriptor, VoiceEnvelope, VoiceId, VoiceStatus};
 
-use crate::channel::Channel;
+use super::channel::Channel;
 use crate::generator::GenParam;
 use crate::synth::FxBuf;
 

@@ -1,6 +1,6 @@
 use crate::Synth;
 
-use crate::oxi::{channel::InterpMethod, settings::Settings};
+use crate::oxi::{InterpolationMethod, Settings};
 
 /**
 Synthesis parameters
@@ -56,7 +56,7 @@ impl Synth {
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */
-    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) {
+    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpolationMethod) {
         self.handle.set_interp_method(chan, interp_method)
     }
 }

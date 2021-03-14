@@ -1,16 +1,19 @@
 mod public;
 
-pub mod channel;
+mod channel;
+mod modulator;
+mod soundfont;
+mod voice_pool;
+
 pub mod generator;
-pub mod modulator;
-pub mod soundfont;
-pub mod voice_pool;
+pub use self::soundfont::SoundFont;
+pub use channel::InterpolationMethod;
 
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
-use channel::{Channel, InterpMethod};
+use channel::Channel;
 
-use self::soundfont::{Preset, SoundFont};
+use self::soundfont::Preset;
 
 use voice_pool::VoicePool;
 

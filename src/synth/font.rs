@@ -1,4 +1,4 @@
-use crate::oxi::soundfont::SoundFont;
+use crate::oxi::SoundFont;
 use crate::Synth;
 use std::io::{Read, Seek};
 

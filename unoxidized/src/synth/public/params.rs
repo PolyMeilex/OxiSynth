@@ -1,6 +1,6 @@
 use crate::settings::Settings;
 use crate::synth::BankOffset;
-use crate::synth::InterpMethod;
+use crate::synth::InterpolationMethod;
 use crate::synth::Preset;
 use crate::synth::Synth;
 
@@ -69,7 +69,7 @@ impl Synth {
     /**
      * Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`)
      */
-    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpMethod) {
+    pub fn set_interp_method(&mut self, chan: Option<u8>, interp_method: InterpolationMethod) {
         if let Some(chan) = chan {
             let ch = self.channels.iter_mut().find(|ch| ch.get_num() == chan);
 

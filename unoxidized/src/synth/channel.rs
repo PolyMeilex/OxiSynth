@@ -1,5 +1,5 @@
+use super::soundfont::Preset;
 use crate::generator::{gen_scale_nrpn, GenParam};
-use crate::soundfont::Preset;
 use crate::synth::Synth;
 use crate::tuning::Tuning;
 
@@ -28,7 +28,7 @@ const BANK_SELECT_MSB: MidiControlChange = 0;
 
 /* Flags to choose the interpolation method */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InterpMethod {
+pub enum InterpolationMethod {
     /// No interpolation: Fastest, but questionable audio quality
     None = 0,
     /// Straight-line interpolation: A bit slower, reasonable audio quality
@@ -39,17 +39,17 @@ pub enum InterpMethod {
     SeventhOrder = 7,
 }
 
-impl Default for InterpMethod {
+impl Default for InterpolationMethod {
     fn default() -> Self {
         Self::FourthOrder
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct ChannelId(pub usize);
+pub(crate) struct ChannelId(pub usize);
 
 #[derive(Clone)]
-pub struct Channel {
+pub(crate) struct Channel {
     pub(crate) channum: u8,
 
     sfontnum: usize,
@@ -68,7 +68,7 @@ pub struct Channel {
     pub(crate) cc: [u8; 128],
     bank_msb: u8,
 
-    interp_method: InterpMethod,
+    interp_method: InterpolationMethod,
     pub(crate) tuning: Option<Tuning>,
 
     nrpn_select: i16,
@@ -217,11 +217,11 @@ impl Channel {
         self.channum
     }
 
-    pub fn set_interp_method(&mut self, new_method: InterpMethod) {
+    pub fn set_interp_method(&mut self, new_method: InterpolationMethod) {
         self.interp_method = new_method;
     }
 
-    pub fn get_interp_method(&self) -> InterpMethod {
+    pub fn get_interp_method(&self) -> InterpolationMethod {
         self.interp_method
     }
 

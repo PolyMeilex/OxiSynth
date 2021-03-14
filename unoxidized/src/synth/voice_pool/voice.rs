@@ -1,15 +1,16 @@
 mod dsp_float;
 
-use crate::synth::FxBuf;
-use crate::{
-    channel::{Channel, ChannelId, InterpMethod},
-    conv::{
-        act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
-        tc2sec_release,
-    },
+use super::super::{
+    channel::{Channel, ChannelId, InterpolationMethod},
     generator::{self, Gen, GenParam},
     modulator::Mod,
     soundfont::Sample,
+    FxBuf,
+};
+
+use crate::conv::{
+    act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
+    tc2sec_release,
 };
 
 use soundfont::data::modulator::{ControllerPalette, GeneralPalette};
@@ -58,7 +59,7 @@ pub enum LoopMode {
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
 
-pub struct VoiceDescriptor<'a> {
+pub(crate) struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,
     pub channel_id: ChannelId,
@@ -70,13 +71,13 @@ pub struct VoiceDescriptor<'a> {
 }
 
 #[derive(Clone)]
-pub struct Voice {
+pub(crate) struct Voice {
     pub id: usize,
     pub chan: u8,
     pub key: u8,
     pub vel: u8,
 
-    interp_method: InterpMethod,
+    interp_method: InterpolationMethod,
     channel_id: ChannelId,
     mod_count: usize,
 
@@ -430,7 +431,7 @@ impl Voice {
     }
 
     pub fn add_default_mods(&mut self) {
-        use crate::modulator::default::*;
+        use super::super::modulator::default::*;
         self.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
         self.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
         self.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
@@ -1188,24 +1189,26 @@ impl Voice {
                         }
 
                         let count = match self.interp_method {
-                            InterpMethod::None => {
+                            InterpolationMethod::None => {
                                 self.dsp_float_interpolate_none(&mut dsp_buf, amp_incr, phase_incr)
                             }
-                            InterpMethod::Linear => self.dsp_float_interpolate_linear(
+                            InterpolationMethod::Linear => self.dsp_float_interpolate_linear(
                                 &mut dsp_buf,
                                 amp_incr,
                                 phase_incr,
                             ),
-                            InterpMethod::FourthOrder => self.dsp_float_interpolate_4th_order(
-                                &mut dsp_buf,
-                                amp_incr,
-                                phase_incr,
-                            ),
-                            InterpMethod::SeventhOrder => self.dsp_float_interpolate_7th_order(
-                                &mut dsp_buf,
-                                amp_incr,
-                                phase_incr,
-                            ),
+                            InterpolationMethod::FourthOrder => self
+                                .dsp_float_interpolate_4th_order(
+                                    &mut dsp_buf,
+                                    amp_incr,
+                                    phase_incr,
+                                ),
+                            InterpolationMethod::SeventhOrder => self
+                                .dsp_float_interpolate_7th_order(
+                                    &mut dsp_buf,
+                                    amp_incr,
+                                    phase_incr,
+                                ),
                         };
 
                         if count > 0 {
