@@ -6,32 +6,28 @@ use crate::voice::{Voice, VoiceEnvelope, VoiceId, VoiceStatus};
 pub(crate) struct VoicePool {
     voices: Vec<Voice>,
     sample_rate: f32,
+    polyphony_limit: usize,
 }
 
 impl VoicePool {
     pub fn new(len: usize, sample_rate: f32) -> Self {
-        let mut voices = Vec::new();
-
-        for _ in 0..len {
-            voices.push(Voice::new(sample_rate))
-        }
-
         Self {
-            voices,
+            voices: Vec::new(),
             sample_rate,
+            polyphony_limit: len,
         }
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        for voice in self.voices.iter_mut() {
-            *voice = Voice::new(sample_rate);
-        }
+        self.voices.clear();
+        self.sample_rate = sample_rate;
     }
 
     /// Set the polyphony limit
     pub fn set_polyphony_limit(&mut self, polyphony: usize) {
         /* remove any voices above the new limit */
-        self.voices.resize(polyphony, Voice::new(self.sample_rate));
+        self.voices.truncate(polyphony);
+        self.polyphony_limit = polyphony;
     }
 
     pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) {
@@ -269,8 +265,18 @@ impl VoicePool {
 
         let voice_id = match voice_id {
             Some(id) => Some(id),
-            // If none was found, free one by kill
-            None => self.free_voice_by_kill(noteid),
+            // If none free voice was found:
+            None => {
+                // Check if we can add a new voice
+                if self.voices.len() < self.polyphony_limit {
+                    // If we can we do...
+                    self.voices.push(Voice::new(self.sample_rate));
+                    Some(VoiceId(self.voices.len() - 1))
+                } else {
+                    // If we can't we free already existing one...
+                    self.free_voice_by_kill(noteid)
+                }
+            }
         };
 
         if let Some(id) = voice_id {
