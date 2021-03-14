@@ -49,7 +49,7 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_sfont(&self, num: u32) -> Option<&SoundFont> {
+    pub fn get_sfont(&self, num: usize) -> Option<&SoundFont> {
         self.handle.get_sfont(num)
     }
 
@@ -92,22 +92,51 @@ mod test {
     #[test]
     fn font_and_preset() {
         let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
-
         assert_eq!(synth.sfcount(), 0);
 
-        let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
-        synth.sfload(&mut file, true).unwrap();
+        // Load first font
+        {
+            let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
 
-        assert_eq!(synth.sfcount(), 1);
+            let id = synth.sfload(&mut file, true).unwrap();
+            assert_eq!(id, 1);
 
-        let font = synth.get_sfont(0).unwrap();
+            assert_eq!(synth.sfcount(), 1);
 
-        assert_eq!(font.get_id(), 1);
+            let font = synth.get_sfont(0).unwrap();
 
-        let preset = font.get_preset(0, 0).unwrap();
+            assert_eq!(font.get_id(), 1);
 
-        assert_eq!(preset.get_name(), "Sine Wave");
-        assert_eq!(preset.get_banknum(), 0);
-        assert_eq!(preset.get_num(), 0);
+            let preset = font.get_preset(0, 0).unwrap();
+
+            assert_eq!(preset.get_name(), "Sine Wave");
+            assert_eq!(preset.get_banknum(), 0);
+            assert_eq!(preset.get_num(), 0);
+        }
+
+        // Load next font
+        {
+            let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+
+            let id = synth.sfload(&mut file, true).unwrap();
+            assert_eq!(id, 2);
+
+            assert_eq!(synth.sfcount(), 2);
+
+            let font = synth.get_sfont(0).unwrap();
+            assert_eq!(font.get_id(), 2);
+
+            let preset = font.get_preset(0, 0).unwrap();
+
+            assert_eq!(preset.get_name(), "Boomwhacker");
+            assert_eq!(preset.get_banknum(), 0);
+            assert_eq!(preset.get_num(), 0);
+        }
+
+        // Check If Sin Font Is Still There
+        {
+            let font = synth.get_sfont(1).unwrap();
+            assert_eq!(font.get_id(), 1);
+        }
     }
 }

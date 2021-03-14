@@ -16,12 +16,11 @@ impl Synth {
         file: &mut F,
         reset_presets: bool,
     ) -> Result<usize, ()> {
-        let sfont = SoundFont::load(file);
+        let sfont = SoundFont::load(file, self.sfont_id + 1);
 
         match sfont {
-            Ok(mut sfont) => {
+            Ok(sfont) => {
                 self.sfont_id += 1;
-                sfont.id = self.sfont_id;
 
                 self.sfont.insert(0, sfont);
                 if reset_presets {
@@ -113,8 +112,8 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_sfont(&self, num: u32) -> Option<&SoundFont> {
-        self.sfont.get(num as usize)
+    pub fn get_sfont(&self, num: usize) -> Option<&SoundFont> {
+        self.sfont.get(num)
     }
 
     /**
@@ -122,9 +121,5 @@ impl Synth {
      */
     pub fn get_sfont_by_id(&self, id: usize) -> Option<&SoundFont> {
         self.sfont.iter().find(|x| x.id == id)
-    }
-
-    pub fn get_sfont_by_id_mut(&mut self, id: usize) -> Option<&mut SoundFont> {
-        self.sfont.iter_mut().find(|x| x.id == id)
     }
 }
