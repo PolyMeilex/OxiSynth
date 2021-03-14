@@ -41,7 +41,7 @@ impl Synth {
     Turn on/off the built-in reverb unit
      */
     pub fn set_reverb_on(&mut self, on: bool) {
-        self.settings.synth.reverb_active = on;
+        self.settings.reverb_active = on;
     }
 
     /**

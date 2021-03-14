@@ -1,6 +1,6 @@
 pub const EFFECTS_CHANNELS: u8 = 2;
 
-pub struct SynthSettings {
+pub struct Settings {
     pub dump: bool,
 
     pub reverb_active: bool,
@@ -38,7 +38,7 @@ pub struct SynthSettings {
     pub min_note_length: i32,
 }
 
-impl Default for SynthSettings {
+impl Default for Settings {
     fn default() -> Self {
         Self {
             dump: false,
@@ -57,15 +57,4 @@ impl Default for SynthSettings {
             min_note_length: 10,
         }
     }
-}
-
-#[derive(Default)]
-pub struct MidiSettings {
-    pub portname: String,
-}
-
-#[derive(Default)]
-pub struct Settings {
-    pub synth: SynthSettings,
-    pub midi: MidiSettings,
 }

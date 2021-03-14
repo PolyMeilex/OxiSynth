@@ -253,7 +253,7 @@ impl Synth {
 
             // BANK_SELECT_MSB
             0 => {
-                if channum == 9 && self.settings.synth.drums_channel_active {
+                if channum == 9 && self.settings.drums_channel_active {
                     // ignored
                     return;
                 }
@@ -274,7 +274,7 @@ impl Synth {
 
             // BANK_SELECT_LSB
             32 => {
-                if channum == 9 && self.settings.synth.drums_channel_active {
+                if channum == 9 && self.settings.drums_channel_active {
                     // ignored
                     return;
                 }

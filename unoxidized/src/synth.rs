@@ -70,45 +70,45 @@ pub struct Synth {
 impl Synth {
     pub fn new(mut settings: Settings) -> Self {
         let min_note_length_ticks =
-            (settings.synth.min_note_length as f32 * settings.synth.sample_rate / 1000.0) as u32;
+            (settings.min_note_length as f32 * settings.sample_rate / 1000.0) as u32;
 
-        if settings.synth.midi_channels % 16 != 0 {
+        if settings.midi_channels % 16 != 0 {
             log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
-            let n = settings.synth.midi_channels / 16;
+            let n = settings.midi_channels / 16;
             let midi_channels = (n + 1) * 16;
-            settings.synth.midi_channels = midi_channels;
+            settings.midi_channels = midi_channels;
         }
 
-        if settings.synth.audio_channels < 1 {
+        if settings.audio_channels < 1 {
             log::warn!(
                 "Requested number of audio channels is smaller than 1. Changing this setting to 1."
             );
-            settings.synth.audio_channels = 1;
-        } else if settings.synth.audio_channels > 128 {
+            settings.audio_channels = 1;
+        } else if settings.audio_channels > 128 {
             log::warn!(
                 "Requested number of audio channels is too big ({}). Limiting this setting to 128.",
-                settings.synth.audio_channels
+                settings.audio_channels
             );
-            settings.synth.audio_channels = 128;
+            settings.audio_channels = 128;
         }
 
-        if settings.synth.audio_groups < 1 {
+        if settings.audio_groups < 1 {
             log::warn!(
                 "Requested number of audio groups is smaller than 1. Changing this setting to 1."
             );
-            settings.synth.audio_groups = 1;
-        } else if settings.synth.audio_groups > 128 {
+            settings.audio_groups = 1;
+        } else if settings.audio_groups > 128 {
             log::warn!(
                 "Requested number of audio groups is too big ({}). Limiting this setting to 128.",
-                settings.synth.audio_groups
+                settings.audio_groups
             );
-            settings.synth.audio_groups = 128;
+            settings.audio_groups = 128;
         }
 
         let nbuf = {
-            let nbuf = settings.synth.audio_channels;
-            if settings.synth.audio_groups > nbuf {
-                settings.synth.audio_groups
+            let nbuf = settings.audio_channels;
+            if settings.audio_groups > nbuf {
+                settings.audio_groups
             } else {
                 nbuf
             }
@@ -119,12 +119,9 @@ impl Synth {
             sfont: Vec::new(),
             sfont_id: 0 as _,
             bank_offsets: Vec::new(),
-            gain: settings.synth.gain,
+            gain: settings.gain,
             channel: Vec::new(),
-            voices: VoicePool::new(
-                settings.synth.polyphony as usize,
-                settings.synth.sample_rate,
-            ),
+            voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,
             storeid: 0 as _,
 
@@ -142,7 +139,7 @@ impl Synth {
             },
 
             reverb: ReverbModel::new(),
-            chorus: Chorus::new(settings.synth.sample_rate as f32),
+            chorus: Chorus::new(settings.sample_rate as f32),
 
             cur: 64,
             tuning: Vec::new(),
@@ -154,13 +151,13 @@ impl Synth {
             dither_index: 0,
         };
 
-        for i in 0..synth.settings.synth.midi_channels {
+        for i in 0..synth.settings.midi_channels {
             synth.channel.push(Channel::new(&synth, i));
         }
 
         synth.set_reverb_params(0.2, 0.0, 0.5, 0.9);
 
-        if synth.settings.synth.drums_channel_active {
+        if synth.settings.drums_channel_active {
             synth.bank_select(9, 128).ok();
         }
 
@@ -168,7 +165,7 @@ impl Synth {
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.settings.synth.sample_rate = sample_rate;
+        self.settings.sample_rate = sample_rate;
         self.voices.set_sample_rate(sample_rate);
 
         self.chorus = Chorus::new(sample_rate);
@@ -209,7 +206,7 @@ impl Synth {
     }
 
     pub(crate) fn update_presets(&mut self) {
-        for chan in 0..(self.settings.synth.midi_channels as usize) {
+        for chan in 0..(self.settings.midi_channels as usize) {
             let sfontnum = self.channel[chan].get_sfontnum();
             let banknum = self.channel[chan].get_banknum();
             let prognum = self.channel[chan].get_prognum();

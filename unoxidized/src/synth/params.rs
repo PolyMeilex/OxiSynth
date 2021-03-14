@@ -38,7 +38,7 @@ impl Synth {
         if polyphony < 1 {
             Err(())
         } else {
-            self.settings.synth.polyphony = polyphony;
+            self.settings.polyphony = polyphony;
             self.voices.set_polyphony_limit(polyphony as usize);
 
             Ok(())
@@ -49,7 +49,7 @@ impl Synth {
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
     pub fn get_polyphony(&self) -> u32 {
-        self.settings.synth.polyphony as u32
+        self.settings.polyphony as u32
     }
 
     /**
@@ -74,7 +74,7 @@ impl Synth {
             let ch = self
                 .channel
                 .iter_mut()
-                .take(self.settings.synth.midi_channels as usize)
+                .take(self.settings.midi_channels as usize)
                 .find(|ch| ch.get_num() == chan);
 
             if let Some(ch) = ch {
@@ -84,7 +84,7 @@ impl Synth {
             for ch in self
                 .channel
                 .iter_mut()
-                .take(self.settings.synth.midi_channels as usize)
+                .take(self.settings.midi_channels as usize)
             {
                 ch.set_interp_method(interp_method);
             }
@@ -127,7 +127,7 @@ impl Synth {
     }
 
     pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Preset> {
-        if chan < self.settings.synth.midi_channels {
+        if chan < self.settings.midi_channels {
             self.channel[chan as usize].get_preset()
         } else {
             None

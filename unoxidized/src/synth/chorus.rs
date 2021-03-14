@@ -64,7 +64,7 @@ impl Synth {
 
     /** Turn on/off the built-in chorus unit */
     pub fn set_chorus_on(&mut self, on: bool) {
-        self.settings.synth.chorus_active = on;
+        self.settings.chorus_active = on;
     }
 
     /**

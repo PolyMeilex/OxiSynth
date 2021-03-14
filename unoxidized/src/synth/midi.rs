@@ -5,7 +5,7 @@ impl Synth {
     Send a noteon message.
      */
     pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: u8) -> Result<(), ()> {
-        if midi_chan >= self.settings.synth.midi_channels {
+        if midi_chan >= self.settings.midi_channels {
             log::warn!("Channel out of range");
             return Err(());
         }
@@ -40,7 +40,7 @@ impl Synth {
         self.noteid = self.noteid.wrapping_add(1);
 
         // Start
-        if midi_chan >= self.settings.synth.midi_channels {
+        if midi_chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             Err(())
         } else if key >= 128 {
@@ -67,7 +67,7 @@ impl Synth {
     Send a control change message.
      */
     pub fn cc(&mut self, chan: u8, num: u16, val: u16) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
@@ -91,7 +91,7 @@ impl Synth {
     Get a control value.
      */
     pub fn get_cc(&self, chan: u8, num: u16) -> Result<u8, ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             Err(())
         } else if num >= 128 {
@@ -116,7 +116,7 @@ impl Synth {
     Send a pitch bend message.
      */
     pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
@@ -143,7 +143,7 @@ impl Synth {
     Get the pitch bend value.
      */
     pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             Err(())
         } else {
@@ -156,7 +156,7 @@ impl Synth {
     Set the pitch wheel sensitivity.
      */
     pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
@@ -183,7 +183,7 @@ impl Synth {
     Get the pitch wheel sensitivity.
      */
     pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             Err(())
         } else {
@@ -201,7 +201,7 @@ impl Synth {
         let mut subst_bank;
         let mut subst_prog;
 
-        if prognum >= 128 || chan >= self.settings.synth.midi_channels {
+        if prognum >= 128 || chan >= self.settings.midi_channels {
             log::error!("Index out of range (chan={}, prog={})", chan, prognum);
             return Err(());
         }
@@ -211,7 +211,7 @@ impl Synth {
 
         log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
 
-        if self.channel[chan as usize].channum == 9 && self.settings.synth.drums_channel_active {
+        if self.channel[chan as usize].channum == 9 && self.settings.drums_channel_active {
             preset = self.find_preset(128, prognum)
         } else {
             preset = self.find_preset(banknum, prognum)
@@ -253,7 +253,7 @@ impl Synth {
     Set channel pressure
      */
     pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
@@ -300,7 +300,7 @@ impl Synth {
     Select a bank.
      */
     pub fn bank_select(&mut self, chan: u8, bank: u32) -> Result<(), ()> {
-        if chan < self.settings.synth.midi_channels {
+        if chan < self.settings.midi_channels {
             self.channel[chan as usize].set_banknum(bank);
             return Ok(());
         }
@@ -311,7 +311,7 @@ impl Synth {
     Select a sfont.
      */
     pub fn sfont_select(&mut self, chan: u8, sfont_id: u32) -> Result<(), ()> {
-        if chan < self.settings.synth.midi_channels {
+        if chan < self.settings.midi_channels {
             self.channel[chan as usize].set_sfontnum(sfont_id);
             return Ok(());
         }
@@ -333,7 +333,7 @@ impl Synth {
     ) -> Result<(), ()> {
         let preset;
         let channel;
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::error!("Channel number out of range (chan={})", chan);
             return Err(());
         }
@@ -360,7 +360,7 @@ impl Synth {
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
     pub fn get_program(&self, chan: u8) -> Result<(u32, u32, u32), ()> {
-        if chan < self.settings.synth.midi_channels {
+        if chan < self.settings.midi_channels {
             let channel = &self.channel[chan as usize];
 
             Ok((
@@ -380,7 +380,7 @@ impl Synth {
      */
     pub fn program_reset(&mut self) {
         let mut i = 0;
-        while i < self.settings.synth.midi_channels {
+        while i < self.settings.midi_channels {
             self.program_change(i, self.channel[i as usize].get_prognum())
                 .ok();
             i += 1
@@ -398,7 +398,7 @@ impl Synth {
     pub fn system_reset(&mut self) {
         self.voices.system_reset();
 
-        for i in 0..self.settings.synth.midi_channels {
+        for i in 0..self.settings.midi_channels {
             // channel.reset()
             let preset = self.find_preset(0, 0);
             self.channel[i as usize].init(preset);

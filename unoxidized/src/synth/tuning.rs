@@ -93,7 +93,7 @@ impl Synth {
         if tuning.is_none() {
             return Err(());
         }
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range",);
             return Err(());
         }
@@ -109,7 +109,7 @@ impl Synth {
     Set the tuning to the default well-tempered tuning on a channel.
      */
     pub fn reset_tuning(&mut self, chan: u8) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range");
             Err(())
         } else {

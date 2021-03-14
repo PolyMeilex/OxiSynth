@@ -14,7 +14,7 @@ impl Synth {
     specification, paragraph 8.1.3, page 48.
      */
     pub fn set_gen(&mut self, chan: u8, param: GenParam, value: f32) -> Result<(), ()> {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range");
             return Err(());
         }
@@ -33,7 +33,7 @@ impl Synth {
     Returns the value of the generator.
      */
     pub fn get_gen(&self, chan: u8, param: GenParam) -> f32 {
-        if chan >= self.settings.synth.midi_channels {
+        if chan >= self.settings.midi_channels {
             log::warn!("Channel out of range");
             0.0
         } else if (param as u8) >= GEN_LAST {
