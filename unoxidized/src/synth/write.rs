@@ -195,11 +195,6 @@ impl Synth {
     ) {
         let mut di: i32 = self.dither_index;
 
-        /* make sure we're playing */
-        if self.state != FLUID_SYNTH_PLAYING as i32 as u32 {
-            return;
-        }
-
         let mut cur = self.cur;
         let mut i: usize = 0;
         let mut j = loff;
