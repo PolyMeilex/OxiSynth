@@ -8,7 +8,7 @@ mod reverb;
 mod tuning;
 mod write;
 
-use crate::{oxi, Settings};
+use crate::{oxi, SettingsError, SynthDescriptor};
 
 /**
 The synth object
@@ -37,10 +37,10 @@ impl Synth {
 
     As soon as the synthesizer is created, it will start playing.
      */
-    pub fn new(settings: Settings) -> Self {
-        Synth {
-            handle: oxi::synth::Synth::new(settings),
-        }
+    pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
+        Ok(Synth {
+            handle: oxi::synth::Synth::new(desc)?,
+        })
     }
 
     /**
@@ -53,16 +53,14 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use super::{Settings, Synth};
+    use super::{Synth, SynthDescriptor};
     use std::{fs::File, io::Write, slice::from_raw_parts};
 
     #[test]
     fn synth_sf2() {
         let mut pcm = File::create("Boomwhacker.sf2.pcm").unwrap();
 
-        let settings = Settings::default();
-
-        let mut synth = Synth::new(settings);
+        let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
 
         let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
         synth.sfload(&mut file, true).unwrap();

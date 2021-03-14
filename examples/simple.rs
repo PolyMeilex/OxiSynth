@@ -9,9 +9,9 @@ fn main() {
 fn synth_sf2() {
     let mut pcm = File::create("Out.sf2.pcm").unwrap();
 
-    let settings = oxisynth::Settings::default();
+    let settings = oxisynth::SynthDescriptor::default();
 
-    let mut synth = oxisynth::Synth::new(settings);
+    let mut synth = oxisynth::Synth::new(settings).unwrap();
 
     let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
     synth.sfload(&mut file, true).unwrap();

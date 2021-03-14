@@ -1,1 +1,1 @@
-pub use crate::oxi::settings::Settings;
+pub use crate::oxi::settings::{Settings, SettingsError, SynthDescriptor};

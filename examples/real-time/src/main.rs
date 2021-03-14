@@ -43,17 +43,19 @@ impl SynthBackend {
 
     fn run<T: cpal::Sample>(&self, rx: Receiver<MidiEvent>, path: &Path) -> cpal::Stream {
         let mut synth = {
-            let sample_rate = self.stream_config.sample_rate.0;
+            let sample_rate = self.stream_config.sample_rate.0 as f32;
 
-            let mut settings = oxisynth::Settings::default();
+            let settings = oxisynth::SynthDescriptor {
+                sample_rate,
+                gain: 1.0,
+                ..Default::default()
+            };
 
-            settings.synth.sample_rate = sample_rate as f32;
-
-            let mut synth = oxisynth::Synth::new(settings);
+            let mut synth = oxisynth::Synth::new(settings).unwrap();
             let mut file = std::fs::File::open(path).unwrap();
 
             synth.sfload(&mut file, true).unwrap();
-            synth.set_sample_rate(sample_rate as f32);
+            synth.set_sample_rate(sample_rate);
             synth.set_gain(1.0);
 
             synth
@@ -68,7 +70,7 @@ impl SynthBackend {
                         synth.note_on(ch, key, vel).ok();
                     }
                     MidiEvent::NoteOff { ch, key } => {
-                        synth.note_off(ch, key).ok();
+                        synth.note_off(ch, key);
                     }
                     MidiEvent::Cc { ch, ctrl, val } => {
                         synth.cc(ch, ctrl, val);

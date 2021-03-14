@@ -68,11 +68,13 @@ where
     let channels = config.channels as usize;
 
     let mut synth = {
-        let mut settings = oxisynth::Settings::default();
+        let settings = oxisynth::SynthDescriptor {
+            sample_rate,
+            gain: 1.0,
+            ..Default::default()
+        };
 
-        settings.synth.sample_rate = sample_rate;
-
-        let mut synth = oxisynth::Synth::new(settings);
+        let mut synth = oxisynth::Synth::new(settings).unwrap();
 
         // Load from memory
         use std::io::Cursor;
@@ -94,7 +96,7 @@ where
                     synth.note_on(ch, key, vel).ok();
                 }
                 MidiEvent::NoteOff { ch, key } => {
-                    synth.note_off(ch, key).ok();
+                    synth.note_off(ch, key);
                 }
             }
         }

@@ -83,11 +83,11 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{Settings, Synth};
+    use crate::{Synth, SynthDescriptor};
 
     #[test]
     fn font_and_preset() {
-        let mut synth = Synth::new(Settings::default());
+        let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
 
         assert_eq!(synth.sfcount(), 0);
 

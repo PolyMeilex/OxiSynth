@@ -12,7 +12,7 @@ use crate::voice_pool::VoicePool;
 
 use super::chorus::Chorus;
 use super::reverb::ReverbModel;
-use super::settings::Settings;
+use super::settings::{Settings, SettingsError, SynthDescriptor};
 use super::soundfont::Preset;
 use super::soundfont::SoundFont;
 use super::tuning::Tuning;
@@ -20,6 +20,7 @@ use super::{
     channel::{Channel, InterpMethod},
     chorus::ChorusMode,
 };
+use std::convert::TryInto;
 
 const GEN_LAST: u8 = 60;
 
@@ -68,42 +69,11 @@ pub struct Synth {
 }
 
 impl Synth {
-    pub fn new(mut settings: Settings) -> Self {
+    pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
+        let settings: Settings = desc.try_into()?;
+
         let min_note_length_ticks =
             (settings.min_note_length as f32 * settings.sample_rate / 1000.0) as u32;
-
-        if settings.midi_channels % 16 != 0 {
-            log::warn!("Requested number of MIDI channels is not a multiple of 16. I\'ll increase the number of channels to the next multiple.");
-            let n = settings.midi_channels / 16;
-            let midi_channels = (n + 1) * 16;
-            settings.midi_channels = midi_channels;
-        }
-
-        if settings.audio_channels < 1 {
-            log::warn!(
-                "Requested number of audio channels is smaller than 1. Changing this setting to 1."
-            );
-            settings.audio_channels = 1;
-        } else if settings.audio_channels > 128 {
-            log::warn!(
-                "Requested number of audio channels is too big ({}). Limiting this setting to 128.",
-                settings.audio_channels
-            );
-            settings.audio_channels = 128;
-        }
-
-        if settings.audio_groups < 1 {
-            log::warn!(
-                "Requested number of audio groups is smaller than 1. Changing this setting to 1."
-            );
-            settings.audio_groups = 1;
-        } else if settings.audio_groups > 128 {
-            log::warn!(
-                "Requested number of audio groups is too big ({}). Limiting this setting to 128.",
-                settings.audio_groups
-            );
-            settings.audio_groups = 128;
-        }
 
         let nbuf = {
             let nbuf = settings.audio_channels;
@@ -161,7 +131,7 @@ impl Synth {
             synth.bank_select(9, 128).ok();
         }
 
-        synth
+        Ok(synth)
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
