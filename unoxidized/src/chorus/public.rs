@@ -41,50 +41,70 @@ impl Default for ChorusParams {
 }
 
 impl Chorus {
+    /// Turn on/off the built-in chorus unit
+    pub fn set_active(&mut self, on: bool) {
+        self.active = on;
+    }
+
+    /// Check if Chorus is on/off
+    pub fn get_active(&self) -> bool {
+        self.active
+    }
+
+    /// Set the current chorus nr
     fn set_nr(&mut self, nr: u32) {
         self.new_number_blocks = nr;
     }
 
-    fn get_nr(&self) -> u32 {
+    /// Query the current chorus nr
+    pub fn get_nr(&self) -> u32 {
         self.number_blocks
     }
 
+    /// Set the current chorus level
     fn set_level(&mut self, level: f32) {
         self.new_level = level;
     }
 
-    fn get_level(&self) -> f32 {
+    /// Query the current chorus level
+    pub fn get_level(&self) -> f32 {
         self.level
     }
 
+    /// Set the current chorus speed (Hz)
     fn set_speed_hz(&mut self, speed_hz: f32) {
         self.new_speed_hz = speed_hz;
     }
 
-    fn get_speed_hz(&self) -> f32 {
+    /// Query the current chorus speed (Hz)
+    pub fn get_speed_hz(&self) -> f32 {
         self.speed_hz
     }
 
+    /// Set the current chorus depth (mS)
     fn set_depth_ms(&mut self, depth_ms: f32) {
         self.new_depth_ms = depth_ms;
     }
 
-    fn get_depth_ms(&self) -> f32 {
+    /// Query the current chorus depth (mS)
+    pub fn get_depth_ms(&self) -> f32 {
         self.depth_ms
     }
 
+    /// Set the current chorus mode
     fn set_mode(&mut self, mode: ChorusMode) {
         self.new_type = mode;
     }
 
-    fn get_mode(&self) -> ChorusMode {
+    /// Query the current chorus mode
+    pub fn get_mode(&self) -> ChorusMode {
         self.type_0
     }
 }
 
 impl Chorus {
     /**
-    Set up the chorus. It should be turned on with Synth::chorus_on().
+    Set up the chorus. It should be turned on with Chorus::set_active().
     If faulty parameters are given, all new settings are discarded.
     Keep in mind, that the needed CPU time is proportional to `nr`.
      */
@@ -99,7 +119,7 @@ impl Chorus {
     }
 
     /**
-    Set up the chorus. It should be turned on with Synth::chorus_on().
+    Set up the chorus. It should be turned on with Chorus::set_active().
     If faulty parameters are given, all new settings are discarded.
     Keep in mind, that the needed CPU time is proportional to `nr`.
      */
@@ -119,56 +139,16 @@ impl Chorus {
         self.update();
     }
 
-    /** Turn on/off the built-in chorus unit */
-    pub fn set_chorus_on(&mut self, on: bool) {
-        self.active = on;
-    }
-
-    /**
-    Query the current chorus nr
-     */
-    pub fn get_chorus_nr(&self) -> u32 {
-        self.get_nr()
-    }
-
-    /**
-    Query the current chorus level
-     */
-    pub fn get_chorus_level(&self) -> f32 {
-        self.get_level()
-    }
-
-    /**
-    Query the current chorus speed (Hz)
-     */
-    pub fn get_chorus_speed_hz(&self) -> f32 {
-        self.get_speed_hz()
-    }
-
-    /**
-    Query the current chorus depth (mS)
-     */
-    pub fn get_chorus_depth_ms(&self) -> f32 {
-        self.get_depth_ms()
-    }
-
-    /**
-    Query the current chorus mode
-     */
-    pub fn get_chorus_mode(&self) -> ChorusMode {
-        self.get_mode()
-    }
-
     /**
     Query the current chorus params
      */
     pub fn get_chorus(&self) -> ChorusParams {
         ChorusParams {
-            nr: self.get_chorus_nr(),
-            level: self.get_chorus_level(),
-            speed: self.get_chorus_speed_hz(),
-            depth: self.get_chorus_depth_ms(),
-            mode: self.get_chorus_mode(),
+            nr: self.get_nr(),
+            level: self.get_level(),
+            speed: self.get_speed_hz(),
+            depth: self.get_depth_ms(),
+            mode: self.get_mode(),
         }
     }
 }
