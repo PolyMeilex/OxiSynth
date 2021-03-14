@@ -1,6 +1,6 @@
 use crate::{oxi, Synth};
 
-use oxi::gen::GenParam;
+use oxi::generator::GenParam;
 
 /**
 Generator interface

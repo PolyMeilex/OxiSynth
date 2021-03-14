@@ -5,21 +5,21 @@ use std::rc::Rc;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
-use crate::gen::{self, Gen};
+use crate::generator::{self, Gen};
 use crate::modulator::Mod;
 use crate::soundfont::Sample;
+use crate::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor};
 use crate::synth::Synth;
-use crate::voice::{Voice, VoiceAddMode, VoiceDescriptor};
 
 const GEN_SET: u32 = 1;
 
 pub(super) struct DefaultSoundFont {
-    pub(super) filename: PathBuf,
-    pub(super) presets: Vec<Rc<DefaultPreset>>,
+    pub filename: PathBuf,
+    pub presets: Vec<Rc<DefaultPreset>>,
 }
 
 impl DefaultSoundFont {
-    pub(super) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
         let data = sf2::data::SFData::load(file);
 
         let data = match data {
@@ -96,9 +96,9 @@ impl DefaultSoundFont {
 }
 
 pub(super) struct DefaultPreset {
-    pub(super) name: String,
-    pub(super) bank: u32,
-    pub(super) num: u32,
+    pub name: String,
+    pub bank: u32,
+    pub num: u32,
     global_zone: Option<PresetZone>,
     zones: Vec<PresetZone>,
 }
@@ -170,7 +170,7 @@ impl PresetZone {
             keyhi: 128,
             vello: 0 as i32,
             velhi: 128 as i32,
-            gen: gen::get_default_values(),
+            gen: generator::get_default_values(),
             mods: Vec::new(),
         };
 
@@ -273,7 +273,7 @@ impl InstrumentZone {
     ) -> Result<InstrumentZone, ()> {
         let mut keylo = 0;
         let mut keyhi = 128;
-        let mut gen = gen::get_default_values();
+        let mut gen = generator::get_default_values();
 
         for new_gen in new_zone
             .gen_list
@@ -583,7 +583,7 @@ impl Synth {
                                 vel,
                                 id: self.storeid,
                                 start_time: self.ticks,
-                                gain: self.gain,
+                                gain: self.settings.gain,
                             };
 
                             let voice_id = self.voices.request_new_voice(self.noteid, desc, init);

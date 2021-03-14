@@ -1,4 +1,4 @@
-use crate::{gen::GenParam, synth::Synth};
+use crate::{generator::GenParam, synth::Synth};
 
 impl Synth {
     /**

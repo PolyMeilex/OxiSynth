@@ -1,9 +1,9 @@
-use super::channel::Channel;
-use super::conv::concave;
-use super::conv::convex;
-use super::voice::Voice;
+use crate::channel::Channel;
+use crate::conv::concave;
+use crate::conv::convex;
+use crate::voice_pool::Voice;
 
-use crate::gen::GenParam;
+use crate::generator::GenParam;
 
 use soundfont::data::modulator::{
     ControllerPalette, GeneralPalette, Modulator as SFModulator, ModulatorSource,
@@ -11,7 +11,7 @@ use soundfont::data::modulator::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct Mod {
+pub struct Mod {
     pub dest: GenParam,
     pub amount: f64,
 

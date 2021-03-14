@@ -1,19 +1,20 @@
-pub mod count;
-pub mod font;
-pub mod gen;
-pub mod midi;
-pub mod params;
-pub mod tuning;
-pub mod write;
+mod public;
 
-use crate::voice_pool::VoicePool;
+pub mod channel;
+pub mod generator;
+pub mod modulator;
+pub mod soundfont;
+pub mod voice_pool;
 
-use super::channel::{Channel, InterpMethod};
-use super::chorus::Chorus;
-use super::reverb::Reverb;
+use crate::chorus::Chorus;
+use crate::reverb::Reverb;
+use channel::{Channel, InterpMethod};
+
+use self::soundfont::{Preset, SoundFont};
+
+use voice_pool::VoicePool;
+
 use super::settings::{Settings, SettingsError, SynthDescriptor};
-use super::soundfont::Preset;
-use super::soundfont::SoundFont;
 use super::tuning::Tuning;
 use std::convert::TryInto;
 
@@ -36,7 +37,6 @@ pub struct Synth {
     sfont_id: usize,
 
     bank_offsets: Vec<BankOffset>,
-    pub(crate) gain: f32,
 
     pub(crate) channels: Vec<Channel>,
     pub(crate) voices: VoicePool,
@@ -90,7 +90,6 @@ impl Synth {
             sfont: Vec::new(),
             sfont_id: 0 as _,
             bank_offsets: Vec::new(),
-            gain: settings.gain,
             channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,

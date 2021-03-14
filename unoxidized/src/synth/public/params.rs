@@ -13,7 +13,7 @@ impl Synth {
     Set the master gain
      */
     pub fn set_gain(&mut self, gain: f32) {
-        self.gain = if gain < 0.0 {
+        self.settings.gain = if gain < 0.0 {
             0.0
         } else if gain > 10.0 {
             10.0
@@ -28,7 +28,7 @@ impl Synth {
     Get the master gain
      */
     pub fn get_gain(&self) -> f32 {
-        self.gain
+        self.settings.gain
     }
 
     /**

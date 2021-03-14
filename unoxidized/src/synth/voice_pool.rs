@@ -1,7 +1,10 @@
+mod voice;
+
+pub(crate) use voice::{Voice, VoiceAddMode, VoiceDescriptor, VoiceEnvelope, VoiceId, VoiceStatus};
+
 use crate::channel::Channel;
-use crate::gen::GenParam;
+use crate::generator::GenParam;
 use crate::synth::FxBuf;
-use crate::voice::{Voice, VoiceDescriptor, VoiceEnvelope, VoiceId, VoiceStatus};
 
 pub(crate) struct VoicePool {
     voices: Vec<Voice>,
@@ -207,7 +210,7 @@ impl VoicePool {
         }
     }
 
-    pub fn write_voices(
+    pub(super) fn write_voices(
         &mut self,
         channels: &[Channel],
         min_note_length_ticks: u32,

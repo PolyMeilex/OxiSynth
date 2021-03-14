@@ -7,7 +7,7 @@ use crate::{
         act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
         tc2sec_release,
     },
-    gen::{self, Gen, GenParam},
+    generator::{self, Gen, GenParam},
     modulator::Mod,
     soundfont::Sample,
 };
@@ -22,7 +22,7 @@ const GEN_ABS_NRPN: u32 = 2;
 const GEN_SET: u32 = 1;
 
 #[derive(Clone, Copy)]
-pub(crate) enum VoiceEnvelope {
+pub enum VoiceEnvelope {
     Delay = 0,
     Attack = 1,
     Hold = 2,
@@ -33,7 +33,7 @@ pub(crate) enum VoiceEnvelope {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub(crate) enum VoiceAddMode {
+pub enum VoiceAddMode {
     Overwrite = 0,
     Add = 1,
     Default = 2,
@@ -58,7 +58,7 @@ pub enum LoopMode {
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
 
-pub(crate) struct VoiceDescriptor<'a> {
+pub struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,
     pub channel_id: ChannelId,
@@ -70,7 +70,7 @@ pub(crate) struct VoiceDescriptor<'a> {
 }
 
 #[derive(Clone)]
-pub(crate) struct Voice {
+pub struct Voice {
     pub id: usize,
     pub chan: u8,
     pub key: u8,
@@ -106,7 +106,7 @@ pub(crate) struct Voice {
     hist1: f32,
     hist2: f32,
 
-    pub gen: [Gen; 60],
+    pub(crate) gen: [Gen; 60],
     synth_gain: f32,
 
     amplitude_that_reaches_noise_floor_nonloop: f32,
@@ -265,7 +265,7 @@ impl Voice {
             hist1: 0.0,
             hist2: 0.0,
 
-            gen: gen::gen_init(&desc.channel),
+            gen: generator::gen_init(&desc.channel),
             synth_gain,
 
             amplitude_that_reaches_noise_floor_nonloop: 0.00003 / synth_gain,
@@ -355,7 +355,7 @@ impl Voice {
         self.hist1 = 0.0;
         self.hist2 = 0.0;
 
-        self.gen = gen::gen_init(&desc.channel);
+        self.gen = generator::gen_init(&desc.channel);
 
         self.synth_gain = if desc.gain < 0.0000001 {
             0.0000001
@@ -890,7 +890,7 @@ impl Voice {
         self.amp_chorus = self.chorus_send * gain / 32768.0;
     }
 
-    pub fn write(
+    pub(super) fn write(
         &mut self,
         channels: &[Channel],
         min_note_length_ticks: u32,
