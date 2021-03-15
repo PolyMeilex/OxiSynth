@@ -1,4 +1,5 @@
-use std::{fs::File, io::Write, slice::from_raw_parts};
+use byte_slice_cast::AsByteSlice;
+use std::{fs::File, io::Write};
 
 fn main() {
     use env_logger::Env;
@@ -23,25 +24,7 @@ fn synth_sf2() {
             synth.note_on(0, n, 127).unwrap();
 
             synth.write(samples.as_mut());
-
-            pcm.write(unsafe {
-                from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-            })
-            .unwrap();
-
-            // Here is safe write (if you prefere)
-            // {
-            // let mut out = [0u8; (44100 / 8) * 4];
-            // for (id, v) in samples.iter().enumerate() {
-            //     let b = v.to_le_bytes();
-            //     let id = id * 4;
-            //     out[id] = b[0];
-            //     out[id + 1] = b[1];
-            //     out[id + 2] = b[2];
-            //     out[id + 3] = b[3];
-            // }
-            // pcm.write(&out).unwrap();
-            // }
+            pcm.write(samples.as_byte_slice()).unwrap();
 
             synth.note_off(0, n);
         }
@@ -49,10 +32,7 @@ fn synth_sf2() {
             synth.note_on(0, 100 - n, 127).unwrap();
 
             synth.write(samples.as_mut());
-            pcm.write(unsafe {
-                from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-            })
-            .unwrap();
+            pcm.write(samples.as_byte_slice()).unwrap();
 
             synth.note_off(0, 100 - n);
         }

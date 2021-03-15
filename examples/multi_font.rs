@@ -1,4 +1,5 @@
-use std::{fs::File, io::Write, slice::from_raw_parts};
+use byte_slice_cast::AsByteSlice;
+use std::{fs::File, io::Write};
 
 fn main() {
     use env_logger::Env;
@@ -30,11 +31,7 @@ fn synth_sf2() {
             synth.note_on(1, n, 127).unwrap();
 
             synth.write(samples.as_mut());
-
-            pcm.write(unsafe {
-                from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-            })
-            .unwrap();
+            pcm.write(samples.as_byte_slice()).unwrap();
 
             synth.note_off(0, n);
             synth.note_off(1, n);
@@ -44,10 +41,7 @@ fn synth_sf2() {
             synth.note_on(1, 100 - n, 127).unwrap();
 
             synth.write(samples.as_mut());
-            pcm.write(unsafe {
-                from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-            })
-            .unwrap();
+            pcm.write(samples.as_byte_slice()).unwrap();
 
             synth.note_off(0, 100 - n);
             synth.note_off(1, 100 - n);
