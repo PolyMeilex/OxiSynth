@@ -148,4 +148,24 @@ impl SampleLink {
             _ => false,
         }
     }
+
+    pub fn is_rom(&self) -> bool {
+        match self {
+            Self::RomMonoSample
+            | Self::RomRightSample
+            | Self::RomLeftSample
+            | Self::RomLinkedSample => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_vorbis(&self) -> bool {
+        match self {
+            Self::VorbisMonoSample
+            | Self::VorbisRightSample
+            | Self::VorbisLeftSample
+            | Self::VorbisLinkedSample => true,
+            _ => false,
+        }
+    }
 }

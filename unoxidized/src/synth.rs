@@ -211,9 +211,8 @@ impl Synth {
                 && zone.velhi >= vel as i32
         }
 
-        fn sample_in_rom(sample: &Sample) -> i32 {
-            // sampletype & FLUID_SAMPLETYPE_ROM
-            sample.sampletype & 0x8000
+        fn sample_in_rom(sample: &Sample) -> bool {
+            sample.sampletype.is_rom()
         }
 
         let preset = &self.channels[chan as usize].preset.as_ref().unwrap().data;
@@ -236,7 +235,7 @@ impl Synth {
                 for inst_zone in inst.zones.iter() {
                     // make sure this instrument zone has a valid sample
                     let sample = &inst_zone.sample;
-                    if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap()) != 0) {
+                    if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap())) {
                         // check if the note falls into the key and velocity range of this instrument
                         if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
                             // this is a good zone. allocate a new synthesis process and initialize it

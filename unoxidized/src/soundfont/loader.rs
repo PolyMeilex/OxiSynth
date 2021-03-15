@@ -343,7 +343,7 @@ impl Sample {
             samplerate: sfsample.sample_rate,
             origpitch: sfsample.origpitch as i32,
             pitchadj: sfsample.pitchadj as i32,
-            sampletype: sfsample.sample_type as i32,
+            sampletype: sfsample.sample_type,
             valid: 1,
             data,
 
@@ -351,30 +351,36 @@ impl Sample {
             amplitude_that_reaches_noise_floor: 0.0,
         };
 
-        if (sample.sampletype & 0x10 as i32) != 0 {
-            // vorbis?
-            return Ok(sample);
+        if sample.end - sample.start < 8 {
+            sample.valid = 0;
+            log::warn!("Ignoring sample: too few sample data points");
+            // TODO: It's not realy "Ok"
+            Ok(sample)
+        } else {
+            if sample.sampletype.is_rom() {
+                sample.valid = 0;
+                log::warn!("Ignoring sample: can't use ROM samples");
+                // TODO: It's not realy "Ok"
+                Ok(sample)
+            } else {
+                Ok(sample)
+            }
         }
-        if sample.sampletype & 0x8000 as i32 != 0 {
-            sample.valid = 0 as i32;
-            log::warn!("Ignoring sample: can\'t use ROM samples",);
-        }
-        if sample.end.wrapping_sub(sample.start) < 8 as i32 as u32 {
-            sample.valid = 0 as i32;
-            log::warn!("Ignoring sample: too few sample data points",);
-        }
-
-        return Ok(sample);
     }
 
+    /// - Scan the loop
+    /// - determine the peak level
+    /// - Calculate, what factor will make the loop inaudible
+    /// - Store in sample
     fn optimize_sample(&mut self) {
-        if self.valid == 0 || self.sampletype & 0x10 != 0 {
+        if self.valid == 0 || self.sampletype.is_vorbis() {
             return;
         }
         if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
             let mut peak_max = 0;
             let mut peak_min = 0;
 
+            /* Scan the loop */
             for i in self.loopstart..self.loopend {
                 let val = self.data[i as usize] as i32;
                 if val > peak_max {
@@ -384,16 +390,28 @@ impl Sample {
                 }
             }
 
+            /* Determine the peak level */
             let peak = if peak_max > -peak_min {
                 peak_max
             } else {
                 -peak_min
             };
 
+            /* Avoid division by zero */
             let peak = if peak == 0 { 1 } else { peak };
 
+            /* Calculate what factor will make the loop inaudible
+             * For example: Take a peak of 3277 (10 % of 32768).  The
+             * normalized amplitude is 0.1 (10 % of 32768).  An amplitude
+             * factor of 0.0001 (as opposed to the default 0.00001) will
+             * drop this sample to the noise floor.
+             */
+
+            /* 16 bits => 96+4=100 dB dynamic range => 0.00001 */
             let normalized_amplitude_during_loop = peak as f32 / 32768.0;
             let result = 0.00003 / normalized_amplitude_during_loop as f64;
+
+            /* Store in sample */
             self.amplitude_that_reaches_noise_floor = result;
             self.amplitude_that_reaches_noise_floor_is_valid = 1 as i32
         }

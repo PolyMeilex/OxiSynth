@@ -1,5 +1,6 @@
 pub(crate) mod loader;
 
+use ::soundfont::data::hydra::sample::SampleLink;
 use loader::{PresetData, SoundFontData};
 
 use std::io::{Read, Seek};
@@ -88,7 +89,7 @@ pub(crate) struct Sample {
     pub samplerate: u32,
     pub origpitch: i32,
     pub pitchadj: i32,
-    pub sampletype: i32,
+    pub sampletype: SampleLink,
     pub valid: i32,
     pub data: Rc<Vec<i16>>,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
