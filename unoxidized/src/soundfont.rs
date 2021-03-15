@@ -26,6 +26,7 @@ impl Preset {
     }
 }
 
+// TODO: this probbably should be `generational-arena` based
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SoundFontId(pub(crate) usize);
 
