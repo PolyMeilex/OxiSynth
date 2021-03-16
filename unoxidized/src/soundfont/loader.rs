@@ -300,6 +300,45 @@ impl InstrumentZone {
                 .find(|sample| &sample.name == name)
                 .map(|s| s.clone());
 
+            #[cfg(feature = "sf3")]
+            {
+                if sample.sampletype.is_vorbis() {
+                    let sampledata: Vec<i16> = Vec::new();
+                    let sampleframes = 0;
+
+                    {
+                        // TODO: Do some decoding magic here
+                        // sampledata =
+                        // sampleframes =
+                    }
+
+                    // point sample data to uncompressed data stream
+                    sample.data = Rc::new(sampledata);
+                    sample.start = 0;
+                    sample.end = sampleframes - 1;
+
+                    // loop is fowled?? (cluck cluck :)
+                    if (sample.loopend > sample.end
+                        || sample.loopstart >= sample.loopend
+                        || sample.loopstart <= sample.start)
+                    {
+                        // can pad loop by 8 samples and ensure at least 4 for loop (2*8+4)
+                        if ((sample.end - sample.start) >= 20) {
+                            sample.loopstart = sample.start + 8;
+                            sample.loopend = sample.end - 8;
+                        } else {
+                            // loop is fowled, sample is tiny (can't pad 8 samples)
+                            sample.loopstart = sample.start + 1;
+                            sample.loopend = sample.end - 1;
+                        }
+                    }
+
+                    // Mark it as no longer compresed sample
+                    // sample.sampletype &= ~FLUID_SAMPLETYPE_OGG_VORBIS;
+                    // sample.sampletype |= FLUID_SAMPLETYPE_OGG_VORBIS_UNPACKED;
+                }
+            }
+
             if sample.is_none() {
                 log::error!("Couldn't find sample name",);
                 return Err(());
