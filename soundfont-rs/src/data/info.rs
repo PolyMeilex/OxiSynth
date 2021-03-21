@@ -6,8 +6,8 @@ use std::io::{Read, Seek};
 
 #[derive(Debug)]
 pub struct Version {
-    major: u16,
-    minor: u16,
+    pub major: u16,
+    pub minor: u16,
 }
 
 /// Supplemental Information
