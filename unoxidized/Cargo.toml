@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 i16-out=["getrandom","rand"]
+sf3=[]
 
 [dependencies]
 bitflags = "^1.2"
