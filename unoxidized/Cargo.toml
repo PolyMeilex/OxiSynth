@@ -6,10 +6,11 @@ edition = "2018"
 
 [features]
 i16-out=["getrandom","rand"]
-sf3=[]
+sf3=["lewton"]
 
 [dependencies]
 bitflags = "^1.2"
+byte-slice-cast = "1.0.0"
 lazy_static = "1.4.0"
 
 log = "0.4.14"
@@ -23,3 +24,5 @@ num-derive = "0.3.3"
 # i16-out
 getrandom = { version = "0.2", features = ["js"], optional = true }
 rand = { version= "0.8.3", optional= true }
+
+lewton = { version="0.10.2", optional = true}

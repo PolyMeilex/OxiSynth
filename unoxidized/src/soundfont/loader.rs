@@ -27,6 +27,16 @@ impl SoundFontData {
             }
         };
 
+        #[cfg(feature = "sf3")]
+        let ver = 3;
+        #[cfg(not(feature = "sf3"))]
+        let ver = 2;
+
+        if data.info.version.major > ver {
+            log::error!("Unsupported version: {:?}", data.info.version);
+            return Err(());
+        }
+
         let mut sf2 = sf2::SoundFont2::from_data(data);
         sf2.sort_presets();
 
@@ -300,49 +310,15 @@ impl InstrumentZone {
                 .find(|sample| &sample.name == name)
                 .map(|s| s.clone());
 
-            #[cfg(feature = "sf3")]
-            {
-                if sample.sampletype.is_vorbis() {
-                    let sampledata: Vec<i16> = Vec::new();
-                    let sampleframes = 0;
-
-                    {
-                        // TODO: Do some decoding magic here
-                        // sampledata =
-                        // sampleframes =
-                    }
-
-                    // point sample data to uncompressed data stream
-                    sample.data = Rc::new(sampledata);
-                    sample.start = 0;
-                    sample.end = sampleframes - 1;
-
-                    // loop is fowled?? (cluck cluck :)
-                    if (sample.loopend > sample.end
-                        || sample.loopstart >= sample.loopend
-                        || sample.loopstart <= sample.start)
-                    {
-                        // can pad loop by 8 samples and ensure at least 4 for loop (2*8+4)
-                        if ((sample.end - sample.start) >= 20) {
-                            sample.loopstart = sample.start + 8;
-                            sample.loopend = sample.end - 8;
-                        } else {
-                            // loop is fowled, sample is tiny (can't pad 8 samples)
-                            sample.loopstart = sample.start + 1;
-                            sample.loopend = sample.end - 1;
-                        }
-                    }
-
-                    // Mark it as no longer compresed sample
-                    // sample.sampletype &= ~FLUID_SAMPLETYPE_OGG_VORBIS;
-                    // sample.sampletype |= FLUID_SAMPLETYPE_OGG_VORBIS_UNPACKED;
-                }
-            }
+            // if let Some(sample) = &sample {
+            //     println!("{:?}", sample.start);
+            // }
 
             if sample.is_none() {
                 log::error!("Couldn't find sample name",);
                 return Err(());
             }
+
             sample
         } else {
             None
@@ -358,8 +334,8 @@ impl InstrumentZone {
             mods.push(mod_dest);
         }
 
-        Ok(InstrumentZone {
-            name: name,
+        Ok(Self {
+            name,
             sample,
             keylo,
             keyhi,
@@ -383,21 +359,78 @@ impl Sample {
             origpitch: sfsample.origpitch as i32,
             pitchadj: sfsample.pitchadj as i32,
             sampletype: sfsample.sample_type,
-            valid: 1,
+            valid: true,
             data,
 
             amplitude_that_reaches_noise_floor_is_valid: 0,
             amplitude_that_reaches_noise_floor: 0.0,
         };
 
+        #[cfg(feature = "sf3")]
+        {
+            use byte_slice_cast::AsByteSlice;
+
+            if sample.sampletype.is_vorbis() {
+                let start = sample.start as usize;
+                let end = sample.end as usize;
+
+                let sample_data = sample.data.as_byte_slice();
+
+                use lewton::inside_ogg::OggStreamReader;
+                use std::io::Cursor;
+
+                let buf = Cursor::new(&sample_data[start..end]);
+
+                let mut reader = OggStreamReader::new(buf).unwrap();
+
+                let mut new = Vec::new();
+
+                while let Some(mut pck) = reader.read_dec_packet().unwrap() {
+                    new.append(&mut pck[0]);
+                }
+
+                sample.start = 0;
+                sample.end = (new.len() - 1) as u32;
+                sample.data = Rc::new(new);
+
+                // loop is fowled?? (cluck cluck :)
+                if sample.loopend > sample.end
+                    || sample.loopstart >= sample.loopend
+                    || sample.loopstart <= sample.start
+                {
+                    // can pad loop by 8 samples and ensure at least 4 for loop (2*8+4)
+                    if (sample.end - sample.start) >= 20 {
+                        sample.loopstart = sample.start + 8;
+                        sample.loopend = sample.end - 8;
+                    } else {
+                        // loop is fowled, sample is tiny (can't pad 8 samples)
+                        sample.loopstart = sample.start + 1;
+                        sample.loopend = sample.end - 1;
+                    }
+                }
+
+                // Mark it as no longer compresed sample
+                use sf2::data::sample::SampleLink;
+                sample.sampletype = match sample.sampletype {
+                    SampleLink::VorbisMonoSample => SampleLink::MonoSample,
+                    SampleLink::VorbisRightSample => SampleLink::RightSample,
+                    SampleLink::VorbisLeftSample => SampleLink::LeftSample,
+                    SampleLink::VorbisLinkedSample => SampleLink::LinkedSample,
+                    _ => unreachable!("Not Vorbis"),
+                };
+            }
+        }
+
         if sample.end - sample.start < 8 {
-            sample.valid = 0;
-            log::warn!("Ignoring sample: too few sample data points");
-            // TODO: It's not realy "Ok"
+            sample.valid = false;
+            log::warn!(
+                "Ignoring sample {:?}: too few sample data points",
+                sample.name
+            );
             Ok(sample)
         } else {
             if sample.sampletype.is_rom() {
-                sample.valid = 0;
+                sample.valid = false;
                 log::warn!("Ignoring sample: can't use ROM samples");
                 // TODO: It's not realy "Ok"
                 Ok(sample)
@@ -412,7 +445,7 @@ impl Sample {
     /// - Calculate, what factor will make the loop inaudible
     /// - Store in sample
     fn optimize_sample(&mut self) {
-        if self.valid == 0 || self.sampletype.is_vorbis() {
+        if self.valid == false || self.sampletype.is_vorbis() {
             return;
         }
         if self.amplitude_that_reaches_noise_floor_is_valid == 0 {

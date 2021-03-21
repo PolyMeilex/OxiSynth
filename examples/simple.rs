@@ -14,7 +14,7 @@ fn synth_sf2() {
 
     let mut synth = oxisynth::Synth::new(settings).unwrap();
 
-    let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
+    let mut file = std::fs::File::open("./testdata/sf3.sf3").unwrap();
     synth.sfload(&mut file, true).unwrap();
 
     let mut samples = [0f32; 44100 / 8];

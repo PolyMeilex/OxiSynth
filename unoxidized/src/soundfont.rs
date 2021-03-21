@@ -90,7 +90,7 @@ pub(crate) struct Sample {
     pub origpitch: i32,
     pub pitchadj: i32,
     pub sampletype: SampleLink,
-    pub valid: i32,
+    pub valid: bool,
     pub data: Rc<Vec<i16>>,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
