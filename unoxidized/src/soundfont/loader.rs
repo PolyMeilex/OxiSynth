@@ -80,23 +80,16 @@ impl SoundFontData {
             return Err(());
         }
 
-        let mut sample_data = vec![0u8; sample_size];
-        if file.read_exact(&mut sample_data).is_err() {
+        use byteorder::{LittleEndian, ReadBytesExt};
+
+        let mut sample_data = vec![0i16; sample_size / 2];
+        if file
+            .read_i16_into::<LittleEndian>(&mut sample_data)
+            .is_err()
+        {
             log::error!("Failed to read sample data");
             return Err(());
         }
-
-        let sample_data: Vec<i16> = sample_data
-            .chunks(2)
-            .map(|num| {
-                if num.len() == 2 {
-                    i16::from_le_bytes([num[0], num[1]])
-                } else {
-                    log::error!("Wrong sample data");
-                    0
-                }
-            })
-            .collect();
 
         Ok(sample_data)
     }

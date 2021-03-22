@@ -251,6 +251,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "byte-slice-cast",
+ "byteorder",
  "lazy_static",
  "lewton",
  "log",
