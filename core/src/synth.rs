@@ -1,5 +1,9 @@
 mod public;
 
+pub mod bank;
+
+use bank::BankOffsets;
+
 pub(crate) mod channel;
 pub(crate) mod modulator;
 pub(crate) mod voice_pool;
@@ -21,12 +25,6 @@ use std::convert::TryInto;
 
 use generational_arena::Arena;
 
-#[derive(Copy, Clone)]
-pub struct BankOffset {
-    pub sfont_id: SoundFontId,
-    pub offset: u32,
-}
-
 #[derive(Clone)]
 pub(crate) struct FxBuf {
     pub reverb: [f32; 64],
@@ -39,7 +37,7 @@ pub struct Synth {
     fonts: Arena<SoundFont>,
     fonts_stack: Vec<SoundFontId>,
 
-    bank_offsets: Vec<BankOffset>,
+    pub bank_offsets: BankOffsets,
 
     pub(crate) channels: Vec<Channel>,
     pub(crate) voices: VoicePool,
@@ -94,7 +92,7 @@ impl Synth {
             fonts: Arena::new(),
             fonts_stack: Vec::new(),
 
-            bank_offsets: Vec::new(),
+            bank_offsets: Default::default(),
             channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,
@@ -153,7 +151,8 @@ impl Synth {
         let sfont = self.get_sfont(sfont_id);
         if let Some(sfont) = sfont {
             let offset = self
-                .get_bank_offset(sfont_id)
+                .bank_offsets
+                .get(sfont_id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
             let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
@@ -168,7 +167,8 @@ impl Synth {
             let sfont = self.fonts.get(id.0);
             if let Some(sfont) = sfont {
                 let offset = self
-                    .get_bank_offset(*id)
+                    .bank_offsets
+                    .get(*id)
                     .map(|o| o.offset)
                     .unwrap_or_default();
 

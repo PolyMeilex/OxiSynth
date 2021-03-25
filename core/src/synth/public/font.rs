@@ -55,7 +55,7 @@ impl Synth {
         self.fonts.remove(id.0);
         self.fonts_stack.retain(|i| i == &id);
 
-        self.remove_bank_offset(id);
+        self.bank_offsets.remove(id);
         self.program_reset();
     }
 

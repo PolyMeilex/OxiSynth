@@ -1,6 +1,4 @@
 use crate::settings::Settings;
-use crate::soundfont::SoundFontId;
-use crate::synth::BankOffset;
 use crate::synth::InterpolationMethod;
 use crate::synth::Preset;
 use crate::synth::Synth;
@@ -82,41 +80,6 @@ impl Synth {
                 ch.set_interp_method(interp_method);
             }
         }
-    }
-
-    /**
-    Get the offset of the bank numbers in a SoundFont.
-     */
-    pub fn get_bank_offset(&self, sfont_id: SoundFontId) -> Option<&BankOffset> {
-        self.bank_offsets.iter().find(|x| x.sfont_id == sfont_id)
-    }
-
-    /**
-    Get the offset of the bank numbers in a SoundFont.
-     */
-    fn get_bank_offset_mut(&mut self, sfont_id: SoundFontId) -> Option<&mut BankOffset> {
-        self.bank_offsets
-            .iter_mut()
-            .find(|x| x.sfont_id == sfont_id)
-    }
-
-    /**
-    Offset the bank numbers in a SoundFont.
-    Returns -1 if an error occured (out of memory or negative offset)
-     */
-    pub fn set_bank_offset(&mut self, sfont_id: SoundFontId, offset: u32) {
-        let bank_offset = self.get_bank_offset_mut(sfont_id);
-
-        if let Some(mut bank_offset) = bank_offset {
-            bank_offset.offset = offset
-        } else {
-            let bank_offset = BankOffset { sfont_id, offset };
-            self.bank_offsets.insert(0, bank_offset);
-        }
-    }
-
-    pub fn remove_bank_offset(&mut self, sfont_id: SoundFontId) {
-        self.bank_offsets.retain(|x| x.sfont_id != sfont_id);
     }
 
     pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Preset> {

@@ -13,7 +13,7 @@ pub mod tuning;
 pub use tuning::Tuning;
 
 pub mod synth;
-pub use synth::{generator, InterpolationMethod, Synth};
+pub use synth::{bank, bank::BankOffset, generator, InterpolationMethod, Synth};
 
 mod conv;
 
