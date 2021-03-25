@@ -2,8 +2,6 @@ use crate::soundfont::SoundFontId;
 use crate::synth::SoundFont;
 use crate::synth::Synth;
 
-use std::io::{Read, Seek};
-
 impl Synth {
     /**
     Loads a SoundFont file and creates a new SoundFont. The newly
@@ -12,28 +10,14 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<F: Read + Seek>(
-        &mut self,
-        file: &mut F,
-        reset_presets: bool,
-    ) -> Result<SoundFontId, ()> {
-        let sfont = SoundFont::load(file);
+    pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> SoundFontId {
+        let id = self.sfont.insert(font);
 
-        match sfont {
-            Ok(sfont) => {
-                let id = self.sfont.insert(sfont);
-
-                if reset_presets {
-                    self.program_reset();
-                }
-
-                Ok(SoundFontId(id))
-            }
-            Err(err) => {
-                log::error!("Failed to load SoundFont");
-                Err(err)
-            }
+        if reset_presets {
+            self.program_reset();
         }
+
+        id.into()
     }
 
     /**
@@ -54,38 +38,6 @@ impl Synth {
 
             Err(())
         }
-    }
-
-    /**
-    Reload a SoundFont. The reloaded SoundFont retains its ID and
-    index on the stack.
-     */
-    pub fn sfreload(&mut self, _id: u32) -> Result<u32, ()> {
-        unimplemented!("sfreload");
-        // let index = self
-        //     .sfont
-        //     .iter()
-        //     .position(|x| x.id == id)
-        //     .expect("SoundFont with ID");
-
-        // if let Ok(_) = self.sfunload(id, false) {
-        //     let sfont = &self.sfont[index];
-        //     let filename = sfont.get_name();
-        //     match SoundFont::load(filename) {
-        //         Ok(mut sfont) => {
-        //             sfont.id = id;
-        //             self.sfont.insert(index, sfont);
-        //             self.update_presets();
-        //             return Ok(id);
-        //         }
-        //         Err(_) => {
-        //             log::error!("Failed to load SoundFont '{:?}'", sfont.get_name());
-        //             Err(())
-        //         }
-        //     }
-        // } else {
-        //     Err(())
-        // }
     }
 
     /**

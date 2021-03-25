@@ -37,12 +37,18 @@ impl SoundFontId {
     }
 }
 
+impl From<Index> for SoundFontId {
+    fn from(f: Index) -> Self {
+        SoundFontId(f)
+    }
+}
+
 pub struct SoundFont {
     data: SoundFontData,
 }
 
 impl SoundFont {
-    pub(crate) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
         SoundFontData::load(file).map(|defsfont| Self { data: defsfont })
     }
 

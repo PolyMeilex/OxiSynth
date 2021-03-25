@@ -53,7 +53,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use super::{Synth, SynthDescriptor};
+    use crate::{SoundFont, Synth, SynthDescriptor};
     use std::{fs::File, io::Write, slice::from_raw_parts};
 
     #[test]
@@ -63,7 +63,9 @@ mod test {
         let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
 
         let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
-        synth.sfload(&mut file, true).unwrap();
+        let font = SoundFont::load(&mut file).unwrap();
+
+        synth.add_font(font, true);
 
         let mut samples = [0f32; 44100 * 2];
 

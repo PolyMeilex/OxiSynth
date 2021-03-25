@@ -1,32 +1,19 @@
 use crate::oxi::{SoundFont, SoundFontId};
 use crate::Synth;
-use std::io::{Read, Seek};
 
 /**
 SoundFont management
  */
 impl Synth {
     /**
-    Loads a SoundFont file and creates a new SoundFont. The newly
+    Loads a SoundFont. The newly
     loaded SoundFont will be put on top of the SoundFont
     stack. Presets are searched starting from the SoundFont on the
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn sfload<P: Read + Seek>(
-        &mut self,
-        file: &mut P,
-        reset_presets: bool,
-    ) -> Result<SoundFontId, ()> {
-        self.handle.sfload(file, reset_presets)
-    }
-
-    /**
-    Reload a SoundFont. The reloaded SoundFont retains its ID and
-    index on the stack.
-     */
-    pub fn sfreload(&mut self, id: u32) -> Result<u32, ()> {
-        self.handle.sfreload(id)
+    pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> SoundFontId {
+        self.handle.add_font(font, reset_presets)
     }
 
     /**
@@ -87,7 +74,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{Synth, SynthDescriptor};
+    use crate::{SoundFont, Synth, SynthDescriptor};
 
     #[test]
     fn font_and_preset() {
@@ -97,8 +84,9 @@ mod test {
         // Load first font
         let sin = {
             let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
+            let font = SoundFont::load(&mut file).unwrap();
 
-            let id = synth.sfload(&mut file, true).unwrap();
+            let id = synth.add_font(font, true);
 
             assert_eq!(synth.sfcount(), 1);
 
@@ -115,8 +103,9 @@ mod test {
         // Load next font
         let boom = {
             let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+            let font = SoundFont::load(&mut file).unwrap();
 
-            let id = synth.sfload(&mut file, true).unwrap();
+            let id = synth.add_font(font, true);
 
             assert_eq!(synth.sfcount(), 2);
 

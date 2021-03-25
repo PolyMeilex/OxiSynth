@@ -1,6 +1,8 @@
 use byte_slice_cast::AsByteSlice;
 use std::{fs::File, io::Write};
 
+use oxisynth::{SoundFont, Synth};
+
 fn main() {
     use env_logger::Env;
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -10,12 +12,11 @@ fn main() {
 fn synth_sf2() {
     let mut pcm = File::create("Out.sf2.pcm").unwrap();
 
-    let settings = oxisynth::SynthDescriptor::default();
+    let mut synth = Synth::new(Default::default()).unwrap();
 
-    let mut synth = oxisynth::Synth::new(settings).unwrap();
-
-    let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
-    synth.sfload(&mut file, true).unwrap();
+    let mut file = File::open("./testdata/sin.sf2").unwrap();
+    let font = SoundFont::load(&mut file).unwrap();
+    synth.add_font(font, true);
 
     {
         let mut samples = [0f32; 44100 * 2];

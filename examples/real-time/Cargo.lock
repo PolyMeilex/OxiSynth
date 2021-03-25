@@ -113,10 +113,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63396b8a4b9de3f4fdfb320ab6080762242f66a8ef174c49d8e19b674db4cdbe"
 
 [[package]]
-name = "byteorder"
-version = "1.4.2"
+name = "byte-slice-cast"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
+checksum = "65c1bf4a04a88c54f589125563643d773f3254b5c38571395e2b591c693bbc81"
+
+[[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
@@ -228,6 +234,21 @@ dependencies = [
  "serde_json",
  "time 0.2.25",
  "url",
+]
+
+[[package]]
+name = "core"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byte-slice-cast",
+ "byteorder",
+ "generational-arena",
+ "lazy_static",
+ "log",
+ "num-derive",
+ "num-traits",
+ "soundfont",
 ]
 
 [[package]]
@@ -434,6 +455,15 @@ checksum = "5fc25a87fa4fd2094bffb06925852034d90a17f0d1e05197d4956d3555752191"
 dependencies = [
  "matches",
  "percent-encoding",
+]
+
+[[package]]
+name = "generational-arena"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e1d3b771574f62d0548cee0ad9057857e9fc25d7a3335f140c84f6acd0bf601"
+dependencies = [
+ "cfg-if 0.1.10",
 ]
 
 [[package]]
@@ -792,8 +822,8 @@ name = "oxisynth"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "core",
  "soundfont",
- "unoxidized",
 ]
 
 [[package]]
@@ -1300,18 +1330,6 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
-
-[[package]]
-name = "unoxidized"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "lazy_static",
- "log",
- "num-derive",
- "num-traits",
- "soundfont",
-]
 
 [[package]]
 name = "unreachable"

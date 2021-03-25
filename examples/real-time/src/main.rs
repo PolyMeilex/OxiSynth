@@ -53,8 +53,9 @@ impl SynthBackend {
 
             let mut synth = oxisynth::Synth::new(settings).unwrap();
             let mut file = std::fs::File::open(path).unwrap();
+            let font = oxisynth::SoundFont::load(&mut file).unwrap();
 
-            synth.sfload(&mut file, true).unwrap();
+            synth.add_font(font, true);
             synth.set_sample_rate(sample_rate);
             synth.set_gain(1.0);
 

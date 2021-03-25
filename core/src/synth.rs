@@ -162,13 +162,13 @@ impl Synth {
     pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<(SoundFontId, Preset)> {
         for (id, sfont) in self.sfont.iter() {
             let offset = self
-                .get_bank_offset(SoundFontId(id))
+                .get_bank_offset(id.into())
                 .map(|o| o.offset)
                 .unwrap_or_default();
 
             let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
             if let Some(preset) = preset {
-                return Some((SoundFontId(id), preset));
+                return Some((id.into(), preset));
             }
         }
         None

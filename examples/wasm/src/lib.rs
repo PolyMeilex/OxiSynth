@@ -79,8 +79,9 @@ where
         // Load from memory
         use std::io::Cursor;
         let mut file = Cursor::new(include_bytes!("../../../testdata/Boomwhacker.sf2"));
+        let font = oxisynth::SoundFont::load(&mut file).unwrap();
 
-        synth.sfload(&mut file, true).unwrap();
+        synth.add_font(font, true);
         synth.set_sample_rate(sample_rate);
         synth.set_gain(1.0);
 
