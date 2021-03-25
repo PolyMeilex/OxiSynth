@@ -36,7 +36,8 @@ pub(crate) struct FxBuf {
 pub struct Synth {
     pub(crate) ticks: u32,
 
-    sfont: Arena<SoundFont>,
+    fonts: Arena<SoundFont>,
+    fonts_stack: Vec<SoundFontId>,
 
     bank_offsets: Vec<BankOffset>,
 
@@ -89,7 +90,10 @@ impl Synth {
 
         let mut synth = Self {
             ticks: 0,
-            sfont: Arena::new(),
+
+            fonts: Arena::new(),
+            fonts_stack: Vec::new(),
+
             bank_offsets: Vec::new(),
             channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
@@ -160,15 +164,18 @@ impl Synth {
     }
 
     pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<(SoundFontId, Preset)> {
-        for (id, sfont) in self.sfont.iter() {
-            let offset = self
-                .get_bank_offset(id.into())
-                .map(|o| o.offset)
-                .unwrap_or_default();
+        for id in self.fonts_stack.iter() {
+            let sfont = self.fonts.get(id.0);
+            if let Some(sfont) = sfont {
+                let offset = self
+                    .get_bank_offset(*id)
+                    .map(|o| o.offset)
+                    .unwrap_or_default();
 
-            let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
-            if let Some(preset) = preset {
-                return Some((id.into(), preset));
+                let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
+                if let Some(preset) = preset {
+                    return Some((*id, preset));
+                }
             }
         }
         None
