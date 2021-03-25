@@ -10,7 +10,6 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct Preset {
     pub(crate) data: Rc<PresetData>,
-    pub sfont_id: SoundFontId,
 }
 
 impl Preset {
@@ -67,7 +66,6 @@ impl SoundFont {
 
         if let Some(defpreset) = defpreset {
             let preset = Preset {
-                sfont_id: self.id,
                 data: defpreset.clone(),
             };
 

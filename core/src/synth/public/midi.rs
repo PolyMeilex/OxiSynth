@@ -184,7 +184,6 @@ impl Synth {
     Send a program change message.
      */
     pub fn program_change(&mut self, chan: u8, prognum: u8) -> Result<(), ()> {
-        let mut preset;
         let banknum;
         let sfont_id;
         let mut subst_bank;
@@ -200,11 +199,12 @@ impl Synth {
 
         log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
 
-        if self.channels[chan as usize].channum == 9 && self.settings.drums_channel_active {
-            preset = self.find_preset(128, prognum)
-        } else {
-            preset = self.find_preset(banknum, prognum)
-        }
+        let mut preset =
+            if self.channels[chan as usize].channum == 9 && self.settings.drums_channel_active {
+                self.find_preset(128, prognum)
+            } else {
+                self.find_preset(banknum, prognum)
+            };
 
         if preset.is_none() {
             subst_bank = banknum as i32;
@@ -228,12 +228,12 @@ impl Synth {
             }
         }
         sfont_id = if let Some(preset) = &preset {
-            preset.sfont_id
+            preset.0
         } else {
             SoundFontId(0)
         };
         self.channels[chan as usize].set_sfontnum(sfont_id);
-        self.channels[chan as usize].set_preset(preset);
+        self.channels[chan as usize].set_preset(preset.map(|p| p.1));
 
         Ok(())
     }
@@ -387,7 +387,7 @@ impl Synth {
     pub fn system_reset(&mut self) {
         self.voices.system_reset();
 
-        let preset = self.find_preset(0, 0);
+        let preset = self.find_preset(0, 0).map(|p| p.1);
         for channel in self.channels.iter_mut() {
             channel.init(preset.clone());
             channel.init_ctrl(0);

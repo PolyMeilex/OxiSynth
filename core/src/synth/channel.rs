@@ -107,7 +107,7 @@ impl Channel {
             gen: [0f32; 60],
             gen_abs: [0; 60],
         };
-        chan.init(synth.find_preset(chan.banknum, chan.prognum));
+        chan.init(synth.find_preset(chan.banknum, chan.prognum).map(|p| p.1));
         chan.init_ctrl(0);
         return chan;
     }

@@ -159,7 +159,7 @@ impl Synth {
         }
     }
 
-    pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<Preset> {
+    pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<(SoundFontId, Preset)> {
         for sfont in self.sfont.iter() {
             let offset = self
                 .get_bank_offset(sfont.id)
@@ -168,7 +168,7 @@ impl Synth {
 
             let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
             if let Some(preset) = preset {
-                return Some(preset);
+                return Some((sfont.id, preset));
             }
         }
         return None;
