@@ -135,13 +135,6 @@ impl Synth {
         Ok(synth)
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.settings.sample_rate = sample_rate;
-        self.voices.set_sample_rate(sample_rate);
-
-        self.chorus = Chorus::new(sample_rate, self.chorus.active);
-    }
-
     pub(crate) fn get_preset(
         &mut self,
         sfont_id: SoundFontId,

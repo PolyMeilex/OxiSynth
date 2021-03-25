@@ -1,9 +1,14 @@
 use crate::settings::Settings;
-use crate::synth::InterpolationMethod;
-use crate::synth::Preset;
-use crate::synth::Synth;
+use crate::synth::{Chorus, InterpolationMethod, Preset, Synth};
 
 impl Synth {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
+        self.settings.sample_rate = sample_rate;
+        self.voices.set_sample_rate(sample_rate);
+
+        self.chorus = Chorus::new(sample_rate, self.chorus.active);
+    }
+
     pub fn get_settings(&self) -> &Settings {
         &self.settings
     }
