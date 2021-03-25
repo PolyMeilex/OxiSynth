@@ -51,6 +51,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "core"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byte-slice-cast",
+ "byteorder",
+ "lazy_static",
+ "lewton",
+ "log",
+ "num-derive",
+ "num-traits",
+ "soundfont",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -151,9 +166,9 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "byte-slice-cast",
+ "core",
  "env_logger",
  "soundfont",
- "unoxidized",
 ]
 
 [[package]]
@@ -244,21 +259,6 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
-
-[[package]]
-name = "unoxidized"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byte-slice-cast",
- "byteorder",
- "lazy_static",
- "lewton",
- "log",
- "num-derive",
- "num-traits",
- "soundfont",
-]
 
 [[package]]
 name = "winapi"

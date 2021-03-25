@@ -1,4 +1,4 @@
-pub(crate) use unoxidized as oxi;
+pub(crate) use core as oxi;
 
 mod settings;
 mod synth;

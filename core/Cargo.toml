@@ -1,5 +1,5 @@
 [package]
-name = "unoxidized"
+name = "core"
 version = "0.1.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
 edition = "2018"
