@@ -72,9 +72,13 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_nth_sfont(&self, num: usize) -> Option<&SoundFont> {
-        // self.sfont.get(num)
-        unimplemented!("get_sfont");
+    pub fn get_nth_font(&self, num: usize) -> Option<&SoundFont> {
+        let id = self.fonts_stack.get(num);
+        if let Some(id) = id {
+            self.fonts.get(id.0)
+        } else {
+            None
+        }
     }
 
     /**

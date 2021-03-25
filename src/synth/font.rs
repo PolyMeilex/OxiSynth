@@ -37,7 +37,7 @@ impl Synth {
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
     pub fn get_nth_sfont(&self, num: usize) -> Option<&SoundFont> {
-        self.handle.get_nth_sfont(num)
+        self.handle.get_nth_font(num)
     }
 
     /**
