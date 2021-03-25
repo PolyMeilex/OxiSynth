@@ -7,6 +7,8 @@ use std::io::{Read, Seek};
 use std::path::Path;
 use std::rc::Rc;
 
+use generational_arena::Index;
+
 #[derive(Clone)]
 pub struct Preset {
     pub(crate) data: Rc<PresetData>,
@@ -26,31 +28,22 @@ impl Preset {
     }
 }
 
-// TODO: this probbably should be `generational-arena` based
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SoundFontId(pub(crate) usize);
+pub struct SoundFontId(pub(crate) Index);
 
 impl SoundFontId {
-    pub fn inner(&self) -> usize {
+    pub fn inner(&self) -> Index {
         self.0
     }
 }
 
 pub struct SoundFont {
     data: SoundFontData,
-    pub(crate) id: SoundFontId,
 }
 
 impl SoundFont {
-    pub(crate) fn load<F: Read + Seek>(file: &mut F, id: usize) -> Result<Self, ()> {
-        SoundFontData::load(file).map(|defsfont| Self {
-            data: defsfont,
-            id: SoundFontId(id),
-        })
-    }
-
-    pub fn get_id(&self) -> SoundFontId {
-        self.id
+    pub(crate) fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
+        SoundFontData::load(file).map(|defsfont| Self { data: defsfont })
     }
 
     pub fn get_name(&self) -> &Path {

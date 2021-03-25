@@ -53,7 +53,7 @@ pub(crate) struct ChannelId(pub usize);
 pub(crate) struct Channel {
     pub(crate) channum: u8,
 
-    sfontnum: SoundFontId,
+    sfontnum: Option<SoundFontId>,
 
     banknum: u32,
     prognum: u8,
@@ -83,7 +83,7 @@ impl Channel {
     pub fn new(synth: &Synth, num: u8) -> Self {
         let mut chan = Self {
             channum: num,
-            sfontnum: SoundFontId(0),
+            sfontnum: None,
             banknum: 0,
             prognum: 0,
 
@@ -115,7 +115,7 @@ impl Channel {
     pub fn init(&mut self, preset: Option<Preset>) {
         self.prognum = 0;
         self.banknum = 0;
-        self.sfontnum = SoundFontId(0);
+        self.sfontnum = None;
 
         self.preset = preset;
         self.interp_method = Default::default();
@@ -226,11 +226,11 @@ impl Channel {
         self.interp_method
     }
 
-    pub fn get_sfontnum(&self) -> SoundFontId {
+    pub fn get_sfontnum(&self) -> Option<SoundFontId> {
         self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: SoundFontId) {
+    pub fn set_sfontnum(&mut self, sfontnum: Option<SoundFontId>) {
         self.sfontnum = sfontnum;
     }
 }

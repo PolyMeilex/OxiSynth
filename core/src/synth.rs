@@ -19,6 +19,8 @@ use super::settings::{Settings, SettingsError, SynthDescriptor};
 use super::tuning::Tuning;
 use std::convert::TryInto;
 
+use generational_arena::Arena;
+
 #[derive(Copy, Clone)]
 pub struct BankOffset {
     pub sfont_id: SoundFontId,
@@ -34,8 +36,7 @@ pub(crate) struct FxBuf {
 pub struct Synth {
     pub(crate) ticks: u32,
 
-    sfont: Vec<SoundFont>,
-    sfont_id: usize,
+    sfont: Arena<SoundFont>,
 
     bank_offsets: Vec<BankOffset>,
 
@@ -88,8 +89,7 @@ impl Synth {
 
         let mut synth = Self {
             ticks: 0,
-            sfont: Vec::new(),
-            sfont_id: 0 as _,
+            sfont: Arena::new(),
             bank_offsets: Vec::new(),
             channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
@@ -146,7 +146,7 @@ impl Synth {
         banknum: u32,
         prognum: u8,
     ) -> Option<Preset> {
-        let sfont = self.get_sfont_by_id(sfont_id);
+        let sfont = self.get_sfont(sfont_id);
         if let Some(sfont) = sfont {
             let offset = self
                 .get_bank_offset(sfont_id)
@@ -160,28 +160,30 @@ impl Synth {
     }
 
     pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<(SoundFontId, Preset)> {
-        for sfont in self.sfont.iter() {
+        for (id, sfont) in self.sfont.iter() {
             let offset = self
-                .get_bank_offset(sfont.id)
+                .get_bank_offset(SoundFontId(id))
                 .map(|o| o.offset)
                 .unwrap_or_default();
 
             let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
             if let Some(preset) = preset {
-                return Some((sfont.id, preset));
+                return Some((SoundFontId(id), preset));
             }
         }
-        return None;
+        None
     }
 
     pub(crate) fn update_presets(&mut self) {
         for id in 0..self.channels.len() {
             let sfontnum = self.channels[id].get_sfontnum();
-            let banknum = self.channels[id].get_banknum();
-            let prognum = self.channels[id].get_prognum();
+            if let Some(sfontnum) = sfontnum {
+                let banknum = self.channels[id].get_banknum();
+                let prognum = self.channels[id].get_prognum();
 
-            let preset = self.get_preset(sfontnum, banknum, prognum);
-            self.channels[id].set_preset(preset);
+                let preset = self.get_preset(sfontnum, banknum, prognum);
+                self.channels[id].set_preset(preset);
+            }
         }
     }
 }

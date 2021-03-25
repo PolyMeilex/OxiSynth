@@ -17,20 +17,17 @@ impl Synth {
         file: &mut F,
         reset_presets: bool,
     ) -> Result<SoundFontId, ()> {
-        let sfont = SoundFont::load(file, self.sfont_id + 1);
+        let sfont = SoundFont::load(file);
 
         match sfont {
             Ok(sfont) => {
-                let id = sfont.get_id();
-
-                self.sfont.insert(0, sfont);
-                self.sfont_id += 1;
+                let id = self.sfont.insert(sfont);
 
                 if reset_presets {
                     self.program_reset();
                 }
 
-                Ok(id)
+                Ok(SoundFontId(id))
             }
             Err(err) => {
                 log::error!("Failed to load SoundFont");
@@ -43,9 +40,8 @@ impl Synth {
     Removes a SoundFont from the stack and deallocates it.
      */
     pub fn sfunload(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
-        let sfont = self.get_sfont_by_id(id);
-        if let Some(id) = sfont.map(|sfont| sfont.id) {
-            self.sfont.retain(|s| s.id != id);
+        let sfont = self.sfont.remove(id.0);
+        if let Some(_) = sfont {
             if reset_presets {
                 self.program_reset();
             } else {
@@ -98,7 +94,8 @@ impl Synth {
     SoundFont; this is responsability of the caller.
      */
     pub fn remove_sfont(&mut self, id: SoundFontId) {
-        self.sfont.retain(|s| s.id != id);
+        self.sfont.remove(id.0);
+        // self.sfont.retain(|s| s.id != id);
         self.remove_bank_offset(id);
         self.program_reset();
     }
@@ -116,14 +113,15 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_sfont(&self, num: usize) -> Option<&SoundFont> {
-        self.sfont.get(num)
+    pub fn get_nth_sfont(&self, num: usize) -> Option<&SoundFont> {
+        // self.sfont.get(num)
+        unimplemented!("get_sfont");
     }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont_by_id(&self, id: SoundFontId) -> Option<&SoundFont> {
-        self.sfont.iter().find(|x| x.id == id)
+    pub fn get_sfont(&self, id: SoundFontId) -> Option<&SoundFont> {
+        self.sfont.get(id.0)
     }
 }

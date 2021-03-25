@@ -116,7 +116,7 @@ impl Synth {
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(SoundFontId, u32, u32), &str> {
+    pub fn get_program(&self, chan: u8) -> Result<(Option<SoundFontId>, u32, u32), &str> {
         self.handle.get_program(chan)
     }
 

@@ -184,17 +184,12 @@ impl Synth {
     Send a program change message.
      */
     pub fn program_change(&mut self, chan: u8, prognum: u8) -> Result<(), ()> {
-        let banknum;
-        let sfont_id;
-        let mut subst_bank;
-        let mut subst_prog;
-
         if prognum >= 128 || chan as usize >= self.channels.len() {
             log::error!("Index out of range (chan={}, prog={})", chan, prognum);
             return Err(());
         }
 
-        banknum = self.channels[chan as usize].get_banknum();
+        let banknum = self.channels[chan as usize].get_banknum();
         self.channels[chan as usize].set_prognum(prognum);
 
         log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
@@ -207,8 +202,8 @@ impl Synth {
             };
 
         if preset.is_none() {
-            subst_bank = banknum as i32;
-            subst_prog = prognum;
+            let mut subst_bank = banknum as i32;
+            let mut subst_prog = prognum;
             if banknum != 128 {
                 subst_bank = 0;
                 preset = self.find_preset(0, prognum);
@@ -227,12 +222,8 @@ impl Synth {
                         subst_bank, subst_prog);
             }
         }
-        sfont_id = if let Some(preset) = &preset {
-            preset.0
-        } else {
-            SoundFontId(0)
-        };
-        self.channels[chan as usize].set_sfontnum(sfont_id);
+
+        self.channels[chan as usize].set_sfontnum(preset.as_ref().map(|p| p.0));
         self.channels[chan as usize].set_preset(preset.map(|p| p.1));
 
         Ok(())
@@ -303,7 +294,7 @@ impl Synth {
      */
     pub fn sfont_select(&mut self, chan: u8, sfont_id: SoundFontId) -> Result<(), &str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.set_sfontnum(sfont_id);
+            channel.set_sfontnum(Some(sfont_id));
             Ok(())
         } else {
             log::error!("Channel out of range",);
@@ -336,7 +327,7 @@ impl Synth {
                 );
                 Err("This preset does not exist")
             } else {
-                channel.set_sfontnum(sfont_id);
+                channel.set_sfontnum(Some(sfont_id));
                 channel.set_banknum(bank_num);
                 channel.set_prognum(preset_num);
                 channel.set_preset(preset);
@@ -351,7 +342,7 @@ impl Synth {
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(SoundFontId, u32, u32), &str> {
+    pub fn get_program(&self, chan: u8) -> Result<(Option<SoundFontId>, u32, u32), &str> {
         if let Some(channel) = self.channels.get(chan as usize) {
             Ok((
                 channel.get_sfontnum(),
