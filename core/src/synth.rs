@@ -115,7 +115,7 @@ impl Synth {
             chorus: Chorus::new(settings.sample_rate, chorus_active),
 
             cur: 64,
-            tuning: Vec::new(),
+            tuning: vec![vec![None; 128]; 128],
             min_note_length_ticks,
 
             settings,
