@@ -8,7 +8,7 @@ fn main() {
         // let data = SFData::load(&mut file).unwrap();
         // let _sf2 = SoundFont2::from_data(data);
 
-        let mut synth = Synth::new(Default::default()).unwrap();
+        let mut synth = Synth::default();
 
         let start = std::time::Instant::now();
 

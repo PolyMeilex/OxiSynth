@@ -12,7 +12,7 @@ fn main() {
 fn synth_sf2() {
     let mut pcm = File::create("Out.sf2.pcm").unwrap();
 
-    let mut synth = Synth::new(Default::default()).unwrap();
+    let mut synth = Synth::default();
 
     let mut file = File::open("./testdata/sin.sf2").unwrap();
     let font = SoundFont::load(&mut file).unwrap();

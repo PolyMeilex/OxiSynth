@@ -32,6 +32,14 @@ pub struct Synth {
 
 unsafe impl Send for Synth {}
 
+impl Default for Synth {
+    fn default() -> Self {
+        Self {
+            handle: oxi::Synth::default(),
+        }
+    }
+}
+
 impl Synth {
     /**
     Creates a new synthesizer object.

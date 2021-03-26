@@ -67,6 +67,12 @@ pub struct Synth {
     dither_index: i32,
 }
 
+impl Default for Synth {
+    fn default() -> Self {
+        Self::new(Default::default()).unwrap()
+    }
+}
+
 impl Synth {
     pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
         let chorus_active = desc.chorus_active;

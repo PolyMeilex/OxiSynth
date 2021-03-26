@@ -97,7 +97,7 @@ mod test {
 
     #[test]
     fn tuning() {
-        let mut synth = Synth::new(Default::default()).unwrap();
+        let mut synth = Synth::default();
 
         // Out of range test:
         synth.get_tuning(120, 120);
