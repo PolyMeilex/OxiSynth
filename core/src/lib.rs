@@ -10,7 +10,7 @@ pub mod settings;
 pub use settings::{Settings, SettingsError, SynthDescriptor};
 
 pub mod tuning;
-pub use tuning::Tuning;
+pub use tuning::{Tuning, TuningManager};
 
 pub mod synth;
 pub use synth::{bank, bank::BankOffset, generator, InterpolationMethod, Synth};

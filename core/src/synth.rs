@@ -20,7 +20,6 @@ use crate::soundfont::{Preset, SoundFont, SoundFontId};
 use voice_pool::VoicePool;
 
 use super::settings::{Settings, SettingsError, SynthDescriptor};
-use super::tuning::Tuning;
 use std::convert::TryInto;
 
 use generational_arena::Arena;
@@ -58,7 +57,6 @@ pub struct Synth {
 
     cur: usize,
 
-    tuning: Vec<Vec<Option<Tuning>>>,
     pub(crate) min_note_length_ticks: u32,
 
     pub(crate) settings: Settings,
@@ -121,7 +119,6 @@ impl Synth {
             chorus: Chorus::new(settings.sample_rate, chorus_active),
 
             cur: 64,
-            tuning: vec![vec![None; 128]; 128],
             min_note_length_ticks,
 
             settings,
