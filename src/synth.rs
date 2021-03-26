@@ -9,6 +9,7 @@ mod tuning;
 mod write;
 
 use crate::{oxi, SettingsError, SynthDescriptor};
+pub use tuning::Tuning;
 
 /**
 The synth object

@@ -2,166 +2,117 @@ use crate::synth::Synth;
 use crate::tuning::Tuning;
 
 impl Synth {
-    /**
-    Create a new key-based tuning with given name, number, and
-    pitches. The array 'pitches' should have length 128 and contains
-    the pitch in cents of every key in cents. However, if 'pitches' is
-    NULL, a new tuning is created with the well-tempered scale.
-     */
-
-    pub fn create_key_tuning(
-        &mut self,
-        bank: u32,
-        prog: u32,
-        name: String,
-        pitch: &[f64; 128],
-    ) -> Result<(), ()> {
-        let tuning = self.create_tuning(bank, prog, name)?;
-        tuning.set_all(pitch);
-        Ok(())
-    }
-
-    /**
-    Create a new octave-based tuning with given name, number, and
-    pitches.  The array 'pitches' should have length 12 and contains
-    derivation in cents from the well-tempered scale. For example, if
-    pitches[0] equals -33, then the C-keys will be tuned 33 cents
-    below the well-tempered C.
-     */
-    pub fn create_octave_tuning(
-        &mut self,
-        bank: u32,
-        prog: u32,
-        name: String,
-        pitch: &[f64; 12],
-    ) -> Result<(), ()> {
-        if !(bank < 128) {
-            Err(())
-        } else if !(prog < 128) {
-            Err(())
-        } else {
-            let tuning = self.create_tuning(bank, prog, name)?;
-
-            tuning.set_octave(pitch);
-            Ok(())
-        }
-    }
-
-    pub fn activate_octave_tuning(
-        &mut self,
-        bank: u32,
-        prog: u32,
-        name: String,
-        pitch: &[f64; 12],
-    ) -> Result<(), ()> {
-        self.create_octave_tuning(bank, prog, name, pitch)
-    }
-
-    /**
-    Request a note tuning changes. Both they 'keys' and 'pitches'
-    arrays should be of length 'num_pitches'. If 'apply' is non-zero,
-    the changes should be applied in real-time, i.e. sounding notes
-    will have their pitch updated. 'APPLY' IS CURRENTLY IGNORED. The
-    changes will be available for newly triggered notes only.
-     */
-    pub fn tune_notes(&mut self, bank: u32, prog: u32, key_pitch: &[(u32, f64)]) -> Result<(), ()> {
-        if bank > 128 {
-            Err(())
-        } else if prog > 128 {
-            Err(())
-        } else {
-            let tuning = self.create_tuning(bank, prog, "Unnamed".into())?;
-            for (key, pitch) in key_pitch.iter() {
-                tuning.set_pitch(*key, *pitch);
-            }
-            Ok(())
-        }
-    }
-
-    /**
-    Select a tuning for a channel.
-     */
-    pub fn select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
-        if bank > 128 {
-            Err(())
-        } else if prog > 128 {
-            Err(())
-        } else if let Some(tuning) = self.get_tuning(bank, prog).map(|t| t.clone()) {
+    /// Select a tuning for a channel.
+    pub fn channel_select_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), &str> {
+        if let Some(tuning) = self.get_tuning(bank, prog).map(|t| t.clone()) {
             if let Some(channel) = self.channels.get_mut(chan as usize) {
                 channel.tuning = Some(tuning);
                 Ok(())
             } else {
-                log::error!("Channel out of range");
-                Err(())
+                Err("Channel out of range")
             }
         } else {
-            log::error!("No Tuning found");
-            Err(())
+            Err("No Tuning found")
         }
     }
 
-    pub fn activate_tuning(&mut self, chan: u8, bank: u32, prog: u32) -> Result<(), ()> {
-        self.select_tuning(chan, bank, prog)
-    }
-
-    /**
-    Set the tuning to the default well-tempered tuning on a channel.
-     */
-    pub fn reset_tuning(&mut self, chan: u8) -> Result<(), ()> {
+    /// Set the tuning to the default well-tempered tuning on a channel.
+    pub fn channel_reset_tuning(&mut self, chan: u8) -> Result<(), &str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             channel.tuning = None;
             Ok(())
         } else {
-            log::error!("Channel out of range");
-            Err(())
+            Err("channel_select_tuning")
         }
     }
 
-    pub fn tuning_iter<'a>(&'a mut self) -> impl Iterator<Item = &'a Tuning> {
+    /// Adds tuning to synth.
+    ///
+    /// If tuning with the same bank and program already exsists it gets replaced.
+    pub fn add_tuning(&mut self, tuning: Tuning) -> Result<(), &str> {
+        let bank = tuning.bank as usize;
+        let program = tuning.program as usize;
+
+        if let Some(bank) = self.tuning.get_mut(bank) {
+            if let Some(t) = bank.get_mut(program) {
+                *t = Some(tuning);
+                Ok(())
+            } else {
+                Err("Program number out of range")
+            }
+        } else {
+            Err("Bank number out of range")
+        }
+    }
+
+    // Removes tuning asignet to specified bank and program
+    pub fn remove_tuning(&mut self, bank: u32, program: u32) -> Result<Tuning, &str> {
+        let bank = bank as usize;
+        let program = program as usize;
+
+        if let Some(bank) = self.tuning.get_mut(bank) {
+            if let Some(t) = bank.get_mut(program) {
+                let t = t.take();
+                t.ok_or("No tuning found")
+            } else {
+                Err("Program number out of range")
+            }
+        } else {
+            Err("Bank number out of range")
+        }
+    }
+
+    // Gets tuning asignet to specified bank and program
+    pub fn get_tuning(&self, bank: u32, program: u32) -> Option<&Tuning> {
+        let bank = bank as usize;
+        let program = program as usize;
+
         self.tuning
-            .iter()
-            .flatten()
-            .filter_map(|t| if let Some(t) = t { Some(t) } else { None })
+            .get(bank)
+            .and_then(|bank| bank.get(program).and_then(|t| t.as_ref()))
     }
 
-    pub fn tuning_dump(&self, bank: u32, prog: u32) -> Result<(&str, &[f64; 128]), ()> {
-        match self.get_tuning(bank, prog) {
-            Some(tuning) => Ok((tuning.get_name(), &tuning.pitch)),
-            None => Err(()),
-        }
+    // Gets tuning asignet to specified bank and program
+    pub fn get_tuning_mut(&mut self, bank: u32, program: u32) -> Option<&mut Tuning> {
+        let bank = bank as usize;
+        let program = program as usize;
+
+        self.tuning
+            .get_mut(bank)
+            .and_then(|bank| bank.get_mut(program).and_then(|t| t.as_mut()))
     }
 
-    fn get_tuning(&self, bank: u32, prog: u32) -> Option<&Tuning> {
-        if bank >= 128 {
-            log::warn!("Bank number out of range");
-            None
-        } else if prog >= 128 {
-            log::warn!("Program number out of range");
-            None
-        } else {
-            self.tuning[bank as usize][prog as usize].as_ref()
-        }
+    pub fn tuning_iter<'a>(&'a self) -> impl Iterator<Item = &'a Tuning> {
+        self.tuning.iter().flatten().filter_map(|t| t.as_ref())
     }
 
-    fn create_tuning<'a>(
-        &'a mut self,
-        bank: u32,
-        prog: u32,
-        name: String,
-    ) -> Result<&'a mut Tuning, ()> {
-        if bank >= 128 {
-            log::warn!("Bank number out of range",);
-            Err(())
-        } else if prog >= 128 {
-            log::warn!("Program number out of range",);
-            Err(())
-        } else {
-            let tuning = self.tuning[bank as usize][prog as usize]
-                .get_or_insert_with(|| Tuning::new(name.clone(), bank, prog));
+    pub fn tuning_iter_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut Tuning> {
+        self.tuning.iter_mut().flatten().filter_map(|t| t.as_mut())
+    }
+}
 
-            tuning.set_name(name);
+#[cfg(test)]
+mod test {
+    use crate::{Synth, Tuning};
 
-            Ok(tuning)
-        }
+    #[test]
+    fn tuning() {
+        let mut synth = Synth::new(Default::default()).unwrap();
+
+        // Out of range test:
+        synth.get_tuning(120, 120);
+        synth.get_tuning(999, 999);
+
+        // Adding a tunning
+        let (bank, program) = (15, 2);
+
+        let tuning = Tuning::new(bank, program);
+        synth.add_tuning(tuning).unwrap();
+
+        let tuning = synth.get_tuning(bank, program).unwrap();
+        assert_eq!(tuning.bank, bank);
+        assert_eq!(tuning.program, program);
+
+        synth.get_tuning_mut(bank, program).unwrap();
     }
 }
