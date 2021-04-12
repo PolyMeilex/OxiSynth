@@ -1,3 +1,5 @@
+![img](https://i.imgur.com/V9KLOJE.png)
+
 # OxiSynth
 
 `fluidsynth` based soundfont synthesizer
