@@ -203,10 +203,7 @@ use crate::soundfont::{
 impl Synth {
     pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) {
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
-            zone.keylo <= key
-                && zone.keyhi >= key
-                && zone.vello <= vel as i32
-                && zone.velhi >= vel as i32
+            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
         }
 
         fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: u8) -> bool {

@@ -150,8 +150,8 @@ pub(crate) struct PresetZone {
     pub inst: Option<Instrument>,
     pub keylo: u8,
     pub keyhi: u8,
-    pub vello: i32,
-    pub velhi: i32,
+    pub vello: u8,
+    pub velhi: u8,
     pub gen: [Gen; 60],
     pub mods: Vec<Mod>,
 }
@@ -168,8 +168,8 @@ impl PresetZone {
             inst: None,
             keylo: 0,
             keyhi: 128,
-            vello: 0 as i32,
-            velhi: 128 as i32,
+            vello: 0,
+            velhi: 128,
             gen: generator::get_default_values(),
             mods: Vec::new(),
         };
@@ -180,10 +180,15 @@ impl PresetZone {
             .filter(|g| g.ty != sf2::data::GeneratorType::Instrument)
         {
             match sfgen.ty {
-                sf2::data::GeneratorType::KeyRange | sf2::data::GeneratorType::VelRange => {
+                sf2::data::GeneratorType::KeyRange => {
                     let amount = sfgen.amount.as_range().unwrap();
                     zone.keylo = amount.low;
                     zone.keyhi = amount.high;
+                }
+                sf2::data::GeneratorType::VelRange => {
+                    let amount = sfgen.amount.as_range().unwrap();
+                    zone.vello = amount.low;
+                    zone.velhi = amount.high;
                 }
                 _ => {
                     // FIXME: some generators have an unsigned word amount value but i don't know which ones
