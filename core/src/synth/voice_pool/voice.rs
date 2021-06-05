@@ -91,7 +91,7 @@ pub struct Voice {
     debug: i32,
     pub has_looped: bool,
 
-    filter_startup: i32,
+    filter_startup: bool,
 
     volenv_count: u32,
     pub volenv_section: i32,
@@ -157,7 +157,6 @@ pub struct Voice {
     pub loopstart: i32,
     pub loopend: i32,
 
-    //
     volenv_data: [EnvData; 7],
     modenv_data: [EnvData; 7],
     mod_0: [Mod; 64],
@@ -250,7 +249,7 @@ impl Voice {
             has_looped: false,
 
             last_fres: -1.0,
-            filter_startup: 1,
+            filter_startup: true,
 
             volenv_count: 0,
             volenv_section: 0,
@@ -318,55 +317,6 @@ impl Voice {
             chorus_send: 0.0,
             amp_chorus: 0.0,
         }
-    }
-
-    pub fn reinit(&mut self, desc: VoiceDescriptor) {
-        self.note_id = desc.note_id;
-        self.channel_id = desc.channel_id;
-
-        self.key = desc.key;
-        self.vel = desc.vel;
-
-        self.interp_method = desc.channel.get_interp_method();
-        self.mod_count = 0;
-
-        self.sample = desc.sample;
-        self.start_time = desc.start_time;
-
-        self.ticks = 0;
-        self.noteoff_ticks = 0;
-
-        self.debug = 0;
-        self.has_looped = false;
-
-        self.last_fres = -1.0;
-        self.filter_startup = 1;
-
-        self.volenv_count = 0;
-        self.volenv_section = 0;
-        self.volenv_val = 0.0;
-
-        self.amp = 0.0;
-        self.modenv_count = 0;
-        self.modenv_section = 0;
-        self.modenv_val = 0.0;
-
-        self.modlfo_val = 0.0;
-        self.viblfo_val = 0.0;
-
-        self.hist1 = 0.0;
-        self.hist2 = 0.0;
-
-        self.gen = generator::gen_init(&desc.channel);
-
-        self.synth_gain = if desc.gain < 0.0000001 {
-            0.0000001
-        } else {
-            desc.gain
-        };
-
-        self.amplitude_that_reaches_noise_floor_nonloop = 0.00003 / self.synth_gain;
-        self.amplitude_that_reaches_noise_floor_loop = 0.00003 / self.synth_gain;
     }
 
     pub fn is_available(&self) -> bool {
@@ -1163,7 +1113,7 @@ impl Voice {
                             /* both b0 -and- b2 */
                             let b02_temp: f32 = b1_temp * 0.5f32;
 
-                            if self.filter_startup != 0 {
+                            if self.filter_startup != false {
                                 /* The filter is calculated, because the voice was started up.
                                  * In this case set the filter coefficients without delay.
                                  */
@@ -1172,7 +1122,7 @@ impl Voice {
                                 self.b02 = b02_temp;
                                 self.b1 = b1_temp;
                                 self.filter_coeff_incr_count = 0;
-                                self.filter_startup = 0;
+                                self.filter_startup = false;
                             } else {
                                 /* The filter frequency is changed.  Calculate an increment
                                  * factor, so that the new setting is reached after one buffer

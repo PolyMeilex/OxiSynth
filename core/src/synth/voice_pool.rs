@@ -292,7 +292,7 @@ impl VoicePool {
 
         let voice_id = match voice_id {
             Some(id) => {
-                self.voices[id.0].reinit(desc);
+                self.voices[id.0] = Voice::new(self.sample_rate, desc);
                 Some(id)
             }
             // If none free voice was found:
@@ -306,7 +306,7 @@ impl VoicePool {
                     // If we can't we free already existing one...
                     let id = self.free_voice_by_kill(noteid);
                     if let Some(id) = id {
-                        self.voices[id.0].reinit(desc);
+                        self.voices[id.0] = Voice::new(self.sample_rate, desc);
                     }
                     id
                 }
