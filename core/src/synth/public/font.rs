@@ -1,6 +1,6 @@
-use crate::soundfont::SoundFontId;
-use crate::synth::SoundFont;
+use crate::soundfont::SoundFont;
 use crate::synth::Synth;
+use crate::utils::TypedIndex;
 
 impl Synth {
     /**
@@ -10,9 +10,8 @@ impl Synth {
     top of the stack, working the way down the stack until a preset
     is found.
      */
-    pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> SoundFontId {
+    pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> TypedIndex<SoundFont> {
         let id = self.fonts.insert(font);
-        let id: SoundFontId = id.into();
 
         // Put SoundFont on top of the stack
         self.fonts_stack.insert(0, id);
@@ -27,8 +26,12 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
-        let sfont = self.fonts.remove(id.0);
+    pub fn remove_font(
+        &mut self,
+        id: TypedIndex<SoundFont>,
+        reset_presets: bool,
+    ) -> Result<(), ()> {
+        let sfont = self.fonts.remove(id);
         self.fonts_stack.retain(|i| i == &id);
 
         if let Some(_) = sfont {
@@ -62,7 +65,7 @@ impl Synth {
     pub fn get_nth_font(&self, num: usize) -> Option<&SoundFont> {
         let id = self.fonts_stack.get(num);
         if let Some(id) = id {
-            self.fonts.get(id.0)
+            self.fonts.get(*id)
         } else {
             None
         }
@@ -71,7 +74,7 @@ impl Synth {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont(&self, id: SoundFontId) -> Option<&SoundFont> {
-        self.fonts.get(id.0)
+    pub fn get_sfont(&self, id: TypedIndex<SoundFont>) -> Option<&SoundFont> {
+        self.fonts.get(id)
     }
 }

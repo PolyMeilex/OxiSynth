@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use crate::generator::{gen_scale_nrpn, GenParam};
 use crate::soundfont::Preset;
-use crate::soundfont::SoundFontId;
+use crate::soundfont::SoundFont;
 use crate::synth::Synth;
 use crate::tuning::Tuning;
+use crate::utils::TypedIndex;
 
 type GenType = u32;
 const GEN_LAST: GenType = 60;
@@ -55,7 +56,7 @@ pub struct ChannelId(pub usize);
 pub struct Channel {
     pub(crate) channum: u8,
 
-    sfontnum: Option<SoundFontId>,
+    sfontnum: Option<TypedIndex<SoundFont>>,
 
     banknum: u32,
     prognum: u8,
@@ -228,11 +229,11 @@ impl Channel {
         self.interp_method
     }
 
-    pub fn get_sfontnum(&self) -> Option<SoundFontId> {
+    pub fn get_sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
         self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: Option<SoundFontId>) {
+    pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
         self.sfontnum = sfontnum;
     }
 }

@@ -1,5 +1,6 @@
-use crate::soundfont::SoundFontId;
+use crate::soundfont::SoundFont;
 use crate::synth::Synth;
+use crate::utils::TypedIndex;
 
 impl Synth {
     /**
@@ -292,7 +293,7 @@ impl Synth {
     /**
     Select a sfont.
      */
-    pub fn sfont_select(&mut self, chan: u8, sfont_id: SoundFontId) -> Result<(), &str> {
+    pub fn sfont_select(&mut self, chan: u8, sfont_id: TypedIndex<SoundFont>) -> Result<(), &str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             channel.set_sfontnum(Some(sfont_id));
             Ok(())
@@ -311,7 +312,7 @@ impl Synth {
     pub fn program_select(
         &mut self,
         chan: u8,
-        sfont_id: SoundFontId,
+        sfont_id: TypedIndex<SoundFont>,
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), &str> {
@@ -342,7 +343,7 @@ impl Synth {
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(Option<SoundFontId>, u32, u32), &str> {
+    pub fn get_program(&self, chan: u8) -> Result<(Option<TypedIndex<SoundFont>>, u32, u32), &str> {
         if let Some(channel) = self.channels.get(chan as usize) {
             Ok((
                 channel.get_sfontnum(),

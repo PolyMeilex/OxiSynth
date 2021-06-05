@@ -14,23 +14,6 @@ pub(crate) use {
 
 pub use preset::Preset;
 
-use generational_arena::Index;
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SoundFontId(pub(crate) Index);
-
-impl SoundFontId {
-    pub fn inner(&self) -> Index {
-        self.0
-    }
-}
-
-impl From<Index> for SoundFontId {
-    fn from(f: Index) -> Self {
-        SoundFontId(f)
-    }
-}
-
 pub struct SoundFont {
     presets: Vec<Rc<Preset>>,
 }

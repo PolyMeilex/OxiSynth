@@ -18,4 +18,7 @@ pub use synth::{bank, bank::BankOffset, generator, InterpolationMethod, Synth};
 mod conv;
 
 pub mod soundfont;
-pub use self::soundfont::{SoundFont, SoundFontId};
+pub use self::soundfont::SoundFont;
+
+mod utils;
+pub use utils::TypedIndex;

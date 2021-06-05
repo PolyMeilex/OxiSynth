@@ -13,17 +13,19 @@ pub use channel::InterpolationMethod;
 
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
+use crate::utils::TypedArena;
 use channel::Channel;
 
-use crate::soundfont::{Preset, SoundFont, SoundFontId};
+use crate::{
+    soundfont::{Preset, SoundFont},
+    utils::TypedIndex,
+};
 
 use voice_pool::VoicePool;
 
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
 use std::rc::Rc;
-
-use generational_arena::Arena;
 
 #[derive(Clone)]
 pub(crate) struct FxBuf {
@@ -34,8 +36,8 @@ pub(crate) struct FxBuf {
 pub struct Synth {
     pub(crate) ticks: u32,
 
-    fonts: Arena<SoundFont>,
-    fonts_stack: Vec<SoundFontId>,
+    fonts: TypedArena<SoundFont>,
+    fonts_stack: Vec<TypedIndex<SoundFont>>,
 
     pub bank_offsets: BankOffsets,
 
@@ -94,7 +96,7 @@ impl Synth {
         let mut synth = Self {
             ticks: 0,
 
-            fonts: Arena::new(),
+            fonts: TypedArena::new(),
             fonts_stack: Vec::new(),
 
             bank_offsets: Default::default(),
@@ -141,7 +143,7 @@ impl Synth {
 
     pub(crate) fn get_preset(
         &mut self,
-        sfont_id: SoundFontId,
+        sfont_id: TypedIndex<SoundFont>,
         banknum: u32,
         prognum: u8,
     ) -> Option<Rc<Preset>> {
@@ -162,9 +164,9 @@ impl Synth {
         &self,
         banknum: u32,
         prognum: u8,
-    ) -> Option<(SoundFontId, Rc<Preset>)> {
+    ) -> Option<(TypedIndex<SoundFont>, Rc<Preset>)> {
         for id in self.fonts_stack.iter() {
-            let sfont = self.fonts.get(id.0);
+            let sfont = self.fonts.get(*id);
             if let Some(sfont) = sfont {
                 let offset = self
                     .bank_offsets

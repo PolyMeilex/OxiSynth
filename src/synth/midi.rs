@@ -1,4 +1,4 @@
-use crate::oxi::SoundFontId;
+use crate::SoundFontId;
 use crate::Synth;
 
 /**
