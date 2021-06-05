@@ -120,7 +120,7 @@ impl VoicePool {
         }
     }
 
-    pub fn free_voice_by_kill(&mut self, noteid: usize) -> Option<VoiceId> {
+    fn free_voice_by_kill(&mut self, noteid: usize) -> Option<VoiceId> {
         let mut best_prio: f32 = 999999.0f32;
         let mut best_voice_index: Option<usize> = None;
 
@@ -157,7 +157,7 @@ impl VoicePool {
         }
     }
 
-    pub fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
+    fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let excl_class = {
             let new_voice = &mut self.voices[new_voice.0];
             let excl_class: i32 = (new_voice.gen[GenParam::ExclusiveClass as usize].val
