@@ -50,8 +50,7 @@ impl SoundFontData {
         let mut samples = Vec::new();
 
         for sfsample in sf2.sample_headers.iter() {
-            let sample = Sample::import_sfont(sfsample, sample_data.clone())?;
-            let mut sample = sample;
+            let mut sample = Sample::import_sfont(sfsample, sample_data.clone())?;
 
             sample.optimize_sample();
 
@@ -109,38 +108,36 @@ impl PresetData {
         sfpreset: &sf2::Preset,
         samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
-        let mut preset = Self {
-            name: String::new(),
-            bank: 0 as i32 as u32,
-            num: 0 as i32 as u32,
-            global_zone: None,
-            zones: Vec::new(),
-        };
-
-        if sfpreset.header.name.len() != 0 {
-            preset.name = sfpreset.header.name.clone();
+        let name = if sfpreset.header.name.len() != 0 {
+            sfpreset.header.name.clone()
         } else {
-            preset.name = format!(
+            format!(
                 "Bank:{},Preset{}",
                 sfpreset.header.bank, sfpreset.header.preset
-            );
-        }
+            )
+        };
 
-        preset.bank = sfpreset.header.bank as u32;
-        preset.num = sfpreset.header.preset as u32;
+        let mut global_zone = None;
+        let mut zones = Vec::new();
 
         for (id, sfzone) in sfpreset.zones.iter().enumerate() {
             let name = format!("{}/{}", sfpreset.header.name, id);
             let zone = PresetZone::import(name, sf2, sfzone, samples)?;
 
             if id == 0 && zone.inst.is_none() {
-                preset.global_zone = Some(zone);
+                global_zone = Some(zone);
             } else {
-                preset.zones.push(zone);
+                zones.push(zone);
             }
         }
 
-        Ok(preset)
+        Ok(Self {
+            name,
+            bank: sfpreset.header.bank as u32,
+            num: sfpreset.header.preset as u32,
+            global_zone,
+            zones,
+        })
     }
 }
 
@@ -163,16 +160,12 @@ impl PresetZone {
         sfzone: &sf2::Zone,
         samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
-        let mut zone = Self {
-            name,
-            inst: None,
-            keylo: 0,
-            keyhi: 128,
-            vello: 0,
-            velhi: 128,
-            gen: generator::get_default_values(),
-            mods: Vec::new(),
-        };
+        let mut keylo = 0;
+        let mut keyhi = 128;
+        let mut vello = 0;
+        let mut velhi = 128;
+
+        let mut gen = generator::get_default_values();
 
         for sfgen in sfzone
             .gen_list
@@ -182,38 +175,52 @@ impl PresetZone {
             match sfgen.ty {
                 sf2::data::GeneratorType::KeyRange => {
                     let amount = sfgen.amount.as_range().unwrap();
-                    zone.keylo = amount.low;
-                    zone.keyhi = amount.high;
+                    keylo = amount.low;
+                    keyhi = amount.high;
                 }
                 sf2::data::GeneratorType::VelRange => {
                     let amount = sfgen.amount.as_range().unwrap();
-                    zone.vello = amount.low;
-                    zone.velhi = amount.high;
+                    vello = amount.low;
+                    velhi = amount.high;
                 }
                 _ => {
                     // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                    zone.gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
-                    zone.gen[sfgen.ty as usize].flags = GEN_SET as u8;
+                    gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
+                    gen[sfgen.ty as usize].flags = GEN_SET as u8;
                 }
             }
         }
-        if let Some(id) = sfzone.instrument() {
-            let inst = Instrument::import(sf2, &sf2.instruments[*id as usize], samples)?;
 
-            zone.inst = Some(inst);
-        }
+        let inst = if let Some(id) = sfzone.instrument() {
+            let i = Instrument::import(sf2, &sf2.instruments[*id as usize], samples)?;
+            Some(i)
+        } else {
+            None
+        };
+
         // Import the modulators (only SF2.1 and higher)
-        for mod_src in sfzone.mod_list.iter() {
-            let mod_dest = Mod::from(mod_src);
+        let mods: Vec<_> = sfzone
+            .mod_list
+            .iter()
+            .map(|mod_src| {
+                /* Store the new modulator in the zone The order of modulators
+                 * will make a difference, at least in an instrument context: The
+                 * second modulator overwrites the first one, if they only differ
+                 * in amount. */
+                Mod::from(mod_src)
+            })
+            .collect();
 
-            /* Store the new modulator in the zone The order of modulators
-             * will make a difference, at least in an instrument context: The
-             * second modulator overwrites the first one, if they only differ
-             * in amount. */
-            zone.mods.push(mod_dest);
-        }
-
-        Ok(zone)
+        Ok(Self {
+            name,
+            inst,
+            keylo,
+            keyhi,
+            vello,
+            velhi,
+            gen,
+            mods,
+        })
     }
 }
 
@@ -230,28 +237,30 @@ impl Instrument {
         new_inst: &sf2::Instrument,
         samples: &Vec<Rc<Sample>>,
     ) -> Result<Self, ()> {
-        let mut inst = Self {
-            name: String::new(),
-            global_zone: None,
-            zones: Vec::new(),
+        let name = if new_inst.header.name.len() > 0 {
+            new_inst.header.name.clone()
+        } else {
+            "<untitled>".into()
         };
 
-        if new_inst.header.name.len() > 0 {
-            inst.name = new_inst.header.name.clone();
-        } else {
-            inst.name = "<untitled>".into();
-        }
+        let mut global_zone = None;
+        let mut zones = Vec::new();
+
         for (id, new_zone) in new_inst.zones.iter().enumerate() {
             let name = format!("{}/{}", new_inst.header.name, id);
             let zone = InstrumentZone::import(name, sf2, new_zone, samples)?;
             if id == 0 && zone.sample.is_none() {
-                inst.global_zone = Some(zone);
+                global_zone = Some(zone);
             } else {
-                inst.zones.push(zone);
+                zones.push(zone);
             }
         }
 
-        Ok(inst)
+        Ok(Self {
+            name,
+            global_zone,
+            zones,
+        })
     }
 }
 
@@ -262,8 +271,8 @@ pub(crate) struct InstrumentZone {
     pub sample: Option<Rc<Sample>>,
     pub keylo: u8,
     pub keyhi: u8,
-    pub vello: i32,
-    pub velhi: i32,
+    pub vello: u8,
+    pub velhi: u8,
     pub gen: [Gen; 60],
     pub mods: Vec<Mod>,
 }
@@ -277,6 +286,9 @@ impl InstrumentZone {
     ) -> Result<InstrumentZone, ()> {
         let mut keylo = 0;
         let mut keyhi = 128;
+        let mut vello = 0;
+        let mut velhi = 128;
+
         let mut gen = generator::get_default_values();
 
         for new_gen in new_zone
@@ -285,10 +297,15 @@ impl InstrumentZone {
             .filter(|g| g.ty != sf2::data::GeneratorType::SampleID)
         {
             match new_gen.ty {
-                sf2::data::GeneratorType::KeyRange | sf2::data::GeneratorType::VelRange => {
+                sf2::data::GeneratorType::KeyRange => {
                     let amount = new_gen.amount.as_range().unwrap();
                     keylo = amount.low;
                     keyhi = amount.high;
+                }
+                sf2::data::GeneratorType::VelRange => {
+                    let amount = new_gen.amount.as_range().unwrap();
+                    vello = amount.low;
+                    velhi = amount.high;
                 }
                 _ => {
                     // FIXME: some generators have an unsigned word amount value but i don't know which ones
@@ -322,23 +339,24 @@ impl InstrumentZone {
             None
         };
 
-        let mut mods = Vec::new();
-
-        for new_mod in new_zone.mod_list.iter() {
-            let mod_dest = Mod::from(new_mod);
-            /* Store the new modulator in the zone
-             * The order of modulators will make a difference, at least in an instrument context:
-             * The second modulator overwrites the first one, if they only differ in amount. */
-            mods.push(mod_dest);
-        }
+        let mods = new_zone
+            .mod_list
+            .iter()
+            .map(|new_mod| {
+                /* Store the new modulator in the zone
+                 * The order of modulators will make a difference, at least in an instrument context:
+                 * The second modulator overwrites the first one, if they only differ in amount. */
+                Mod::from(new_mod)
+            })
+            .collect();
 
         Ok(Self {
             name,
             sample,
             keylo,
             keyhi,
-            vello: 0,
-            velhi: 128,
+            vello,
+            velhi,
             gen,
             mods,
         })

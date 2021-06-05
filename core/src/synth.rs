@@ -207,10 +207,7 @@ impl Synth {
         }
 
         fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: u8) -> bool {
-            zone.keylo <= key
-                && zone.keyhi >= key
-                && zone.vello <= vel as i32
-                && zone.velhi >= vel as i32
+            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
         }
 
         fn sample_in_rom(sample: &Sample) -> bool {
