@@ -126,13 +126,13 @@ impl Reverb {
         let mut rev = Self {
             active,
 
-            roomsize: 0.5f32 * 0.28f32 + 0.7f32,
-            damp: 0.2f32 * 1.0f32,
-            wet: 1f32 * 3.0f32,
-            wet1: 0f32,
-            wet2: 0f32,
-            width: 1f32,
-            gain: 0.015f32,
+            roomsize: 0.5 * 0.28 + 0.7,
+            damp: 0.2 * 1.0,
+            wet: 1.0 * 3.0,
+            wet1: 0.0,
+            wet2: 0.0,
+            width: 1.0,
+            gain: 0.015,
             comb: [
                 LRPair {
                     l: Comb::new(COMBTUNING_L1),
