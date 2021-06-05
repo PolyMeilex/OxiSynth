@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::generator::{gen_scale_nrpn, GenParam};
 use crate::soundfont::Preset;
 use crate::soundfont::SoundFontId;
@@ -47,10 +49,10 @@ impl Default for InterpolationMethod {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct ChannelId(pub usize);
+pub struct ChannelId(pub usize);
 
 #[derive(Clone)]
-pub(crate) struct Channel {
+pub struct Channel {
     pub(crate) channum: u8,
 
     sfontnum: Option<SoundFontId>,
@@ -58,7 +60,7 @@ pub(crate) struct Channel {
     banknum: u32,
     prognum: u8,
 
-    pub(crate) preset: Option<Preset>,
+    pub(crate) preset: Option<Rc<Preset>>,
 
     pub(crate) key_pressure: [i8; 128],
     pub(crate) channel_pressure: i16,
@@ -112,7 +114,7 @@ impl Channel {
         return chan;
     }
 
-    pub fn init(&mut self, preset: Option<Preset>) {
+    pub fn init(&mut self, preset: Option<Rc<Preset>>) {
         self.prognum = 0;
         self.banknum = 0;
         self.sfontnum = None;
@@ -182,11 +184,11 @@ impl Channel {
         };
     }
 
-    pub fn set_preset(&mut self, preset: Option<Preset>) {
+    pub fn set_preset(&mut self, preset: Option<Rc<Preset>>) {
         self.preset = preset;
     }
 
-    pub fn get_preset(&self) -> Option<&Preset> {
+    pub fn get_preset(&self) -> Option<&Rc<Preset>> {
         self.preset.as_ref()
     }
 

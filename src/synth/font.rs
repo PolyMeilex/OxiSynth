@@ -94,9 +94,9 @@ mod test {
 
             let preset = font.get_preset(0, 0).unwrap();
 
-            assert_eq!(preset.get_name(), "Sine Wave");
-            assert_eq!(preset.get_banknum(), 0);
-            assert_eq!(preset.get_num(), 0);
+            assert_eq!(preset.name(), "Sine Wave");
+            assert_eq!(preset.banknum(), 0);
+            assert_eq!(preset.num(), 0);
             id
         };
 
@@ -112,9 +112,9 @@ mod test {
             let font = synth.get_sfont(id).unwrap();
             let preset = font.get_preset(0, 0).unwrap();
 
-            assert_eq!(preset.get_name(), "Boomwhacker");
-            assert_eq!(preset.get_banknum(), 0);
-            assert_eq!(preset.get_num(), 0);
+            assert_eq!(preset.name(), "Boomwhacker");
+            assert_eq!(preset.banknum(), 0);
+            assert_eq!(preset.num(), 0);
             id
         };
 
@@ -128,18 +128,18 @@ mod test {
             let font = synth.get_sfont(sin).unwrap();
             let preset = font.get_preset(0, 0).unwrap();
 
-            assert_eq!(preset.get_name(), "Sine Wave");
-            assert_eq!(preset.get_banknum(), 0);
-            assert_eq!(preset.get_num(), 0);
+            assert_eq!(preset.name(), "Sine Wave");
+            assert_eq!(preset.banknum(), 0);
+            assert_eq!(preset.num(), 0);
         }
         // Check Boomwhacker ID
         {
             let font = synth.get_sfont(boom).unwrap();
             let preset = font.get_preset(0, 0).unwrap();
 
-            assert_eq!(preset.get_name(), "Boomwhacker");
-            assert_eq!(preset.get_banknum(), 0);
-            assert_eq!(preset.get_num(), 0);
+            assert_eq!(preset.name(), "Boomwhacker");
+            assert_eq!(preset.banknum(), 0);
+            assert_eq!(preset.num(), 0);
         }
     }
 }

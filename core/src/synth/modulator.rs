@@ -11,7 +11,7 @@ use soundfont::data::modulator::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct Mod {
+pub struct Mod {
     pub dest: GenParam,
     pub amount: f64,
 

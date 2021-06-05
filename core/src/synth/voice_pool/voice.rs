@@ -59,7 +59,7 @@ pub enum LoopMode {
 #[derive(Copy, Clone)]
 pub struct VoiceId(pub(crate) usize);
 
-pub(crate) struct VoiceDescriptor<'a> {
+pub struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,
     pub channel_id: ChannelId,
@@ -71,7 +71,7 @@ pub(crate) struct VoiceDescriptor<'a> {
 }
 
 #[derive(Clone)]
-pub(crate) struct Voice {
+pub struct Voice {
     pub id: usize,
     pub chan: u8,
     pub key: u8,
@@ -805,8 +805,8 @@ impl Voice {
 
             /* The loop points may have changed. Obtain a new estimate for the loop volume. */
             /* Is the voice loop within the sample loop? */
-            if self.loopstart >= self.sample.loopstart as i32
-                && self.loopend <= self.sample.loopend as i32
+            if self.loopstart >= self.sample.loop_start as i32
+                && self.loopend <= self.sample.loop_end as i32
             {
                 /* Is there a valid peak amplitude available for the loop? */
                 if self.sample.amplitude_that_reaches_noise_floor_is_valid != 0 {
@@ -1495,7 +1495,7 @@ impl Voice {
                 }
                 self.root_pitch = ct2hz(self.root_pitch);
 
-                self.root_pitch *= self.output_rate / self.sample.samplerate as f32
+                self.root_pitch *= self.output_rate / self.sample.sample_rate as f32
             }
 
             GenParam::FilterFc => {
@@ -1759,7 +1759,7 @@ impl Voice {
             GenParam::StartLoopAddrOfs | GenParam::StartLoopAddrCoarseOfs => {
                 self.loopstart = self
                     .sample
-                    .loopstart
+                    .loop_start
                     .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
                     as i32;
@@ -1769,7 +1769,7 @@ impl Voice {
             GenParam::EndLoopAddrOfs | GenParam::EndLoopAddrCoarseOfs => {
                 self.loopend = self
                     .sample
-                    .loopend
+                    .loop_end
                     .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
                     as i32;

@@ -141,7 +141,7 @@ pub enum GenParam {
 }
 
 #[derive(Copy, Default, Debug, PartialEq, Clone)]
-pub(crate) struct Gen {
+pub struct Gen {
     pub flags: u8,
     pub val: f64,
     pub mod_0: f64,

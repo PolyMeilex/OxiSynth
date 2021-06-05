@@ -224,7 +224,7 @@ impl Synth {
         }
 
         self.channels[chan as usize].set_sfontnum(preset.as_ref().map(|p| p.0));
-        self.channels[chan as usize].set_preset(preset.map(|p| p.1));
+        self.channels[chan as usize].set_preset(preset.map(|p| p.1.clone()));
 
         Ok(())
     }

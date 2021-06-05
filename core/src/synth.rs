@@ -21,6 +21,7 @@ use voice_pool::VoicePool;
 
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
+use std::rc::Rc;
 
 use generational_arena::Arena;
 
@@ -143,7 +144,7 @@ impl Synth {
         sfont_id: SoundFontId,
         banknum: u32,
         prognum: u8,
-    ) -> Option<Preset> {
+    ) -> Option<Rc<Preset>> {
         let sfont = self.get_sfont(sfont_id);
         if let Some(sfont) = sfont {
             let offset = self
@@ -151,14 +152,17 @@ impl Synth {
                 .get(sfont_id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
-            let preset = sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum);
-            preset
+            sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum)
         } else {
             None
         }
     }
 
-    pub(crate) fn find_preset(&self, banknum: u32, prognum: u8) -> Option<(SoundFontId, Preset)> {
+    pub(crate) fn find_preset(
+        &self,
+        banknum: u32,
+        prognum: u8,
+    ) -> Option<(SoundFontId, Rc<Preset>)> {
         for id in self.fonts_stack.iter() {
             let sfont = self.fonts.get(id.0);
             if let Some(sfont) = sfont {
@@ -184,7 +188,9 @@ impl Synth {
                 let banknum = self.channels[id].get_banknum();
                 let prognum = self.channels[id].get_prognum();
 
-                let preset = self.get_preset(sfontnum, banknum, prognum);
+                let preset = self
+                    .get_preset(sfontnum, banknum, prognum)
+                    .map(|p| p.clone());
                 self.channels[id].set_preset(preset);
             }
         }
@@ -195,46 +201,45 @@ use channel::ChannelId;
 use modulator::Mod;
 use voice_pool::{Voice, VoiceAddMode, VoiceDescriptor};
 
-use crate::soundfont::{
-    loader::{InstrumentZone, PresetZone},
-    Sample,
-};
+use crate::soundfont::{InstrumentZone, PresetZone};
 
 impl Synth {
     pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) {
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
-            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+            zone.key_low <= key
+                && zone.key_high >= key
+                && zone.vel_low <= vel
+                && zone.vel_high >= vel
         }
 
         fn inst_zone_inside_range(zone: &InstrumentZone, key: u8, vel: u8) -> bool {
-            zone.keylo <= key && zone.keyhi >= key && zone.vello <= vel && zone.velhi >= vel
+            zone.key_low <= key
+                && zone.key_high >= key
+                && zone.vel_low <= vel
+                && zone.vel_high >= vel
         }
 
-        fn sample_in_rom(sample: &Sample) -> bool {
-            sample.sampletype.is_rom()
-        }
-
-        let preset = &self.channels[chan as usize].preset.as_ref().unwrap().data;
+        let preset = &self.channels[chan as usize].preset.as_ref().unwrap();
 
         // list for 'sorting' preset modulators
         let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();
         let mut mod_list: [Option<&Mod>; 64] = mod_list_new.try_into().unwrap();
 
-        let mut global_preset_zone = &preset.global_zone;
+        let mut global_preset_zone = preset.global_zone();
 
         // run thru all the zones of this preset
-        for preset_zone in preset.zones.iter() {
+        for preset_zone in preset.zones().iter() {
             // check if the note falls into the key and velocity range of this preset
             if preset_zone_inside_range(preset_zone, key, vel) {
                 let inst = preset_zone.inst.as_ref().unwrap();
 
-                let mut global_inst_zone = &inst.global_zone;
+                let mut global_inst_zone = &inst.global_zone();
 
                 // run thru all the zones of this instrument
-                for inst_zone in inst.zones.iter() {
+                for inst_zone in inst.zones().iter() {
                     // make sure this instrument zone has a valid sample
                     let sample = &inst_zone.sample;
-                    if !(sample.is_none() || sample_in_rom(&sample.as_ref().unwrap())) {
+                    if !(sample.is_none() || sample.as_ref().unwrap().sample_type.is_rom()) {
                         // check if the note falls into the key and velocity range of this instrument
                         if inst_zone_inside_range(inst_zone, key, vel) && !sample.is_none() {
                             // this is a good zone. allocate a new synthesis process and initialize it

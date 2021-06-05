@@ -1,32 +1,20 @@
-pub(crate) mod loader;
+mod instrument;
+mod preset;
+mod sample;
+mod sample_data;
 
-use ::soundfont::data::hydra::sample::SampleLink;
-use loader::{PresetData, SoundFontData};
+use std::{
+    io::{Read, Seek},
+    rc::Rc,
+};
 
-use std::io::{Read, Seek};
-use std::path::Path;
-use std::rc::Rc;
+pub(crate) use {
+    instrument::InstrumentZone, preset::PresetZone, sample::Sample, sample_data::SampleData,
+};
+
+pub use preset::Preset;
 
 use generational_arena::Index;
-
-#[derive(Clone)]
-pub struct Preset {
-    pub(crate) data: Rc<PresetData>,
-}
-
-impl Preset {
-    pub fn get_name(&self) -> &str {
-        &self.data.name
-    }
-
-    pub fn get_banknum(&self) -> u32 {
-        self.data.bank
-    }
-
-    pub fn get_num(&self) -> u32 {
-        self.data.num
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SoundFontId(pub(crate) Index);
@@ -44,51 +32,61 @@ impl From<Index> for SoundFontId {
 }
 
 pub struct SoundFont {
-    data: SoundFontData,
+    presets: Vec<Rc<Preset>>,
 }
 
 impl SoundFont {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
-        SoundFontData::load(file).map(|defsfont| Self { data: defsfont })
-    }
+        let data = soundfont::data::SFData::load(file);
 
-    pub fn get_name(&self) -> &Path {
-        &self.data.filename
-    }
+        let data = match data {
+            Ok(data) => data,
+            Err(err) => {
+                log::error!("{:#?}", err);
+                return Err(());
+            }
+        };
 
-    pub fn get_preset(&self, bank: u32, prenum: u8) -> Option<Preset> {
-        let defpreset = self
-            .data
-            .presets
-            .iter()
-            .find(|p| p.bank == bank && p.num == prenum as u32);
+        #[cfg(feature = "sf3")]
+        let ver = 3;
+        #[cfg(not(feature = "sf3"))]
+        let ver = 2;
 
-        if let Some(defpreset) = defpreset {
-            let preset = Preset {
-                data: defpreset.clone(),
-            };
-
-            Some(preset)
-        } else {
-            None
+        if data.info.version.major > ver {
+            log::error!("Unsupported version: {:?}", data.info.version);
+            return Err(());
         }
-    }
-}
 
-#[derive(Clone)]
-pub(crate) struct Sample {
-    // pub name: [u8; 21],
-    pub name: String,
-    pub start: u32,
-    pub end: u32,
-    pub loopstart: u32,
-    pub loopend: u32,
-    pub samplerate: u32,
-    pub origpitch: i32,
-    pub pitchadj: i32,
-    pub sampletype: SampleLink,
-    pub valid: bool,
-    pub data: Rc<Vec<i16>>,
-    pub amplitude_that_reaches_noise_floor_is_valid: i32,
-    pub amplitude_that_reaches_noise_floor: f64,
+        let mut sf2 = soundfont::SoundFont2::from_data(data);
+        sf2.sort_presets();
+
+        let smpl = sf2.sample_data.smpl.as_ref().unwrap();
+
+        let sample_pos = smpl.offset() + 8;
+        let sample_size = smpl.len() as usize;
+
+        let sample_data = Rc::new(SampleData::load(file, sample_pos, sample_size)?);
+
+        let mut samples = Vec::new();
+
+        for sfsample in sf2.sample_headers.iter() {
+            let sample = Sample::import_sfont(sfsample, sample_data.clone())?.optimize_sample();
+            samples.push(Rc::new(sample));
+        }
+
+        let mut presets = Vec::new();
+        for sfpreset in sf2.presets.iter() {
+            let preset = Preset::import(&sf2, sfpreset, &samples)?;
+            presets.push(Rc::new(preset));
+        }
+
+        Ok(Self { presets })
+    }
+
+    pub fn get_preset(&self, bank: u32, prenum: u8) -> Option<Rc<Preset>> {
+        self.presets
+            .iter()
+            .find(|p| p.banknum() == bank && p.num() == prenum as u32)
+            .map(|p| p.clone())
+    }
 }

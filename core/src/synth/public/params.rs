@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::settings::Settings;
 use crate::synth::{Chorus, InterpolationMethod, Preset, Synth};
 
@@ -87,7 +89,7 @@ impl Synth {
         }
     }
 
-    pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Preset> {
+    pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Rc<Preset>> {
         if let Some(channel) = self.channels.get(chan as usize) {
             channel.get_preset()
         } else {
