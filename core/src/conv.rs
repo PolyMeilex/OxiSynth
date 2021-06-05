@@ -44,7 +44,7 @@ lazy_static! {
     };
     static ref PAN_TAB: [f32; 1002] = {
         let mut init = [0.0; 1002];
-        let x = 3.141592654 / 2.0 / (1002.0 - 1.0);
+        let x = std::f64::consts::PI / 2.0 / (1002.0 - 1.0);
         for i in 0..1002 {
             init[i] = f64::sin(i as f64 * x) as f32;
         }
@@ -168,13 +168,13 @@ pub fn pan(mut c: f32, left: i32) -> f32 {
         c = -c
     }
 
-    return if c < -500.0 {
+    if c < -500.0 {
         0.0
     } else if c > 500.0 {
         1.0
     } else {
         PAN_TAB[(c + 500.0) as usize]
-    };
+    }
 }
 
 pub fn concave(val: f32) -> f32 {

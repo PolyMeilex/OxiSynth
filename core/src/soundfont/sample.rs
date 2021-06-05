@@ -121,7 +121,7 @@ impl Sample {
     /// - Calculate, what factor will make the loop inaudible
     /// - Store in sample
     pub fn optimize_sample(mut self) -> Self {
-        if self.valid == false || self.sample_type.is_vorbis() {
+        if !self.valid || self.sample_type.is_vorbis() {
             return self;
         }
         if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
@@ -161,7 +161,7 @@ impl Sample {
 
             /* Store in sample */
             self.amplitude_that_reaches_noise_floor = result;
-            self.amplitude_that_reaches_noise_floor_is_valid = 1 as i32
+            self.amplitude_that_reaches_noise_floor_is_valid = 1;
         }
 
         self

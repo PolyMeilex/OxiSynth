@@ -101,7 +101,7 @@ impl Synth {
             channels: Vec::new(),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,
-            storeid: 0 as _,
+            storeid: 0,
 
             nbuf,
             left_buf: vec![[0.0; 64]; nbuf as usize],
@@ -188,9 +188,7 @@ impl Synth {
                 let banknum = self.channels[id].get_banknum();
                 let prognum = self.channels[id].get_prognum();
 
-                let preset = self
-                    .get_preset(sfontnum, banknum, prognum)
-                    .map(|p| p.clone());
+                let preset = self.get_preset(sfontnum, banknum, prognum);
                 self.channels[id].set_preset(preset);
             }
         }
@@ -295,7 +293,7 @@ impl Synth {
                                      *  entries will be ignored later.  SF2.01 section 9.5.1
                                      *  page 69, 'bullet' 3 defines 'identical'.  */
                                     for i in 0..mod_list_count {
-                                        if !mod_list[i].is_none()
+                                        if mod_list[i].is_some()
                                             && m.test_identity(
                                                 mod_list[i as usize].as_ref().unwrap(),
                                             )
@@ -313,7 +311,7 @@ impl Synth {
                                 // Add instrument modulators (global / local) to the voice.
                                 for i in 0..mod_list_count {
                                     let mod_0 = mod_list[i as usize];
-                                    if !mod_0.is_none() {
+                                    if mod_0.is_some() {
                                         // disabled modulators CANNOT be skipped.
 
                                         /* Instrument modulators -supersede- existing (default)
@@ -398,7 +396,7 @@ impl Synth {
                                  * (SF 2.01 page 69, second-last bullet) */
                                 for m in preset_zone.mods.iter() {
                                     for i in 0..mod_list_count {
-                                        if !mod_list[i].is_none()
+                                        if mod_list[i].is_some()
                                             && m.test_identity(
                                                 mod_list[i as usize].as_ref().unwrap(),
                                             )

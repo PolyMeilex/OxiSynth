@@ -19,15 +19,15 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
-        self.handle.sfunload(id, reset_presets)
+    pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
+        self.handle.remove_font(id, reset_presets)
     }
 
     /**
     Count the number of loaded SoundFonts.
      */
-    pub fn sfcount(&self) -> usize {
-        self.handle.sfcount()
+    pub fn count_fonts(&self) -> usize {
+        self.handle.count_fonts()
     }
 
     /**
@@ -45,15 +45,6 @@ impl Synth {
      */
     pub fn get_sfont(&mut self, id: SoundFontId) -> Option<&SoundFont> {
         self.handle.get_sfont(id)
-    }
-
-    /**
-    Remove a SoundFont that was previously added using
-    fluid_synth_add_sfont(). The synthesizer does not delete the
-    SoundFont; this is responsability of the caller.
-     */
-    pub fn remove_sfont(&mut self, id: SoundFontId) {
-        self.handle.remove_sfont(id);
     }
 
     /**
@@ -79,7 +70,7 @@ mod test {
     #[test]
     fn font_and_preset() {
         let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
-        assert_eq!(synth.sfcount(), 0);
+        assert_eq!(synth.count_fonts(), 0);
 
         // Load first font
         let sin = {
@@ -88,7 +79,7 @@ mod test {
 
             let id = synth.add_font(font, true);
 
-            assert_eq!(synth.sfcount(), 1);
+            assert_eq!(synth.count_fonts(), 1);
 
             let font = synth.get_sfont(id).unwrap();
 
@@ -107,7 +98,7 @@ mod test {
 
             let id = synth.add_font(font, true);
 
-            assert_eq!(synth.sfcount(), 2);
+            assert_eq!(synth.count_fonts(), 2);
 
             let font = synth.get_sfont(id).unwrap();
             let preset = font.get_preset(0, 0).unwrap();

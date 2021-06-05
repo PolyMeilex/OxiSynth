@@ -87,6 +87,6 @@ impl SoundFont {
         self.presets
             .iter()
             .find(|p| p.banknum() == bank && p.num() == prenum as u32)
-            .map(|p| p.clone())
+            .cloned()
     }
 }

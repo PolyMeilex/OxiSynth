@@ -27,7 +27,7 @@ impl Synth {
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
-    pub fn sfunload(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
+    pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
         let sfont = self.fonts.remove(id.0);
         self.fonts_stack.retain(|i| i == &id);
 
@@ -47,22 +47,9 @@ impl Synth {
     }
 
     /**
-    Remove a SoundFont that was previously added using
-    fluid_synth_add_sfont(). The synthesizer does not delete the
-    SoundFont; this is responsability of the caller.
-     */
-    pub fn remove_sfont(&mut self, id: SoundFontId) {
-        self.fonts.remove(id.0);
-        self.fonts_stack.retain(|i| i == &id);
-
-        self.bank_offsets.remove(id);
-        self.program_reset();
-    }
-
-    /**
     Count the number of loaded SoundFonts.
      */
-    pub fn sfcount(&self) -> usize {
+    pub fn count_fonts(&self) -> usize {
         self.fonts.len()
     }
 

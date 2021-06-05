@@ -18,9 +18,9 @@ impl Preset {
     pub fn import(
         sf2: &soundfont::SoundFont2,
         preset: &soundfont::Preset,
-        samples: &Vec<Rc<Sample>>,
+        samples: &[Rc<Sample>],
     ) -> Result<Self, ()> {
-        let name = if preset.header.name.len() != 0 {
+        let name = if !preset.header.name.is_empty() {
             preset.header.name.clone()
         } else {
             format!("Bank:{},Preset{}", preset.header.bank, preset.header.preset)
@@ -87,7 +87,7 @@ impl PresetZone {
         name: String,
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
-        samples: &Vec<Rc<Sample>>,
+        samples: &[Rc<Sample>],
     ) -> Result<Self, ()> {
         let mut key_low = 0;
         let mut key_high = 128;

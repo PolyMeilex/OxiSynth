@@ -17,9 +17,9 @@ impl Instrument {
     pub fn import(
         sf2: &soundfont::SoundFont2,
         inst: &soundfont::Instrument,
-        samples: &Vec<Rc<Sample>>,
+        samples: &[Rc<Sample>],
     ) -> Result<Self, ()> {
-        let name = if inst.header.name.len() > 0 {
+        let name = if !inst.header.name.is_empty() {
             inst.header.name.clone()
         } else {
             "<untitled>".into()
@@ -72,7 +72,7 @@ impl InstrumentZone {
         name: String,
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
-        samples: &Vec<Rc<Sample>>,
+        samples: &[Rc<Sample>],
     ) -> Result<InstrumentZone, ()> {
         let mut key_low = 0;
         let mut key_high = 128;
@@ -110,10 +110,7 @@ impl InstrumentZone {
             let name = &sample.name;
 
             // Find Sample by name:
-            let sample = samples
-                .iter()
-                .find(|sample| &sample.name == name)
-                .map(|s| s.clone());
+            let sample = samples.iter().find(|sample| &sample.name == name).cloned();
 
             if sample.is_none() {
                 log::error!("Couldn't find sample name",);
