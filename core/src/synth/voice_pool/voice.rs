@@ -1,7 +1,7 @@
 mod dsp_float;
 
 use super::super::{
-    channel::{Channel, ChannelId, InterpolationMethod},
+    channel_pool::{Channel, InterpolationMethod},
     generator::{self, Gen, GenParam},
     modulator::Mod,
     FxBuf,
@@ -62,23 +62,24 @@ pub struct VoiceId(pub(crate) usize);
 pub struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,
-    pub channel_id: ChannelId,
+    pub channel_id: usize,
     pub key: u8,
     pub vel: u8,
-    pub id: usize,
+    pub note_id: usize,
     pub start_time: u32,
     pub gain: f32,
 }
 
 #[derive(Clone)]
 pub struct Voice {
-    pub id: usize,
-    pub chan: u8,
+    pub note_id: usize,
+
+    channel_id: usize,
+
     pub key: u8,
     pub vel: u8,
 
     interp_method: InterpolationMethod,
-    channel_id: ChannelId,
     mod_count: usize,
 
     pub sample: Rc<Sample>,
@@ -230,13 +231,13 @@ impl Voice {
         };
 
         Voice {
-            id: desc.id,
-            chan: desc.channel.get_num(),
+            note_id: desc.note_id,
+            channel_id: desc.channel_id,
+
             key: desc.key,
             vel: desc.vel,
 
             interp_method: desc.channel.get_interp_method(),
-            channel_id: desc.channel_id,
             mod_count: 0,
 
             sample: desc.sample,
@@ -320,13 +321,13 @@ impl Voice {
     }
 
     pub fn reinit(&mut self, desc: VoiceDescriptor) {
-        self.id = desc.id;
-        self.chan = desc.channel.get_num();
+        self.note_id = desc.note_id;
+        self.channel_id = desc.channel_id;
+
         self.key = desc.key;
         self.vel = desc.vel;
 
         self.interp_method = desc.channel.get_interp_method();
-        self.channel_id = desc.channel_id;
         self.mod_count = 0;
 
         self.sample = desc.sample;
@@ -491,13 +492,13 @@ impl Voice {
         self.update_param(GenParam::ModEnvRelease);
     }
 
-    pub fn start(&mut self, channels: &[Channel]) {
-        self.calculate_runtime_synthesis_parameters(channels);
+    pub fn start(&mut self, channel: &Channel) {
+        self.calculate_runtime_synthesis_parameters(channel);
         self.check_sample_sanity_flag = 1i32 << 1i32;
         self.status = VoiceStatus::On;
     }
 
-    pub fn noteoff(&mut self, channels: &[Channel], min_note_length_ticks: u32) {
+    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: u32) {
         let at_tick = min_note_length_ticks;
 
         if at_tick > self.ticks {
@@ -508,7 +509,6 @@ impl Voice {
 
         let sustained = {
             const SUSTAIN_SWITCH: usize = 64;
-            let channel = &channels[self.channel_id.0];
             // check is channel is sustained
             channel.cc[SUSTAIN_SWITCH] >= 64
         };
@@ -545,7 +545,7 @@ impl Voice {
         }
     }
 
-    pub fn modulate(&mut self, channels: &[Channel], cc: i32, ctrl: u16) {
+    pub fn modulate(&mut self, channel: &Channel, cc: i32, ctrl: u16) {
         #[inline(always)]
         fn mod_has_source(m: &Mod, cc: i32, ctrl: u8) -> bool {
             let a1 = (m.src.index == ctrl) && m.src.is_cc() && (cc != 0);
@@ -569,7 +569,7 @@ impl Voice {
                 let mut k = 0;
                 while k < self.mod_count {
                     if self.mod_0[k].dest == gen {
-                        modval += self.mod_0[k].get_value(&channels[self.channel_id.0], self);
+                        modval += self.mod_0[k].get_value(channel, self);
                     }
                     k += 1
                 }
@@ -580,7 +580,7 @@ impl Voice {
         }
     }
 
-    pub fn modulate_all(&mut self, channels: &[Channel]) -> i32 {
+    pub fn modulate_all(&mut self, channel: &Channel) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -590,7 +590,7 @@ impl Voice {
             let mut k = 0;
             while k < self.mod_count {
                 if self.mod_0[k].dest == gen {
-                    modval += self.mod_0[k].get_value(&channels[self.channel_id.0], self)
+                    modval += self.mod_0[k].get_value(channel, self)
                 }
                 k += 1
             }
@@ -605,7 +605,7 @@ impl Voice {
     /// Turns off a voice, meaning that it is not processed
     /// anymore by the DSP loop.
     pub fn off(&mut self) {
-        self.chan = 0xff;
+        self.channel_id = 0xff;
         self.volenv_section = VoiceEnvelope::Finished as i32;
         self.volenv_count = 0;
         self.modenv_section = VoiceEnvelope::Finished as i32;
@@ -613,8 +613,12 @@ impl Voice {
         self.status = VoiceStatus::Off;
     }
 
-    pub fn get_channel(&self) -> &ChannelId {
-        &self.channel_id
+    pub fn get_channel_id(&self) -> usize {
+        self.channel_id
+    }
+
+    pub fn get_note_id(&self) -> usize {
+        self.note_id
     }
 
     /// A lower boundary for the attenuation (as in 'the minimum
@@ -623,7 +627,7 @@ impl Voice {
     /// calculated.  This has to be called during fluid_voice_init, after
     /// all modulators have been run on the voice once.  Also,
     /// voice.attenuation has to be initialized.
-    fn get_lower_boundary_for_attenuation(&mut self, channels: &[Channel]) -> f32 {
+    fn get_lower_boundary_for_attenuation(&mut self, channel: &Channel) -> f32 {
         const MOD_PITCHWHEEL: i32 = 14;
 
         let mut possible_att_reduction_c_b = 0.0;
@@ -632,7 +636,7 @@ impl Voice {
 
             /* Modulator has attenuation as target and can change over time? */
             if mod_0.dest == GenParam::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc()) {
-                let current_val: f32 = mod_0.get_value(&channels[self.channel_id.0], self);
+                let current_val: f32 = mod_0.get_value(channel, self);
                 let mut v = mod_0.amount.abs() as f32;
 
                 if mod_0.src.index as i32 == MOD_PITCHWHEEL as i32
@@ -667,7 +671,7 @@ impl Voice {
         lower_bound
     }
 
-    fn calculate_runtime_synthesis_parameters(&mut self, channels: &[Channel]) {
+    fn calculate_runtime_synthesis_parameters(&mut self, channel: &Channel) {
         let list_of_generators_to_initialize: [GenParam; 34] = [
             GenParam::StartAddrOfs,
             GenParam::EndAddrOfs,
@@ -708,13 +712,13 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i];
-            let modval: f32 = mod_0.get_value(&channels[self.channel_id.0], self);
+            let modval: f32 = mod_0.get_value(channel, self);
             let dest_gen_index = mod_0.dest as usize;
             let mut dest_gen = &mut self.gen[dest_gen_index];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
-        let tuning = &channels[self.channel_id.0].tuning;
+        let tuning = channel.tuning;
         if let Some(tuning) = tuning {
             self.gen[GenParam::Pitch as usize].val = tuning.pitch[60]
                 + self.gen[GenParam::ScaleTune as usize].val / 100.0f32 as f64
@@ -729,7 +733,7 @@ impl Voice {
             self.update_param(*gen);
         }
 
-        self.min_attenuation_c_b = self.get_lower_boundary_for_attenuation(channels);
+        self.min_attenuation_c_b = self.get_lower_boundary_for_attenuation(channel);
     }
 
     /// Make sure, that sample start / end point and loop points are in
@@ -893,7 +897,7 @@ impl Voice {
 
     pub(super) fn write(
         &mut self,
-        channels: &[Channel],
+        channel: &Channel,
         min_note_length_ticks: u32,
         dsp_left_buf: &mut [f32; 64],
         dsp_right_buf: &mut [f32; 64],
@@ -913,7 +917,7 @@ impl Voice {
 
         /******************* sample **********************/
         if self.noteoff_ticks != 0 && self.ticks >= self.noteoff_ticks {
-            self.noteoff(channels, min_note_length_ticks);
+            self.noteoff(channel, min_note_length_ticks);
         }
 
         /* Range checking for sample- and loop-related parameters

@@ -1,4 +1,4 @@
-use super::channel::Channel;
+use super::channel_pool::Channel;
 
 use num_derive::FromPrimitive;
 

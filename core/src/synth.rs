@@ -4,17 +4,16 @@ pub mod bank;
 
 use bank::BankOffsets;
 
-pub(crate) mod channel;
+mod channel_pool;
 pub(crate) mod modulator;
 pub(crate) mod voice_pool;
 
 pub mod generator;
-pub use channel::InterpolationMethod;
+pub use channel_pool::InterpolationMethod;
 
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 use crate::utils::TypedArena;
-use channel::Channel;
 
 use crate::{
     soundfont::{Preset, SoundFont},
@@ -22,6 +21,8 @@ use crate::{
 };
 
 use voice_pool::VoicePool;
+
+use self::channel_pool::ChannelPool;
 
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
@@ -41,7 +42,7 @@ pub struct Synth {
 
     pub bank_offsets: BankOffsets,
 
-    pub(crate) channels: Vec<Channel>,
+    pub(crate) channels: ChannelPool,
     pub(crate) voices: VoicePool,
 
     pub(crate) noteid: usize,
@@ -93,6 +94,7 @@ impl Synth {
             }
         };
 
+        let midi_channels = settings.midi_channels;
         let mut synth = Self {
             ticks: 0,
 
@@ -100,7 +102,7 @@ impl Synth {
             fonts_stack: Vec::new(),
 
             bank_offsets: Default::default(),
-            channels: Vec::new(),
+            channels: ChannelPool::new(midi_channels as usize, None),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             noteid: 0,
             storeid: 0,
@@ -129,10 +131,6 @@ impl Synth {
             #[cfg(feature = "i16-out")]
             dither_index: 0,
         };
-
-        for i in 0..synth.settings.midi_channels {
-            synth.channels.push(Channel::new(&synth, i));
-        }
 
         if synth.settings.drums_channel_active {
             synth.bank_select(9, 128).ok();
@@ -197,14 +195,13 @@ impl Synth {
     }
 }
 
-use channel::ChannelId;
 use modulator::Mod;
 use voice_pool::{Voice, VoiceAddMode, VoiceDescriptor};
 
 use crate::soundfont::{InstrumentZone, PresetZone};
 
 impl Synth {
-    pub(crate) fn sf_noteon(&mut self, chan: u8, key: u8, vel: u8) {
+    pub(crate) fn sf_noteon(&mut self, chan: usize, key: u8, vel: u8) {
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
             zone.key_low <= key
                 && zone.key_high >= key
@@ -219,7 +216,7 @@ impl Synth {
                 && zone.vel_high >= vel
         }
 
-        let preset = &self.channels[chan as usize].preset.as_ref().unwrap();
+        let preset = &self.channels[chan].preset.as_ref().unwrap();
 
         // list for 'sorting' preset modulators
         let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();
@@ -438,10 +435,10 @@ impl Synth {
                             let desc = VoiceDescriptor {
                                 sample: sample.as_ref().unwrap().clone(),
                                 channel: &self.channels[chan as usize],
-                                channel_id: ChannelId(chan as usize),
+                                channel_id: chan,
                                 key,
                                 vel,
-                                id: self.storeid,
+                                note_id: self.storeid,
                                 start_time: self.ticks,
                                 gain: self.settings.gain,
                             };

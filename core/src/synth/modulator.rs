@@ -1,4 +1,4 @@
-use super::channel::Channel;
+use super::channel_pool::Channel;
 use super::voice_pool::Voice;
 use crate::conv::concave;
 use crate::conv::convex;

@@ -49,12 +49,9 @@ impl Default for InterpolationMethod {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct ChannelId(pub usize);
-
 #[derive(Clone)]
 pub struct Channel {
-    pub(crate) channum: u8,
+    id: usize,
 
     sfontnum: Option<TypedIndex<SoundFont>>,
 
@@ -83,14 +80,14 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(synth: &Synth, num: u8) -> Self {
+    pub fn new(id: usize, preset: Option<Rc<Preset>>) -> Self {
         let mut chan = Self {
-            channum: num,
+            id,
             sfontnum: None,
             banknum: 0,
             prognum: 0,
 
-            preset: None,
+            preset,
 
             key_pressure: [0; 128],
             channel_pressure: 0,
@@ -110,9 +107,8 @@ impl Channel {
             gen: [0f32; 60],
             gen_abs: [0; 60],
         };
-        chan.init(synth.find_preset(chan.banknum, chan.prognum).map(|p| p.1));
         chan.init_ctrl(0);
-        return chan;
+        chan
     }
 
     pub fn init(&mut self, preset: Option<Rc<Preset>>) {
@@ -217,8 +213,8 @@ impl Channel {
         }
     }
 
-    pub fn get_num(&self) -> u8 {
-        self.channum
+    pub fn get_id(&self) -> usize {
+        self.id
     }
 
     pub fn set_interp_method(&mut self, new_method: InterpolationMethod) {
@@ -243,15 +239,13 @@ impl Synth {
     pub(crate) fn channel_cc(&mut self, chan_id: usize, num: u16, value: u16) {
         self.channels[chan_id].cc[num as usize] = value as u8;
 
-        let channum = self.channels[chan_id].channum;
-
         match num {
             // SUSTAIN_SWITCH
             64 => {
                 if value < 64 {
                     // sustain off
                     self.voices
-                        .damp_voices(&self.channels, channum, self.min_note_length_ticks)
+                        .damp_voices(&self.channels[chan_id], self.min_note_length_ticks)
                 } else {
                     // sustain on
                 }
@@ -259,7 +253,7 @@ impl Synth {
 
             // BANK_SELECT_MSB
             0 => {
-                if channum == 9 && self.settings.drums_channel_active {
+                if chan_id == 9 && self.settings.drums_channel_active {
                     // ignored
                     return;
                 }
@@ -280,7 +274,7 @@ impl Synth {
 
             // BANK_SELECT_LSB
             32 => {
-                if channum == 9 && self.settings.drums_channel_active {
+                if chan_id == 9 && self.settings.drums_channel_active {
                     // ignored
                     return;
                 }
@@ -296,18 +290,18 @@ impl Synth {
 
             // ALL_NOTES_OFF
             123 => {
-                self.all_notes_off(channum);
+                self.all_notes_off(chan_id);
             }
 
             // ALL_SOUND_OFF
             120 => {
-                self.all_sounds_off(channum);
+                self.all_sounds_off(chan_id);
             }
 
             // ALL_CTRL_OFF
             121 => {
                 self.channels[chan_id].init_ctrl(1);
-                self.voices.modulate_voices_all(&self.channels, channum);
+                self.voices.modulate_voices_all(&self.channels[chan_id]);
             }
 
             // DATA_ENTRY_MSB
@@ -319,7 +313,7 @@ impl Synth {
                     let (channum, nrpn_select, nrpn_msb, nrpn_lsb) = {
                         let channel = &self.channels[chan_id];
                         (
-                            channel.channum,
+                            channel.get_id(),
                             channel.nrpn_select,
                             channel.cc[NRPN_MSB as usize],
                             channel.cc[NRPN_LSB as usize],
@@ -345,12 +339,12 @@ impl Synth {
                     match self.channels[chan_id].cc[RPN_LSB as usize] {
                         // RPN_PITCH_BEND_RANGE
                         0 => {
-                            self.pitch_wheel_sens(chan_id as u8, value).ok();
+                            self.pitch_wheel_sens(chan_id, value).ok();
                         }
                         // RPN_CHANNEL_FINE_TUNE
                         1 => {
                             self.set_gen(
-                                self.channels[chan_id].channum,
+                                self.channels[chan_id].get_id(),
                                 GenParam::FineTune,
                                 ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
                             )
@@ -359,7 +353,7 @@ impl Synth {
                         // RPN_CHANNEL_COARSE_TUNE
                         2 => {
                             self.set_gen(
-                                self.channels[chan_id].channum,
+                                self.channels[chan_id].get_id(),
                                 GenParam::CoarseTune,
                                 (value - 64) as f32,
                             )
@@ -399,10 +393,7 @@ impl Synth {
 
             // RPN_MSB | RPN_LSB
             101 | 100 => self.channels[chan_id].nrpn_active = 0,
-            _ => {
-                self.voices
-                    .modulate_voices(&self.channels, self.channels[chan_id].channum, 1, num)
-            }
+            _ => self.voices.modulate_voices(&self.channels[chan_id], 1, num),
         }
     }
 }
