@@ -12,8 +12,8 @@ pub struct Sample {
     pub loop_start: u32,
     pub loop_end: u32,
     pub sample_rate: u32,
-    pub origpitch: i32,
-    pub pitchadj: i32,
+    pub origpitch: u8,
+    pub pitchadj: i8,
     pub sample_type: SampleLink,
     pub valid: bool,
     pub data: Rc<SampleData>,
@@ -22,7 +22,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    pub fn import_sfont(
+    pub fn import(
         sample: &soundfont::data::SampleHeader,
         data: Rc<SampleData>,
     ) -> Result<Sample, ()> {
@@ -33,8 +33,8 @@ impl Sample {
             loop_start: sample.loop_start,
             loop_end: sample.loop_end,
             sample_rate: sample.sample_rate,
-            origpitch: sample.origpitch as i32,
-            pitchadj: sample.pitchadj as i32,
+            origpitch: sample.origpitch,
+            pitchadj: sample.pitchadj,
             sample_type: sample.sample_type,
             valid: true,
             data,

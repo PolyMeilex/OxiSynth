@@ -6,6 +6,9 @@ use data::{
     PresetHeader, SFData, SampleData, SampleHeader,
 };
 
+use crate::error::ParseError;
+use std::io::{Read, Seek};
+
 #[derive(Debug)]
 pub struct Preset {
     pub header: PresetHeader,
@@ -28,6 +31,10 @@ pub struct SoundFont2 {
 }
 
 impl SoundFont2 {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
+        SFData::load(file).map(Self::from_data)
+    }
+
     pub fn from_data(data: SFData) -> Self {
         fn get_zones(
             zones: &[Bag],
@@ -175,7 +182,7 @@ impl SoundFont2 {
         }
     }
 
-    pub fn sort_presets(&mut self) {
+    pub fn sort_presets(mut self) -> Self {
         self.presets.sort_by(|a, b| {
             let aval = (a.header.bank as i32) << 16 | a.header.preset as i32;
             let bbal = (b.header.bank as i32) << 16 | b.header.preset as i32;
@@ -189,6 +196,7 @@ impl SoundFont2 {
                 std::cmp::Ordering::Equal
             }
         });
+        self
     }
 }
 

@@ -37,9 +37,9 @@ pub struct SoundFont {
 
 impl SoundFont {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
-        let data = soundfont::data::SFData::load(file);
+        let sf2 = soundfont::SoundFont2::load(file);
 
-        let data = match data {
+        let sf2 = match sf2 {
             Ok(data) => data,
             Err(err) => {
                 log::error!("{:#?}", err);
@@ -52,13 +52,12 @@ impl SoundFont {
         #[cfg(not(feature = "sf3"))]
         let ver = 2;
 
-        if data.info.version.major > ver {
-            log::error!("Unsupported version: {:?}", data.info.version);
+        if sf2.info.version.major > ver {
+            log::error!("Unsupported version: {:?}", sf2.info.version);
             return Err(());
         }
 
-        let mut sf2 = soundfont::SoundFont2::from_data(data);
-        sf2.sort_presets();
+        let sf2 = sf2.sort_presets();
 
         let smpl = sf2.sample_data.smpl.as_ref().unwrap();
 
@@ -70,7 +69,7 @@ impl SoundFont {
         let mut samples = Vec::new();
 
         for sfsample in sf2.sample_headers.iter() {
-            let sample = Sample::import_sfont(sfsample, sample_data.clone())?.optimize_sample();
+            let sample = Sample::import(sfsample, sample_data.clone())?.optimize_sample();
             samples.push(Rc::new(sample));
         }
 
