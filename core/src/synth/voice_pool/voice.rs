@@ -65,7 +65,6 @@ pub struct VoiceDescriptor<'a> {
     pub channel_id: usize,
     pub key: u8,
     pub vel: u8,
-    pub note_id: usize,
     pub start_time: u32,
     pub gain: f32,
 }
@@ -188,7 +187,7 @@ pub struct EnvData {
 }
 
 impl Voice {
-    pub fn new(output_rate: f32, desc: VoiceDescriptor) -> Voice {
+    pub fn new(output_rate: f32, desc: VoiceDescriptor, note_id: usize) -> Voice {
         let mut volenv_data = [EnvData::default(); 7];
         {
             let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
@@ -230,7 +229,7 @@ impl Voice {
         };
 
         Voice {
-            note_id: desc.note_id,
+            note_id,
             channel_id: desc.channel_id,
 
             key: desc.key,

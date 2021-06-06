@@ -34,14 +34,11 @@ impl Synth {
                 self.voices.release_voice_on_same_note(
                     &self.channels[midi_chan],
                     key,
-                    self.noteid,
                     self.min_note_length_ticks,
                 );
 
-                let id = self.noteid;
-                self.noteid = self.noteid.wrapping_add(1);
+                self.voices.noteid_add();
 
-                self.storeid = id;
                 self.sf_noteon(midi_chan, key, vel);
                 Ok(())
             }

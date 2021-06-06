@@ -45,9 +45,6 @@ pub struct Synth {
     pub(crate) channels: ChannelPool,
     pub(crate) voices: VoicePool,
 
-    pub(crate) noteid: usize,
-    pub(crate) storeid: usize,
-
     nbuf: u8,
 
     left_buf: Vec<[f32; 64]>,
@@ -104,9 +101,6 @@ impl Synth {
             bank_offsets: Default::default(),
             channels: ChannelPool::new(midi_channels as usize, None),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
-            noteid: 0,
-            storeid: 0,
-
             nbuf,
             left_buf: vec![[0.0; 64]; nbuf as usize],
             right_buf: vec![[0.0; 64]; nbuf as usize],
@@ -438,20 +432,18 @@ impl Synth {
                                 channel_id: chan,
                                 key,
                                 vel,
-                                note_id: self.storeid,
                                 start_time: self.ticks,
                                 gain: self.settings.gain,
                             };
 
-                            let voice_id = self.voices.request_new_voice(self.noteid, desc, init);
+                            let voice_id = self.voices.request_new_voice(desc, init);
 
                             if let Ok(voice_id) = voice_id {
                                 log::trace!(
-                                    "noteon\t{}\t{}\t{}\t{}\t{}",
+                                    "noteon\t{}\t{}\t{}\t\t{}",
                                     chan,
                                     key,
                                     vel,
-                                    self.storeid,
                                     self.ticks as f32 / 44100.0,
                                 );
 

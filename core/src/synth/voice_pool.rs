@@ -10,6 +10,9 @@ pub(crate) struct VoicePool {
     voices: Vec<Voice>,
     sample_rate: f32,
     polyphony_limit: usize,
+
+    noteid: usize,
+    storeid: usize,
 }
 
 impl VoicePool {
@@ -18,7 +21,15 @@ impl VoicePool {
             voices: Vec::new(),
             sample_rate,
             polyphony_limit: len,
+
+            noteid: 0,
+            storeid: 0,
         }
+    }
+
+    pub fn noteid_add(&mut self) {
+        self.storeid = self.noteid;
+        self.noteid += 1;
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
@@ -220,9 +231,9 @@ impl VoicePool {
         &mut self,
         channel: &Channel,
         key: u8,
-        noteid: usize,
         min_note_length_ticks: u32,
     ) {
+        let noteid = self.noteid;
         for voice in self
             .voices
             .iter_mut()
@@ -278,7 +289,6 @@ impl VoicePool {
 impl VoicePool {
     pub fn request_new_voice<A: FnOnce(&mut Voice)>(
         &mut self,
-        noteid: usize,
         desc: VoiceDescriptor,
         after: A,
     ) -> Result<VoiceId, ()> {
@@ -292,7 +302,7 @@ impl VoicePool {
 
         let voice_id = match voice_id {
             Some(id) => {
-                self.voices[id.0] = Voice::new(self.sample_rate, desc);
+                self.voices[id.0] = Voice::new(self.sample_rate, desc, self.storeid);
                 Some(id)
             }
             // If none free voice was found:
@@ -300,13 +310,14 @@ impl VoicePool {
                 // Check if we can add a new voice
                 if self.voices.len() < self.polyphony_limit {
                     // If we can we do...
-                    self.voices.push(Voice::new(self.sample_rate, desc));
+                    self.voices
+                        .push(Voice::new(self.sample_rate, desc, self.storeid));
                     Some(VoiceId(self.voices.len() - 1))
                 } else {
                     // If we can't we free already existing one...
-                    let id = self.free_voice_by_kill(noteid);
+                    let id = self.free_voice_by_kill(self.noteid);
                     if let Some(id) = id {
-                        self.voices[id.0] = Voice::new(self.sample_rate, desc);
+                        self.voices[id.0] = Voice::new(self.sample_rate, desc, self.storeid);
                     }
                     id
                 }
