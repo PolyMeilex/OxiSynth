@@ -56,9 +56,6 @@ pub enum LoopMode {
     UntilRelease = 3,
 }
 
-#[derive(Copy, Clone)]
-pub struct VoiceId(pub(crate) usize);
-
 pub struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,

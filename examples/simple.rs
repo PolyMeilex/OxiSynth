@@ -20,24 +20,24 @@ fn synth_sf2() {
 
     let mut samples = [0f32; 44100 / 8];
 
-    for _ in 0..5 {
-        for n in 50..100 {
-            synth.note_on(0, n, 127).unwrap();
+    // for _ in 0..5 {
+    for n in 50..100 {
+        synth.note_on(0, n, 127).unwrap();
 
-            synth.write(samples.as_mut());
-            pcm.write(samples.as_byte_slice()).unwrap();
+        synth.write(samples.as_mut());
+        pcm.write(samples.as_byte_slice()).unwrap();
 
-            synth.note_off(0, n);
-        }
-        for n in 0..50 {
-            synth.note_on(0, 100 - n, 127).unwrap();
-
-            synth.write(samples.as_mut());
-            pcm.write(samples.as_byte_slice()).unwrap();
-
-            synth.note_off(0, 100 - n);
-        }
+        synth.note_off(0, n);
     }
+    for n in 0..50 {
+        synth.note_on(0, 100 - n, 127).unwrap();
+
+        synth.write(samples.as_mut());
+        pcm.write(samples.as_byte_slice()).unwrap();
+
+        synth.note_off(0, 100 - n);
+    }
+    // }
 
     drop(synth);
 }

@@ -1,10 +1,13 @@
 mod voice;
 
-pub(crate) use voice::{Voice, VoiceAddMode, VoiceDescriptor, VoiceEnvelope, VoiceId, VoiceStatus};
+pub(crate) use voice::{Voice, VoiceAddMode, VoiceDescriptor, VoiceEnvelope, VoiceStatus};
 
 use super::channel_pool::Channel;
 use crate::generator::GenParam;
 use crate::synth::FxBuf;
+
+#[derive(Copy, Clone)]
+struct VoiceId(pub(crate) usize);
 
 pub struct VoicePool {
     voices: Vec<Voice>,
@@ -220,13 +223,6 @@ impl VoicePool {
         }
     }
 
-    pub fn start_voice(&mut self, channels: &[Channel], voice_id: VoiceId) {
-        self.kill_by_exclusive_class(voice_id);
-
-        let v = &mut self.voices[voice_id.0];
-        v.start(&channels[v.get_channel_id()]);
-    }
-
     pub fn release_voice_on_same_note(
         &mut self,
         channel: &Channel,
@@ -287,11 +283,19 @@ impl VoicePool {
 }
 
 impl VoicePool {
+    fn start_voice(&mut self, channel: &Channel, voice_id: VoiceId) {
+        self.kill_by_exclusive_class(voice_id);
+
+        let v = &mut self.voices[voice_id.0];
+        v.start(channel);
+    }
+
     pub fn request_new_voice<A: FnOnce(&mut Voice)>(
         &mut self,
+        channel: &Channel,
         desc: VoiceDescriptor,
         after: A,
-    ) -> Result<VoiceId, ()> {
+    ) -> Result<(), ()> {
         // find free synthesis process
         let voice_id = self
             .voices
@@ -326,7 +330,10 @@ impl VoicePool {
 
         if let Some(id) = voice_id {
             after(&mut self.voices[id.0]);
-            Ok(id)
+
+            // add the synthesis process to the synthesis loop.
+            self.start_voice(channel, id);
+            Ok(())
         } else {
             Err(())
         }

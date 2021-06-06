@@ -373,9 +373,13 @@ impl Synth {
                                 gain: self.settings.gain,
                             };
 
-                            let voice_id = self.voices.request_new_voice(desc, init);
+                            let voice_id = self.voices.request_new_voice(
+                                &self.channels[chan as usize],
+                                desc,
+                                init,
+                            );
 
-                            if let Ok(voice_id) = voice_id {
+                            if let Ok(_) = voice_id {
                                 log::trace!(
                                     "noteon\t{}\t{}\t{}\t\t{}",
                                     chan,
@@ -383,9 +387,6 @@ impl Synth {
                                     vel,
                                     self.ticks as f32 / 44100.0,
                                 );
-
-                                // add the synthesis process to the synthesis loop.
-                                self.voices.start_voice(&self.channels, voice_id);
                             } else {
                                 log::warn!(
                                     "Failed to allocate a synthesis process. (chan={},key={})",
