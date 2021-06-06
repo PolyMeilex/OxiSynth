@@ -77,7 +77,7 @@ impl Synth {
      */
     pub fn set_interp_method(&mut self, chan: Option<usize>, interp_method: InterpolationMethod) {
         if let Some(chan) = chan {
-            let ch = self.channels.iter_mut().find(|ch| ch.get_id() == chan);
+            let ch = self.channels.iter_mut().find(|ch| ch.id() == chan);
 
             if let Some(ch) = ch {
                 ch.set_interp_method(interp_method);
@@ -91,7 +91,7 @@ impl Synth {
 
     pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Rc<Preset>> {
         if let Some(channel) = self.channels.get(chan as usize) {
-            channel.get_preset()
+            channel.preset()
         } else {
             log::warn!("Channel out of range");
             None

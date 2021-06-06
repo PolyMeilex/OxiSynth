@@ -17,8 +17,8 @@ impl Synth {
         value: f32,
     ) -> Result<(), &'static str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.gen[param as usize] = value;
-            channel.gen_abs[param as usize] = 0;
+            channel.set_gen(param as usize, value);
+            channel.set_gen_abs(param as usize, 0);
 
             self.voices.set_gen(chan, param, value);
 
@@ -37,7 +37,7 @@ impl Synth {
      */
     pub fn get_gen(&self, chan: u8, param: GenParam) -> Result<f32, &'static str> {
         if let Some(channel) = self.channels.get(chan as usize) {
-            Ok(channel.gen[param as usize])
+            Ok(channel.gen(param as usize))
         } else {
             log::error!("Channel out of range");
             Err("Channel out of range")

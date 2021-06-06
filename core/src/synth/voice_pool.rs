@@ -54,7 +54,7 @@ impl VoicePool {
             .voices
             .iter_mut()
             .filter(|v| v.is_on())
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.key == key)
         {
             log::trace!(
@@ -103,7 +103,7 @@ impl VoicePool {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.key == key)
         {
             voice.modulate(channel, 0, MOD_KEYPRESSURE);
@@ -114,7 +114,7 @@ impl VoicePool {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.status == VoiceStatus::Sustained)
         {
             voice.noteoff(&channel, min_note_length_ticks);
@@ -125,7 +125,7 @@ impl VoicePool {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
         {
             voice.modulate(&channel, is_cc, ctrl);
         }
@@ -135,7 +135,7 @@ impl VoicePool {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
         {
             voice.modulate_all(&channel);
         }
@@ -226,7 +226,7 @@ impl VoicePool {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == channel.get_id())
+            .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.is_playing())
             .filter(|v| v.key == key)
             .filter(|v| v.get_note_id() != noteid)

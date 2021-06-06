@@ -183,10 +183,10 @@ impl Synth {
 
     pub(crate) fn update_presets(&mut self) {
         for id in 0..self.channels.len() {
-            let sfontnum = self.channels[id].get_sfontnum();
+            let sfontnum = self.channels[id].sfontnum();
             if let Some(sfontnum) = sfontnum {
-                let banknum = self.channels[id].get_banknum();
-                let prognum = self.channels[id].get_prognum();
+                let banknum = self.channels[id].banknum();
+                let prognum = self.channels[id].prognum();
 
                 let preset = self.get_preset(sfontnum, banknum, prognum);
                 self.channels[id].set_preset(preset);
@@ -216,7 +216,7 @@ impl Synth {
                 && zone.vel_high >= vel
         }
 
-        let preset = &self.channels[chan].preset.as_ref().unwrap();
+        let preset = &self.channels[chan].preset().unwrap();
 
         // list for 'sorting' preset modulators
         let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();

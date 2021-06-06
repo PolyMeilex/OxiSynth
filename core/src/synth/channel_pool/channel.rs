@@ -58,25 +58,25 @@ pub struct Channel {
     banknum: u32,
     prognum: u8,
 
-    pub(crate) preset: Option<Rc<Preset>>,
+    preset: Option<Rc<Preset>>,
 
-    pub(crate) key_pressure: [i8; 128],
-    pub(crate) channel_pressure: i16,
+    key_pressure: [i8; 128],
+    channel_pressure: i16,
 
-    pub(crate) pitch_bend: i16,
-    pub(crate) pitch_wheel_sensitivity: u16,
+    pitch_bend: i16,
+    pitch_wheel_sensitivity: u16,
 
-    pub(crate) cc: [u8; 128],
+    cc: [u8; 128],
     bank_msb: u8,
 
     interp_method: InterpolationMethod,
-    pub(crate) tuning: Option<Tuning>,
+    tuning: Option<Tuning>,
 
     nrpn_select: i16,
     nrpn_active: i16,
 
-    pub(crate) gen: [f32; 60],
-    pub(crate) gen_abs: [i8; 60],
+    gen: [f32; 60],
+    gen_abs: [i8; 60],
 }
 
 impl Channel {
@@ -180,57 +180,141 @@ impl Channel {
             self.cc[PAN_LSB as usize] = 0;
         };
     }
+}
 
-    pub fn set_preset(&mut self, preset: Option<Rc<Preset>>) {
-        self.preset = preset;
+impl Channel {
+    pub fn id(&self) -> usize {
+        self.id
     }
 
-    pub fn get_preset(&self) -> Option<&Rc<Preset>> {
-        self.preset.as_ref()
+    //
+
+    pub fn sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
+        self.sfontnum
     }
 
-    pub fn get_banknum(&self) -> u32 {
+    pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
+        self.sfontnum = sfontnum;
+    }
+
+    //
+
+    pub fn banknum(&self) -> u32 {
         self.banknum
-    }
-
-    pub fn set_prognum(&mut self, prognum: u8) {
-        self.prognum = prognum;
-    }
-
-    pub fn get_prognum(&self) -> u8 {
-        self.prognum
     }
 
     pub fn set_banknum(&mut self, banknum: u32) {
         self.banknum = banknum;
     }
 
-    pub fn get_cc(&self, num: i32) -> u8 {
-        if num >= 0 && num < 128 {
-            self.cc[num as usize]
+    //
+
+    pub fn prognum(&self) -> u8 {
+        self.prognum
+    }
+
+    pub fn set_prognum(&mut self, prognum: u8) {
+        self.prognum = prognum;
+    }
+
+    //
+
+    pub fn preset(&self) -> Option<&Rc<Preset>> {
+        self.preset.as_ref()
+    }
+
+    pub fn set_preset(&mut self, preset: Option<Rc<Preset>>) {
+        self.preset = preset;
+    }
+
+    //
+
+    pub fn key_pressure(&self, id: usize) -> i8 {
+        self.key_pressure[id]
+    }
+
+    pub fn set_key_pressure(&mut self, id: usize, val: i8) {
+        self.key_pressure[id] = val;
+    }
+
+    //
+
+    pub fn channel_pressure(&self) -> i16 {
+        self.channel_pressure
+    }
+
+    pub fn set_channel_pressure(&mut self, val: i16) {
+        self.channel_pressure = val;
+    }
+
+    //
+
+    pub fn pitch_bend(&self) -> i16 {
+        self.pitch_bend
+    }
+
+    pub fn set_pitch_bend(&mut self, val: i16) {
+        self.pitch_bend = val;
+    }
+
+    //
+
+    pub fn pitch_wheel_sensitivity(&self) -> u16 {
+        self.pitch_wheel_sensitivity
+    }
+
+    pub fn set_pitch_wheel_sensitivity(&mut self, val: u16) {
+        self.pitch_wheel_sensitivity = val;
+    }
+
+    //
+
+    pub fn cc(&self, id: usize) -> u8 {
+        if id < 128 {
+            self.cc[id]
         } else {
             0
         }
     }
 
-    pub fn get_id(&self) -> usize {
-        self.id
+    //
+
+    pub fn interp_method(&self) -> InterpolationMethod {
+        self.interp_method
     }
 
     pub fn set_interp_method(&mut self, new_method: InterpolationMethod) {
         self.interp_method = new_method;
     }
 
-    pub fn get_interp_method(&self) -> InterpolationMethod {
-        self.interp_method
+    //
+
+    pub fn tuning(&self) -> Option<&Tuning> {
+        self.tuning.as_ref()
     }
 
-    pub fn get_sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
-        self.sfontnum
+    pub fn set_tuning(&mut self, val: Option<Tuning>) {
+        self.tuning = val;
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
-        self.sfontnum = sfontnum;
+    //
+
+    pub fn gen(&self, id: usize) -> f32 {
+        self.gen[id]
+    }
+
+    pub fn set_gen(&mut self, id: usize, val: f32) {
+        self.gen[id] = val;
+    }
+
+    //
+
+    pub fn gen_abs(&self, id: usize) -> i8 {
+        self.gen_abs[id]
+    }
+
+    pub fn set_gen_abs(&mut self, id: usize, val: i8) {
+        self.gen_abs[id] = val;
     }
 }
 
@@ -313,7 +397,7 @@ impl Synth {
                     let (channum, nrpn_select, nrpn_msb, nrpn_lsb) = {
                         let channel = &self.channels[chan_id];
                         (
-                            channel.get_id(),
+                            channel.id(),
                             channel.nrpn_select,
                             channel.cc[NRPN_MSB as usize],
                             channel.cc[NRPN_LSB as usize],
@@ -344,7 +428,7 @@ impl Synth {
                         // RPN_CHANNEL_FINE_TUNE
                         1 => {
                             self.set_gen(
-                                self.channels[chan_id].get_id(),
+                                self.channels[chan_id].id(),
                                 GenParam::FineTune,
                                 ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
                             )
@@ -353,7 +437,7 @@ impl Synth {
                         // RPN_CHANNEL_COARSE_TUNE
                         2 => {
                             self.set_gen(
-                                self.channels[chan_id].get_id(),
+                                self.channels[chan_id].id(),
                                 GenParam::CoarseTune,
                                 (value - 64) as f32,
                             )

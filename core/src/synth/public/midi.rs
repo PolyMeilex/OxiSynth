@@ -17,7 +17,7 @@ impl Synth {
             if vel == 0 {
                 self.noteoff(midi_chan, key);
                 Ok(())
-            } else if channel.preset.is_none() {
+            } else if channel.preset().is_none() {
                 log::warn!(
                     "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
                     midi_chan,
@@ -92,7 +92,7 @@ impl Synth {
                 log::warn!("Ctrl out of range");
                 Err("Ctrl out of range")
             } else {
-                let pval = channel.cc[num as usize];
+                let pval = channel.cc(num as usize);
                 Ok(pval)
             }
         } else {
@@ -119,7 +119,7 @@ impl Synth {
 
             const FLUID_MOD_PITCHWHEEL: u16 = 14;
 
-            channel.pitch_bend = val as i16;
+            channel.set_pitch_bend(val as i16);
 
             self.voices
                 .modulate_voices(&*channel, 0, FLUID_MOD_PITCHWHEEL);
@@ -136,7 +136,7 @@ impl Synth {
      */
     pub fn get_pitch_bend(&self, chan: usize) -> Result<i16, &str> {
         if let Some(channel) = self.channels.get(chan) {
-            let pitch_bend = channel.pitch_bend;
+            let pitch_bend = channel.pitch_bend();
             Ok(pitch_bend)
         } else {
             log::warn!("Channel out of range",);
@@ -153,7 +153,7 @@ impl Synth {
 
             const FLUID_MOD_PITCHWHEELSENS: u16 = 16;
 
-            channel.pitch_wheel_sensitivity = val;
+            channel.set_pitch_wheel_sensitivity(val);
 
             self.voices
                 .modulate_voices(&*channel, 0, FLUID_MOD_PITCHWHEELSENS);
@@ -170,7 +170,7 @@ impl Synth {
      */
     pub fn get_pitch_wheel_sens(&self, chan: usize) -> Result<u32, &str> {
         if let Some(channel) = self.channels.get(chan) {
-            Ok(channel.pitch_wheel_sensitivity as u32)
+            Ok(channel.pitch_wheel_sensitivity() as u32)
         } else {
             log::warn!("Channel out of range",);
             Err("Channel out of range")
@@ -186,13 +186,13 @@ impl Synth {
             return Err(());
         }
 
-        let banknum = self.channels[chan as usize].get_banknum();
+        let banknum = self.channels[chan as usize].banknum();
         self.channels[chan as usize].set_prognum(prognum);
 
         log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
 
         let mut preset =
-            if self.channels[chan as usize].get_id() == 9 && self.settings.drums_channel_active {
+            if self.channels[chan as usize].id() == 9 && self.settings.drums_channel_active {
                 self.find_preset(128, prognum)
             } else {
                 self.find_preset(banknum, prognum)
@@ -234,7 +234,7 @@ impl Synth {
             log::trace!("channelpressure\t{}\t{}", chan, val);
 
             const FLUID_MOD_CHANNELPRESSURE: u16 = 13;
-            channel.channel_pressure = val as i16;
+            channel.set_channel_pressure(val as i16);
 
             self.voices
                 .modulate_voices(&self.channels[chan], 0, FLUID_MOD_CHANNELPRESSURE);
@@ -259,7 +259,7 @@ impl Synth {
         log::trace!("keypressure\t{}\t{}\t{}", chan, key, val);
 
         if let Some(channel) = self.channels.get_mut(chan) {
-            channel.key_pressure[key as usize] = val as i8;
+            channel.set_key_pressure(key as usize, val as i8);
 
             self.voices.key_pressure(&self.channels[chan], key);
             Ok(())
@@ -338,9 +338,9 @@ impl Synth {
     pub fn get_program(&self, chan: u8) -> Result<(Option<TypedIndex<SoundFont>>, u32, u32), &str> {
         if let Some(channel) = self.channels.get(chan as usize) {
             Ok((
-                channel.get_sfontnum(),
-                channel.get_banknum(),
-                channel.get_prognum() as u32,
+                channel.sfontnum(),
+                channel.banknum(),
+                channel.prognum() as u32,
             ))
         } else {
             log::warn!("Channel out of range",);
@@ -355,7 +355,7 @@ impl Synth {
      */
     pub fn program_reset(&mut self) {
         for id in 0..self.channels.len() {
-            let preset = self.channels[id].get_prognum();
+            let preset = self.channels[id].prognum();
             self.program_change(id, preset).ok();
         }
     }

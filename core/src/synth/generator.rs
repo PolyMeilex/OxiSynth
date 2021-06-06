@@ -664,8 +664,8 @@ pub(crate) fn gen_init(channel: &Channel) -> [Gen; 60] {
     let mut out = get_default_values();
 
     for (id, gen) in out.iter_mut().enumerate() {
-        gen.nrpn = channel.gen[id] as f64;
-        if channel.gen_abs[id] != 0 {
+        gen.nrpn = channel.gen(id) as f64;
+        if channel.gen_abs(id) != 0 {
             gen.flags = GEN_ABS_NRPN;
         }
     }

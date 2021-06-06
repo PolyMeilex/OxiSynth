@@ -236,7 +236,7 @@ impl Voice {
             key: desc.key,
             vel: desc.vel,
 
-            interp_method: desc.channel.get_interp_method(),
+            interp_method: desc.channel.interp_method(),
             mod_count: 0,
 
             sample: desc.sample,
@@ -460,7 +460,7 @@ impl Voice {
         let sustained = {
             const SUSTAIN_SWITCH: usize = 64;
             // check is channel is sustained
-            channel.cc[SUSTAIN_SWITCH] >= 64
+            channel.cc(SUSTAIN_SWITCH) >= 64
         };
 
         if sustained {
@@ -668,7 +668,7 @@ impl Voice {
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
-        let tuning = channel.tuning;
+        let tuning = channel.tuning();
         if let Some(tuning) = tuning {
             self.gen[GenParam::Pitch as usize].val = tuning.pitch[60]
                 + self.gen[GenParam::ScaleTune as usize].val / 100.0f32 as f64

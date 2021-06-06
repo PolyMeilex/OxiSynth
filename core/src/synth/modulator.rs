@@ -112,18 +112,18 @@ impl Mod {
         let mut v1 = if self.src.index > 0 {
             use GeneralPalette::*;
             let v1 = match self.src.controller_palette {
-                ControllerPalette::Midi(id) => chan.get_cc(id as i32) as f32,
+                ControllerPalette::Midi(id) => chan.cc(id as usize) as f32,
                 ControllerPalette::General(g) => match g {
                     NoController => range1,
                     NoteOnVelocity => voice.vel as f32,
                     NoteOnKeyNumber => voice.key as f32,
-                    PolyPressure => chan.key_pressure[voice.key as usize] as f32,
-                    ChannelPressure => chan.channel_pressure as f32,
+                    PolyPressure => chan.key_pressure(voice.key as usize) as f32,
+                    ChannelPressure => chan.channel_pressure() as f32,
                     PitchWheel => {
                         range1 = 0x4000 as f32;
-                        chan.pitch_bend as f32
+                        chan.pitch_bend() as f32
                     }
-                    PitchWheelSensitivity => chan.pitch_wheel_sensitivity as f32,
+                    PitchWheelSensitivity => chan.pitch_wheel_sensitivity() as f32,
                     _ => 0.0,
                 },
             };
@@ -235,15 +235,15 @@ impl Mod {
         let v2 = if self.src2.index > 0 {
             use GeneralPalette::*;
             let v2 = match self.src2.controller_palette {
-                ControllerPalette::Midi(id) => chan.get_cc(id as i32) as f32,
+                ControllerPalette::Midi(id) => chan.cc(id as usize) as f32,
                 ControllerPalette::General(g) => match g {
                     NoController => range2,
                     NoteOnVelocity => voice.vel as f32,
                     NoteOnKeyNumber => voice.key as f32,
-                    PolyPressure => chan.key_pressure[voice.key as usize] as f32,
-                    ChannelPressure => chan.channel_pressure as f32,
-                    PitchWheel => chan.pitch_bend as f32,
-                    PitchWheelSensitivity => chan.pitch_wheel_sensitivity as f32,
+                    PolyPressure => chan.key_pressure(voice.key as usize) as f32,
+                    ChannelPressure => chan.channel_pressure() as f32,
+                    PitchWheel => chan.pitch_bend() as f32,
+                    PitchWheelSensitivity => chan.pitch_wheel_sensitivity() as f32,
                     _ => {
                         // https://github.com/divideconcept/FluidLite/blob/fdd05bad03cdb24d1f78b5fe3453842890c1b0e8/src/fluid_mod.c#L282
                         // why is this setting v1 to 0.0?
