@@ -1,4 +1,6 @@
 use crate::soundfont::SoundFont;
+use crate::synth::channel_pool::Channel;
+use crate::synth::font_bank::FontBank;
 use crate::synth::Synth;
 use crate::utils::TypedIndex;
 
@@ -177,48 +179,23 @@ impl Synth {
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, chan: usize, prognum: u8) -> Result<(), ()> {
-        if prognum >= 128 || chan >= self.channels.len() {
-            log::error!("Index out of range (chan={}, prog={})", chan, prognum);
+    pub fn program_change(&mut self, channel: usize, prognum: u8) -> Result<(), ()> {
+        if prognum >= 128 {
+            log::error!("Index out of range (prog={})", prognum);
             return Err(());
         }
 
-        let banknum = self.channels[chan as usize].banknum();
-        self.channels[chan as usize].set_prognum(prognum);
-
-        log::trace!("prog\t{}\t{}\t{}", chan, banknum, prognum);
-
-        let mut preset =
-            if self.channels[chan as usize].id() == 9 && self.settings.drums_channel_active {
-                self.font_bank.find_preset(128, prognum)
-            } else {
-                self.font_bank.find_preset(banknum, prognum)
-            };
-
-        if preset.is_none() {
-            let mut subst_bank = banknum as i32;
-            let mut subst_prog = prognum;
-            if banknum != 128 {
-                subst_bank = 0;
-                preset = self.font_bank.find_preset(0, prognum);
-                if preset.is_none() && prognum != 0 {
-                    preset = self.font_bank.find_preset(0, 0);
-                    subst_prog = 0;
-                }
-            } else {
-                preset = self.font_bank.find_preset(128, 0);
-                subst_prog = 0;
-            }
-            if preset.is_none() {
-                log::warn!(
-                        "Instrument not found on channel {} [bank={} prog={}], substituted [bank={} prog={}]",
-                        chan, banknum, prognum,
-                        subst_bank, subst_prog);
-            }
+        if let Some(channel) = self.channels.get_mut(channel) {
+            program_change(
+                channel,
+                &self.font_bank,
+                prognum,
+                self.settings.drums_channel_active,
+            );
+        } else {
+            log::error!("Index out of range (channel={})", channel);
+            return Err(());
         }
-
-        self.channels[chan as usize].set_sfontnum(preset.as_ref().map(|p| p.0));
-        self.channels[chan as usize].set_preset(preset.map(|p| p.1.clone()));
 
         Ok(())
     }
@@ -351,9 +328,13 @@ impl Synth {
     This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
      */
     pub fn program_reset(&mut self) {
-        for id in 0..self.channels.len() {
-            let preset = self.channels[id].prognum();
-            self.program_change(id, preset).ok();
+        for channel in self.channels.iter_mut() {
+            program_change(
+                channel,
+                &self.font_bank,
+                channel.prognum(),
+                self.settings.drums_channel_active,
+            );
         }
     }
 
@@ -377,4 +358,48 @@ impl Synth {
         self.chorus.reset();
         self.reverb.reset();
     }
+}
+
+/**
+Send a program change message.
+ */
+pub fn program_change(
+    channel: &mut Channel,
+    font_bank: &FontBank,
+    prognum: u8,
+    drums_channel_active: bool,
+) {
+    let banknum = channel.banknum();
+    channel.set_prognum(prognum);
+
+    let mut preset = if channel.id() == 9 && drums_channel_active {
+        font_bank.find_preset(128, prognum)
+    } else {
+        font_bank.find_preset(banknum, prognum)
+    };
+
+    if preset.is_none() {
+        let mut subst_bank = banknum as i32;
+        let mut subst_prog = prognum;
+        if banknum != 128 {
+            subst_bank = 0;
+            preset = font_bank.find_preset(0, prognum);
+            if preset.is_none() && prognum != 0 {
+                preset = font_bank.find_preset(0, 0);
+                subst_prog = 0;
+            }
+        } else {
+            preset = font_bank.find_preset(128, 0);
+            subst_prog = 0;
+        }
+        if preset.is_none() {
+            log::warn!(
+                        "Instrument not found on channel {} [bank={} prog={}], substituted [bank={} prog={}]",
+                        channel.id(), banknum, prognum,
+                        subst_bank, subst_prog);
+        }
+    }
+
+    channel.set_sfontnum(preset.as_ref().map(|p| p.0));
+    channel.set_preset(preset.map(|p| p.1.clone()));
 }

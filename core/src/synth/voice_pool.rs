@@ -6,7 +6,7 @@ use super::channel_pool::Channel;
 use crate::generator::GenParam;
 use crate::synth::FxBuf;
 
-pub(crate) struct VoicePool {
+pub struct VoicePool {
     voices: Vec<Voice>,
     sample_rate: f32,
     polyphony_limit: usize,
