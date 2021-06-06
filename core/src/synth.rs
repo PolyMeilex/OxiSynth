@@ -2,8 +2,6 @@ mod public;
 
 pub mod bank;
 
-use bank::BankOffsets;
-
 mod channel_pool;
 pub(crate) mod modulator;
 pub(crate) mod voice_pool;
@@ -11,22 +9,21 @@ pub(crate) mod voice_pool;
 pub mod generator;
 pub use channel_pool::InterpolationMethod;
 
+mod conv;
+mod font_bank;
+
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
-use crate::utils::TypedArena;
 
-use crate::{
-    soundfont::{Preset, SoundFont},
-    utils::TypedIndex,
-};
+use crate::soundfont::Preset;
 
 use voice_pool::VoicePool;
 
 use self::channel_pool::ChannelPool;
+use self::font_bank::FontBank;
 
 use super::settings::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
-use std::rc::Rc;
 
 #[derive(Clone)]
 pub(crate) struct FxBuf {
@@ -35,15 +32,12 @@ pub(crate) struct FxBuf {
 }
 
 pub struct Synth {
-    pub(crate) ticks: u32,
+    ticks: u32,
 
-    fonts: TypedArena<SoundFont>,
-    fonts_stack: Vec<TypedIndex<SoundFont>>,
+    pub font_bank: FontBank,
 
-    pub bank_offsets: BankOffsets,
-
-    pub(crate) channels: ChannelPool,
-    pub(crate) voices: VoicePool,
+    channels: ChannelPool,
+    voices: VoicePool,
 
     nbuf: u8,
 
@@ -58,9 +52,9 @@ pub struct Synth {
 
     cur: usize,
 
-    pub(crate) min_note_length_ticks: u32,
+    min_note_length_ticks: u32,
 
-    pub(crate) settings: Settings,
+    settings: Settings,
 
     #[cfg(feature = "i16-out")]
     dither_index: i32,
@@ -95,10 +89,8 @@ impl Synth {
         let mut synth = Self {
             ticks: 0,
 
-            fonts: TypedArena::new(),
-            fonts_stack: Vec::new(),
+            font_bank: FontBank::new(),
 
-            bank_offsets: Default::default(),
             channels: ChannelPool::new(midi_channels as usize, None),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
             nbuf,
@@ -132,61 +124,6 @@ impl Synth {
 
         Ok(synth)
     }
-
-    pub(crate) fn get_preset(
-        &mut self,
-        sfont_id: TypedIndex<SoundFont>,
-        banknum: u32,
-        prognum: u8,
-    ) -> Option<Rc<Preset>> {
-        let sfont = self.get_sfont(sfont_id);
-        if let Some(sfont) = sfont {
-            let offset = self
-                .bank_offsets
-                .get(sfont_id)
-                .map(|o| o.offset)
-                .unwrap_or_default();
-            sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum)
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn find_preset(
-        &self,
-        banknum: u32,
-        prognum: u8,
-    ) -> Option<(TypedIndex<SoundFont>, Rc<Preset>)> {
-        for id in self.fonts_stack.iter() {
-            let sfont = self.fonts.get(*id);
-            if let Some(sfont) = sfont {
-                let offset = self
-                    .bank_offsets
-                    .get(*id)
-                    .map(|o| o.offset)
-                    .unwrap_or_default();
-
-                let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
-                if let Some(preset) = preset {
-                    return Some((*id, preset));
-                }
-            }
-        }
-        None
-    }
-
-    pub(crate) fn update_presets(&mut self) {
-        for id in 0..self.channels.len() {
-            let sfontnum = self.channels[id].sfontnum();
-            if let Some(sfontnum) = sfontnum {
-                let banknum = self.channels[id].banknum();
-                let prognum = self.channels[id].prognum();
-
-                let preset = self.get_preset(sfontnum, banknum, prognum);
-                self.channels[id].set_preset(preset);
-            }
-        }
-    }
 }
 
 use modulator::Mod;
@@ -195,7 +132,7 @@ use voice_pool::{Voice, VoiceAddMode, VoiceDescriptor};
 use crate::soundfont::{InstrumentZone, PresetZone};
 
 impl Synth {
-    pub(crate) fn sf_noteon(&mut self, chan: usize, key: u8, vel: u8) {
+    fn sf_noteon(&mut self, chan: usize, key: u8, vel: u8) {
         fn preset_zone_inside_range(zone: &PresetZone, key: u8, vel: u8) -> bool {
             zone.key_low <= key
                 && zone.key_high >= key

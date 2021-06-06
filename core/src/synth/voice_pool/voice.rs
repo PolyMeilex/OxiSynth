@@ -8,7 +8,7 @@ use super::super::{
 };
 use crate::soundfont::Sample;
 
-use crate::conv::{
+use super::super::conv::{
     act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
     tc2sec_release,
 };

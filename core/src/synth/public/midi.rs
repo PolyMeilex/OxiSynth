@@ -190,9 +190,9 @@ impl Synth {
 
         let mut preset =
             if self.channels[chan as usize].id() == 9 && self.settings.drums_channel_active {
-                self.find_preset(128, prognum)
+                self.font_bank.find_preset(128, prognum)
             } else {
-                self.find_preset(banknum, prognum)
+                self.font_bank.find_preset(banknum, prognum)
             };
 
         if preset.is_none() {
@@ -200,13 +200,13 @@ impl Synth {
             let mut subst_prog = prognum;
             if banknum != 128 {
                 subst_bank = 0;
-                preset = self.find_preset(0, prognum);
+                preset = self.font_bank.find_preset(0, prognum);
                 if preset.is_none() && prognum != 0 {
-                    preset = self.find_preset(0, 0);
+                    preset = self.font_bank.find_preset(0, 0);
                     subst_prog = 0;
                 }
             } else {
-                preset = self.find_preset(128, 0);
+                preset = self.font_bank.find_preset(128, 0);
                 subst_prog = 0;
             }
             if preset.is_none() {
@@ -305,7 +305,7 @@ impl Synth {
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), &str> {
-        let preset = self.get_preset(sfont_id, bank_num, preset_num);
+        let preset = self.font_bank.get_preset(sfont_id, bank_num, preset_num);
 
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             if preset.is_none() {
@@ -368,7 +368,7 @@ impl Synth {
     pub fn system_reset(&mut self) {
         self.voices.system_reset();
 
-        let preset = self.find_preset(0, 0).map(|p| p.1);
+        let preset = self.font_bank.find_preset(0, 0).map(|p| p.1);
         for channel in self.channels.iter_mut() {
             channel.init(preset.clone());
             channel.init_ctrl(0);

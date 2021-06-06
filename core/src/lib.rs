@@ -15,8 +15,6 @@ pub use tuning::{Tuning, TuningManager};
 pub mod synth;
 pub use synth::{bank, bank::BankOffset, generator, InterpolationMethod, Synth};
 
-mod conv;
-
 pub mod soundfont;
 pub use self::soundfont::SoundFont;
 

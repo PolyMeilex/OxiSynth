@@ -53,14 +53,18 @@ impl Synth {
     Returns -1 if an error occured (out of memory or negative offset)
      */
     pub fn set_bank_offset(&mut self, sfont_id: SoundFontId, offset: u32) {
-        self.handle.bank_offsets.set(sfont_id, offset)
+        self.handle.font_bank.bank_offsets.set(sfont_id, offset)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
     pub fn get_bank_offset(&self, sfont_id: SoundFontId) -> Option<u32> {
-        self.handle.bank_offsets.get(sfont_id).map(|o| o.offset)
+        self.handle
+            .font_bank
+            .bank_offsets
+            .get(sfont_id)
+            .map(|o| o.offset)
     }
 }
 

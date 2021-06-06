@@ -1,7 +1,7 @@
 use super::channel_pool::Channel;
+use super::conv::concave;
+use super::conv::convex;
 use super::voice_pool::Voice;
-use crate::conv::concave;
-use crate::conv::convex;
 
 use crate::generator::GenParam;
 

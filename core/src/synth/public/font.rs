@@ -3,6 +3,21 @@ use crate::synth::Synth;
 use crate::utils::TypedIndex;
 
 impl Synth {
+    fn update_presets(&mut self) {
+        for id in 0..self.channels.len() {
+            let sfontnum = self.channels[id].sfontnum();
+            if let Some(sfontnum) = sfontnum {
+                let banknum = self.channels[id].banknum();
+                let prognum = self.channels[id].prognum();
+
+                let preset = self.font_bank.get_preset(sfontnum, banknum, prognum);
+                self.channels[id].set_preset(preset);
+            }
+        }
+    }
+}
+
+impl Synth {
     /**
     Loads a SoundFont. The newly
     loaded SoundFont will be put on top of the SoundFont
@@ -11,10 +26,7 @@ impl Synth {
     is found.
      */
     pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> TypedIndex<SoundFont> {
-        let id = self.fonts.insert(font);
-
-        // Put SoundFont on top of the stack
-        self.fonts_stack.insert(0, id);
+        let id = self.font_bank.add_font(font);
 
         if reset_presets {
             self.program_reset();
@@ -31,10 +43,9 @@ impl Synth {
         id: TypedIndex<SoundFont>,
         reset_presets: bool,
     ) -> Result<(), ()> {
-        let sfont = self.fonts.remove(id);
-        self.fonts_stack.retain(|i| i == &id);
+        let sfont = self.font_bank.remove_font(id);
 
-        if let Some(_) = sfont {
+        if sfont.is_some() {
             if reset_presets {
                 self.program_reset();
             } else {
@@ -53,7 +64,7 @@ impl Synth {
     Count the number of loaded SoundFonts.
      */
     pub fn count_fonts(&self) -> usize {
-        self.fonts.len()
+        self.font_bank.count()
     }
 
     /**
@@ -63,18 +74,13 @@ impl Synth {
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
     pub fn get_nth_font(&self, num: usize) -> Option<&SoundFont> {
-        let id = self.fonts_stack.get(num);
-        if let Some(id) = id {
-            self.fonts.get(*id)
-        } else {
-            None
-        }
+        self.font_bank.get_nth_font(num)
     }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
     pub fn get_sfont(&self, id: TypedIndex<SoundFont>) -> Option<&SoundFont> {
-        self.fonts.get(id)
+        self.font_bank.get_font(id)
     }
 }
