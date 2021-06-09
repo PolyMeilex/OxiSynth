@@ -8,77 +8,77 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn note_on(&mut self, chan: usize, key: u8, vel: u8) -> Result<(), &str> {
+    pub fn note_on(&mut self, chan: u8, key: u8, vel: u8) -> Result<(), &str> {
         self.handle.noteon(chan, key, vel)
     }
 
     /**
     Send a noteoff message.
      */
-    pub fn note_off(&mut self, chan: usize, key: u8) {
+    pub fn note_off(&mut self, chan: u8, key: u8) {
         self.handle.noteoff(chan, key)
     }
 
     /**
     Send a control change message.
      */
-    pub fn cc(&mut self, chan: usize, ctrl: u16, val: u16) -> Result<(), ()> {
+    pub fn cc(&mut self, chan: u8, ctrl: u16, val: u16) -> Result<(), ()> {
         self.handle.cc(chan, ctrl, val)
     }
 
     /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: usize, ctrl: u16) -> Result<u8, &str> {
+    pub fn get_cc(&self, chan: u8, ctrl: u16) -> Result<u8, &str> {
         self.handle.get_cc(chan, ctrl)
     }
 
     /**
     Send a pitch bend message.
      */
-    pub fn pitch_bend(&mut self, chan: usize, val: u16) -> Result<(), &str> {
+    pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), &str> {
         self.handle.pitch_bend(chan, val)
     }
 
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: usize) -> Result<i16, &str> {
+    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, &str> {
         self.handle.get_pitch_bend(chan)
     }
 
     /**
     Set the pitch wheel sensitivity.
      */
-    pub fn pitch_wheel_sens(&mut self, chan: usize, val: u16) -> Result<(), &str> {
+    pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), &str> {
         self.handle.pitch_wheel_sens(chan, val)
     }
 
     /**
     Get the pitch wheel sensitivity.
      */
-    pub fn get_pitch_wheel_sens(&self, chan: usize) -> Result<u32, &str> {
+    pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, &str> {
         self.handle.get_pitch_wheel_sens(chan)
     }
 
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, chan: usize, prog: u8) -> Result<(), ()> {
+    pub fn program_change(&mut self, chan: u8, prog: u8) -> Result<(), ()> {
         self.handle.program_change(chan, prog)
     }
 
     /**
     Set channel pressure
      */
-    pub fn channel_pressure(&mut self, chan: usize, val: u16) -> Result<(), &str> {
+    pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), &str> {
         self.handle.channel_pressure(chan, val)
     }
 
     /**
     Set key pressure (aftertouch)
      */
-    pub fn key_pressure(&mut self, chan: usize, key: u8, val: u8) -> Result<(), ()> {
+    pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
         self.handle.key_pressure(chan, key, val)
     }
 

@@ -8,7 +8,7 @@ impl Synth {
     /**
     Send a noteon message.
      */
-    pub fn noteon(&mut self, midi_chan: usize, key: u8, vel: u8) -> Result<(), &str> {
+    pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: u8) -> Result<(), &str> {
         if key >= 128 {
             log::error!("Key out of range");
             Err("Key out of range")
@@ -34,14 +34,14 @@ impl Synth {
                 Err("Channel has no preset")
             } else {
                 self.voices.release_voice_on_same_note(
-                    &self.channels[midi_chan],
+                    &self.channels[midi_chan as usize],
                     key,
                     self.min_note_length_ticks,
                 );
 
                 self.voices.noteid_add();
 
-                self.sf_noteon(midi_chan, key, vel);
+                self.sf_noteon(midi_chan as usize, key, vel);
                 Ok(())
             }
         } else {
@@ -53,19 +53,18 @@ impl Synth {
     /**
     Send a noteoff message.
      */
-    pub fn noteoff(&mut self, chan: usize, key: u8) {
-        self.voices
-            .noteoff(&self.channels[chan], self.min_note_length_ticks, key)
+    pub fn noteoff(&mut self, chan: u8, key: u8) {
+        self.voices.noteoff(
+            &self.channels[chan as usize],
+            self.min_note_length_ticks,
+            key,
+        )
     }
 
     /**
     Send a control change message.
      */
-    pub fn cc(&mut self, chan: usize, num: u16, val: u16) -> Result<(), ()> {
-        if chan as usize >= self.channels.len() {
-            log::warn!("Channel out of range",);
-            return Err(());
-        }
+    pub fn cc(&mut self, chan: u8, num: u16, val: u16) -> Result<(), ()> {
         if num >= 128 {
             log::warn!("Ctrl out of range",);
             return Err(());
@@ -75,18 +74,22 @@ impl Synth {
             return Err(());
         }
 
-        log::trace!("cc\t{}\t{}\t{}", chan, num, val);
+        if self.channels.get(chan as usize).is_some() {
+            log::trace!("cc\t{}\t{}\t{}", chan, num, val);
 
-        self.channel_cc(chan, num, val);
-
-        Ok(())
+            self.channel_cc(chan as usize, num, val);
+            Ok(())
+        } else {
+            log::warn!("Channel out of range",);
+            Err(())
+        }
     }
 
     /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: usize, num: u16) -> Result<u8, &str> {
-        if let Some(channel) = self.channels.get(chan) {
+    pub fn get_cc(&self, chan: u8, num: u16) -> Result<u8, &str> {
+        if let Some(channel) = self.channels.get(chan as usize) {
             if num >= 128 {
                 log::warn!("Ctrl out of range");
                 Err("Ctrl out of range")
@@ -112,8 +115,8 @@ impl Synth {
     /**
     Send a pitch bend message.
      */
-    pub fn pitch_bend(&mut self, chan: usize, val: u16) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan) {
+    pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), &str> {
+        if let Some(channel) = self.channels.get_mut(chan as usize) {
             log::trace!("pitchb\t{}\t{}", chan, val);
 
             const FLUID_MOD_PITCHWHEEL: u16 = 14;
@@ -133,8 +136,8 @@ impl Synth {
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: usize) -> Result<i16, &str> {
-        if let Some(channel) = self.channels.get(chan) {
+    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, &str> {
+        if let Some(channel) = self.channels.get(chan as usize) {
             let pitch_bend = channel.pitch_bend();
             Ok(pitch_bend)
         } else {
@@ -146,8 +149,8 @@ impl Synth {
     /**
     Set the pitch wheel sensitivity.
      */
-    pub fn pitch_wheel_sens(&mut self, chan: usize, val: u16) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan) {
+    pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), &str> {
+        if let Some(channel) = self.channels.get_mut(chan as usize) {
             log::trace!("pitchsens\t{}\t{}", chan, val);
 
             const FLUID_MOD_PITCHWHEELSENS: u16 = 16;
@@ -167,8 +170,8 @@ impl Synth {
     /**
     Get the pitch wheel sensitivity.
      */
-    pub fn get_pitch_wheel_sens(&self, chan: usize) -> Result<u32, &str> {
-        if let Some(channel) = self.channels.get(chan) {
+    pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, &str> {
+        if let Some(channel) = self.channels.get(chan as usize) {
             Ok(channel.pitch_wheel_sensitivity() as u32)
         } else {
             log::warn!("Channel out of range",);
@@ -179,13 +182,13 @@ impl Synth {
     /**
     Send a program change message.
      */
-    pub fn program_change(&mut self, channel: usize, prognum: u8) -> Result<(), ()> {
+    pub fn program_change(&mut self, channel: u8, prognum: u8) -> Result<(), ()> {
         if prognum >= 128 {
             log::error!("Index out of range (prog={})", prognum);
             return Err(());
         }
 
-        if let Some(channel) = self.channels.get_mut(channel) {
+        if let Some(channel) = self.channels.get_mut(channel as usize) {
             program_change(
                 channel,
                 &self.font_bank,
@@ -203,15 +206,18 @@ impl Synth {
     /**
     Set channel pressure
      */
-    pub fn channel_pressure(&mut self, chan: usize, val: u16) -> Result<(), &str> {
+    pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), &str> {
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             log::trace!("channelpressure\t{}\t{}", chan, val);
 
             const FLUID_MOD_CHANNELPRESSURE: u16 = 13;
             channel.set_channel_pressure(val as i16);
 
-            self.voices
-                .modulate_voices(&self.channels[chan], 0, FLUID_MOD_CHANNELPRESSURE);
+            self.voices.modulate_voices(
+                &self.channels[chan as usize],
+                0,
+                FLUID_MOD_CHANNELPRESSURE,
+            );
             Ok(())
         } else {
             log::error!("Channel out of range",);
@@ -222,7 +228,7 @@ impl Synth {
     /**
     Set key pressure (aftertouch)
      */
-    pub fn key_pressure(&mut self, chan: usize, key: u8, val: u8) -> Result<(), ()> {
+    pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
         if key > 127 {
             return Err(());
         }
@@ -232,10 +238,10 @@ impl Synth {
 
         log::trace!("keypressure\t{}\t{}\t{}", chan, key, val);
 
-        if let Some(channel) = self.channels.get_mut(chan) {
+        if let Some(channel) = self.channels.get_mut(chan as usize) {
             channel.set_key_pressure(key as usize, val as i8);
 
-            self.voices.key_pressure(&self.channels[chan], key);
+            self.voices.key_pressure(&self.channels[chan as usize], key);
             Ok(())
         } else {
             log::error!("Channel out of range",);

@@ -425,7 +425,7 @@ impl Synth {
                     match self.channels[chan_id].cc[RPN_LSB as usize] {
                         // RPN_PITCH_BEND_RANGE
                         0 => {
-                            self.pitch_wheel_sens(chan_id, value).ok();
+                            self.pitch_wheel_sens(chan_id as u8, value).ok();
                         }
                         // RPN_CHANNEL_FINE_TUNE
                         1 => {
