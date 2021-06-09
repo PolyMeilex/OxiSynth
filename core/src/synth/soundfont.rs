@@ -1,4 +1,6 @@
+pub mod generator;
 mod instrument;
+pub(crate) mod modulator;
 mod preset;
 mod sample;
 mod sample_data;

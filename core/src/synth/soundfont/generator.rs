@@ -1,4 +1,4 @@
-use super::channel_pool::Channel;
+use super::super::Channel;
 
 use num_derive::FromPrimitive;
 
@@ -9,7 +9,7 @@ See also _SoundFont 2.01 specifications section 8.1.3_
  */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromPrimitive)]
 #[repr(u8)]
-pub enum GenParam {
+pub enum GeneratorType {
     /** Sample start address offset (0-32767) */
     StartAddrOfs = 0,
     /**< Sample end address offset (-32767-0) */
@@ -141,7 +141,7 @@ pub enum GenParam {
 }
 
 #[derive(Copy, Default, Debug, PartialEq, Clone)]
-pub struct Gen {
+pub struct Generator {
     pub flags: u8,
     pub val: f64,
     pub mod_0: f64,
@@ -153,7 +153,7 @@ const GEN_UNUSED: u8 = 0;
 
 #[derive(Copy, Clone)]
 pub(crate) struct GenInfo {
-    pub num: GenParam,
+    pub num: GeneratorType,
     pub init: i8,
     pub nrpn_scale: i8,
     pub min: f32,
@@ -163,7 +163,7 @@ pub(crate) struct GenInfo {
 
 pub(crate) static GEN_INFO: [GenInfo; 60] = [
     GenInfo {
-        num: GenParam::StartAddrOfs,
+        num: GeneratorType::StartAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -171,7 +171,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::EndAddrOfs,
+        num: GeneratorType::EndAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -179,7 +179,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::StartLoopAddrOfs,
+        num: GeneratorType::StartLoopAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -187,7 +187,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::EndLoopAddrOfs,
+        num: GeneratorType::EndLoopAddrOfs,
         init: 1,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -195,7 +195,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::StartAddrCoarseOfs,
+        num: GeneratorType::StartAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: 0.0,
@@ -203,7 +203,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModLfoToPitch,
+        num: GeneratorType::ModLfoToPitch,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -211,7 +211,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::VibLfoToPitch,
+        num: GeneratorType::VibLfoToPitch,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -219,7 +219,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModEnvToPitch,
+        num: GeneratorType::ModEnvToPitch,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -227,7 +227,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::FilterFc,
+        num: GeneratorType::FilterFc,
         init: 1,
         nrpn_scale: 2,
         min: 1500.0,
@@ -235,7 +235,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 13500.0,
     },
     GenInfo {
-        num: GenParam::FilterQ,
+        num: GeneratorType::FilterQ,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -243,7 +243,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModLfoToFilterFc,
+        num: GeneratorType::ModLfoToFilterFc,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -251,7 +251,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModEnvToFilterFc,
+        num: GeneratorType::ModEnvToFilterFc,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -259,7 +259,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::EndAddrCoarseOfs,
+        num: GeneratorType::EndAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -267,7 +267,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModLfoToVol,
+        num: GeneratorType::ModLfoToVol,
         init: 1,
         nrpn_scale: 1,
         min: -960.0,
@@ -275,7 +275,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Unused,
+        num: GeneratorType::Unused,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -283,7 +283,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ChorusSend,
+        num: GeneratorType::ChorusSend,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -291,7 +291,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ReverbSend,
+        num: GeneratorType::ReverbSend,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -299,7 +299,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Pan,
+        num: GeneratorType::Pan,
         init: 1,
         nrpn_scale: 1,
         min: -500.0,
@@ -307,7 +307,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Unused2,
+        num: GeneratorType::Unused2,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -315,7 +315,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Unused3,
+        num: GeneratorType::Unused3,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -323,7 +323,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Unused4,
+        num: GeneratorType::Unused4,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -331,7 +331,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModLfoDelay,
+        num: GeneratorType::ModLfoDelay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -339,7 +339,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::ModLfoFreq,
+        num: GeneratorType::ModLfoFreq,
         init: 1,
         nrpn_scale: 4,
         min: -16000.0,
@@ -347,7 +347,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::VibLfoDelay,
+        num: GeneratorType::VibLfoDelay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -355,7 +355,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::VibLfoFreq,
+        num: GeneratorType::VibLfoFreq,
         init: 1,
         nrpn_scale: 4,
         min: -16000.0,
@@ -363,7 +363,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModEnvDelay,
+        num: GeneratorType::ModEnvDelay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -371,7 +371,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::ModEnvAttack,
+        num: GeneratorType::ModEnvAttack,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -379,7 +379,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::ModEnvHold,
+        num: GeneratorType::ModEnvHold,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -387,7 +387,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::ModEnvDecay,
+        num: GeneratorType::ModEnvDecay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -395,7 +395,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::ModEnvSustain,
+        num: GeneratorType::ModEnvSustain,
         init: 0,
         nrpn_scale: 1,
         min: 0.0,
@@ -403,7 +403,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ModEnvRelease,
+        num: GeneratorType::ModEnvRelease,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -411,7 +411,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::KeyToModEnvHold,
+        num: GeneratorType::KeyToModEnvHold,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0,
@@ -419,7 +419,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::KeyToModEnvDecay,
+        num: GeneratorType::KeyToModEnvDecay,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0,
@@ -427,7 +427,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::VolEnvDelay,
+        num: GeneratorType::VolEnvDelay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -435,7 +435,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::VolEnvAttack,
+        num: GeneratorType::VolEnvAttack,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -443,7 +443,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::VolEnvHold,
+        num: GeneratorType::VolEnvHold,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -451,7 +451,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::VolEnvDecay,
+        num: GeneratorType::VolEnvDecay,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -459,7 +459,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::VolEnvSustain,
+        num: GeneratorType::VolEnvSustain,
         init: 0,
         nrpn_scale: 1,
         min: 0.0f32,
@@ -467,7 +467,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0f32,
     },
     GenInfo {
-        num: GenParam::VolEnvRelease,
+        num: GeneratorType::VolEnvRelease,
         init: 1,
         nrpn_scale: 2,
         min: -12000.0,
@@ -475,7 +475,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -12000.0,
     },
     GenInfo {
-        num: GenParam::KeyToVolEnvHold,
+        num: GeneratorType::KeyToVolEnvHold,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0,
@@ -483,7 +483,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::KeyToVolEnvDecay,
+        num: GeneratorType::KeyToVolEnvDecay,
         init: 0,
         nrpn_scale: 1,
         min: -1200.0,
@@ -491,7 +491,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Instrument,
+        num: GeneratorType::Instrument,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -499,7 +499,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Reserved1,
+        num: GeneratorType::Reserved1,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -507,7 +507,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::KeyRange,
+        num: GeneratorType::KeyRange,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -515,7 +515,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::VelRange,
+        num: GeneratorType::VelRange,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -523,7 +523,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::StartLoopAddrCoarseOfs,
+        num: GeneratorType::StartLoopAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -531,7 +531,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::KeyNum,
+        num: GeneratorType::KeyNum,
         init: 1,
         nrpn_scale: 0,
         min: 0.0,
@@ -539,7 +539,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -1.0,
     },
     GenInfo {
-        num: GenParam::Velocity,
+        num: GeneratorType::Velocity,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -547,7 +547,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -1.0,
     },
     GenInfo {
-        num: GenParam::Attenuation,
+        num: GeneratorType::Attenuation,
         init: 1,
         nrpn_scale: 1,
         min: 0.0,
@@ -555,7 +555,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Reserved2,
+        num: GeneratorType::Reserved2,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -563,7 +563,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::EndLoopAddrCoarseOfs,
+        num: GeneratorType::EndLoopAddrCoarseOfs,
         init: 0,
         nrpn_scale: 1,
         min: -1e10f32,
@@ -571,7 +571,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::CoarseTune,
+        num: GeneratorType::CoarseTune,
         init: 0,
         nrpn_scale: 1,
         min: -120.0,
@@ -579,7 +579,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::FineTune,
+        num: GeneratorType::FineTune,
         init: 0,
         nrpn_scale: 1,
         min: -99.0,
@@ -587,7 +587,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::SampleId,
+        num: GeneratorType::SampleId,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -595,7 +595,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::SampleMode,
+        num: GeneratorType::SampleMode,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -603,7 +603,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::Reserved3,
+        num: GeneratorType::Reserved3,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -611,7 +611,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::ScaleTune,
+        num: GeneratorType::ScaleTune,
         init: 0,
         nrpn_scale: 1,
         min: 0.0,
@@ -619,7 +619,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 100.0,
     },
     GenInfo {
-        num: GenParam::ExclusiveClass,
+        num: GeneratorType::ExclusiveClass,
         init: 0,
         nrpn_scale: 0,
         min: 0.0,
@@ -627,7 +627,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: 0.0,
     },
     GenInfo {
-        num: GenParam::OverrideRootKey,
+        num: GeneratorType::OverrideRootKey,
         init: 1,
         nrpn_scale: 0,
         min: 0.0,
@@ -635,7 +635,7 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
         def: -1.0,
     },
     GenInfo {
-        num: GenParam::Pitch,
+        num: GeneratorType::Pitch,
         init: 1,
         nrpn_scale: 0,
         min: 0.0,
@@ -647,8 +647,8 @@ pub(crate) static GEN_INFO: [GenInfo; 60] = [
 /// Flag the generators as unused.
 ///
 /// This also sets the generator values to default, but they will be overwritten anyway, if used.
-pub(crate) fn get_default_values() -> [Gen; 60] {
-    let mut out = [Gen::default(); 60];
+pub(crate) fn get_default_values() -> [Generator; 60] {
+    let mut out = [Generator::default(); 60];
 
     for (id, gen) in out.iter_mut().enumerate() {
         gen.flags = GEN_UNUSED;
@@ -660,7 +660,7 @@ pub(crate) fn get_default_values() -> [Gen; 60] {
     out
 }
 
-pub(crate) fn gen_init(channel: &Channel) -> [Gen; 60] {
+pub(crate) fn gen_init(channel: &Channel) -> [Generator; 60] {
     let mut out = get_default_values();
 
     for (id, gen) in out.iter_mut().enumerate() {

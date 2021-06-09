@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
+use super::generator::{self, Generator};
+use super::modulator::Mod;
 use super::{instrument::Instrument, Sample};
-use crate::generator::{self, Gen};
-use crate::synth::modulator::Mod;
 
 const GEN_SET: u32 = 1;
 
@@ -78,7 +78,7 @@ pub struct PresetZone {
     pub key_high: u8,
     pub vel_low: u8,
     pub vel_high: u8,
-    pub gen: [Gen; 60],
+    pub gen: [Generator; 60],
     pub mods: Vec<Mod>,
 }
 

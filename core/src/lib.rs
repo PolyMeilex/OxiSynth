@@ -13,10 +13,9 @@ pub mod tuning;
 pub use tuning::{Tuning, TuningManager};
 
 pub mod synth;
-pub use synth::{bank, bank::BankOffset, generator, InterpolationMethod, Synth};
+pub use synth::{font_bank, InterpolationMethod, Synth};
 
-pub mod soundfont;
-pub use self::soundfont::SoundFont;
+pub use synth::soundfont::{self, SoundFont};
 
 mod utils;
 pub use utils::TypedIndex;

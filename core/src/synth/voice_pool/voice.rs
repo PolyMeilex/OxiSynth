@@ -2,11 +2,14 @@ mod dsp_float;
 
 use super::super::{
     channel_pool::{Channel, InterpolationMethod},
-    generator::{self, Gen, GenParam},
-    modulator::Mod,
     FxBuf,
 };
-use crate::soundfont::Sample;
+
+use super::super::soundfont::{
+    generator::{self, Generator, GeneratorType},
+    modulator::Mod,
+    Sample,
+};
 
 use super::super::conv::{
     act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
@@ -104,7 +107,7 @@ pub struct Voice {
     hist1: f32,
     hist2: f32,
 
-    pub(crate) gen: [Gen; 60],
+    pub(crate) gen: [Generator; 60],
     synth_gain: f32,
 
     amplitude_that_reaches_noise_floor_nonloop: f32,
@@ -378,7 +381,7 @@ impl Voice {
     }
 
     pub fn add_default_mods(&mut self) {
-        use super::super::modulator::default::*;
+        use crate::soundfont::modulator::default::*;
         self.add_mod(&DEFAULT_VEL2ATT_MOD, VoiceAddMode::Default);
         self.add_mod(&DEFAULT_VEL2FILTER_MOD, VoiceAddMode::Default);
         self.add_mod(&DEFAULT_AT2VIBLFO_MOD, VoiceAddMode::Default);
@@ -396,7 +399,7 @@ impl Voice {
         self.gen[i as usize].flags = GEN_SET as u8;
     }
 
-    pub fn gen_set(&mut self, i: GenParam, val: f64) {
+    pub fn gen_set(&mut self, i: GeneratorType, val: f64) {
         self.gen[i as usize].val = val;
         self.gen[i as usize].flags = GEN_SET as u8;
     }
@@ -418,7 +421,7 @@ impl Voice {
         /* Turn off the exclusive class information for this voice,
            so that it doesn't get killed twice
         */
-        self.gen_set(GenParam::ExclusiveClass, 0.0);
+        self.gen_set(GeneratorType::ExclusiveClass, 0.0);
 
         /* If the voice is not yet in release state, put it into release state */
         if self.volenv_section != VoiceEnvelope::Release as i32 {
@@ -430,12 +433,12 @@ impl Voice {
 
         /* Speed up the volume envelope */
         /* The value was found through listening tests with hi-hat samples. */
-        self.gen_set(GenParam::VolEnvRelease, -200.0);
-        self.update_param(GenParam::VolEnvRelease);
+        self.gen_set(GeneratorType::VolEnvRelease, -200.0);
+        self.update_param(GeneratorType::VolEnvRelease);
 
         /* Speed up the modulation envelope */
-        self.gen_set(GenParam::ModEnvRelease, -200.0);
-        self.update_param(GenParam::ModEnvRelease);
+        self.gen_set(GeneratorType::ModEnvRelease, -200.0);
+        self.update_param(GeneratorType::ModEnvRelease);
     }
 
     pub fn start(&mut self, channel: &Channel) {
@@ -581,7 +584,8 @@ impl Voice {
             let mod_0 = &self.mod_0[i as usize];
 
             /* Modulator has attenuation as target and can change over time? */
-            if mod_0.dest == GenParam::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc()) {
+            if mod_0.dest == GeneratorType::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc())
+            {
                 let current_val: f32 = mod_0.get_value(channel, self);
                 let mut v = mod_0.amount.abs() as f32;
 
@@ -618,41 +622,41 @@ impl Voice {
     }
 
     fn calculate_runtime_synthesis_parameters(&mut self, channel: &Channel) {
-        let list_of_generators_to_initialize: [GenParam; 34] = [
-            GenParam::StartAddrOfs,
-            GenParam::EndAddrOfs,
-            GenParam::StartLoopAddrOfs,
-            GenParam::EndLoopAddrOfs,
-            GenParam::ModLfoToPitch,
-            GenParam::VibLfoToPitch,
-            GenParam::ModEnvToPitch,
-            GenParam::FilterFc,
-            GenParam::FilterQ,
-            GenParam::ModLfoToFilterFc,
-            GenParam::ModEnvToFilterFc,
-            GenParam::ModLfoToVol,
-            GenParam::ChorusSend,
-            GenParam::ReverbSend,
-            GenParam::Pan,
-            GenParam::ModLfoDelay,
-            GenParam::ModLfoFreq,
-            GenParam::VibLfoDelay,
-            GenParam::VibLfoFreq,
-            GenParam::ModEnvDelay,
-            GenParam::ModEnvAttack,
-            GenParam::ModEnvHold,
-            GenParam::ModEnvDecay,
-            GenParam::ModEnvRelease,
-            GenParam::VolEnvDelay,
-            GenParam::VolEnvAttack,
-            GenParam::VolEnvHold,
-            GenParam::VolEnvDecay,
-            GenParam::VolEnvRelease,
-            GenParam::KeyNum,
-            GenParam::Velocity,
-            GenParam::Attenuation,
-            GenParam::OverrideRootKey,
-            GenParam::Pitch,
+        let list_of_generators_to_initialize: [GeneratorType; 34] = [
+            GeneratorType::StartAddrOfs,
+            GeneratorType::EndAddrOfs,
+            GeneratorType::StartLoopAddrOfs,
+            GeneratorType::EndLoopAddrOfs,
+            GeneratorType::ModLfoToPitch,
+            GeneratorType::VibLfoToPitch,
+            GeneratorType::ModEnvToPitch,
+            GeneratorType::FilterFc,
+            GeneratorType::FilterQ,
+            GeneratorType::ModLfoToFilterFc,
+            GeneratorType::ModEnvToFilterFc,
+            GeneratorType::ModLfoToVol,
+            GeneratorType::ChorusSend,
+            GeneratorType::ReverbSend,
+            GeneratorType::Pan,
+            GeneratorType::ModLfoDelay,
+            GeneratorType::ModLfoFreq,
+            GeneratorType::VibLfoDelay,
+            GeneratorType::VibLfoFreq,
+            GeneratorType::ModEnvDelay,
+            GeneratorType::ModEnvAttack,
+            GeneratorType::ModEnvHold,
+            GeneratorType::ModEnvDecay,
+            GeneratorType::ModEnvRelease,
+            GeneratorType::VolEnvDelay,
+            GeneratorType::VolEnvAttack,
+            GeneratorType::VolEnvHold,
+            GeneratorType::VolEnvDecay,
+            GeneratorType::VolEnvRelease,
+            GeneratorType::KeyNum,
+            GeneratorType::Velocity,
+            GeneratorType::Attenuation,
+            GeneratorType::OverrideRootKey,
+            GeneratorType::Pitch,
         ];
 
         let mut i = 0;
@@ -666,13 +670,14 @@ impl Voice {
         }
         let tuning = channel.tuning();
         if let Some(tuning) = tuning {
-            self.gen[GenParam::Pitch as usize].val = tuning.pitch[60]
-                + self.gen[GenParam::ScaleTune as usize].val / 100.0f32 as f64
+            self.gen[GeneratorType::Pitch as usize].val = tuning.pitch[60]
+                + self.gen[GeneratorType::ScaleTune as usize].val / 100.0f32 as f64
                     * (tuning.pitch[self.key as usize] - tuning.pitch[60])
         } else {
-            self.gen[GenParam::Pitch as usize].val = self.gen[GenParam::ScaleTune as usize].val
-                * (self.key as i32 as f32 - 60.0f32) as f64
-                + (100.0f32 * 60.0f32) as f64
+            self.gen[GeneratorType::Pitch as usize].val =
+                self.gen[GeneratorType::ScaleTune as usize].val
+                    * (self.key as i32 as f32 - 60.0f32) as f64
+                    + (100.0f32 * 60.0f32) as f64
         }
 
         for gen in list_of_generators_to_initialize.iter() {
@@ -723,8 +728,9 @@ impl Voice {
             return;
         }
 
-        if self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::UntilRelease as i32
-            || self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::DuringRelease as i32
+        if self.gen[GeneratorType::SampleMode as usize].val as i32 == LoopMode::UntilRelease as i32
+            || self.gen[GeneratorType::SampleMode as usize].val as i32
+                == LoopMode::DuringRelease as i32
         {
             /* Keep the loop start point within the sample data */
             if self.loopstart < min_index_loop {
@@ -749,7 +755,7 @@ impl Voice {
 
             /* Loop too short? Then don't loop. */
             if self.loopend < self.loopstart + 2 {
-                self.gen[GenParam::SampleMode as i32 as usize].val =
+                self.gen[GeneratorType::SampleMode as i32 as usize].val =
                     LoopMode::UnLooped as i32 as f64
             }
 
@@ -774,12 +780,12 @@ impl Voice {
         /* Run startup specific code (only once, when the voice is started) */
         if self.check_sample_sanity_flag & 1i32 << 1i32 != 0 {
             if max_index_loop - min_index_loop < 2 {
-                if self.gen[GenParam::SampleMode as i32 as usize].val as i32
+                if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
                     == LoopMode::UntilRelease as i32
-                    || self.gen[GenParam::SampleMode as i32 as usize].val as i32
+                    || self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
                         == LoopMode::DuringRelease as i32
                 {
-                    self.gen[GenParam::SampleMode as i32 as usize].val =
+                    self.gen[GeneratorType::SampleMode as i32 as usize].val =
                         LoopMode::UnLooped as i32 as f64
                 }
             }
@@ -791,10 +797,11 @@ impl Voice {
 
         /* Is this voice run in loop mode, or does it run straight to the
         end of the waveform data? */
-        if self.gen[GenParam::SampleMode as i32 as usize].val as i32
+        if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
             == LoopMode::UntilRelease as i32
             && self.volenv_section < VoiceEnvelope::Release as i32
-            || self.gen[GenParam::SampleMode as usize].val as i32 == LoopMode::DuringRelease as i32
+            || self.gen[GeneratorType::SampleMode as usize].val as i32
+                == LoopMode::DuringRelease as i32
         {
             /* Yes, it will loop as soon as it reaches the loop point.  In
              * this case we must prevent, that the playback pointer (phase)
@@ -818,7 +825,7 @@ impl Voice {
         self.check_sample_sanity_flag = 0;
     }
 
-    pub fn set_param(&mut self, gen: GenParam, nrpn_value: f32, abs: i32) {
+    pub fn set_param(&mut self, gen: GeneratorType, nrpn_value: f32, abs: i32) {
         self.gen[gen as usize].nrpn = nrpn_value as f64;
         self.gen[gen as usize].flags = if abs != 0 {
             GEN_ABS_NRPN as i32
@@ -1305,8 +1312,8 @@ impl Voice {
 
     pub fn calculate_hold_decay_buffers(
         &mut self,
-        gen_base: GenParam,
-        gen_key2base: GenParam,
+        gen_base: GeneratorType,
+        gen_key2base: GeneratorType,
         is_decay: i32,
     ) -> i32 {
         let mut timecents = (self.gen[gen_base as usize].val
@@ -1349,10 +1356,10 @@ impl Voice {
     /// offset caused by modulators .mod, and an offset caused by the
     /// NRPN system. _GEN(voice, generator_enumerator) returns the sum
     /// of all three.
-    pub fn update_param(&mut self, gen: GenParam) {
+    pub fn update_param(&mut self, gen: GeneratorType) {
         macro_rules! gen_sum {
             ($id: expr) => {{
-                let Gen {
+                let Generator {
                     val, mod_0, nrpn, ..
                 } = &self.gen[$id as usize];
 
@@ -1361,22 +1368,23 @@ impl Voice {
         }
 
         match gen {
-            GenParam::Pan => {
+            GeneratorType::Pan => {
                 // range checking is done in the fluid_pan function
-                self.pan = gen_sum!(GenParam::Pan);
+                self.pan = gen_sum!(GeneratorType::Pan);
 
                 self.amp_left = pan(self.pan, 1) * self.synth_gain / 32768.0;
                 self.amp_right = pan(self.pan, 0) * self.synth_gain / 32768.0;
             }
 
-            GenParam::Attenuation => {
+            GeneratorType::Attenuation => {
                 // Alternate attenuation scale used by EMU10K1 cards when setting the attenuation at the preset or instrument level within the SoundFont bank.
                 static ALT_ATTENUATION_SCALE: f64 = 0.4;
 
-                self.attenuation =
-                    (self.gen[GenParam::Attenuation as usize].val * ALT_ATTENUATION_SCALE
-                        + self.gen[GenParam::Attenuation as usize].mod_0
-                        + self.gen[GenParam::Attenuation as usize].nrpn) as f32;
+                self.attenuation = (self.gen[GeneratorType::Attenuation as usize].val
+                    * ALT_ATTENUATION_SCALE
+                    + self.gen[GeneratorType::Attenuation as usize].mod_0
+                    + self.gen[GeneratorType::Attenuation as usize].nrpn)
+                    as f32;
 
                 /* Range: SF2.01 section 8.1.3 # 48
                  * Motivation for range checking:
@@ -1392,17 +1400,17 @@ impl Voice {
             /* The pitch is calculated from three different generators.
              * Read comment in fluidlite.h about GEN_PITCH.
              */
-            GenParam::Pitch | GenParam::CoarseTune | GenParam::FineTune => {
+            GeneratorType::Pitch | GeneratorType::CoarseTune | GeneratorType::FineTune => {
                 /* The testing for allowed range is done in 'fluid_ct2hz' */
 
-                self.pitch = gen_sum!(GenParam::Pitch)
-                    + 100.0 * gen_sum!(GenParam::CoarseTune)
-                    + gen_sum!(GenParam::FineTune);
+                self.pitch = gen_sum!(GeneratorType::Pitch)
+                    + 100.0 * gen_sum!(GeneratorType::CoarseTune)
+                    + gen_sum!(GeneratorType::FineTune);
             }
 
-            GenParam::ReverbSend => {
+            GeneratorType::ReverbSend => {
                 /* The generator unit is 'tenths of a percent'. */
-                self.reverb_send = gen_sum!(GenParam::ReverbSend) / 1000.0;
+                self.reverb_send = gen_sum!(GeneratorType::ReverbSend) / 1000.0;
 
                 self.reverb_send = if self.reverb_send < 0.0 {
                     0.0
@@ -1414,9 +1422,9 @@ impl Voice {
                 self.amp_reverb = self.reverb_send * self.synth_gain / 32768.0;
             }
 
-            GenParam::ChorusSend => {
+            GeneratorType::ChorusSend => {
                 /* The generator unit is 'tenths of a percent'. */
-                self.chorus_send = gen_sum!(GenParam::ChorusSend) / 1000.0;
+                self.chorus_send = gen_sum!(GeneratorType::ChorusSend) / 1000.0;
 
                 self.chorus_send = if self.chorus_send < 0.0 {
                     0.0
@@ -1428,7 +1436,7 @@ impl Voice {
                 self.amp_chorus = self.chorus_send * self.synth_gain / 32768.0;
             }
 
-            GenParam::OverrideRootKey => {
+            GeneratorType::OverrideRootKey => {
                 /* This is a non-realtime parameter. Therefore the .mod part of the generator
                  * can be neglected.
                  * NOTE: origpitch sets MIDI root note while pitchadj is a fine tuning amount
@@ -1436,8 +1444,9 @@ impl Voice {
                  * inverted with respect to the root note (so subtract it, not add).
                  */
                 //FIXME: use flag instead of -1
-                if self.gen[GenParam::OverrideRootKey as usize].val > -1.0 {
-                    self.root_pitch = (self.gen[GenParam::OverrideRootKey as usize].val * 100.0
+                if self.gen[GeneratorType::OverrideRootKey as usize].val > -1.0 {
+                    self.root_pitch = (self.gen[GeneratorType::OverrideRootKey as usize].val
+                        * 100.0
                         - self.sample.pitchadj as f64) as f32
                 } else {
                     self.root_pitch =
@@ -1448,22 +1457,22 @@ impl Voice {
                 self.root_pitch *= self.output_rate / self.sample.sample_rate as f32
             }
 
-            GenParam::FilterFc => {
+            GeneratorType::FilterFc => {
                 /* The resonance frequency is converted from absolute cents to
                  * midicents .val and .mod are both used, this permits real-time
                  * modulation.  The allowed range is tested in the 'fluid_ct2hz'
                  * function [PH,20021214]
                  */
-                self.fres = gen_sum!(GenParam::FilterFc);
+                self.fres = gen_sum!(GeneratorType::FilterFc);
                 /* The synthesis loop will have to recalculate the filter
                  * coefficients. */
                 self.last_fres = -1.0;
             }
 
-            GenParam::FilterQ => {
+            GeneratorType::FilterQ => {
                 /* The generator contains 'centibels' (1/10 dB) => divide by 10 to
                  * obtain dB */
-                let q_db = gen_sum!(GenParam::FilterQ) / 10.0;
+                let q_db = gen_sum!(GeneratorType::FilterQ) / 10.0;
                 /* Range: SF2.01 section 8.1.3 # 8 (convert from cB to dB => /10) */
                 let mut q_db = if q_db < 0.0 {
                     0.0
@@ -1509,8 +1518,8 @@ impl Voice {
                 self.last_fres = -1.0;
             }
 
-            GenParam::ModLfoToPitch => {
-                self.modlfo_to_pitch = gen_sum!(GenParam::ModLfoToPitch);
+            GeneratorType::ModLfoToPitch => {
+                self.modlfo_to_pitch = gen_sum!(GeneratorType::ModLfoToPitch);
 
                 self.modlfo_to_pitch = if self.modlfo_to_pitch < -12000.0 {
                     -12000.0
@@ -1521,8 +1530,8 @@ impl Voice {
                 };
             }
 
-            GenParam::ModLfoToVol => {
-                self.modlfo_to_vol = gen_sum!(GenParam::ModLfoToVol);
+            GeneratorType::ModLfoToVol => {
+                self.modlfo_to_vol = gen_sum!(GeneratorType::ModLfoToVol);
 
                 self.modlfo_to_vol = if self.modlfo_to_vol < -960.0 {
                     -960.0
@@ -1533,8 +1542,8 @@ impl Voice {
                 };
             }
 
-            GenParam::ModLfoToFilterFc => {
-                self.modlfo_to_fc = gen_sum!(GenParam::ModLfoToFilterFc);
+            GeneratorType::ModLfoToFilterFc => {
+                self.modlfo_to_fc = gen_sum!(GeneratorType::ModLfoToFilterFc);
 
                 self.modlfo_to_fc = if self.modlfo_to_fc < -12000.0 {
                     -12000.0
@@ -1545,8 +1554,8 @@ impl Voice {
                 };
             }
 
-            GenParam::ModLfoDelay => {
-                let val = gen_sum!(GenParam::ModLfoDelay);
+            GeneratorType::ModLfoDelay => {
+                let val = gen_sum!(GeneratorType::ModLfoDelay);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1558,11 +1567,11 @@ impl Voice {
                 self.modlfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
             }
 
-            GenParam::ModLfoFreq => {
+            GeneratorType::ModLfoFreq => {
                 /* - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
                  * - the delay into a sample delay
                  */
-                let val = gen_sum!(GenParam::ModLfoFreq);
+                let val = gen_sum!(GeneratorType::ModLfoFreq);
 
                 let val = if val < -16000.0 {
                     -16000.0
@@ -1574,13 +1583,13 @@ impl Voice {
                 self.modlfo_incr = 4.0 * 64.0 * act2hz(val) / self.output_rate;
             }
 
-            GenParam::VibLfoFreq => {
+            GeneratorType::VibLfoFreq => {
                 /* vib lfo
                  *
                  * - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
                  * - the delay into a sample delay
                  */
-                let freq = gen_sum!(GenParam::VibLfoFreq);
+                let freq = gen_sum!(GeneratorType::VibLfoFreq);
 
                 let freq = if freq < -16000.0 {
                     -16000.0
@@ -1592,8 +1601,8 @@ impl Voice {
                 self.viblfo_incr = 4.0 * 64.0 * act2hz(freq) / self.output_rate;
             }
 
-            GenParam::VibLfoDelay => {
-                let val = gen_sum!(GenParam::VibLfoDelay);
+            GeneratorType::VibLfoDelay => {
+                let val = gen_sum!(GeneratorType::VibLfoDelay);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1605,8 +1614,8 @@ impl Voice {
                 self.viblfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
             }
 
-            GenParam::VibLfoToPitch => {
-                self.viblfo_to_pitch = gen_sum!(GenParam::VibLfoToPitch);
+            GeneratorType::VibLfoToPitch => {
+                self.viblfo_to_pitch = gen_sum!(GeneratorType::VibLfoToPitch);
 
                 self.viblfo_to_pitch = if self.viblfo_to_pitch < -12000.0 {
                     -12000.0
@@ -1617,7 +1626,7 @@ impl Voice {
                 };
             }
 
-            GenParam::KeyNum => {
+            GeneratorType::KeyNum => {
                 /* GEN_KEYNUM: SF2.01 page 46, item 46
                  *
                  * If this generator is active, it forces the key number to its
@@ -1626,14 +1635,14 @@ impl Voice {
                  * There is a flag, which should indicate, whether a generator is
                  * enabled or not.  But here we rely on the default value of -1.
                  * */
-                let val = gen_sum!(GenParam::KeyNum);
+                let val = gen_sum!(GeneratorType::KeyNum);
 
                 if val >= 0.0 {
                     self.key = val as u8;
                 }
             }
 
-            GenParam::Velocity => {
+            GeneratorType::Velocity => {
                 /* GEN_VELOCITY: SF2.01 page 46, item 47
                  *
                  * If this generator is active, it forces the velocity to its
@@ -1641,14 +1650,14 @@ impl Voice {
                  *
                  * There is a flag, which should indicate, whether a generator is
                  * enabled or not. But here we rely on the default value of -1.  */
-                let val = gen_sum!(GenParam::Velocity);
+                let val = gen_sum!(GeneratorType::Velocity);
                 if val > 0.0 {
                     self.vel = val as u8;
                 }
             }
 
-            GenParam::ModEnvToPitch => {
-                self.modenv_to_pitch = gen_sum!(GenParam::ModEnvToPitch);
+            GeneratorType::ModEnvToPitch => {
+                self.modenv_to_pitch = gen_sum!(GeneratorType::ModEnvToPitch);
 
                 self.modenv_to_pitch = if self.modenv_to_pitch < -12000.0 {
                     -12000.0
@@ -1659,8 +1668,8 @@ impl Voice {
                 };
             }
 
-            GenParam::ModEnvToFilterFc => {
-                self.modenv_to_fc = gen_sum!(GenParam::ModEnvToFilterFc);
+            GeneratorType::ModEnvToFilterFc => {
+                self.modenv_to_fc = gen_sum!(GeneratorType::ModEnvToFilterFc);
 
                 /* Range: SF2.01 section 8.1.3 # 1
                  * Motivation for range checking:
@@ -1686,42 +1695,42 @@ impl Voice {
              * end point ahead of the loop start point => invalid, then
              * move the loop start point forward => valid again.
              */
-            GenParam::StartAddrOfs | GenParam::StartAddrCoarseOfs => {
+            GeneratorType::StartAddrOfs | GeneratorType::StartAddrCoarseOfs => {
                 self.start = self
                     .sample
                     .start
-                    .wrapping_add(gen_sum!(GenParam::StartAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GenParam::StartAddrCoarseOfs) as u32)
+                    .wrapping_add(gen_sum!(GeneratorType::StartAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32)
                     as i32;
                 self.check_sample_sanity_flag = 1 << 0;
             }
 
-            GenParam::EndAddrOfs | GenParam::EndAddrCoarseOfs => {
+            GeneratorType::EndAddrOfs | GeneratorType::EndAddrCoarseOfs => {
                 self.end = self
                     .sample
                     .end
-                    .wrapping_add(gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GenParam::EndAddrCoarseOfs) as u32)
+                    .wrapping_add(gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
                     as i32;
                 self.check_sample_sanity_flag = 1 << 0;
             }
 
-            GenParam::StartLoopAddrOfs | GenParam::StartLoopAddrCoarseOfs => {
+            GeneratorType::StartLoopAddrOfs | GeneratorType::StartLoopAddrCoarseOfs => {
                 self.loopstart = self
                     .sample
                     .loop_start
-                    .wrapping_add(gen_sum!(GenParam::StartLoopAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GenParam::StartLoopAddrCoarseOfs) as u32)
+                    .wrapping_add(gen_sum!(GeneratorType::StartLoopAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32)
                     as i32;
                 self.check_sample_sanity_flag = 1 << 0;
             }
 
-            GenParam::EndLoopAddrOfs | GenParam::EndLoopAddrCoarseOfs => {
+            GeneratorType::EndLoopAddrOfs | GeneratorType::EndLoopAddrCoarseOfs => {
                 self.loopend = self
                     .sample
                     .loop_end
-                    .wrapping_add(gen_sum!(GenParam::EndLoopAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GenParam::EndLoopAddrCoarseOfs) as u32)
+                    .wrapping_add(gen_sum!(GeneratorType::EndLoopAddrOfs) as u32)
+                    .wrapping_add(32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32)
                     as i32;
                 self.check_sample_sanity_flag = 1 << 0;
             }
@@ -1732,8 +1741,8 @@ impl Voice {
              * - sustain is converted to its absolute value
              * - attack, decay and release are converted to their increment per sample
              */
-            GenParam::VolEnvDelay => {
-                let val = gen_sum!(GenParam::VolEnvDelay);
+            GeneratorType::VolEnvDelay => {
+                let val = gen_sum!(GeneratorType::VolEnvDelay);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1751,8 +1760,8 @@ impl Voice {
                 self.volenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
             }
 
-            GenParam::VolEnvAttack => {
-                let val = gen_sum!(GenParam::VolEnvAttack);
+            GeneratorType::VolEnvAttack => {
+                let val = gen_sum!(GeneratorType::VolEnvAttack);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1772,10 +1781,10 @@ impl Voice {
                 self.volenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
             }
 
-            GenParam::VolEnvHold | GenParam::KeyToVolEnvHold => {
+            GeneratorType::VolEnvHold | GeneratorType::KeyToVolEnvHold => {
                 let count = self.calculate_hold_decay_buffers(
-                    GenParam::VolEnvHold,
-                    GenParam::KeyToVolEnvHold,
+                    GeneratorType::VolEnvHold,
+                    GeneratorType::KeyToVolEnvHold,
                     0,
                 ) as u32;
                 self.volenv_data[VoiceEnvelope::Hold as usize].count = count;
@@ -1785,8 +1794,10 @@ impl Voice {
                 self.volenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
             }
 
-            GenParam::VolEnvDecay | GenParam::VolEnvSustain | GenParam::KeyToVolEnvDecay => {
-                let y = 1.0 - 0.001 * gen_sum!(GenParam::VolEnvSustain);
+            GeneratorType::VolEnvDecay
+            | GeneratorType::VolEnvSustain
+            | GeneratorType::KeyToVolEnvDecay => {
+                let y = 1.0 - 0.001 * gen_sum!(GeneratorType::VolEnvSustain);
 
                 let y = if y < 0.0 {
                     0.0
@@ -1797,8 +1808,8 @@ impl Voice {
                 };
 
                 let count = self.calculate_hold_decay_buffers(
-                    GenParam::VolEnvDecay,
-                    GenParam::KeyToVolEnvDecay,
+                    GeneratorType::VolEnvDecay,
+                    GeneratorType::KeyToVolEnvDecay,
                     1,
                 ) as u32;
 
@@ -1810,8 +1821,8 @@ impl Voice {
                 self.volenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
             }
 
-            GenParam::VolEnvRelease => {
-                let val = gen_sum!(GenParam::VolEnvRelease);
+            GeneratorType::VolEnvRelease => {
+                let val = gen_sum!(GeneratorType::VolEnvRelease);
 
                 let val = if val < -7200.0 {
                     -7200.0
@@ -1831,8 +1842,8 @@ impl Voice {
                 self.volenv_data[VoiceEnvelope::Release as usize].max = 1.0;
             }
 
-            GenParam::ModEnvDelay => {
-                let val = gen_sum!(GenParam::ModEnvDelay);
+            GeneratorType::ModEnvDelay => {
+                let val = gen_sum!(GeneratorType::ModEnvDelay);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1850,8 +1861,8 @@ impl Voice {
                 self.modenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
             }
 
-            GenParam::ModEnvAttack => {
-                let val = gen_sum!(GenParam::ModEnvAttack);
+            GeneratorType::ModEnvAttack => {
+                let val = gen_sum!(GeneratorType::ModEnvAttack);
 
                 let val = if val < -12000.0 {
                     -12000.0
@@ -1871,10 +1882,10 @@ impl Voice {
                 self.modenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
             }
 
-            GenParam::ModEnvHold | GenParam::KeyToModEnvHold => {
+            GeneratorType::ModEnvHold | GeneratorType::KeyToModEnvHold => {
                 let count = self.calculate_hold_decay_buffers(
-                    GenParam::ModEnvHold,
-                    GenParam::KeyToModEnvHold,
+                    GeneratorType::ModEnvHold,
+                    GeneratorType::KeyToModEnvHold,
                     0,
                 ) as u32;
                 self.modenv_data[VoiceEnvelope::Hold as usize].count = count;
@@ -1884,14 +1895,16 @@ impl Voice {
                 self.modenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
             }
 
-            GenParam::ModEnvDecay | GenParam::ModEnvSustain | GenParam::KeyToModEnvDecay => {
+            GeneratorType::ModEnvDecay
+            | GeneratorType::ModEnvSustain
+            | GeneratorType::KeyToModEnvDecay => {
                 let count = self.calculate_hold_decay_buffers(
-                    GenParam::ModEnvDecay,
-                    GenParam::KeyToModEnvDecay,
+                    GeneratorType::ModEnvDecay,
+                    GeneratorType::KeyToModEnvDecay,
                     1,
                 ) as u32;
 
-                let y = 1.0 - 0.001 * gen_sum!(GenParam::ModEnvSustain);
+                let y = 1.0 - 0.001 * gen_sum!(GeneratorType::ModEnvSustain);
 
                 let y = if y < 0.0 {
                     0.0
@@ -1909,8 +1922,8 @@ impl Voice {
                 self.modenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
             }
 
-            GenParam::ModEnvRelease => {
-                let val = gen_sum!(GenParam::ModEnvRelease);
+            GeneratorType::ModEnvRelease => {
+                let val = gen_sum!(GeneratorType::ModEnvRelease);
 
                 let val = if val < -12000.0 {
                     -12000.0

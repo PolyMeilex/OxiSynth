@@ -1,9 +1,11 @@
 use std::rc::Rc;
 
-use crate::generator::{gen_scale_nrpn, GenParam};
-use crate::soundfont::Preset;
-use crate::soundfont::SoundFont;
-use crate::synth::Synth;
+use super::super::soundfont::{
+    generator::{gen_scale_nrpn, GeneratorType},
+    Preset, SoundFont,
+};
+use super::super::Synth;
+
 use crate::tuning::Tuning;
 use crate::utils::TypedIndex;
 
@@ -429,7 +431,7 @@ impl Synth {
                         1 => {
                             self.set_gen(
                                 self.channels[chan_id].id(),
-                                GenParam::FineTune,
+                                GeneratorType::FineTune,
                                 ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
                             )
                             .unwrap();
@@ -438,7 +440,7 @@ impl Synth {
                         2 => {
                             self.set_gen(
                                 self.channels[chan_id].id(),
-                                GenParam::CoarseTune,
+                                GeneratorType::CoarseTune,
                                 (value - 64) as f32,
                             )
                             .unwrap();

@@ -1,21 +1,19 @@
 mod public;
 
-pub mod bank;
-
-mod channel_pool;
-pub(crate) mod modulator;
+pub(crate) mod channel_pool;
+pub(crate) use channel_pool::Channel;
 pub(crate) mod voice_pool;
 
-pub mod generator;
+mod conv;
 pub use channel_pool::InterpolationMethod;
 
-mod conv;
-mod font_bank;
+pub mod font_bank;
 
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
 
-use crate::soundfont::Preset;
+pub mod soundfont;
+use self::soundfont::Preset;
 
 use voice_pool::VoicePool;
 
@@ -26,7 +24,7 @@ use super::settings::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
 
 #[derive(Clone)]
-pub(crate) struct FxBuf {
+struct FxBuf {
     pub reverb: [f32; 64],
     pub chorus: [f32; 64],
 }
@@ -126,10 +124,10 @@ impl Synth {
     }
 }
 
-use modulator::Mod;
+use self::soundfont::modulator::Mod;
 use voice_pool::{Voice, VoiceAddMode, VoiceDescriptor};
 
-use crate::soundfont::{InstrumentZone, PresetZone};
+use self::soundfont::{InstrumentZone, PresetZone};
 
 impl Synth {
     fn sf_noteon(&mut self, chan: usize, key: u8, vel: u8) {

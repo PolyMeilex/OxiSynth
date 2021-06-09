@@ -1,9 +1,8 @@
-use super::channel_pool::Channel;
-use super::conv::concave;
-use super::conv::convex;
-use super::voice_pool::Voice;
+use super::super::channel_pool::Channel;
+use super::super::conv::{concave, convex};
+use super::super::voice_pool::Voice;
 
-use crate::generator::GenParam;
+use super::generator::GeneratorType;
 
 use soundfont::data::modulator::{
     ControllerPalette, GeneralPalette, Modulator as SFModulator, ModulatorSource,
@@ -12,7 +11,7 @@ use soundfont::data::modulator::{
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Mod {
-    pub dest: GenParam,
+    pub dest: GeneratorType,
     pub amount: f64,
 
     pub src: ModulatorSource,
@@ -58,7 +57,7 @@ impl From<&SFModulator> for Mod {
 impl Default for Mod {
     fn default() -> Self {
         Self {
-            dest: GenParam::StartAddrOfs,
+            dest: GeneratorType::StartAddrOfs,
             src: 0.into(),
             src2: 0.into(),
             amount: 0.0,
@@ -67,7 +66,7 @@ impl Default for Mod {
 }
 
 impl Mod {
-    pub fn get_dest(&self) -> GenParam {
+    pub fn get_dest(&self) -> GeneratorType {
         self.dest
     }
 
@@ -102,7 +101,7 @@ impl Mod {
             && self.src2.is_unipolar()
             && self.src2.is_positive()
             && self.src2.is_switch()
-            && self.dest == GenParam::FilterFc
+            && self.dest == GeneratorType::FilterFc
         {
             return 0.0;
         }
@@ -367,43 +366,43 @@ impl Mod {
     }
 }
 
-pub(crate) mod default {
+pub mod default {
     use super::Mod;
     use soundfont::data::generator::GeneratorType;
     use soundfont::data::modulator::default_modulators;
 
     lazy_static! {
         /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation
-        pub(crate) static ref DEFAULT_VEL2ATT_MOD: Mod = (&default_modulators::DEFAULT_VEL2ATT_MOD).into();
+        pub static ref DEFAULT_VEL2ATT_MOD: Mod = (&default_modulators::DEFAULT_VEL2ATT_MOD).into();
 
         /// 8.4.2  MIDI Note-On Velocity to Filter Cutoff
-        pub(crate) static ref DEFAULT_VEL2FILTER_MOD: Mod= (&default_modulators::DEFAULT_VEL2FILTER_MOD).into();
+        pub static ref DEFAULT_VEL2FILTER_MOD: Mod= (&default_modulators::DEFAULT_VEL2FILTER_MOD).into();
 
         /// 8.4.3  MIDI Channel Pressure to Vibrato LFO Pitch Depth
-        pub(crate) static ref DEFAULT_AT2VIBLFO_MOD: Mod= (&default_modulators::DEFAULT_AT2VIBLFO_MOD).into();
+        pub static ref DEFAULT_AT2VIBLFO_MOD: Mod= (&default_modulators::DEFAULT_AT2VIBLFO_MOD).into();
 
         /// 8.4.4  MIDI Continuous Controller 1 to Vibrato LFO Pitch Depth
-        pub(crate) static ref DEFAULT_MOD2VIBLFO_MOD: Mod=(&default_modulators::DEFAULT_MOD2VIBLFO_MOD).into();
+        pub static ref DEFAULT_MOD2VIBLFO_MOD: Mod=(&default_modulators::DEFAULT_MOD2VIBLFO_MOD).into();
 
         /// 8.4.5  MIDI Continuous Controller 7 to Initial Attenuation
-        pub(crate) static ref DEFAULT_ATT_MOD: Mod= (&default_modulators::DEFAULT_ATT_MOD).into();
+        pub static ref DEFAULT_ATT_MOD: Mod= (&default_modulators::DEFAULT_ATT_MOD).into();
 
         /// 8.4.6  MIDI Continuous Controller 10 to Pan Position
-        pub(crate) static ref DEFAULT_PAN_MOD: Mod= (&default_modulators::DEFAULT_PAN_MOD).into();
+        pub static ref DEFAULT_PAN_MOD: Mod= (&default_modulators::DEFAULT_PAN_MOD).into();
 
         /// 8.4.7  MIDI Continuous Controller 11 to Initial Attenuation
-        pub(crate) static ref DEFAULT_EXPR_MOD: Mod= (&default_modulators::DEFAULT_EXPR_MOD).into();
+        pub static ref DEFAULT_EXPR_MOD: Mod= (&default_modulators::DEFAULT_EXPR_MOD).into();
 
         /// 8.4.8  MIDI Continuous Controller 91 to Reverb Effects Send
-        pub(crate) static  ref DEFAULT_REVERB_MOD: Mod= (&default_modulators::DEFAULT_REVERB_MOD).into();
+        pub static  ref DEFAULT_REVERB_MOD: Mod= (&default_modulators::DEFAULT_REVERB_MOD).into();
 
         /// 8.4.9  MIDI Continuous Controller 93 to Chorus Effects Send
-        pub(crate) static ref DEFAULT_CHORUS_MOD: Mod= (&default_modulators::DEFAULT_CHORUS_MOD).into();
+        pub static ref DEFAULT_CHORUS_MOD: Mod= (&default_modulators::DEFAULT_CHORUS_MOD).into();
 
         /// 8.4.10  MIDI Pitch Wheel to Initial Pitch Controlled by MIDI Pitch Wheel Sensitivity
         ///
         /// GeneratorType::Unused5 (59) coresponds to gen::GenParam::Pitch (59)
-        pub(crate) static ref DEFAULT_PITCH_BEND_MOD: Mod = (&default_modulators::default_pitch_bend_mod(GeneratorType::Unused5)).into();
+        pub static ref DEFAULT_PITCH_BEND_MOD: Mod = (&default_modulators::default_pitch_bend_mod(GeneratorType::Unused5)).into();
 
     }
 }
