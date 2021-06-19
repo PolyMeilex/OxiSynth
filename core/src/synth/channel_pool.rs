@@ -3,7 +3,7 @@ use std::rc::Rc;
 mod channel;
 pub use channel::{Channel, InterpolationMethod};
 
-use crate::soundfont::Preset;
+use crate::{soundfont::Preset, OxiError};
 
 pub struct ChannelPool(Vec<Channel>);
 
@@ -13,6 +13,14 @@ impl ChannelPool {
             .map(|id| Channel::new(id, preset.clone()))
             .collect();
         Self(channels)
+    }
+
+    pub fn get(&self, id: usize) -> Result<&Channel, OxiError> {
+        self.0.get(id).ok_or(OxiError::ChannelOutOfRange)
+    }
+
+    pub fn get_mut(&mut self, id: usize) -> Result<&mut Channel, OxiError> {
+        self.0.get_mut(id).ok_or(OxiError::ChannelOutOfRange)
     }
 }
 

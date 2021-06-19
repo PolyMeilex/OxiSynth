@@ -1,15 +1,15 @@
 use byte_slice_cast::AsByteSlice;
 use std::{fs::File, io::Write};
 
-use oxisynth::{SoundFont, Synth};
+use oxisynth::{MidiEvent, OxiError, SoundFont, Synth};
 
 fn main() {
     use env_logger::Env;
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    synth_sf2();
+    synth_sf2().unwrap();
 }
 
-fn synth_sf2() {
+fn synth_sf2() -> Result<(), OxiError> {
     let mut pcm = File::create("Out.sf2.pcm").unwrap();
 
     let mut synth = Synth::default();
@@ -23,11 +23,32 @@ fn synth_sf2() {
 
         synth.set_polyphony(5).unwrap();
 
-        synth.note_on(0, 60, 127).unwrap();
-        synth.note_on(0, 70, 127).unwrap();
-        synth.note_on(0, 80, 127).unwrap();
-        synth.note_on(0, 90, 127).unwrap();
-        synth.note_on(0, 100, 127).unwrap();
+        synth.send_event(MidiEvent::NoteOn {
+            channel: 0,
+            key: 60,
+            vel: 127,
+        })?;
+        synth.send_event(MidiEvent::NoteOn {
+            channel: 0,
+            key: 70,
+            vel: 127,
+        })?;
+        synth.send_event(MidiEvent::NoteOn {
+            channel: 0,
+            key: 80,
+            vel: 127,
+        })?;
+        synth.send_event(MidiEvent::NoteOn {
+            channel: 0,
+            key: 90,
+            vel: 127,
+        })?;
+        synth.send_event(MidiEvent::NoteOn {
+            channel: 0,
+            key: 199,
+            vel: 127,
+        })?;
+
         {
             synth.write(samples.as_mut());
 
@@ -42,5 +63,7 @@ fn synth_sf2() {
                 pcm.write(samples.as_byte_slice()).unwrap();
             }
         }
+
+        Ok(())
     }
 }

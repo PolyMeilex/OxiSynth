@@ -10,6 +10,12 @@ impl<T> From<Index> for TypedIndex<T> {
     }
 }
 
+impl<T> fmt::Display for TypedIndex<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
 impl<T> fmt::Debug for TypedIndex<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
@@ -61,5 +67,21 @@ impl<T> std::ops::Deref for TypedArena<T> {
 impl<T> std::ops::DerefMut for TypedArena<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+pub struct RangeCheck {}
+
+impl RangeCheck {
+    pub fn check<E, T: PartialOrd, C: std::ops::RangeBounds<T>>(
+        range: C,
+        value: &T,
+        error: E,
+    ) -> Result<(), E> {
+        if range.contains(&value) {
+            Ok(())
+        } else {
+            Err(error)
+        }
     }
 }

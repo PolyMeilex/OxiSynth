@@ -19,3 +19,9 @@ pub use synth::soundfont::{self, SoundFont};
 
 mod utils;
 pub use utils::TypedIndex;
+
+pub mod error;
+pub use error::OxiError;
+
+pub mod midi_event;
+pub use midi_event::MidiEvent;

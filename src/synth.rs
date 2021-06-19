@@ -8,7 +8,7 @@ mod reverb;
 mod tuning;
 mod write;
 
-use crate::{oxi, SettingsError, SynthDescriptor};
+use crate::{oxi, MidiEvent, OxiError, SettingsError, SynthDescriptor};
 pub use tuning::Tuning;
 
 /**
@@ -58,11 +58,15 @@ impl Synth {
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.handle.set_sample_rate(sample_rate);
     }
+
+    pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
+        self.handle.send_event(event)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{SoundFont, Synth, SynthDescriptor};
+    use crate::{MidiEvent, SoundFont, Synth, SynthDescriptor};
     use std::{fs::File, io::Write, slice::from_raw_parts};
 
     #[test]
@@ -78,7 +82,13 @@ mod test {
 
         let mut samples = [0f32; 44100 * 2];
 
-        synth.note_on(0, 60, 127).unwrap();
+        synth
+            .send_event(MidiEvent::NoteOn {
+                channel: 0,
+                key: 60,
+                vel: 127,
+            })
+            .unwrap();
 
         synth.write(samples.as_mut());
         pcm.write(unsafe {
@@ -86,7 +96,12 @@ mod test {
         })
         .unwrap();
 
-        synth.note_off(0, 60);
+        synth
+            .send_event(core::MidiEvent::NoteOff {
+                channel: 0,
+                key: 60,
+            })
+            .unwrap();
 
         synth.write(samples.as_mut());
         pcm.write(unsafe {

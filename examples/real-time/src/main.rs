@@ -3,13 +3,7 @@ use std::{error::Error, path::Path, sync::mpsc::Receiver};
 
 use midir::MidiInput;
 
-const SAMPLES_SIZE: usize = 1410;
-
-enum MidiEvent {
-    NoteOn { ch: u8, key: u8, vel: u8 },
-    NoteOff { ch: u8, key: u8 },
-    Cc { ch: u8, ctrl: u16, val: u16 },
-}
+use oxisynth::MidiEvent;
 
 pub struct SynthBackend {
     _host: cpal::Host,
@@ -66,20 +60,10 @@ impl SynthBackend {
             let (l, r) = synth.read_next();
 
             if let Ok(e) = rx.try_recv() {
-                match e {
-                    MidiEvent::NoteOn { ch, key, vel } => {
-                        synth.note_on(ch, key, vel).ok();
-                    }
-                    MidiEvent::NoteOff { ch, key } => {
-                        synth.note_off(ch, key);
-                    }
-                    MidiEvent::Cc { ch, ctrl, val } => {
-                        synth.cc(ch, ctrl, val);
-                    }
-                }
+                synth.send_event(e).ok();
             }
 
-            r
+            (l, r)
         };
 
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
@@ -92,9 +76,15 @@ impl SynthBackend {
                 &self.stream_config,
                 move |output: &mut [T], _: &cpal::OutputCallbackInfo| {
                     for frame in output.chunks_mut(channels) {
-                        let value: T = cpal::Sample::from::<f32>(&next_value());
-                        for sample in frame.iter_mut() {
-                            *sample = value;
+                        let (l, r) = next_value();
+
+                        let l: T = cpal::Sample::from::<f32>(&l);
+                        let r: T = cpal::Sample::from::<f32>(&r);
+
+                        let channels = [l, r];
+
+                        for (id, sample) in frame.iter_mut().enumerate() {
+                            *sample = channels[id % 2];
                         }
                     }
                 },
@@ -126,14 +116,20 @@ pub struct SynthOutputConnection {
 }
 
 impl SynthOutputConnection {
-    fn note_on(&mut self, ch: u8, key: u8, vel: u8) {
-        self.tx.send(MidiEvent::NoteOn { ch, key, vel }).ok();
+    fn note_on(&mut self, channel: u8, key: u8, vel: u8) {
+        self.tx.send(MidiEvent::NoteOn { channel, key, vel }).ok();
     }
-    fn note_off(&mut self, ch: u8, key: u8) {
-        self.tx.send(MidiEvent::NoteOff { ch, key }).ok();
+    fn note_off(&mut self, channel: u8, key: u8) {
+        self.tx.send(MidiEvent::NoteOff { channel, key }).ok();
     }
-    fn cc(&mut self, ch: u8, ctrl: u16, val: u16) {
-        self.tx.send(MidiEvent::Cc { ch, ctrl, val }).ok();
+    fn cc(&mut self, channel: u8, ctrl: u8, value: u8) {
+        self.tx
+            .send(MidiEvent::ControlChange {
+                channel,
+                ctrl,
+                value,
+            })
+            .ok();
     }
 }
 
@@ -143,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut synth = SynthBackend::new()?;
 
     let mut input = String::new();
-    let mut midi_in = MidiInput::new("midir reading input")?;
+    let midi_in = MidiInput::new("midir reading input")?;
 
     // Get an input port (read from console if multiple are available)
     let in_ports = midi_in.ports();

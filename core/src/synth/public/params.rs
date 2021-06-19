@@ -90,7 +90,7 @@ impl Synth {
     }
 
     pub fn channel_preset(&self, chan: u8) -> Option<&Rc<Preset>> {
-        if let Some(channel) = self.channels.get(chan as usize) {
+        if let Ok(channel) = self.channels.get(chan as usize) {
             channel.preset()
         } else {
             log::warn!("Channel out of range");

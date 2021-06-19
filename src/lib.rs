@@ -4,6 +4,7 @@ mod settings;
 mod synth;
 
 pub use core::soundfont::{Preset, SoundFont};
+pub use core::{MidiEvent, OxiError};
 
 pub use core::TypedIndex;
 pub type SoundFontId = TypedIndex<SoundFont>;

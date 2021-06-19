@@ -3,7 +3,8 @@ use web_sys::console;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Stream;
-use std::sync::mpsc::{self, Receiver, Sender};
+use oxisynth::MidiEvent;
+use std::sync::mpsc::{Receiver, Sender};
 
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
@@ -16,20 +17,15 @@ pub fn main_js() -> Result<(), JsValue> {
     Ok(())
 }
 
-enum MidiEvent {
-    NoteOn { ch: u8, key: u8, vel: u8 },
-    NoteOff { ch: u8, key: u8 },
-}
-
 #[wasm_bindgen]
 pub struct Handle(Stream, Sender<MidiEvent>);
 
 impl Handle {
-    fn note_on(&mut self, ch: u8, key: u8, vel: u8) {
-        self.1.send(MidiEvent::NoteOn { ch, key, vel }).ok();
+    fn note_on(&mut self, channel: u8, key: u8, vel: u8) {
+        self.1.send(MidiEvent::NoteOn { channel, key, vel }).ok();
     }
-    fn note_off(&mut self, ch: u8, key: u8) {
-        self.1.send(MidiEvent::NoteOff { ch, key }).ok();
+    fn note_off(&mut self, channel: u8, key: u8) {
+        self.1.send(MidiEvent::NoteOff { channel, key }).ok();
     }
 }
 
@@ -92,17 +88,10 @@ where
         let (l, r) = synth.read_next();
 
         if let Ok(e) = rx.try_recv() {
-            match e {
-                MidiEvent::NoteOn { ch, key, vel } => {
-                    synth.note_on(ch, key, vel).ok();
-                }
-                MidiEvent::NoteOff { ch, key } => {
-                    synth.note_off(ch, key);
-                }
-            }
+            synth.send_event(e).ok();
         }
 
-        l
+        (l, r)
     };
 
     let err_fn = |err| console::error_1(&format!("an error occurred on stream: {}", err).into());
@@ -118,14 +107,20 @@ where
     stream
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f32)
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
     T: cpal::Sample,
 {
     for frame in output.chunks_mut(channels) {
-        let value: T = cpal::Sample::from::<f32>(&next_sample());
-        for sample in frame.iter_mut() {
-            *sample = value;
+        let (l, r) = next_sample();
+
+        let l: T = cpal::Sample::from::<f32>(&l);
+        let r: T = cpal::Sample::from::<f32>(&r);
+
+        let channels = [l, r];
+
+        for (id, sample) in frame.iter_mut().enumerate() {
+            *sample = channels[id % 2];
         }
     }
 }

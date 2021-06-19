@@ -1,6 +1,7 @@
 use crate::{oxi, Synth};
 
 pub use oxi::soundfont::generator::GeneratorType;
+use oxi::OxiError;
 
 /**
 Generator interface
@@ -15,7 +16,12 @@ impl Synth {
     parameter numbers and ranges are described in the SoundFont 2.01
     specification, paragraph 8.1.3, page 48.
      */
-    pub fn set_gen(&mut self, chan: usize, param: GeneratorType, value: f32) -> Result<(), &str> {
+    pub fn set_gen(
+        &mut self,
+        chan: usize,
+        param: GeneratorType,
+        value: f32,
+    ) -> Result<(), OxiError> {
         self.handle.set_gen(chan, param, value)
     }
 
@@ -25,7 +31,7 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &str> {
+    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, OxiError> {
         self.handle.gen(chan, param)
     }
 }

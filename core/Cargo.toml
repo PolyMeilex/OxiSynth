@@ -28,3 +28,4 @@ getrandom = { version = "0.2", features = ["js"], optional = true }
 rand = { version= "0.8.3", optional= true }
 
 lewton = { version="0.10.2", optional = true}
+thiserror = "1.0.25"

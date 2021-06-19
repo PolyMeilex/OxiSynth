@@ -62,10 +62,9 @@ pub enum LoopMode {
 pub struct VoiceDescriptor<'a> {
     pub sample: Rc<Sample>,
     pub channel: &'a Channel,
-    pub channel_id: usize,
     pub key: u8,
     pub vel: u8,
-    pub start_time: u32,
+    pub start_time: usize,
     pub gain: f32,
 }
 
@@ -82,10 +81,10 @@ pub struct Voice {
     mod_count: usize,
 
     pub sample: Rc<Sample>,
-    pub start_time: u32,
+    pub start_time: usize,
 
-    pub ticks: u32,
-    noteoff_ticks: u32,
+    pub ticks: usize,
+    noteoff_ticks: usize,
 
     debug: i32,
     pub has_looped: bool,
@@ -141,11 +140,11 @@ pub struct Voice {
     modlfo_to_pitch: f32,
     modlfo_to_vol: f32,
     modlfo_to_fc: f32,
-    modlfo_delay: u32,
+    modlfo_delay: usize,
     modlfo_incr: f32,
 
     viblfo_incr: f32,
-    viblfo_delay: u32,
+    viblfo_delay: usize,
     viblfo_to_pitch: f32,
 
     modenv_to_pitch: f32,
@@ -230,7 +229,7 @@ impl Voice {
 
         Voice {
             note_id,
-            channel_id: desc.channel_id,
+            channel_id: desc.channel.id(),
 
             key: desc.key,
             vel: desc.vel,
@@ -447,12 +446,10 @@ impl Voice {
         self.status = VoiceStatus::On;
     }
 
-    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: u32) {
-        let at_tick = min_note_length_ticks;
-
-        if at_tick > self.ticks {
+    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: usize) {
+        if min_note_length_ticks > self.ticks {
             /* Delay noteoff */
-            self.noteoff_ticks = at_tick;
+            self.noteoff_ticks = min_note_length_ticks;
             return;
         }
 
@@ -494,15 +491,15 @@ impl Voice {
         }
     }
 
-    pub fn modulate(&mut self, channel: &Channel, cc: i32, ctrl: u16) {
+    pub fn modulate(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
         #[inline(always)]
-        fn mod_has_source(m: &Mod, cc: i32, ctrl: u8) -> bool {
-            let a1 = (m.src.index == ctrl) && m.src.is_cc() && (cc != 0);
-            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && (cc == 0);
+        fn mod_has_source(m: &Mod, is_cc: bool, ctrl: u8) -> bool {
+            let a1 = (m.src.index == ctrl) && m.src.is_cc() && (is_cc != false);
+            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && (is_cc == false);
             let a3 = a1 || a2;
 
-            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && (cc != 0);
-            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && (cc == 0);
+            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && (is_cc != false);
+            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && (is_cc == false);
             let b3 = b1 || b2;
 
             a3 || b3
@@ -511,7 +508,7 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_has_source(&mod_0, cc, ctrl as u8) {
+            if mod_has_source(&mod_0, is_cc, ctrl as u8) {
                 let gen = mod_0.get_dest();
                 let mut modval = 0.0;
 
@@ -851,7 +848,7 @@ impl Voice {
     pub(super) fn write(
         &mut self,
         channel: &Channel,
-        min_note_length_ticks: u32,
+        min_note_length_ticks: usize,
         dsp_left_buf: &mut [f32; 64],
         dsp_right_buf: &mut [f32; 64],
         fx_left_buf: &mut FxBuf,
@@ -1564,7 +1561,7 @@ impl Voice {
                 } else {
                     val
                 };
-                self.modlfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
+                self.modlfo_delay = (self.output_rate * tc2sec_delay(val)) as usize;
             }
 
             GeneratorType::ModLfoFreq => {
@@ -1611,7 +1608,7 @@ impl Voice {
                 } else {
                     val
                 };
-                self.viblfo_delay = (self.output_rate * tc2sec_delay(val)) as u32;
+                self.viblfo_delay = (self.output_rate * tc2sec_delay(val)) as usize;
             }
 
             GeneratorType::VibLfoToPitch => {

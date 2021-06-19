@@ -1,4 +1,4 @@
-use crate::{soundfont::generator::GeneratorType, Synth};
+use crate::{soundfont::generator::GeneratorType, synth::internal, OxiError, Synth};
 
 impl Synth {
     /**
@@ -15,18 +15,11 @@ impl Synth {
         chan: usize,
         param: GeneratorType,
         value: f32,
-    ) -> Result<(), &'static str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.set_gen(param as usize, value);
-            channel.set_gen_abs(param as usize, 0);
+    ) -> Result<(), OxiError> {
+        let channel = self.channels.get_mut(chan as usize)?;
 
-            self.voices.set_gen(chan, param, value);
-
-            Ok(())
-        } else {
-            log::error!("Channel out of range");
-            Err("Channel out of range")
-        }
+        internal::set_gen(channel, &mut self.voices, param, value);
+        Ok(())
     }
 
     /**
@@ -35,12 +28,8 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &'static str> {
-        if let Some(channel) = self.channels.get(chan as usize) {
-            Ok(channel.gen(param as usize))
-        } else {
-            log::error!("Channel out of range");
-            Err("Channel out of range")
-        }
+    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, OxiError> {
+        let channel = self.channels.get(chan as usize)?;
+        Ok(internal::gen(channel, param))
     }
 }

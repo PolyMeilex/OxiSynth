@@ -63,7 +63,7 @@ impl VoicePool {
         }
     }
 
-    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: u32, key: u8) {
+    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: usize, key: u8) {
         for voice in self
             .voices
             .iter_mut()
@@ -84,14 +84,14 @@ impl VoicePool {
         }
     }
 
-    pub fn all_notes_off(&mut self, channels: &[Channel], min_note_length_ticks: u32, chan: usize) {
+    pub fn all_notes_off(&mut self, channel: &Channel, min_note_length_ticks: usize) {
         for voice in self
             .voices
             .iter_mut()
-            .filter(|v| v.get_channel_id() == chan)
+            .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.is_playing())
         {
-            voice.noteoff(&channels[voice.get_channel_id()], min_note_length_ticks);
+            voice.noteoff(channel, min_note_length_ticks);
         }
     }
 
@@ -112,7 +112,7 @@ impl VoicePool {
     }
 
     pub fn key_pressure(&mut self, channel: &Channel, key: u8) {
-        const MOD_KEYPRESSURE: u16 = 10;
+        const MOD_KEYPRESSURE: u8 = 10;
 
         for voice in self
             .voices
@@ -120,11 +120,11 @@ impl VoicePool {
             .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.key == key)
         {
-            voice.modulate(channel, 0, MOD_KEYPRESSURE);
+            voice.modulate(channel, false, MOD_KEYPRESSURE);
         }
     }
 
-    pub fn damp_voices(&mut self, channel: &Channel, min_note_length_ticks: u32) {
+    pub fn damp_voices(&mut self, channel: &Channel, min_note_length_ticks: usize) {
         for voice in self
             .voices
             .iter_mut()
@@ -135,7 +135,7 @@ impl VoicePool {
         }
     }
 
-    pub fn modulate_voices(&mut self, channel: &Channel, is_cc: i32, ctrl: u16) {
+    pub fn modulate_voices(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
         for voice in self
             .voices
             .iter_mut()
@@ -227,7 +227,7 @@ impl VoicePool {
         &mut self,
         channel: &Channel,
         key: u8,
-        min_note_length_ticks: u32,
+        min_note_length_ticks: usize,
     ) {
         let noteid = self.noteid;
         for voice in self
@@ -245,7 +245,7 @@ impl VoicePool {
     pub(super) fn write_voices(
         &mut self,
         channels: &[Channel],
-        min_note_length_ticks: u32,
+        min_note_length_ticks: usize,
         audio_groups: u8,
         dsp_left_buf: &mut [[f32; 64]],
         dsp_right_buf: &mut [[f32; 64]],
@@ -292,7 +292,6 @@ impl VoicePool {
 
     pub fn request_new_voice<A: FnOnce(&mut Voice)>(
         &mut self,
-        channel: &Channel,
         desc: VoiceDescriptor,
         after: A,
     ) -> Result<(), ()> {
@@ -303,6 +302,8 @@ impl VoicePool {
             .enumerate()
             .find(|(_, v)| v.is_available())
             .map(|(id, _)| VoiceId(id));
+
+        let channel = desc.channel;
 
         let voice_id = match voice_id {
             Some(id) => {

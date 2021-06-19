@@ -1,278 +1,70 @@
+use crate::error::OxiError;
 use crate::soundfont::SoundFont;
-use crate::synth::channel_pool::Channel;
-use crate::synth::font_bank::FontBank;
-use crate::synth::Synth;
-use crate::utils::TypedIndex;
+use crate::synth::{internal, Synth};
+use crate::utils::{RangeCheck, TypedIndex};
 
 impl Synth {
     /**
-    Send a noteon message.
-     */
-    pub fn noteon(&mut self, midi_chan: u8, key: u8, vel: u8) -> Result<(), &str> {
-        if key >= 128 {
-            log::error!("Key out of range");
-            Err("Key out of range")
-        } else if vel >= 128 {
-            log::error!("Velocity out of range");
-            Err("Velocity out of range")
-        } else if let Some(channel) = self.channels.get_mut(midi_chan as usize) {
-            if vel == 0 {
-                self.noteoff(midi_chan, key);
-                Ok(())
-            } else if channel.preset().is_none() {
-                log::warn!(
-                    "noteon\t{}\t{}\t{}\t{}\t{}\t\t{}\t{}\t{}",
-                    midi_chan,
-                    key,
-                    vel,
-                    0,
-                    (self.ticks as f32 / 44100.0f32),
-                    0.0f32,
-                    0,
-                    "channel has no preset"
-                );
-                Err("Channel has no preset")
-            } else {
-                self.voices.release_voice_on_same_note(
-                    &self.channels[midi_chan as usize],
-                    key,
-                    self.min_note_length_ticks,
-                );
-
-                self.voices.noteid_add();
-
-                self.sf_noteon(midi_chan as usize, key, vel);
-                Ok(())
-            }
-        } else {
-            log::error!("Channel out of range");
-            Err("Channel out of range")
-        }
-    }
-
-    /**
-    Send a noteoff message.
-     */
-    pub fn noteoff(&mut self, chan: u8, key: u8) {
-        self.voices.noteoff(
-            &self.channels[chan as usize],
-            self.min_note_length_ticks,
-            key,
-        )
-    }
-
-    /**
-    Send a control change message.
-     */
-    pub fn cc(&mut self, chan: u8, num: u16, val: u16) -> Result<(), ()> {
-        if num >= 128 {
-            log::warn!("Ctrl out of range",);
-            return Err(());
-        }
-        if val >= 128 {
-            log::warn!("Value out of range",);
-            return Err(());
-        }
-
-        if self.channels.get(chan as usize).is_some() {
-            log::trace!("cc\t{}\t{}\t{}", chan, num, val);
-
-            self.channel_cc(chan as usize, num, val);
-            Ok(())
-        } else {
-            log::warn!("Channel out of range",);
-            Err(())
-        }
-    }
-
-    /**
     Get a control value.
      */
-    pub fn get_cc(&self, chan: u8, num: u16) -> Result<u8, &str> {
-        if let Some(channel) = self.channels.get(chan as usize) {
-            if num >= 128 {
-                log::warn!("Ctrl out of range");
-                Err("Ctrl out of range")
-            } else {
-                let pval = channel.cc(num as usize);
-                Ok(pval)
-            }
-        } else {
-            log::warn!("Channel out of range",);
-            Err("Channel out of range")
-        }
-    }
+    pub fn get_cc(&self, channel_id: u8, num: u16) -> Result<u8, OxiError> {
+        let channel = self.channels.get(channel_id as usize)?;
 
-    pub fn all_notes_off(&mut self, chan: usize) {
-        self.voices
-            .all_notes_off(&self.channels, self.min_note_length_ticks, chan)
-    }
+        RangeCheck::check(0..=127, &num, OxiError::CtrlOutOfRange)?;
 
-    pub fn all_sounds_off(&mut self, chan: usize) {
-        self.voices.all_sounds_off(chan)
-    }
-
-    /**
-    Send a pitch bend message.
-     */
-    pub fn pitch_bend(&mut self, chan: u8, val: u16) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            log::trace!("pitchb\t{}\t{}", chan, val);
-
-            const FLUID_MOD_PITCHWHEEL: u16 = 14;
-
-            channel.set_pitch_bend(val as i16);
-
-            self.voices
-                .modulate_voices(&*channel, 0, FLUID_MOD_PITCHWHEEL);
-
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
+        Ok(channel.cc(num as usize))
     }
 
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, &str> {
-        if let Some(channel) = self.channels.get(chan as usize) {
-            let pitch_bend = channel.pitch_bend();
-            Ok(pitch_bend)
-        } else {
-            log::warn!("Channel out of range",);
-            Err("Channel out of range")
-        }
+    pub fn get_pitch_bend(&self, channel_id: u8) -> Result<i16, OxiError> {
+        let channel = self.channels.get(channel_id as usize)?;
+
+        Ok(channel.pitch_bend())
     }
 
     /**
     Set the pitch wheel sensitivity.
      */
-    pub fn pitch_wheel_sens(&mut self, chan: u8, val: u16) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            log::trace!("pitchsens\t{}\t{}", chan, val);
+    pub fn pitch_wheel_sens(&mut self, channel_id: u8, val: u8) -> Result<(), OxiError> {
+        let channel = self.channels.get_mut(channel_id as usize)?;
 
-            const FLUID_MOD_PITCHWHEELSENS: u16 = 16;
-
-            channel.set_pitch_wheel_sensitivity(val);
-
-            self.voices
-                .modulate_voices(&*channel, 0, FLUID_MOD_PITCHWHEELSENS);
-
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
+        internal::pitch_wheel_sens(channel, &mut self.voices, val);
+        Ok(())
     }
 
     /**
     Get the pitch wheel sensitivity.
      */
-    pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u32, &str> {
-        if let Some(channel) = self.channels.get(chan as usize) {
-            Ok(channel.pitch_wheel_sensitivity() as u32)
-        } else {
-            log::warn!("Channel out of range",);
-            Err("Channel out of range")
-        }
-    }
+    pub fn get_pitch_wheel_sens(&self, channel_id: u8) -> Result<u8, OxiError> {
+        let channel = self.channels.get(channel_id as usize)?;
 
-    /**
-    Send a program change message.
-     */
-    pub fn program_change(&mut self, channel: u8, prognum: u8) -> Result<(), ()> {
-        if prognum >= 128 {
-            log::error!("Index out of range (prog={})", prognum);
-            return Err(());
-        }
-
-        if let Some(channel) = self.channels.get_mut(channel as usize) {
-            program_change(
-                channel,
-                &self.font_bank,
-                prognum,
-                self.settings.drums_channel_active,
-            );
-        } else {
-            log::error!("Index out of range (channel={})", channel);
-            return Err(());
-        }
-
-        Ok(())
-    }
-
-    /**
-    Set channel pressure
-     */
-    pub fn channel_pressure(&mut self, chan: u8, val: u16) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            log::trace!("channelpressure\t{}\t{}", chan, val);
-
-            const FLUID_MOD_CHANNELPRESSURE: u16 = 13;
-            channel.set_channel_pressure(val as i16);
-
-            self.voices.modulate_voices(
-                &self.channels[chan as usize],
-                0,
-                FLUID_MOD_CHANNELPRESSURE,
-            );
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
-    }
-
-    /**
-    Set key pressure (aftertouch)
-     */
-    pub fn key_pressure(&mut self, chan: u8, key: u8, val: u8) -> Result<(), ()> {
-        if key > 127 {
-            return Err(());
-        }
-        if val > 127 {
-            return Err(());
-        }
-
-        log::trace!("keypressure\t{}\t{}\t{}", chan, key, val);
-
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.set_key_pressure(key as usize, val as i8);
-
-            self.voices.key_pressure(&self.channels[chan as usize], key);
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err(())
-        }
+        Ok(channel.pitch_wheel_sensitivity())
     }
 
     /**
     Select a bank.
      */
-    pub fn bank_select(&mut self, chan: u8, bank: u32) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.set_banknum(bank);
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
+    pub fn bank_select(&mut self, channel_id: u8, bank: u32) -> Result<(), OxiError> {
+        let channel = self.channels.get_mut(channel_id as usize)?;
+
+        internal::midi::bank_select(channel, bank);
+        Ok(())
     }
 
     /**
     Select a sfont.
      */
-    pub fn sfont_select(&mut self, chan: u8, sfont_id: TypedIndex<SoundFont>) -> Result<(), &str> {
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            channel.set_sfontnum(Some(sfont_id));
-            Ok(())
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
+    pub fn sfont_select(
+        &mut self,
+        channel_id: u8,
+        sfont_id: TypedIndex<SoundFont>,
+    ) -> Result<(), OxiError> {
+        let channel = self.channels.get_mut(channel_id as usize)?;
+
+        internal::midi::sfont_select(channel, sfont_id);
+        Ok(())
     }
 
     /**
@@ -283,49 +75,25 @@ impl Synth {
      */
     pub fn program_select(
         &mut self,
-        chan: u8,
+        channel_id: u8,
         sfont_id: TypedIndex<SoundFont>,
-        bank_num: u32,
-        preset_num: u8,
-    ) -> Result<(), &str> {
-        let preset = self.font_bank.preset(sfont_id, bank_num, preset_num);
-
-        if let Some(channel) = self.channels.get_mut(chan as usize) {
-            if preset.is_none() {
-                log::error!(
-                    "There is no preset with bank number {} and preset number {} in SoundFont {:?}",
-                    bank_num,
-                    preset_num,
-                    sfont_id
-                );
-                Err("This preset does not exist")
-            } else {
-                channel.set_sfontnum(Some(sfont_id));
-                channel.set_banknum(bank_num);
-                channel.set_prognum(preset_num);
-                channel.set_preset(preset);
-                Ok(())
-            }
-        } else {
-            log::error!("Channel out of range",);
-            Err("Channel out of range")
-        }
+        bank_id: u32,
+        preset_id: u8,
+    ) -> Result<(), OxiError> {
+        let channel = self.channels.get_mut(channel_id as usize)?;
+        internal::midi::program_select(channel, &self.font_bank, sfont_id, bank_id, preset_id)
     }
 
     /**
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
-    pub fn get_program(&self, chan: u8) -> Result<(Option<TypedIndex<SoundFont>>, u32, u32), &str> {
-        if let Some(channel) = self.channels.get(chan as usize) {
-            Ok((
-                channel.sfontnum(),
-                channel.banknum(),
-                channel.prognum() as u32,
-            ))
-        } else {
-            log::warn!("Channel out of range",);
-            Err("Channel out of range")
-        }
+    pub fn get_program(
+        &self,
+        channel_id: u8,
+    ) -> Result<(Option<TypedIndex<SoundFont>>, u32, u32), OxiError> {
+        let channel = self.channels.get(channel_id as usize)?;
+
+        Ok(internal::midi::get_program(channel))
     }
 
     /**
@@ -334,78 +102,10 @@ impl Synth {
     This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
      */
     pub fn program_reset(&mut self) {
-        for channel in self.channels.iter_mut() {
-            program_change(
-                channel,
-                &self.font_bank,
-                channel.prognum(),
-                self.settings.drums_channel_active,
-            );
-        }
+        internal::midi::program_reset(
+            &mut self.channels,
+            &self.font_bank,
+            self.settings.drums_channel_active,
+        )
     }
-
-    /**
-    Send a reset.
-
-    A reset turns all the notes off and resets the controller values.
-
-    Purpose:
-    Respond to the MIDI command 'system reset' (0xFF, big red 'panic' button)
-     */
-    pub fn system_reset(&mut self) {
-        self.voices.system_reset();
-
-        let preset = self.font_bank.find_preset(0, 0).map(|p| p.1);
-        for channel in self.channels.iter_mut() {
-            channel.init(preset.clone());
-            channel.init_ctrl(0);
-        }
-
-        self.chorus.reset();
-        self.reverb.reset();
-    }
-}
-
-/**
-Send a program change message.
- */
-fn program_change(
-    channel: &mut Channel,
-    font_bank: &FontBank,
-    prognum: u8,
-    drums_channel_active: bool,
-) {
-    let banknum = channel.banknum();
-    channel.set_prognum(prognum);
-
-    let mut preset = if channel.id() == 9 && drums_channel_active {
-        font_bank.find_preset(128, prognum)
-    } else {
-        font_bank.find_preset(banknum, prognum)
-    };
-
-    if preset.is_none() {
-        let mut subst_bank = banknum as i32;
-        let mut subst_prog = prognum;
-        if banknum != 128 {
-            subst_bank = 0;
-            preset = font_bank.find_preset(0, prognum);
-            if preset.is_none() && prognum != 0 {
-                preset = font_bank.find_preset(0, 0);
-                subst_prog = 0;
-            }
-        } else {
-            preset = font_bank.find_preset(128, 0);
-            subst_prog = 0;
-        }
-        if preset.is_none() {
-            log::warn!(
-                        "Instrument not found on channel {} [bank={} prog={}], substituted [bank={} prog={}]",
-                        channel.id(), banknum, prognum,
-                        subst_bank, subst_prog);
-        }
-    }
-
-    channel.set_sfontnum(preset.as_ref().map(|p| p.0));
-    channel.set_preset(preset.map(|p| p.1.clone()));
 }

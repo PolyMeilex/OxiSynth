@@ -1,16 +1,9 @@
 use std::rc::Rc;
 
-use super::super::soundfont::{
-    generator::{gen_scale_nrpn, GeneratorType},
-    Preset, SoundFont,
-};
-use super::super::Synth;
+use super::super::soundfont::{Preset, SoundFont};
 
 use crate::tuning::Tuning;
 use crate::utils::TypedIndex;
-
-type GenType = u32;
-const GEN_LAST: GenType = 60;
 
 type MidiControlChange = u32;
 const ALL_SOUND_OFF: MidiControlChange = 120;
@@ -25,7 +18,6 @@ const SOUND_CTRL1: MidiControlChange = 70;
 const EXPRESSION_LSB: MidiControlChange = 43;
 const PAN_LSB: MidiControlChange = 42;
 const VOLUME_LSB: MidiControlChange = 39;
-const DATA_ENTRY_LSB: MidiControlChange = 38;
 const BANK_SELECT_LSB: MidiControlChange = 32;
 const EXPRESSION_MSB: MidiControlChange = 11;
 const PAN_MSB: MidiControlChange = 10;
@@ -63,10 +55,10 @@ pub struct Channel {
     preset: Option<Rc<Preset>>,
 
     key_pressure: [i8; 128],
-    channel_pressure: i16,
+    channel_pressure: u8,
 
     pitch_bend: i16,
-    pitch_wheel_sensitivity: u16,
+    pitch_wheel_sensitivity: u8,
 
     cc: [u8; 128],
     bank_msb: u8,
@@ -241,11 +233,11 @@ impl Channel {
 
     //
 
-    pub fn channel_pressure(&self) -> i16 {
+    pub fn channel_pressure(&self) -> u8 {
         self.channel_pressure
     }
 
-    pub fn set_channel_pressure(&mut self, val: i16) {
+    pub fn set_channel_pressure(&mut self, val: u8) {
         self.channel_pressure = val;
     }
 
@@ -261,11 +253,11 @@ impl Channel {
 
     //
 
-    pub fn pitch_wheel_sensitivity(&self) -> u16 {
+    pub fn pitch_wheel_sensitivity(&self) -> u8 {
         self.pitch_wheel_sensitivity
     }
 
-    pub fn set_pitch_wheel_sensitivity(&mut self, val: u16) {
+    pub fn set_pitch_wheel_sensitivity(&mut self, val: u8) {
         self.pitch_wheel_sensitivity = val;
     }
 
@@ -277,6 +269,20 @@ impl Channel {
         } else {
             0
         }
+    }
+
+    pub fn cc_mut(&mut self, id: usize) -> &mut u8 {
+        &mut self.cc[id]
+    }
+
+    //
+
+    pub fn bank_msb(&self) -> u8 {
+        self.bank_msb
+    }
+
+    pub fn set_bank_msb(&mut self, val: u8) {
+        self.bank_msb = val;
     }
 
     //
@@ -301,6 +307,26 @@ impl Channel {
 
     //
 
+    pub fn nrpn_select(&self) -> i16 {
+        self.nrpn_select
+    }
+
+    pub fn set_nrpn_select(&mut self, value: i16) {
+        self.nrpn_select = value;
+    }
+
+    //
+
+    pub fn nrpn_active(&self) -> i16 {
+        self.nrpn_active
+    }
+
+    pub fn set_nrpn_active(&mut self, value: i16) {
+        self.nrpn_active = value;
+    }
+
+    //
+
     pub fn gen(&self, id: usize) -> f32 {
         self.gen[id]
     }
@@ -317,169 +343,5 @@ impl Channel {
 
     pub fn set_gen_abs(&mut self, id: usize, val: i8) {
         self.gen_abs[id] = val;
-    }
-}
-
-impl Synth {
-    // TODO: writing self.channel[id] every time is stupid, there has to be a better way
-    pub(crate) fn channel_cc(&mut self, chan_id: usize, num: u16, value: u16) {
-        self.channels[chan_id].cc[num as usize] = value as u8;
-
-        match num {
-            // SUSTAIN_SWITCH
-            64 => {
-                if value < 64 {
-                    // sustain off
-                    self.voices
-                        .damp_voices(&self.channels[chan_id], self.min_note_length_ticks)
-                } else {
-                    // sustain on
-                }
-            }
-
-            // BANK_SELECT_MSB
-            0 => {
-                if chan_id == 9 && self.settings.drums_channel_active {
-                    // ignored
-                    return;
-                }
-
-                let chan = &mut self.channels[chan_id];
-
-                chan.bank_msb = (value & 0x7f) as u8;
-
-                /* I fixed the handling of a MIDI bank select controller 0,
-                e.g., bank select MSB (or "coarse" bank select according to
-                my spec).  Prior to this fix a channel's bank number was only
-                changed upon reception of MIDI bank select controller 32,
-                e.g, bank select LSB (or "fine" bank-select according to my
-                spec). [KLE]
-                FIXME: is this correct? [PH] */
-                chan.banknum = (value & 0x7f) as u32;
-            }
-
-            // BANK_SELECT_LSB
-            32 => {
-                if chan_id == 9 && self.settings.drums_channel_active {
-                    // ignored
-                    return;
-                }
-
-                let chan = &mut self.channels[chan_id];
-
-                /* FIXME: according to the Downloadable Sounds II specification,
-                bit 31 should be set when we receive the message on channel
-                10 (drum channel) */
-                chan.banknum =
-                    (value as u32 & 0x7f).wrapping_add((chan.bank_msb as u32) << 7 as i32);
-            }
-
-            // ALL_NOTES_OFF
-            123 => {
-                self.all_notes_off(chan_id);
-            }
-
-            // ALL_SOUND_OFF
-            120 => {
-                self.all_sounds_off(chan_id);
-            }
-
-            // ALL_CTRL_OFF
-            121 => {
-                self.channels[chan_id].init_ctrl(1);
-                self.voices.modulate_voices_all(&self.channels[chan_id]);
-            }
-
-            // DATA_ENTRY_MSB
-            6 => {
-                let data: i32 = ((value as i32) << 7 as i32)
-                    + self.channels[chan_id].cc[DATA_ENTRY_LSB as usize] as i32;
-
-                if self.channels[chan_id].nrpn_active != 0 {
-                    let (channum, nrpn_select, nrpn_msb, nrpn_lsb) = {
-                        let channel = &self.channels[chan_id];
-                        (
-                            channel.id(),
-                            channel.nrpn_select,
-                            channel.cc[NRPN_MSB as usize],
-                            channel.cc[NRPN_LSB as usize],
-                        )
-                    };
-
-                    // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
-                    if nrpn_msb == 120 && nrpn_lsb < 100 {
-                        if (nrpn_select as i32) < GEN_LAST as i32 {
-                            use num_traits::FromPrimitive;
-
-                            let val: f32 = gen_scale_nrpn(nrpn_select, data);
-
-                            let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();
-                            self.set_gen(channum, param, val).unwrap();
-                        }
-
-                        self.channels[chan_id].nrpn_select = 0; // Reset to 0
-                    }
-                }
-                /* RPN is active: MSB = 0? */
-                else if self.channels[chan_id].cc[RPN_MSB as usize] == 0 {
-                    match self.channels[chan_id].cc[RPN_LSB as usize] {
-                        // RPN_PITCH_BEND_RANGE
-                        0 => {
-                            self.pitch_wheel_sens(chan_id as u8, value).ok();
-                        }
-                        // RPN_CHANNEL_FINE_TUNE
-                        1 => {
-                            self.set_gen(
-                                self.channels[chan_id].id(),
-                                GeneratorType::FineTune,
-                                ((data - 8192 as i32) as f64 / 8192.0f64 * 100.0f64) as f32,
-                            )
-                            .unwrap();
-                        }
-                        // RPN_CHANNEL_COARSE_TUNE
-                        2 => {
-                            self.set_gen(
-                                self.channels[chan_id].id(),
-                                GeneratorType::CoarseTune,
-                                (value - 64) as f32,
-                            )
-                            .unwrap();
-                        }
-                        // RPN_TUNING_PROGRAM_CHANGE | RPN_TUNING_BANK_SELECT | RPN_MODULATION_DEPTH_RANGE
-                        3 | 4 | 5 | _ => {}
-                    }
-                }
-            }
-
-            // NRPN_MSB
-            99 => {
-                let chan = &mut self.channels[chan_id];
-                chan.cc[NRPN_LSB as usize] = 0;
-                chan.nrpn_select = 0;
-                chan.nrpn_active = 1;
-            }
-
-            // NRPN_LSB
-            98 => {
-                let chan = &mut self.channels[chan_id];
-                // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
-                if chan.cc[NRPN_MSB as usize] == 120 {
-                    if value == 100 {
-                        chan.nrpn_select = chan.nrpn_select + 100;
-                    } else if value == 101 {
-                        chan.nrpn_select = chan.nrpn_select + 1000;
-                    } else if value == 102 {
-                        chan.nrpn_select = chan.nrpn_select + 10000;
-                    } else if value < 100 {
-                        chan.nrpn_select = chan.nrpn_select + value as i16;
-                    }
-                }
-                chan.nrpn_active = 1 as i32 as i16
-            }
-
-            // RPN_MSB | RPN_LSB
-            101 | 100 => self.channels[chan_id].nrpn_active = 0,
-            _ => self.voices.modulate_voices(&self.channels[chan_id], 1, num),
-        }
     }
 }
