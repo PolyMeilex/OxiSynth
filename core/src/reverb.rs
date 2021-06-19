@@ -108,7 +108,7 @@ struct LRPair<T> {
 
 #[derive(Clone)]
 pub struct Reverb {
-    pub(crate) active: bool,
+    active: bool,
 
     roomsize: f32,
     damp: f32,

@@ -67,7 +67,7 @@ impl SoundFont {
         Ok(Self { presets })
     }
 
-    pub fn get_preset(&self, bank: u32, prenum: u8) -> Option<Rc<Preset>> {
+    pub fn preset(&self, bank: u32, prenum: u8) -> Option<Rc<Preset>> {
         self.presets
             .iter()
             .find(|p| p.banknum() == bank && p.num() == prenum as u32)

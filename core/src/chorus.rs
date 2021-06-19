@@ -14,10 +14,9 @@ const MAX_SAMPLES_LN2: usize = 12;
 const MAX_SAMPLES: usize = 1 << (MAX_SAMPLES_LN2 - 1);
 // const MAX_SAMPLES_ANDMASK: usize = MAX_SAMPLES - 1;
 
-
 #[derive(Clone)]
 pub struct Chorus {
-    pub(crate) active: bool,
+    active: bool,
 
     type_0: ChorusMode,
     new_type: ChorusMode,

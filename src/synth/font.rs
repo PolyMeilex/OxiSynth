@@ -37,15 +37,15 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_nth_sfont(&self, num: usize) -> Option<&SoundFont> {
-        self.handle.get_nth_font(num)
+    pub fn nth_sfont(&self, num: usize) -> Option<&SoundFont> {
+        self.handle.nth_font(num)
     }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont(&mut self, id: SoundFontId) -> Option<&SoundFont> {
-        self.handle.get_sfont(id)
+    pub fn sfont(&self, id: SoundFontId) -> Option<&SoundFont> {
+        self.handle.sfont(id)
     }
 
     /**
@@ -59,7 +59,7 @@ impl Synth {
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get_bank_offset(&self, sfont_id: SoundFontId) -> Option<u32> {
+    pub fn bank_offset(&self, sfont_id: SoundFontId) -> Option<u32> {
         self.handle
             .font_bank
             .bank_offsets
@@ -86,9 +86,9 @@ mod test {
 
             assert_eq!(synth.count_fonts(), 1);
 
-            let font = synth.get_sfont(id).unwrap();
+            let font = synth.sfont(id).unwrap();
 
-            let preset = font.get_preset(0, 0).unwrap();
+            let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Sine Wave");
             assert_eq!(preset.banknum(), 0);
@@ -105,8 +105,8 @@ mod test {
 
             assert_eq!(synth.count_fonts(), 2);
 
-            let font = synth.get_sfont(id).unwrap();
-            let preset = font.get_preset(0, 0).unwrap();
+            let font = synth.sfont(id).unwrap();
+            let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Boomwhacker");
             assert_eq!(preset.banknum(), 0);
@@ -121,8 +121,8 @@ mod test {
 
         // Check Sin ID
         {
-            let font = synth.get_sfont(sin).unwrap();
-            let preset = font.get_preset(0, 0).unwrap();
+            let font = synth.sfont(sin).unwrap();
+            let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Sine Wave");
             assert_eq!(preset.banknum(), 0);
@@ -130,8 +130,8 @@ mod test {
         }
         // Check Boomwhacker ID
         {
-            let font = synth.get_sfont(boom).unwrap();
-            let preset = font.get_preset(0, 0).unwrap();
+            let font = synth.sfont(boom).unwrap();
+            let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Boomwhacker");
             assert_eq!(preset.banknum(), 0);

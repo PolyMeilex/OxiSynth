@@ -35,7 +35,7 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn get_gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &'static str> {
+    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &'static str> {
         if let Some(channel) = self.channels.get(chan as usize) {
             Ok(channel.gen(param as usize))
         } else {

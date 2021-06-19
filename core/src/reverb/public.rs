@@ -26,7 +26,7 @@ impl Reverb {
     }
 
     /// Check if Reverb is on/off
-    pub fn get_active(&self) -> bool {
+    pub fn active(&self) -> bool {
         self.active
     }
 
@@ -36,7 +36,7 @@ impl Reverb {
     }
 
     /// Query the current reverb room size
-    pub fn get_room_size(&self) -> f32 {
+    pub fn room_size(&self) -> f32 {
         (self.roomsize - 0.7) / 0.28
     }
 
@@ -46,7 +46,7 @@ impl Reverb {
     }
 
     /// Query the current reverb dumping
-    pub fn get_damp(&self) -> f32 {
+    pub fn damp(&self) -> f32 {
         self.damp / 1.0
     }
 
@@ -63,7 +63,7 @@ impl Reverb {
     }
 
     /// Query the current reverb level
-    pub fn get_level(&self) -> f32 {
+    pub fn level(&self) -> f32 {
         self.wet / 3.0
     }
 
@@ -73,7 +73,7 @@ impl Reverb {
     }
 
     /// Query the current reverb width
-    pub fn get_width(&self) -> f32 {
+    pub fn width(&self) -> f32 {
         self.width
     }
 }
@@ -94,12 +94,12 @@ impl Reverb {
     }
 
     /// Query the current reverb params
-    pub fn get_reverb(&self) -> ReverbParams {
+    pub fn reverb(&self) -> ReverbParams {
         ReverbParams {
-            roomsize: self.get_room_size(),
-            damp: self.get_damp(),
-            level: self.get_level(),
-            width: self.get_width(),
+            roomsize: self.room_size(),
+            damp: self.damp(),
+            level: self.level(),
+            width: self.width(),
         }
     }
 }

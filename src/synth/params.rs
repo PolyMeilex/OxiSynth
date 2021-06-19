@@ -9,8 +9,8 @@ impl Synth {
     /**
     Get a reference to the settings of the synthesizer.
      */
-    pub fn get_settings(&self) -> &Settings {
-        &self.handle.get_settings()
+    pub fn settings(&self) -> &Settings {
+        &self.handle.settings()
     }
 
     /**
@@ -23,8 +23,8 @@ impl Synth {
     /**
     Get the master gain
      */
-    pub fn get_gain(&self) -> f32 {
-        self.handle.get_gain()
+    pub fn gain(&self) -> f32 {
+        self.handle.gain()
     }
 
     /**
@@ -37,8 +37,8 @@ impl Synth {
     /**
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
-    pub fn get_polyphony(&self) -> u32 {
-        self.handle.get_polyphony()
+    pub fn polyphony(&self) -> u32 {
+        self.handle.polyphony()
     }
 
     /**
@@ -51,8 +51,8 @@ impl Synth {
     synthesizer with a variable buffer length. The internal buffer
     size is useful for client who want to optimize their buffer sizes.
      */
-    pub fn get_internal_buffer_size(&self) -> usize {
-        self.handle.get_internal_bufsize()
+    pub fn internal_buffer_size(&self) -> usize {
+        self.handle.internal_bufsize()
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */

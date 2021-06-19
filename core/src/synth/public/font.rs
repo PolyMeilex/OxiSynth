@@ -10,7 +10,7 @@ impl Synth {
                 let banknum = self.channels[id].banknum();
                 let prognum = self.channels[id].prognum();
 
-                let preset = self.font_bank.get_preset(sfontnum, banknum, prognum);
+                let preset = self.font_bank.preset(sfontnum, banknum, prognum);
                 self.channels[id].set_preset(preset);
             }
         }
@@ -73,14 +73,14 @@ impl Synth {
 
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
-    pub fn get_nth_font(&self, num: usize) -> Option<&SoundFont> {
+    pub fn nth_font(&self, num: usize) -> Option<&SoundFont> {
         self.font_bank.get_nth_font(num)
     }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_sfont(&self, id: TypedIndex<SoundFont>) -> Option<&SoundFont> {
+    pub fn sfont(&self, id: TypedIndex<SoundFont>) -> Option<&SoundFont> {
         self.font_bank.get_font(id)
     }
 }

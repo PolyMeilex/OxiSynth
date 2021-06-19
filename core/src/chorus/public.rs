@@ -47,7 +47,7 @@ impl Chorus {
     }
 
     /// Check if Chorus is on/off
-    pub fn get_active(&self) -> bool {
+    pub fn active(&self) -> bool {
         self.active
     }
 
@@ -57,7 +57,7 @@ impl Chorus {
     }
 
     /// Query the current chorus nr
-    pub fn get_nr(&self) -> u32 {
+    pub fn nr(&self) -> u32 {
         self.number_blocks
     }
 
@@ -67,7 +67,7 @@ impl Chorus {
     }
 
     /// Query the current chorus level
-    pub fn get_level(&self) -> f32 {
+    pub fn level(&self) -> f32 {
         self.level
     }
 
@@ -77,7 +77,7 @@ impl Chorus {
     }
 
     /// Query the current chorus speed (Hz)
-    pub fn get_speed_hz(&self) -> f32 {
+    pub fn speed_hz(&self) -> f32 {
         self.speed_hz
     }
 
@@ -87,7 +87,7 @@ impl Chorus {
     }
 
     /// Query the current chorus depth (mS)
-    pub fn get_depth_ms(&self) -> f32 {
+    pub fn depth_ms(&self) -> f32 {
         self.depth_ms
     }
 
@@ -97,7 +97,7 @@ impl Chorus {
     }
 
     /// Query the current chorus mode
-    pub fn get_mode(&self) -> ChorusMode {
+    pub fn mode(&self) -> ChorusMode {
         self.type_0
     }
 }
@@ -144,11 +144,11 @@ impl Chorus {
      */
     pub fn get_chorus(&self) -> ChorusParams {
         ChorusParams {
-            nr: self.get_nr(),
-            level: self.get_level(),
-            speed: self.get_speed_hz(),
-            depth: self.get_depth_ms(),
-            mode: self.get_mode(),
+            nr: self.nr(),
+            level: self.level(),
+            speed: self.speed_hz(),
+            depth: self.depth_ms(),
+            mode: self.mode(),
         }
     }
 }

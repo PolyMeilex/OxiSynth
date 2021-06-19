@@ -31,8 +31,8 @@ impl Synth {
             &mut self.left_buf,
             &mut self.right_buf,
             &mut self.fx_left_buf,
-            self.reverb.active,
-            self.chorus.active,
+            self.reverb.active(),
+            self.chorus.active(),
         );
 
         /* if multi channel output, don't mix the output of the chorus and
@@ -40,18 +40,18 @@ impl Synth {
         separately. */
         if do_not_mix_fx_to_out != 0 {
             /* send to reverb */
-            if self.reverb.active {
+            if self.reverb.active() {
                 self.reverb
                     .process_replace(&mut self.fx_left_buf.reverb, &mut self.fx_right_buf.reverb);
             }
             /* send to chorus */
-            if self.chorus.active {
+            if self.chorus.active() {
                 self.chorus
                     .process_replace(&mut self.fx_left_buf.chorus, &mut self.fx_right_buf.chorus);
             }
         } else {
             /* send to reverb */
-            if self.reverb.active {
+            if self.reverb.active() {
                 self.reverb.process_mix(
                     &mut self.fx_left_buf.reverb,
                     &mut self.left_buf[0],
@@ -59,7 +59,7 @@ impl Synth {
                 );
             }
             /* send to chorus */
-            if self.chorus.active {
+            if self.chorus.active() {
                 self.chorus.process_mix(
                     &mut self.fx_left_buf.chorus,
                     &mut self.left_buf[0],

@@ -288,7 +288,7 @@ impl Synth {
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), &str> {
-        let preset = self.font_bank.get_preset(sfont_id, bank_num, preset_num);
+        let preset = self.font_bank.preset(sfont_id, bank_num, preset_num);
 
         if let Some(channel) = self.channels.get_mut(chan as usize) {
             if preset.is_none() {
@@ -369,7 +369,7 @@ impl Synth {
 /**
 Send a program change message.
  */
-pub fn program_change(
+fn program_change(
     channel: &mut Channel,
     font_bank: &FontBank,
     prognum: u8,

@@ -8,10 +8,10 @@ impl Synth {
         self.settings.sample_rate = sample_rate;
         self.voices.set_sample_rate(sample_rate);
 
-        self.chorus = Chorus::new(sample_rate, self.chorus.active);
+        self.chorus = Chorus::new(sample_rate, self.chorus.active());
     }
 
-    pub fn get_settings(&self) -> &Settings {
+    pub fn settings(&self) -> &Settings {
         &self.settings
     }
 
@@ -33,7 +33,7 @@ impl Synth {
     /**
     Get the master gain
      */
-    pub fn get_gain(&self) -> f32 {
+    pub fn gain(&self) -> f32 {
         self.settings.gain
     }
 
@@ -54,7 +54,7 @@ impl Synth {
     /**
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
-    pub fn get_polyphony(&self) -> u32 {
+    pub fn polyphony(&self) -> u32 {
         self.settings.polyphony as u32
     }
 
@@ -68,7 +68,7 @@ impl Synth {
     synthesizer with a variable buffer length. The internal buffer
     size is useful for client who want to optimize their buffer sizes.
      */
-    pub fn get_internal_bufsize(&self) -> usize {
+    pub fn internal_bufsize(&self) -> usize {
         64
     }
 
@@ -89,7 +89,7 @@ impl Synth {
         }
     }
 
-    pub fn get_channel_preset(&mut self, chan: u8) -> Option<&Rc<Preset>> {
+    pub fn channel_preset(&self, chan: u8) -> Option<&Rc<Preset>> {
         if let Some(channel) = self.channels.get(chan as usize) {
             channel.preset()
         } else {

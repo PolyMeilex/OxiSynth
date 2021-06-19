@@ -66,7 +66,7 @@ impl FontBank {
         self.stack.iter().filter_map(move |f| self.fonts.get(*f))
     }
 
-    pub fn get_preset(
+    pub fn preset(
         &self,
         sfont_id: TypedIndex<SoundFont>,
         banknum: u32,
@@ -79,7 +79,7 @@ impl FontBank {
                 .get(sfont_id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
-            sfont.get_preset(banknum.wrapping_sub(offset as u32), prognum)
+            sfont.preset(banknum.wrapping_sub(offset as u32), prognum)
         } else {
             None
         }
@@ -99,7 +99,7 @@ impl FontBank {
                     .map(|o| o.offset)
                     .unwrap_or_default();
 
-                let preset = sfont.get_preset(banknum.wrapping_sub(offset), prognum);
+                let preset = sfont.preset(banknum.wrapping_sub(offset), prognum);
                 if let Some(preset) = preset {
                     return Some((*id, preset));
                 }

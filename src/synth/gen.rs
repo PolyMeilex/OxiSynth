@@ -25,7 +25,7 @@ impl Synth {
 
     Returns the value of the generator.
      */
-    pub fn get_gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &str> {
-        self.handle.get_gen(chan, param)
+    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, &str> {
+        self.handle.gen(chan, param)
     }
 }
