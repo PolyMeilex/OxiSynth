@@ -126,7 +126,7 @@ impl TuningManager {
     }
 
     // Gets tuning asignet to specified bank and program
-    pub fn get_tuning(&self, bank: u32, program: u32) -> Option<&Tuning> {
+    pub fn tuning(&self, bank: u32, program: u32) -> Option<&Tuning> {
         let bank = bank as usize;
         let program = program as usize;
 
@@ -136,7 +136,7 @@ impl TuningManager {
     }
 
     // Gets tuning asignet to specified bank and program
-    pub fn get_tuning_mut(&mut self, bank: u32, program: u32) -> Option<&mut Tuning> {
+    pub fn tuning_mut(&mut self, bank: u32, program: u32) -> Option<&mut Tuning> {
         let bank = bank as usize;
         let program = program as usize;
 
@@ -156,26 +156,27 @@ impl TuningManager {
 
 #[cfg(test)]
 mod test {
-    use crate::{Synth, Tuning};
+    use crate::{Synth, Tuning, TuningManager};
 
     #[test]
     fn tuning() {
         let mut synth = Synth::default();
 
-        // Out of range test:
-        synth.get_tuning(120, 120);
-        synth.get_tuning(999, 999);
+        let mut tuning_manager = TuningManager::new();
+
+        assert!(tuning_manager.tuning(120, 120).is_none());
+        assert!(tuning_manager.tuning(999, 999).is_none());
 
         // Adding a tunning
         let (bank, program) = (15, 2);
 
         let tuning = Tuning::new(bank, program);
-        synth.add_tuning(tuning).unwrap();
+        tuning_manager.add_tuning(tuning).unwrap();
 
-        let tuning = synth.get_tuning(bank, program).unwrap();
+        let tuning = tuning_manager.tuning(bank, program).unwrap();
         assert_eq!(tuning.bank, bank);
         assert_eq!(tuning.program, program);
 
-        synth.get_tuning_mut(bank, program).unwrap();
+        tuning_manager.tuning_mut(bank, program).unwrap();
     }
 }
