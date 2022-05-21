@@ -6,9 +6,9 @@ use super::Sample;
 
 const GEN_SET: u32 = 1;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Instrument {
-    name: String,
+    _name: String,
     global_zone: Option<InstrumentZone>,
     zones: Vec<InstrumentZone>,
 }
@@ -39,7 +39,7 @@ impl Instrument {
         }
 
         Ok(Self {
-            name,
+            _name: name,
             global_zone,
             zones,
         })
@@ -54,7 +54,7 @@ impl Instrument {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[repr(C)]
 pub struct InstrumentZone {
     pub name: String,

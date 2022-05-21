@@ -4,6 +4,7 @@ mod params;
 mod write;
 
 use crate::core::chorus::Chorus;
+use crate::core::font_bank::FontBank;
 use crate::core::reverb::Reverb;
 pub use crate::core::soundfont::generator::GeneratorType;
 pub use crate::core::tuning::{Tuning, TuningManager};
@@ -58,6 +59,14 @@ impl Synth {
 
     pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
         self.core.send_event(event)
+    }
+
+    pub fn font_bank(&self) -> &FontBank {
+        &self.core.font_bank
+    }
+
+    pub fn font_bank_mut(&mut self) -> &mut FontBank {
+        &mut self.core.font_bank
     }
 }
 

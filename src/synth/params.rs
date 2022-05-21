@@ -1,4 +1,6 @@
-use crate::Synth;
+use std::sync::Arc;
+
+use crate::{Preset, Synth};
 
 use crate::core::{InterpolationMethod, Settings};
 
@@ -58,5 +60,9 @@ impl Synth {
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */
     pub fn set_interp_method(&mut self, chan: Option<usize>, interp_method: InterpolationMethod) {
         self.core.set_interp_method(chan, interp_method)
+    }
+
+    pub fn channel_preset(&self, chan: u8) -> Option<&Arc<Preset>> {
+        self.core.channel_preset(chan)
     }
 }

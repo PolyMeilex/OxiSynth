@@ -4,7 +4,7 @@ use soundfont::data::hydra::sample::SampleLink;
 
 use super::SampleData;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sample {
     pub name: String,
     pub start: u32,

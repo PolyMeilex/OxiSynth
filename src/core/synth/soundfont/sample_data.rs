@@ -1,5 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
 
+#[derive(Debug)]
 pub struct SampleData(Vec<i16>);
 
 impl SampleData {
