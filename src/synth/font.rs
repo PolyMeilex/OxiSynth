@@ -1,4 +1,4 @@
-use crate::oxi::SoundFont;
+use crate::core::SoundFont;
 use crate::SoundFontId;
 use crate::Synth;
 
@@ -14,21 +14,21 @@ impl Synth {
     is found.
      */
     pub fn add_font(&mut self, font: SoundFont, reset_presets: bool) -> SoundFontId {
-        self.handle.add_font(font, reset_presets)
+        self.core.add_font(font, reset_presets)
     }
 
     /**
     Removes a SoundFont from the stack and deallocates it.
      */
     pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
-        self.handle.remove_font(id, reset_presets)
+        self.core.remove_font(id, reset_presets)
     }
 
     /**
     Count the number of loaded SoundFonts.
      */
     pub fn count_fonts(&self) -> usize {
-        self.handle.count_fonts()
+        self.core.count_fonts()
     }
 
     /**
@@ -38,14 +38,14 @@ impl Synth {
     - `num` The number of the SoundFont (0 <= num < sfcount)
      */
     pub fn nth_sfont(&self, num: usize) -> Option<&SoundFont> {
-        self.handle.nth_font(num)
+        self.core.nth_font(num)
     }
 
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
     pub fn sfont(&self, id: SoundFontId) -> Option<&SoundFont> {
-        self.handle.sfont(id)
+        self.core.sfont(id)
     }
 
     /**
@@ -53,14 +53,14 @@ impl Synth {
     Returns -1 if an error occured (out of memory or negative offset)
      */
     pub fn set_bank_offset(&mut self, sfont_id: SoundFontId, offset: u32) {
-        self.handle.font_bank.bank_offsets.set(sfont_id, offset)
+        self.core.font_bank.bank_offsets.set(sfont_id, offset)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
     pub fn bank_offset(&self, sfont_id: SoundFontId) -> Option<u32> {
-        self.handle
+        self.core
             .font_bank
             .bank_offsets
             .get(sfont_id)
@@ -70,7 +70,7 @@ impl Synth {
 
 #[cfg(test)]
 mod test {
-    use crate::{SoundFont, Synth, SynthDescriptor};
+    use crate::core::{SoundFont, Synth, SynthDescriptor};
 
     #[test]
     fn font_and_preset() {

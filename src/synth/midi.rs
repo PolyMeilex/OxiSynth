@@ -1,4 +1,4 @@
-use crate::oxi::OxiError;
+use crate::core::OxiError;
 use crate::SoundFontId;
 use crate::Synth;
 
@@ -10,42 +10,42 @@ impl Synth {
     Get a control value.
      */
     pub fn get_cc(&self, chan: u8, ctrl: u16) -> Result<u8, OxiError> {
-        self.handle.get_cc(chan, ctrl)
+        self.core.get_cc(chan, ctrl)
     }
 
     /**
     Get the pitch bend value.
      */
     pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, OxiError> {
-        self.handle.get_pitch_bend(chan)
+        self.core.get_pitch_bend(chan)
     }
 
     /**
     Set the pitch wheel sensitivity.
      */
     pub fn pitch_wheel_sens(&mut self, chan: u8, val: u8) -> Result<(), OxiError> {
-        self.handle.pitch_wheel_sens(chan, val)
+        self.core.pitch_wheel_sens(chan, val)
     }
 
     /**
     Get the pitch wheel sensitivity.
      */
     pub fn get_pitch_wheel_sens(&self, chan: u8) -> Result<u8, OxiError> {
-        self.handle.get_pitch_wheel_sens(chan)
+        self.core.get_pitch_wheel_sens(chan)
     }
 
     /**
     Select a bank.
      */
     pub fn bank_select(&mut self, chan: u8, bank: u32) -> Result<(), OxiError> {
-        self.handle.bank_select(chan, bank)
+        self.core.bank_select(chan, bank)
     }
 
     /**
     Select a sfont.
      */
     pub fn sfont_select(&mut self, chan: u8, sfont_id: SoundFontId) -> Result<(), OxiError> {
-        self.handle.sfont_select(chan, sfont_id)
+        self.core.sfont_select(chan, sfont_id)
     }
 
     /**
@@ -61,7 +61,7 @@ impl Synth {
         bank_num: u32,
         preset_num: u8,
     ) -> Result<(), OxiError> {
-        self.handle
+        self.core
             .program_select(chan, sfont_id, bank_num, preset_num)
     }
 
@@ -69,7 +69,7 @@ impl Synth {
     Returns the program, bank, and SoundFont number of the preset on a given channel.
      */
     pub fn get_program(&self, chan: u8) -> Result<(Option<SoundFontId>, u32, u32), OxiError> {
-        self.handle.get_program(chan)
+        self.core.get_program(chan)
     }
 
     /**
@@ -78,6 +78,6 @@ impl Synth {
     This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
      */
     pub fn program_reset(&mut self) {
-        self.handle.program_reset()
+        self.core.program_reset()
     }
 }

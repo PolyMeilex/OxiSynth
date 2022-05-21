@@ -6,23 +6,39 @@ edition = "2018"
 
 [features]
 # default=["sf3"]
-sf3=["core/sf3"]
+i16-out = ["getrandom", "rand"]
+sf3 = ["lewton"]
 
 [dependencies]
 bitflags = "^1.2"
+byte-slice-cast = "1.0.0"
+byteorder = "1.4.3"
+lazy_static = "1.4.0"
+generational-arena = "0.2.8"
 
-core={path="./core"}
-soundfont={path="./soundfont-rs"}
+log = "0.4.14"
+
+num-traits = "0.2"
+num-derive = "0.3.3"
+
+soundfont = { path = "./soundfont-rs" }
+
+# i16-out
+getrandom = { version = "0.2", features = ["js"], optional = true }
+rand = { version = "0.8.3", optional = true }
+
+lewton = { version = "0.10.2", optional = true }
+thiserror = "1.0.25"
 
 [dev-dependencies]
 env_logger = "0.8.3"
 byte-slice-cast = "1.0.0"
 
 [[example]]
-name="multi_font"
+name = "multi_font"
 [[example]]
-name="polyphony"
+name = "polyphony"
 [[example]]
-name="sf2"
+name = "sf2"
 [[example]]
-name="simple"
+name = "simple"

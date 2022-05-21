@@ -71,11 +71,11 @@ impl Synth {
     }
 
     pub fn read_next(&mut self) -> (f32, f32) {
-        self.handle.read_next()
+        self.core.read_next()
     }
 
     pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, cb: F) {
-        self.handle.write(len, incr, cb)
+        self.core.write(len, incr, cb)
     }
 
     /**
@@ -122,7 +122,7 @@ impl Synth {
         roff: u32,
         rincr: u32,
     ) {
-        self.handle.write_f32(
+        self.core.write_f32(
             len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
         )
     }
@@ -146,7 +146,7 @@ impl Synth {
         roff: u32,
         rincr: u32,
     ) {
-        self.handle.write_f64(
+        self.core.write_f64(
             len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
         )
     }

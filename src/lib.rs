@@ -1,13 +1,18 @@
-pub(crate) use core as oxi;
-
-mod settings;
+mod core;
 mod synth;
 
-pub use core::soundfont::{Preset, SoundFont};
-pub use core::{MidiEvent, OxiError};
+pub use crate::core::soundfont::{Preset, SoundFont};
+pub use crate::core::{MidiEvent, OxiError};
 
-pub use core::TypedIndex;
+pub use crate::core::TypedIndex;
 pub type SoundFontId = TypedIndex<SoundFont>;
 
 pub use self::settings::*;
 pub use self::synth::*;
+
+pub mod settings {
+    pub use crate::core::{Settings, SettingsError, SynthDescriptor};
+}
+
+#[macro_use]
+extern crate lazy_static;

@@ -1,6 +1,6 @@
 use crate::Synth;
 
-use crate::oxi::{InterpolationMethod, Settings};
+use crate::core::{InterpolationMethod, Settings};
 
 /**
 Synthesis parameters
@@ -10,35 +10,35 @@ impl Synth {
     Get a reference to the settings of the synthesizer.
      */
     pub fn settings(&self) -> &Settings {
-        &self.handle.settings()
+        &self.core.settings()
     }
 
     /**
     Set the master gain
      */
     pub fn set_gain(&mut self, gain: f32) {
-        self.handle.set_gain(gain)
+        self.core.set_gain(gain)
     }
 
     /**
     Get the master gain
      */
     pub fn gain(&self) -> f32 {
-        self.handle.gain()
+        self.core.gain()
     }
 
     /**
     Set the polyphony limit
      */
     pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), ()> {
-        self.handle.set_polyphony(polyphony)
+        self.core.set_polyphony(polyphony)
     }
 
     /**
     Get the polyphony limit (FluidSynth >= 1.0.6)
      */
     pub fn polyphony(&self) -> u32 {
-        self.handle.polyphony()
+        self.core.polyphony()
     }
 
     /**
@@ -52,11 +52,11 @@ impl Synth {
     size is useful for client who want to optimize their buffer sizes.
      */
     pub fn internal_buffer_size(&self) -> usize {
-        self.handle.internal_bufsize()
+        self.core.internal_bufsize()
     }
 
     /** Set the interpolation method for one channel (`Some(chan)`) or all channels (`None`) */
     pub fn set_interp_method(&mut self, chan: Option<usize>, interp_method: InterpolationMethod) {
-        self.handle.set_interp_method(chan, interp_method)
+        self.core.set_interp_method(chan, interp_method)
     }
 }
