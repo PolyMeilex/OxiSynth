@@ -86,6 +86,19 @@ pub struct Settings {
     pub(crate) min_note_length: u16,
 }
 
+impl Settings {
+    /// Returns the number of audio channels that the synthesizer uses internally
+    pub fn audio_channels_len(&self) -> u8 {
+        self.audio_channels
+    }
+
+    /// Returns the number of audio groups that the synthesizer uses internally.
+    /// This is usually identical to audio_channels.
+    pub fn audio_groups_len(&self) -> u8 {
+        self.audio_groups
+    }
+}
+
 struct Range<T> {
     min: T,
     max: T,

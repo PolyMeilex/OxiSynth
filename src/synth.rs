@@ -93,33 +93,14 @@ impl Synth {
 }
 
 impl Synth {
-    /**
-    Returns the number of MIDI channels that the synthesizer uses internally
-     */
+    /// Returns the number of MIDI channels that the synthesizer uses internally
     pub fn count_midi_channels(&self) -> usize {
-        self.core.count_midi_channels()
+        self.core.channels.len()
     }
 
-    /**
-    Returns the number of audio channels that the synthesizer uses internally
-     */
-    pub fn count_audio_channels(&self) -> u8 {
-        self.core.count_audio_channels()
-    }
-
-    /**
-    Returns the number of audio groups that the synthesizer uses internally.
-    This is usually identical to audio_channels.
-     */
-    pub fn count_audio_groups(&self) -> u8 {
-        self.core.count_audio_groups()
-    }
-
-    /**
-    Returns the number of effects channels that the synthesizer uses internally
-     */
+    /// Returns the number of effects channels that the synthesizer uses internally
     pub fn count_effects_channels(&self) -> u8 {
-        self.core.count_effects_channels()
+        2
     }
 }
 
@@ -140,17 +121,20 @@ impl Synth {
         param: GeneratorType,
         value: f32,
     ) -> Result<(), OxiError> {
-        self.core.set_gen(chan, param, value)
+        let channel = self.core.channels.get_mut(chan as usize)?;
+
+        crate::core::synth::internal::set_gen(channel, &mut self.core.voices, param, value);
+
+        Ok(())
     }
 
-    /**
-    Retreive the value of a generator. This function returns the value
-    set by a previous call 'set_gen()' or by an NRPN message.
-
-    Returns the value of the generator.
-     */
+    /// Retreive the value of a generator. This function returns the value
+    /// set by a previous call 'set_gen()' or by an NRPN message.
+    ///
+    /// Returns the value of the generator.
     pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, OxiError> {
-        self.core.gen(chan, param)
+        let channel = self.core.channels.get(chan as usize)?;
+        Ok(crate::core::synth::internal::gen(channel, param))
     }
 }
 

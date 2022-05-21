@@ -1,4 +1,4 @@
-mod internal;
+pub(crate) mod internal;
 mod public;
 
 pub(crate) mod channel_pool;
@@ -36,8 +36,8 @@ pub struct Synth {
     ticks: usize,
     pub font_bank: FontBank,
 
-    channels: ChannelPool,
-    voices: VoicePool,
+    pub channels: ChannelPool,
+    pub voices: VoicePool,
 
     nbuf: u8,
 
@@ -54,7 +54,7 @@ pub struct Synth {
 
     min_note_length_ticks: usize,
 
-    settings: Settings,
+    pub settings: Settings,
 
     #[cfg(feature = "i16-out")]
     dither_index: i32,
