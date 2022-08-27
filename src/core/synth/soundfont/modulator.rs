@@ -257,7 +257,7 @@ impl Mod {
             use SourceType::*;
 
             /* transform the second input value */
-            let v2 = match (self.src.ty, self.src.polarity, self.src.direction) {
+            let v2 = match (self.src2.ty, self.src2.polarity, self.src2.direction) {
                 // 0
                 (Linear, Unipolar, Positive) => v2 / range2,
                 // 1

@@ -57,7 +57,7 @@ pub struct Channel {
     key_pressure: [i8; 128],
     channel_pressure: u8,
 
-    pitch_bend: i16,
+    pitch_bend: u16,
     pitch_wheel_sensitivity: u8,
 
     cc: [u8; 128],
@@ -243,11 +243,11 @@ impl Channel {
 
     //
 
-    pub fn pitch_bend(&self) -> i16 {
+    pub fn pitch_bend(&self) -> u16 {
         self.pitch_bend
     }
 
-    pub fn set_pitch_bend(&mut self, val: i16) {
+    pub fn set_pitch_bend(&mut self, val: u16) {
         self.pitch_bend = val;
     }
 

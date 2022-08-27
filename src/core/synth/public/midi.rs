@@ -18,7 +18,7 @@ impl Synth {
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, channel_id: u8) -> Result<i16, OxiError> {
+    pub fn get_pitch_bend(&self, channel_id: u8) -> Result<u16, OxiError> {
         let channel = self.channels.get(channel_id as usize)?;
 
         Ok(channel.pitch_bend())
