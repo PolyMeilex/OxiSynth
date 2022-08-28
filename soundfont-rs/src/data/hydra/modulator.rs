@@ -58,7 +58,7 @@ impl From<u8> for GeneralPalette {
 pub enum ControllerPalette {
     /// General Controller palette of controllers is selected.
     ///
-    /// The `index` field value corresponds to one of the following controller sources.  
+    /// The `index` field value corresponds to one of the following controller sources.
     /// - 0  No Controller
     /// - 2  Note-On Velocity
     /// - 3  Note-On Key Number
@@ -125,7 +125,7 @@ impl From<u8> for SourceType {
     }
 }
 
-/// 8.2  Modulator Source Enumerators  
+/// 8.2  Modulator Source Enumerators
 /// Flags telling the polarity of a modulator.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModulatorSource {
@@ -503,7 +503,7 @@ pub mod default_modulators {
     ///
     /// Initial Pitch is not a "standard" generator (SF 2.04)
     ///
-    /// That's why this mod is an const fn and  
+    /// That's why this mod is an const fn and
     /// user has to decide the destination themself.
     pub const fn default_pitch_bend_mod(dest: GeneratorType) -> Modulator {
         Modulator {

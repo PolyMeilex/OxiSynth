@@ -493,7 +493,7 @@ Send a pitch bend message.
 pub fn pitch_bend(channel: &mut Channel, voices: &mut VoicePool, val: u16) {
     const MOD_PITCHWHEEL: u8 = 14;
 
-    channel.set_pitch_bend(val as i16);
+    channel.set_pitch_bend(val);
     voices.modulate_voices(&channel, false, MOD_PITCHWHEEL);
 }
 

@@ -16,7 +16,7 @@ impl Synth {
     /**
     Get the pitch bend value.
      */
-    pub fn get_pitch_bend(&self, chan: u8) -> Result<i16, OxiError> {
+    pub fn get_pitch_bend(&self, chan: u8) -> Result<u16, OxiError> {
         self.core.get_pitch_bend(chan)
     }
 
