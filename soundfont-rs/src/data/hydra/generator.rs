@@ -245,10 +245,7 @@ impl TryFrom<u16> for GeneratorType {
         if id <= 60 {
             Ok(unsafe { std::mem::transmute(id) })
         } else {
-            // Spec whise this should be an error but some files like to use made up value here. 
-            // So we have to pretend that everything is fine and just ignore them.
-            // Err(ParseError::UnknownGeneratorType(id))
-            Ok(Self::EndOper)
+            Err(ParseError::UnknownGeneratorType(id))
         }
     }
 }
