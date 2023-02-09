@@ -1,6 +1,6 @@
 [package]
 name = "oxisynth"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2018"
 
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
@@ -27,7 +27,7 @@ log = "0.4.14"
 num-traits = "0.2"
 num-derive = "0.3.3"
 
-soundfont = { version = "0.0.1", path = "./soundfont-rs" }
+soundfont = { version = "0.0.2", path = "./soundfont-rs" }
 
 # i16-out
 getrandom = { version = "0.2", features = ["js"], optional = true }
