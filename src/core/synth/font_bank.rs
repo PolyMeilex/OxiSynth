@@ -79,7 +79,7 @@ impl FontBank {
                 .get(sfont_id)
                 .map(|o| o.offset)
                 .unwrap_or_default();
-            sfont.preset(banknum.wrapping_sub(offset as u32), prognum)
+            sfont.preset(banknum.wrapping_sub(offset), prognum)
         } else {
             None
         }

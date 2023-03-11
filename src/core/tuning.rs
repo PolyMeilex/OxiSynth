@@ -15,7 +15,7 @@ impl Tuning {
         for i in 0..128 {
             tuning.pitch[i] = i as f64 * 100.0;
         }
-        return tuning;
+        tuning
     }
 
     /**

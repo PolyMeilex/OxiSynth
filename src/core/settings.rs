@@ -167,23 +167,23 @@ impl TryFrom<SynthDescriptor> for Settings {
 
         let polyphony = POLYPHONY_RANGE
             .check(desc.polyphony)
-            .map_err(|e| SettingsError::PolyphonyRange(e))?;
+            .map_err(SettingsError::PolyphonyRange)?;
 
         let gain = GAIN_RANGE
             .check(desc.gain)
-            .map_err(|e| SettingsError::GainRange(e))?;
+            .map_err(SettingsError::GainRange)?;
 
         let audio_channels = AUDIO_CHANNELS_RANGE
             .check(desc.audio_channels)
-            .map_err(|e| SettingsError::AudioChannelRange(e))?;
+            .map_err(SettingsError::AudioChannelRange)?;
 
         let audio_groups = AUDIO_GROUPS_RANGE
             .check(desc.audio_groups)
-            .map_err(|e| SettingsError::AudioGroupsRange(e))?;
+            .map_err(SettingsError::AudioGroupsRange)?;
 
         let sample_rate = SAMPLE_RATE_RANGE
             .check(desc.sample_rate)
-            .map_err(|e| SettingsError::SammpleRateRange(e))?;
+            .map_err(SettingsError::SammpleRateRange)?;
 
         // Guarded by type system
         let min_note_length = desc.min_note_length;

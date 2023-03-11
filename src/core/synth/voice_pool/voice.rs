@@ -262,7 +262,7 @@ impl Voice {
             hist1: 0.0,
             hist2: 0.0,
 
-            gen: generator::gen_init(&desc.channel),
+            gen: generator::gen_init(desc.channel),
             synth_gain,
 
             amplitude_that_reaches_noise_floor_nonloop: 0.00003 / synth_gain,
@@ -281,8 +281,8 @@ impl Voice {
             end: 0,
             loopstart: 0,
             loopend: 0,
-            volenv_data: volenv_data,
-            modenv_data: modenv_data,
+            volenv_data,
+            modenv_data,
             modenv_to_fc: 0.0,
             modenv_to_pitch: 0.0,
             modlfo_delay: 0,
@@ -372,7 +372,7 @@ impl Voice {
         Also, default modulators (VOICE_DEFAULT) are added without
         checking, if the same modulator already exists. */
         if self.mod_count < 64 {
-            self.mod_0[self.mod_count] = mod_0.clone();
+            self.mod_0[self.mod_count] = *mod_0;
             self.mod_count += 1;
         };
     }
@@ -506,7 +506,7 @@ impl Voice {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_has_source(&mod_0, is_cc, ctrl as u8) {
+            if mod_has_source(mod_0, is_cc, ctrl) {
                 let gen = mod_0.get_dest();
                 let mut modval = 0.0;
 
@@ -576,7 +576,7 @@ impl Voice {
 
         let mut possible_att_reduction_c_b = 0.0;
         for i in 0..self.mod_count {
-            let mod_0 = &self.mod_0[i as usize];
+            let mod_0 = &self.mod_0[i];
 
             /* Modulator has attenuation as target and can change over time? */
             if mod_0.dest == GeneratorType::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc())
@@ -584,7 +584,7 @@ impl Voice {
                 let current_val: f32 = mod_0.get_value(channel, self);
                 let mut v = mod_0.amount.abs() as f32;
 
-                if mod_0.src.index as i32 == MOD_PITCHWHEEL as i32
+                if mod_0.src.index as i32 == MOD_PITCHWHEEL
                     || mod_0.src.is_bipolar()
                     || mod_0.src2.is_bipolar()
                     || mod_0.amount < 0.0
@@ -975,7 +975,7 @@ impl Voice {
                 current_block = 576355610076403033;
             } else {
                 let amplitude_that_reaches_noise_floor;
-                let amp_max;
+                
                 target_amp = atten2amp(self.attenuation)
                     * cb2amp(
                         960.0f32 * (1.0f32 - self.volenv_val)
@@ -1007,7 +1007,7 @@ impl Voice {
                  * amplitude of sample and volenv cannot exceed amp_max (since
                  * volenv_val can only drop):
                  */
-                amp_max = atten2amp(self.min_attenuation_c_b) * self.volenv_val;
+                let amp_max = atten2amp(self.min_attenuation_c_b) * self.volenv_val;
 
                 /* And if amp_max is already smaller than the known amplitude,
                  * which will attenuate the sample below the noise floor, then we
@@ -1111,7 +1111,7 @@ impl Voice {
                             /* both b0 -and- b2 */
                             let b02_temp: f32 = b1_temp * 0.5f32;
 
-                            if self.filter_startup != false {
+                            if self.filter_startup {
                                 /* The filter is calculated, because the voice was started up.
                                  * In this case set the filter coefficients without delay.
                                  */
@@ -1260,8 +1260,8 @@ impl Voice {
             /* The voice is centered. Use voice->amp_left twice. */
             for dsp_i in 0..count {
                 v = self.amp_left * dsp_buf[dsp_i];
-                dsp_left_buf[dsp_i as usize] += v;
-                dsp_right_buf[dsp_i as usize] += v;
+                dsp_left_buf[dsp_i] += v;
+                dsp_right_buf[dsp_i] += v;
             }
         }
         /* The voice is not centered. Stereo samples have one side zero. */
@@ -1330,7 +1330,7 @@ impl Voice {
                 return 0;
             }
         }
-        if (timecents as f64) < -12000.0 {
+        if timecents < -12000.0 {
             timecents = -12000.0;
         }
         let seconds = tc2sec(timecents);

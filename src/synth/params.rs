@@ -12,7 +12,7 @@ impl Synth {
     Get a reference to the settings of the synthesizer.
      */
     pub fn settings(&self) -> &Settings {
-        &self.core.settings()
+        self.core.settings()
     }
 
     /**

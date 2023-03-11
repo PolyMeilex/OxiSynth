@@ -131,7 +131,9 @@ impl Mod {
             use SourcePolarity::*;
             use SourceType::*;
 
-            let v1 = match (self.src.ty, self.src.polarity, self.src.direction) {
+            
+
+            match (self.src.ty, self.src.polarity, self.src.direction) {
                 // 0
                 (Linear, Unipolar, Positive) => v1 / range1,
                 // 1
@@ -217,9 +219,7 @@ impl Mod {
                 }
 
                 _ => v1,
-            };
-
-            v1
+            }
         } else {
             return 0.0;
         };
@@ -257,7 +257,9 @@ impl Mod {
             use SourceType::*;
 
             /* transform the second input value */
-            let v2 = match (self.src2.ty, self.src2.polarity, self.src2.direction) {
+            
+
+            match (self.src2.ty, self.src2.polarity, self.src2.direction) {
                 // 0
                 (Linear, Unipolar, Positive) => v2 / range2,
                 // 1
@@ -343,14 +345,12 @@ impl Mod {
                 }
 
                 _ => v2,
-            };
-
-            v2
+            }
         } else {
             1.0
         };
 
-        return self.amount as f32 * v1 * v2;
+        self.amount as f32 * v1 * v2
     }
 
     pub fn test_identity(&self, mod2: &Mod) -> bool {
@@ -358,11 +358,7 @@ impl Mod {
             false
         } else if self.src != mod2.src {
             false
-        } else if self.src2 != mod2.src2 {
-            false
-        } else {
-            true
-        }
+        } else { self.src2 == mod2.src2 }
     }
 }
 

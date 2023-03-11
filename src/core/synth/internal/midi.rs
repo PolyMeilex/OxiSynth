@@ -68,7 +68,7 @@ fn inner_noteon(
     let preset = &channel.preset().unwrap();
 
     // list for 'sorting' preset modulators
-    let mod_list_new: Vec<Option<&Mod>> = (0..64).into_iter().map(|_| None).collect();
+    let mod_list_new: Vec<Option<&Mod>> = (0..64).map(|_| None).collect();
     let mut mod_list: [Option<&Mod>; 64] = mod_list_new.try_into().unwrap();
 
     let mut global_preset_zone = preset.global_zone();
@@ -142,7 +142,7 @@ fn inner_noteon(
                                  *  page 69, 'bullet' 3 defines 'identical'.  */
                                 for i in 0..mod_list_count {
                                     if mod_list[i].is_some()
-                                        && m.test_identity(mod_list[i as usize].as_ref().unwrap())
+                                        && m.test_identity(mod_list[i].as_ref().unwrap())
                                     {
                                         mod_list[i] = None;
                                     }
@@ -156,7 +156,7 @@ fn inner_noteon(
 
                             // Add instrument modulators (global / local) to the voice.
                             for i in 0..mod_list_count {
-                                let mod_0 = mod_list[i as usize];
+                                let mod_0 = mod_list[i];
                                 if mod_0.is_some() {
                                     // disabled modulators CANNOT be skipped.
 
@@ -239,7 +239,7 @@ fn inner_noteon(
                             for m in preset_zone.mods.iter() {
                                 for i in 0..mod_list_count {
                                     if mod_list[i].is_some()
-                                        && m.test_identity(mod_list[i as usize].as_ref().unwrap())
+                                        && m.test_identity(mod_list[i].as_ref().unwrap())
                                     {
                                         mod_list[i] = None;
                                     }
@@ -284,7 +284,7 @@ fn inner_noteon(
 
                         let voice_id = voices.request_new_voice(desc, init);
 
-                        if let Ok(_) = voice_id {
+                        if voice_id.is_ok() {
                             log::trace!(
                                 "noteon\t{}\t{}\t{}\t\t{}",
                                 channel.id(),
@@ -344,7 +344,7 @@ pub fn cc(
                 return;
             }
 
-            channel.set_bank_msb((value & 0x7f) as u8);
+            channel.set_bank_msb(value & 0x7f);
 
             /* I fixed the handling of a MIDI bank select controller 0,
             e.g., bank select MSB (or "coarse" bank select according to
@@ -494,7 +494,7 @@ pub fn pitch_bend(channel: &mut Channel, voices: &mut VoicePool, val: u16) {
     const MOD_PITCHWHEEL: u8 = 14;
 
     channel.set_pitch_bend(val);
-    voices.modulate_voices(&channel, false, MOD_PITCHWHEEL);
+    voices.modulate_voices(channel, false, MOD_PITCHWHEEL);
 }
 
 // /**
@@ -511,7 +511,7 @@ pub fn pitch_wheel_sens(channel: &mut Channel, voices: &mut VoicePool, val: u8) 
     const MOD_PITCHWHEELSENS: u8 = 16;
 
     channel.set_pitch_wheel_sensitivity(val);
-    voices.modulate_voices(&channel, false, MOD_PITCHWHEELSENS);
+    voices.modulate_voices(channel, false, MOD_PITCHWHEELSENS);
 }
 
 // /**
@@ -562,7 +562,7 @@ pub fn program_change(
     }
 
     channel.set_sfontnum(preset.as_ref().map(|p| p.0));
-    channel.set_preset(preset.map(|p| p.1.clone()));
+    channel.set_preset(preset.map(|p| p.1));
 }
 
 /**
@@ -572,7 +572,7 @@ pub fn channel_pressure(channel: &mut Channel, voices: &mut VoicePool, val: u8) 
     const MOD_CHANNELPRESSURE: u8 = 13;
 
     channel.set_channel_pressure(val);
-    voices.modulate_voices(&channel, false, MOD_CHANNELPRESSURE);
+    voices.modulate_voices(channel, false, MOD_CHANNELPRESSURE);
 }
 
 /**
@@ -580,7 +580,7 @@ Set key pressure (aftertouch)
  */
 pub fn key_pressure(channel: &mut Channel, voices: &mut VoicePool, key: u8, val: u8) {
     channel.set_key_pressure(key as usize, val as i8);
-    voices.key_pressure(&channel, key);
+    voices.key_pressure(channel, key);
 }
 
 /**

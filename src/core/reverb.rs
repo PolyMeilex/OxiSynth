@@ -41,14 +41,14 @@ struct Comb {
 
 impl Comb {
     pub fn new(size: usize) -> Self {
-        return Self {
+        Self {
             feedback: 0f32,
             filterstore: 0f32,
             damp1: 0f32,
             damp2: 0f32,
             buffer: vec![DC_OFFSET; size],
             bufidx: 0,
-        };
+        }
     }
 
     pub fn set_damp(&mut self, val: f32) {
@@ -68,7 +68,7 @@ impl Comb {
         if self.bufidx >= self.buffer.len() {
             self.bufidx = 0
         }
-        return _tmp;
+        _tmp
     }
 }
 
@@ -81,14 +81,14 @@ struct AllPass {
 
 impl AllPass {
     pub fn new(size: usize, feedback: f32) -> Self {
-        return Self {
+        Self {
             feedback,
             buffer: vec![DC_OFFSET; size],
             bufidx: 0,
-        };
+        }
     }
 
-    pub fn process(self: &mut Self, input: f32) -> f32 {
+    pub fn process(&mut self, input: f32) -> f32 {
         let bufout: f32 = self.buffer[self.bufidx];
         let output: f32 = bufout - input;
         self.buffer[self.bufidx] = input + bufout * self.feedback;
@@ -96,7 +96,7 @@ impl AllPass {
         if self.bufidx >= self.buffer.len() {
             self.bufidx = 0
         }
-        return output;
+        output
     }
 }
 
@@ -187,10 +187,10 @@ impl Reverb {
             ],
         };
         rev.set_reverb(&Default::default());
-        return rev;
+        rev
     }
 
-    pub(crate) fn reset(self: &mut Self) {
+    pub(crate) fn reset(&mut self) {
         self.comb = [
             LRPair {
                 l: Comb::new(COMBTUNING_L1),

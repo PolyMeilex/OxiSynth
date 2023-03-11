@@ -1,7 +1,7 @@
 use crate::core::synth::Synth;
 
 impl Synth {
-    fn one_block(&mut self, do_not_mix_fx_to_out: i32) {
+    fn one_block(&mut self, do_not_mix_fx_to_out: bool) {
         // clean the audio buffers
         {
             for i in 0..self.nbuf {
@@ -38,7 +38,7 @@ impl Synth {
         /* if multi channel output, don't mix the output of the chorus and
         reverb in the final output. The effects outputs are send
         separately. */
-        if do_not_mix_fx_to_out != 0 {
+        if do_not_mix_fx_to_out {
             /* send to reverb */
             if self.reverb.active() {
                 self.reverb
@@ -67,6 +67,7 @@ impl Synth {
                 );
             }
         }
+
         self.ticks = self.ticks.wrapping_add(64);
     }
 
@@ -80,7 +81,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                self.one_block(0);
+                self.one_block(false);
                 l = 0;
             }
 
@@ -102,7 +103,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                self.one_block(0);
+                self.one_block(false);
                 l = 0;
             }
 
@@ -134,7 +135,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                self.one_block(0);
+                self.one_block(false);
                 l = 0;
             }
 
@@ -167,7 +168,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if l == 64 {
-                self.one_block(0 as i32);
+                self.one_block(false);
                 l = 0;
             }
 
@@ -202,7 +203,7 @@ impl Synth {
         while i < len {
             /* fill up the buffers as needed */
             if cur == 64 {
-                self.one_block(0 as i32);
+                self.one_block(false);
                 cur = 0;
             }
             /*

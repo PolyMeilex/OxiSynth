@@ -131,7 +131,7 @@ impl VoicePool {
             .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.status == VoiceStatus::Sustained)
         {
-            voice.noteoff(&channel, min_note_length_ticks);
+            voice.noteoff(channel, min_note_length_ticks);
         }
     }
 
@@ -141,7 +141,7 @@ impl VoicePool {
             .iter_mut()
             .filter(|v| v.get_channel_id() == channel.id())
         {
-            voice.modulate(&channel, is_cc, ctrl);
+            voice.modulate(channel, is_cc, ctrl);
         }
     }
 
@@ -151,7 +151,7 @@ impl VoicePool {
             .iter_mut()
             .filter(|v| v.get_channel_id() == channel.id())
         {
-            voice.modulate_all(&channel);
+            voice.modulate_all(channel);
         }
     }
 
@@ -272,8 +272,8 @@ impl VoicePool {
             voice.write(
                 &channels[voice.get_channel_id()],
                 min_note_length_ticks,
-                &mut dsp_left_buf[auchan as usize],
-                &mut dsp_right_buf[auchan as usize],
+                &mut dsp_left_buf[auchan],
+                &mut dsp_right_buf[auchan],
                 fx_left_buf,
                 reverb_active,
                 chorus_active,

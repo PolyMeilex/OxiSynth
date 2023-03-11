@@ -3,17 +3,12 @@ use super::Chorus;
 /**
 Chorus type
  */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(u32)]
 pub enum ChorusMode {
+    #[default]
     Sine = 0,
     Triangle = 1,
-}
-
-impl Default for ChorusMode {
-    fn default() -> Self {
-        ChorusMode::Sine
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

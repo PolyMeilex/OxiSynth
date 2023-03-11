@@ -32,6 +32,6 @@ fn main() {
             })
             .collect();
         println!("Instruments: {:?}", instruments);
-        println!("");
+        println!();
     }
 }

@@ -24,7 +24,7 @@ impl<T> fmt::Debug for TypedIndex<T> {
 
 impl<T> Clone for TypedIndex<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), PhantomData)
+        Self(self.0, PhantomData)
     }
 }
 
@@ -78,7 +78,7 @@ impl RangeCheck {
         value: &T,
         error: E,
     ) -> Result<(), E> {
-        if range.contains(&value) {
+        if range.contains(value) {
             Ok(())
         } else {
             Err(error)

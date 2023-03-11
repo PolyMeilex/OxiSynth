@@ -104,15 +104,13 @@ impl Sample {
                 sample.name
             );
             Ok(sample)
+        } else if sample.sample_type.is_rom() {
+            sample.valid = false;
+            log::warn!("Ignoring sample: can't use ROM samples");
+            // TODO: It's not realy "Ok"
+            Ok(sample)
         } else {
-            if sample.sample_type.is_rom() {
-                sample.valid = false;
-                log::warn!("Ignoring sample: can't use ROM samples");
-                // TODO: It's not realy "Ok"
-                Ok(sample)
-            } else {
-                Ok(sample)
-            }
+            Ok(sample)
         }
     }
 

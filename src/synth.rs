@@ -26,17 +26,12 @@ the audio device and create a background audio thread.
 The API for sending MIDI events is probably what you expect:
 `Synth::noteon()`, `Synth::noteoff()`, ...
  */
+#[derive(Default)]
 pub struct Synth {
     core: crate::core::Synth,
 }
 
-impl Default for Synth {
-    fn default() -> Self {
-        Self {
-            core: crate::core::Synth::default(),
-        }
-    }
-}
+
 
 impl Synth {
     /**
@@ -121,7 +116,7 @@ impl Synth {
         param: GeneratorType,
         value: f32,
     ) -> Result<(), OxiError> {
-        let channel = self.core.channels.get_mut(chan as usize)?;
+        let channel = self.core.channels.get_mut(chan)?;
 
         crate::core::synth::internal::set_gen(channel, &mut self.core.voices, param, value);
 
