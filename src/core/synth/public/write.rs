@@ -72,49 +72,22 @@ impl Synth {
     }
 
     pub fn read_next(&mut self) -> (f32, f32) {
-        let mut l = self.cur;
-        let mut i: usize = 0;
-        let len = 1;
-
-        let mut out = (0.0, 0.0);
-
-        while i < len {
-            /* fill up the buffers as needed */
-            if l == 64 {
-                self.one_block(false);
-                l = 0;
-            }
-
-            out = (self.left_buf[0][l], self.right_buf[0][l]);
-
-            i += 1;
-            l += 1;
+        if self.cur == 64 {
+            self.one_block(false);
+            self.cur = 0;
         }
-        self.cur = l;
 
+        let out = (self.left_buf[0][self.cur], self.right_buf[0][self.cur]);
+        self.cur += 1;
         out
     }
 
     pub fn write<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
-        let mut l = self.cur;
-        let mut i: usize = 0;
+        for i in 0..len {
+            let next = self.read_next();
 
-        let mut out_id = 0;
-        while i < len {
-            /* fill up the buffers as needed */
-            if l == 64 {
-                self.one_block(false);
-                l = 0;
-            }
-
-            cb(out_id, self.left_buf[0][l], self.right_buf[0][l]);
-
-            out_id += incr;
-
-            i += 1;
-            l += 1;
+            cb(i * incr, next.0, next.1);
         }
-        self.cur = l;
     }
 
     pub fn write_f32(
@@ -127,27 +100,12 @@ impl Synth {
         roff: usize,
         rincr: usize,
     ) {
-        let mut l = self.cur;
-        let mut i: usize = 0;
-        let mut j = loff;
-        let mut k = roff;
+        for i in 0..len {
+            let next = self.read_next();
 
-        while i < len {
-            /* fill up the buffers as needed */
-            if l == 64 {
-                self.one_block(false);
-                l = 0;
-            }
-
-            left_out[j] = self.left_buf[0][l];
-            right_out[k] = self.right_buf[0][l];
-
-            i += 1;
-            l += 1;
-            j += lincr;
-            k += rincr
+            left_out[loff + i * lincr] = next.0;
+            right_out[roff + i * rincr] = next.1;
         }
-        self.cur = l;
     }
 
     pub fn write_f64(
@@ -160,27 +118,12 @@ impl Synth {
         roff: usize,
         rincr: usize,
     ) {
-        let mut l = self.cur;
-        let mut i: usize = 0;
-        let mut j = loff;
-        let mut k = roff;
+        for i in 0..len {
+            let next = self.read_next();
 
-        while i < len {
-            /* fill up the buffers as needed */
-            if l == 64 {
-                self.one_block(false);
-                l = 0;
-            }
-
-            left_out[j] = self.left_buf[0][l] as f64;
-            right_out[k] = self.right_buf[0][l] as f64;
-
-            i += 1;
-            l += 1;
-            j += lincr;
-            k += rincr
+            left_out[loff + i * lincr] = f64::from(next.0);
+            right_out[roff + i * rincr] = f64::from(next.1);
         }
-        self.cur = l;
     }
 
     #[cfg(feature = "i16-out")]
