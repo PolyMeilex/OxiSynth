@@ -68,7 +68,7 @@ impl Sample {
 
                 sample.start = 0;
                 sample.end = (new.len() - 1) as u32;
-                sample.data = Rc::new(SampleData::new(new));
+                sample.data = Arc::new(SampleData::new(new));
 
                 // loop is fowled?? (cluck cluck :)
                 if sample.loop_end > sample.end
