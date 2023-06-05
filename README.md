@@ -1,4 +1,5 @@
-![img](https://i.imgur.com/V9KLOJE.png)
+![img](https://github.com/PolyMeilex/OxiSynth/assets/20758186/3773d917-920f-498b-94a1-a7504bd986f8)
+
 
 # OxiSynth
 
