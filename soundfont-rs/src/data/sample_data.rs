@@ -35,7 +35,7 @@ impl SampleData {
                     smpl = Some(ch);
                 }
                 // [<sm24-ck>] The Digital Audio Samples for the lower 8 bits
-                "sm23" => {
+                "sm24" => {
                     sm24 = Some(ch);
                 }
                 _ => {
