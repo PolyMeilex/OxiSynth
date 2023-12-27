@@ -1135,8 +1135,7 @@ impl Voice {
                     self.effects(
                         &mut dsp_buf,
                         count,
-                        dsp_left_buf,
-                        dsp_right_buf,
+                        (dsp_left_buf, dsp_right_buf),
                         fx_left_buf,
                         reverb_active,
                         chorus_active,
@@ -1152,48 +1151,74 @@ impl Voice {
         self.ticks += self.ticks.wrapping_add(64);
     }
 
+    /// Purpose:
+    ///
+    /// - filters (applies a lowpass filter with variable cutoff frequency and quality factor)
+    /// - mixes the processed sample to left and right output using the pan setting
+    /// - sends the processed sample to chorus and reverb
+    ///
+    /// Variable description:
+    /// - dsp_data: Pointer to the original waveform data
+    /// - dsp_left_buf: The generated signal goes here, left channel
+    /// - dsp_right_buf: right channel
+    /// - dsp_reverb_buf: Send to reverb unit
+    /// - dsp_chorus_buf: Send to chorus unit
+    /// - dsp_a1: Coefficient for the filter
+    /// - dsp_a2: same
+    /// - dsp_b0: same
+    /// - dsp_b1: same
+    /// - dsp_b2: same
+    /// - voice holds the voice structure
+    ///
+    /// A couple of variables are used internally, their results are discarded:
+    /// - dsp_i: Index through the output buffer
+    /// - dsp_phase_fractional: The fractional part of dsp_phase
+    /// - dsp_coeff: A table of four coefficients, depending on the fractional phase.
+    ///              Used to interpolate between samples.
+    /// - dsp_process_buffer: Holds the processed signal between stages
+    /// - dsp_centernode: delay line for the IIR filter
+    /// - dsp_hist1: same
+    /// - dsp_hist2: same
     #[inline]
     fn effects(
         &mut self,
         dsp_buf: &mut [f32; 64],
         count: usize,
-        dsp_left_buf: &mut [f32],
-        dsp_right_buf: &mut [f32],
-        fx_left_buf: &mut FxBuf,
+        (dsp_left_buf, dsp_right_buf): (&mut [f32], &mut [f32]),
+        fx_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
     ) {
-        /* IIR filter sample history */
-        let mut dsp_hist1: f32 = self.hist1;
-        let mut dsp_hist2: f32 = self.hist2;
+        // IIR filter sample history
+        let mut dsp_hist1 = self.hist1;
+        let mut dsp_hist2 = self.hist2;
 
-        /* IIR filter coefficients */
-        let mut dsp_a1: f32 = self.a1;
-        let mut dsp_a2: f32 = self.a2;
-        let mut dsp_b02: f32 = self.b02;
-        let mut dsp_b1: f32 = self.b1;
-        let mut dsp_filter_coeff_incr_count: i32 = self.filter_coeff_incr_count;
+        // IIR filter coefficients
+        let mut dsp_a1 = self.a1;
+        let mut dsp_a2 = self.a2;
+        let mut dsp_b02 = self.b02;
+        let mut dsp_b1 = self.b1;
+        let mut dsp_filter_coeff_incr_count = self.filter_coeff_incr_count;
 
         let mut dsp_centernode;
-        let mut v;
 
-        /* filter (implement the voice filter according to SoundFont standard) */
+        // filter (implement the voice filter according to SoundFont standard)
 
-        /* Check for denormal number (too close to zero). */
-        if f64::abs(dsp_hist1 as f64) < 1e-20f64 {
-            dsp_hist1 = 0.0f32; /* FIXME JMG - Is this even needed? */
+        // Check for denormal number (too close to zero).
+        if dsp_hist1.abs() < 1e-20 {
+            dsp_hist1 = 0.0; // FIXME JMG - Is this even needed?
         }
 
-        /* Two versions of the filter loop. One, while the filter is
-         * changing towards its new setting. The other, if the filter
-         * doesn't change.
-         */
+        // Two versions of the filter loop. One, while the filter is
+        // changing towards its new setting. The other, if the filter
+        // doesn't change.
+
         if dsp_filter_coeff_incr_count > 0 {
-            /* Increment is added to each filter coefficient filter_coeff_incr_count times. */
-            for dsp_i in 0..count {
-                /* The filter is implemented in Direct-II form. */
-                dsp_centernode = dsp_buf[dsp_i] - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                dsp_buf[dsp_i] = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+            // Increment is added to each filter coefficient filter_coeff_incr_count times.
+            for dsp in dsp_buf.iter_mut().take(count) {
+                // The filter is implemented in Direct-II form.
+                dsp_centernode = *dsp - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                *dsp = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
                 let fresh0 = dsp_filter_coeff_incr_count;
@@ -1207,59 +1232,76 @@ impl Voice {
                 }
             }
         }
-        /* The filter parameters are constant.  This is duplicated to save time. */
+        // The filter parameters are constant.  This is duplicated to save time.
         else {
-            /* The filter is implemented in Direct-II form. */
-            for dsp_i in 0..count {
-                dsp_centernode = dsp_buf[dsp_i] - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-                dsp_buf[dsp_i] = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
+            // The filter is implemented in Direct-II form.
+            for dsp in dsp_buf.iter_mut().take(count) {
+                dsp_centernode = *dsp - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
+                *dsp = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
                 dsp_hist2 = dsp_hist1;
                 dsp_hist1 = dsp_centernode;
             }
         }
 
-        /* pan (Copy the signal to the left and right output buffer) The voice
-         * panning generator has a range of -500 .. 500.  If it is centered,
-         * it's close to 0.  voice->amp_left and voice->amp_right are then the
-         * same, and we can save one multiplication per voice and sample.
-         */
-        if -0.5f64 < (self).pan as f64 && ((self).pan as f64) < 0.5f64 {
-            /* The voice is centered. Use voice->amp_left twice. */
-            for dsp_i in 0..count {
-                v = self.amp_left * dsp_buf[dsp_i];
-                dsp_left_buf[dsp_i] += v;
-                dsp_right_buf[dsp_i] += v;
+        // pan (Copy the signal to the left and right output buffer) The voice
+        // panning generator has a range of -500 .. 500.  If it is centered,
+        // it's close to 0.  voice->amp_left and voice->amp_right are then the
+        // same, and we can save one multiplication per voice and sample.
+
+        if self.pan > -0.5 && self.pan < 0.5 {
+            for ((left, right), dsp) in dsp_left_buf
+                .iter_mut()
+                .zip(dsp_right_buf.iter_mut())
+                .zip(dsp_buf.iter().copied())
+                .take(count)
+            {
+                // The voice is centered. Use voice->amp_left twice.
+                let v = self.amp_left * dsp;
+                *left += v;
+                *right += v;
             }
         }
-        /* The voice is not centered. Stereo samples have one side zero. */
+        // The voice is not centered. Stereo samples have one side zero.
         else {
-            if self.amp_left as f64 != 0.0f64 {
-                for dsp_i in 0..count {
-                    dsp_left_buf[dsp_i] += (self).amp_left * dsp_buf[dsp_i];
+            if self.amp_left != 0.0 {
+                for (left, dsp) in dsp_left_buf
+                    .iter_mut()
+                    .zip(dsp_buf.iter().copied())
+                    .take(count)
+                {
+                    *left += self.amp_left * dsp;
                 }
             }
-            if self.amp_right as f64 != 0.0f64 {
-                for dsp_i in 0..count {
-                    dsp_right_buf[dsp_i] += self.amp_right * dsp_buf[dsp_i];
+            if self.amp_right != 0.0 {
+                for (right, dsp) in dsp_right_buf
+                    .iter_mut()
+                    .zip(dsp_buf.iter().copied())
+                    .take(count)
+                {
+                    *right += self.amp_right * dsp;
                 }
             }
         }
 
-        if reverb_active {
-            if self.amp_reverb != 0.0 {
-                for dsp_i in 0..count {
-                    // dsp_reverb_buf
-                    fx_left_buf.reverb[dsp_i] += self.amp_reverb * dsp_buf[dsp_i];
-                }
+        if reverb_active && self.amp_reverb != 0.0 {
+            for (fx, dsp) in fx_buf
+                .reverb
+                .iter_mut()
+                .zip(dsp_buf.iter().copied())
+                .take(count)
+            {
+                *fx += self.amp_reverb * dsp;
             }
         }
 
-        if chorus_active {
-            if self.amp_chorus != 0.0 {
-                for dsp_i in 0..count {
-                    // dsp_chorus_buf
-                    fx_left_buf.chorus[dsp_i] += self.amp_chorus * dsp_buf[dsp_i];
-                }
+        if chorus_active && self.amp_chorus != 0.0 {
+            for (fx, dsp) in fx_buf
+                .chorus
+                .iter_mut()
+                .zip(dsp_buf.iter().copied())
+                .take(count)
+            {
+                *fx += self.amp_chorus * dsp;
             }
         }
 
