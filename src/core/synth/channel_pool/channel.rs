@@ -121,10 +121,8 @@ impl Channel {
         self.channel_pressure = 0;
         self.pitch_bend = 0x2000;
 
-        for i in 0..60 {
-            self.gen[i as usize] = 0.0;
-            self.gen_abs[i as usize] = 0;
-        }
+        self.gen.fill(0.0);
+        self.gen_abs.fill(0);
 
         if is_all_ctrl_off != 0 {
             for i in 0..ALL_SOUND_OFF {
@@ -143,14 +141,10 @@ impl Channel {
                 self.cc[i as usize] = 0;
             }
         } else {
-            for i in 0..128 {
-                self.cc[i] = 0;
-            }
+            self.cc.fill(0);
         }
 
-        for i in 0..128 {
-            self.key_pressure[i] = 0;
-        }
+        self.key_pressure.fill(0);
 
         self.cc[RPN_LSB as usize] = 127;
         self.cc[RPN_MSB as usize] = 127;
@@ -162,10 +156,8 @@ impl Channel {
         if is_all_ctrl_off == 0 {
             self.pitch_wheel_sensitivity = 2;
 
-            let mut i = SOUND_CTRL1;
-            while i <= SOUND_CTRL10 {
+            for i in SOUND_CTRL1..=SOUND_CTRL10 {
                 self.cc[i as usize] = 64;
-                i += 1
             }
 
             self.cc[VOLUME_MSB as usize] = 100;
