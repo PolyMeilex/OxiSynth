@@ -1,8 +1,8 @@
 mod dsp_float;
 mod envelope;
 
-use envelope::Envelope;
 pub use envelope::EnvelopeStep;
+use envelope::{Envelope, EnvelopePortion};
 
 use super::super::{
     channel_pool::{Channel, InterpolationMethod},
@@ -171,38 +171,40 @@ pub struct Voice {
 impl Voice {
     pub fn new(output_rate: f32, desc: VoiceDescriptor, note_id: usize) -> Voice {
         let mut volenv_data = Envelope::default();
-        {
-            let sustain = &mut volenv_data[EnvelopeStep::Sustain];
 
-            sustain.count = 0xffffffff;
-            sustain.coeff = 1.0;
-            sustain.incr = 0.0;
-            sustain.min = -1.0;
-            sustain.max = 2.0;
+        volenv_data[EnvelopeStep::Sustain] = EnvelopePortion {
+            count: 0xffffffff,
+            coeff: 1.0,
+            incr: 0.0,
+            min: -1.0,
+            max: 2.0,
+        };
 
-            let finished = &mut volenv_data[EnvelopeStep::Finished];
-            finished.count = 0xffffffff;
-            finished.coeff = 0.0;
-            finished.incr = 0.0;
-            finished.min = -1.0;
-            finished.max = 1.0;
-        }
+        volenv_data[EnvelopeStep::Finished] = EnvelopePortion {
+            count: 0xffffffff,
+            coeff: 0.0,
+            incr: 0.0,
+            min: -1.0,
+            max: 1.0,
+        };
+
         let mut modenv_data = Envelope::default();
-        {
-            let sustain = &mut modenv_data[EnvelopeStep::Sustain];
-            sustain.count = 0xffffffff;
-            sustain.coeff = 1.0;
-            sustain.incr = 0.0;
-            sustain.min = -1.0;
-            sustain.max = 2.0;
 
-            let finished = &mut modenv_data[EnvelopeStep::Finished];
-            finished.count = 0xffffffff;
-            finished.coeff = 0.0;
-            finished.incr = 0.0;
-            finished.min = -1.0;
-            finished.max = 1.0;
-        }
+        modenv_data[EnvelopeStep::Sustain] = EnvelopePortion {
+            count: 0xffffffff,
+            coeff: 1.0,
+            incr: 0.0,
+            min: -1.0,
+            max: 2.0,
+        };
+
+        modenv_data[EnvelopeStep::Finished] = EnvelopePortion {
+            count: 0xffffffff,
+            coeff: 0.0,
+            incr: 0.0,
+            min: -1.0,
+            max: 1.0,
+        };
 
         let synth_gain = if desc.gain < 0.0000001 {
             0.0000001
@@ -1732,11 +1734,14 @@ impl Voice {
                 };
 
                 let count = (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
-                self.volenv_data[EnvelopeStep::Delay].count = count;
-                self.volenv_data[EnvelopeStep::Delay].coeff = 0.0;
-                self.volenv_data[EnvelopeStep::Delay].incr = 0.0;
-                self.volenv_data[EnvelopeStep::Delay].min = -1.0;
-                self.volenv_data[EnvelopeStep::Delay].max = 1.0;
+
+                self.volenv_data[EnvelopeStep::Delay] = EnvelopePortion {
+                    count,
+                    coeff: 0.0,
+                    incr: 0.0,
+                    min: -1.0,
+                    max: 1.0,
+                };
             }
 
             GeneratorType::VolEnvAttack => {
@@ -1752,12 +1757,14 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
-                self.volenv_data[EnvelopeStep::Attack].count = count;
-                self.volenv_data[EnvelopeStep::Attack].coeff = 1.0;
-                self.volenv_data[EnvelopeStep::Attack].incr =
-                    if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[EnvelopeStep::Attack].min = -1.0;
-                self.volenv_data[EnvelopeStep::Attack].max = 1.0;
+
+                self.volenv_data[EnvelopeStep::Attack] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { 1.0 / count as f32 } else { 0.0 },
+                    min: -1.0,
+                    max: 1.0,
+                };
             }
 
             GeneratorType::VolEnvHold | GeneratorType::KeyToVolEnvHold => {
@@ -1766,11 +1773,14 @@ impl Voice {
                     GeneratorType::KeyToVolEnvHold,
                     0,
                 ) as u32;
-                self.volenv_data[EnvelopeStep::Hold].count = count;
-                self.volenv_data[EnvelopeStep::Hold].coeff = 1.0;
-                self.volenv_data[EnvelopeStep::Hold].incr = 0.0;
-                self.volenv_data[EnvelopeStep::Hold].min = -1.0;
-                self.volenv_data[EnvelopeStep::Hold].max = 2.0;
+
+                self.volenv_data[EnvelopeStep::Hold] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: 0.0,
+                    min: -1.0,
+                    max: 2.0,
+                };
             }
 
             GeneratorType::VolEnvDecay
@@ -1792,12 +1802,13 @@ impl Voice {
                     1,
                 ) as u32;
 
-                self.volenv_data[EnvelopeStep::Decay].count = count;
-                self.volenv_data[EnvelopeStep::Decay].coeff = 1.0;
-                self.volenv_data[EnvelopeStep::Decay].incr =
-                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[EnvelopeStep::Decay].min = y;
-                self.volenv_data[EnvelopeStep::Decay].max = 2.0;
+                self.volenv_data[EnvelopeStep::Decay] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { -1.0 / count as f32 } else { 0.0 },
+                    min: y,
+                    max: 2.0,
+                };
             }
 
             GeneratorType::VolEnvRelease => {
@@ -1813,12 +1824,14 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
-                self.volenv_data[EnvelopeStep::Release].count = count;
-                self.volenv_data[EnvelopeStep::Release].coeff = 1.0;
-                self.volenv_data[EnvelopeStep::Release].incr =
-                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[EnvelopeStep::Release].min = 0.0;
-                self.volenv_data[EnvelopeStep::Release].max = 1.0;
+
+                self.volenv_data[EnvelopeStep::Release] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { -1.0 / count as f32 } else { 0.0 },
+                    min: 0.0,
+                    max: 1.0,
+                };
             }
 
             GeneratorType::ModEnvDelay => {
@@ -1832,12 +1845,13 @@ impl Voice {
                     val
                 };
 
-                self.modenv_data[EnvelopeStep::Delay].count =
-                    (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
-                self.modenv_data[EnvelopeStep::Delay].coeff = 0.0;
-                self.modenv_data[EnvelopeStep::Delay].incr = 0.0;
-                self.modenv_data[EnvelopeStep::Delay].min = -1.0;
-                self.modenv_data[EnvelopeStep::Delay].max = 1.0;
+                self.modenv_data[EnvelopeStep::Delay] = EnvelopePortion {
+                    count: (self.output_rate * tc2sec_delay(val) / 64.0) as u32,
+                    coeff: 0.0,
+                    incr: 0.0,
+                    min: -1.0,
+                    max: 1.0,
+                };
             }
 
             GeneratorType::ModEnvAttack => {
@@ -1853,12 +1867,14 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
-                self.modenv_data[EnvelopeStep::Attack].count = count;
-                self.modenv_data[EnvelopeStep::Attack].coeff = 1.0;
-                self.modenv_data[EnvelopeStep::Attack].incr =
-                    if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[EnvelopeStep::Attack].min = -1.0;
-                self.modenv_data[EnvelopeStep::Attack].max = 1.0;
+
+                self.modenv_data[EnvelopeStep::Attack] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { 1.0 / count as f32 } else { 0.0 },
+                    min: -1.0,
+                    max: 1.0,
+                };
             }
 
             GeneratorType::ModEnvHold | GeneratorType::KeyToModEnvHold => {
@@ -1867,11 +1883,13 @@ impl Voice {
                     GeneratorType::KeyToModEnvHold,
                     0,
                 ) as u32;
-                self.modenv_data[EnvelopeStep::Hold].count = count;
-                self.modenv_data[EnvelopeStep::Hold].coeff = 1.0;
-                self.modenv_data[EnvelopeStep::Hold].incr = 0.0;
-                self.modenv_data[EnvelopeStep::Hold].min = -1.0;
-                self.modenv_data[EnvelopeStep::Hold].max = 2.0;
+                self.modenv_data[EnvelopeStep::Hold] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: 0.0,
+                    min: -1.0,
+                    max: 2.0,
+                };
             }
 
             GeneratorType::ModEnvDecay
@@ -1893,12 +1911,13 @@ impl Voice {
                     y
                 };
 
-                self.modenv_data[EnvelopeStep::Decay].count = count;
-                self.modenv_data[EnvelopeStep::Decay].coeff = 1.0;
-                self.modenv_data[EnvelopeStep::Decay].incr =
-                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[EnvelopeStep::Decay].min = y;
-                self.modenv_data[EnvelopeStep::Decay].max = 2.0;
+                self.modenv_data[EnvelopeStep::Decay] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { -1.0 / count as f32 } else { 0.0 },
+                    min: y,
+                    max: 2.0,
+                };
             }
 
             GeneratorType::ModEnvRelease => {
@@ -1914,12 +1933,14 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
-                self.modenv_data[EnvelopeStep::Release].count = count;
-                self.modenv_data[EnvelopeStep::Release].coeff = 1.0;
-                self.modenv_data[EnvelopeStep::Release].incr =
-                    if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[EnvelopeStep::Release].min = 0.0;
-                self.modenv_data[EnvelopeStep::Release].max = 2.0;
+
+                self.modenv_data[EnvelopeStep::Release] = EnvelopePortion {
+                    count,
+                    coeff: 1.0,
+                    incr: if count != 0 { -1.0 / count as f32 } else { 0.0 },
+                    min: 0.0,
+                    max: 2.0,
+                };
             }
             _ => {}
         }
