@@ -98,7 +98,7 @@ impl Synth {
         roff: u32,
         rincr: u32,
     ) {
-        self.handle.write_s16(
+        self.core.write_s16(
             len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
         )
     }
