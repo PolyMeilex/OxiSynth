@@ -128,19 +128,19 @@ impl Channel {
 
         if is_all_ctrl_off != 0 {
             for i in 0..ALL_SOUND_OFF {
-                if !(i >= EFFECTS_DEPTH1 && i <= EFFECTS_DEPTH5) {
-                    if !(i >= SOUND_CTRL1 && i <= SOUND_CTRL10) {
-                        if !(i == BANK_SELECT_MSB
-                            || i == BANK_SELECT_LSB
-                            || i == VOLUME_MSB
-                            || i == VOLUME_LSB
-                            || i == PAN_MSB
-                            || i == PAN_LSB)
-                        {
-                            self.cc[i as usize] = 0;
-                        }
-                    }
+                match i {
+                    EFFECTS_DEPTH1..=EFFECTS_DEPTH5
+                    | SOUND_CTRL1..=SOUND_CTRL10
+                    | BANK_SELECT_MSB
+                    | BANK_SELECT_LSB
+                    | VOLUME_MSB
+                    | VOLUME_LSB
+                    | PAN_MSB
+                    | PAN_LSB => continue,
+                    _ => {}
                 }
+
+                self.cc[i as usize] = 0;
             }
         } else {
             for i in 0..128 {
