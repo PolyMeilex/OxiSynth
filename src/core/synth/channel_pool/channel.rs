@@ -5,7 +5,7 @@ use super::super::soundfont::{Preset, SoundFont};
 use crate::core::tuning::Tuning;
 use crate::core::utils::TypedIndex;
 
-type MidiControlChange = u32;
+type MidiControlChange = usize;
 const ALL_SOUND_OFF: MidiControlChange = 120;
 const RPN_MSB: MidiControlChange = 101;
 const RPN_LSB: MidiControlChange = 100;
@@ -121,57 +121,46 @@ impl Channel {
         self.channel_pressure = 0;
         self.pitch_bend = 0x2000;
 
-        for i in 0..60 {
-            self.gen[i as usize] = 0.0;
-            self.gen_abs[i as usize] = 0;
-        }
+        self.gen.fill(0.0);
+        self.gen_abs.fill(0);
 
         if is_all_ctrl_off != 0 {
             for i in 0..ALL_SOUND_OFF {
-                if !(i >= EFFECTS_DEPTH1 && i <= EFFECTS_DEPTH5) {
-                    if !(i >= SOUND_CTRL1 && i <= SOUND_CTRL10) {
-                        if !(i == BANK_SELECT_MSB
-                            || i == BANK_SELECT_LSB
-                            || i == VOLUME_MSB
-                            || i == VOLUME_LSB
-                            || i == PAN_MSB
-                            || i == PAN_LSB)
-                        {
-                            self.cc[i as usize] = 0;
-                        }
-                    }
+                match i {
+                    EFFECTS_DEPTH1..=EFFECTS_DEPTH5
+                    | SOUND_CTRL1..=SOUND_CTRL10
+                    | BANK_SELECT_MSB
+                    | BANK_SELECT_LSB
+                    | VOLUME_MSB
+                    | VOLUME_LSB
+                    | PAN_MSB
+                    | PAN_LSB => continue,
+                    _ => {}
                 }
-            }
-        } else {
-            for i in 0..128 {
+
                 self.cc[i] = 0;
             }
+        } else {
+            self.cc.fill(0);
         }
 
-        for i in 0..128 {
-            self.key_pressure[i] = 0;
-        }
+        self.key_pressure.fill(0);
 
-        self.cc[RPN_LSB as usize] = 127;
-        self.cc[RPN_MSB as usize] = 127;
-        self.cc[NRPN_LSB as usize] = 127;
-        self.cc[NRPN_MSB as usize] = 127;
-        self.cc[EXPRESSION_MSB as usize] = 127;
-        self.cc[EXPRESSION_LSB as usize] = 127;
+        self.cc[RPN_LSB] = 127;
+        self.cc[RPN_MSB] = 127;
+        self.cc[NRPN_LSB] = 127;
+        self.cc[NRPN_MSB] = 127;
+        self.cc[EXPRESSION_MSB] = 127;
+        self.cc[EXPRESSION_LSB] = 127;
 
         if is_all_ctrl_off == 0 {
             self.pitch_wheel_sensitivity = 2;
 
-            let mut i = SOUND_CTRL1;
-            while i <= SOUND_CTRL10 {
-                self.cc[i as usize] = 64;
-                i += 1
-            }
-
-            self.cc[VOLUME_MSB as usize] = 100;
-            self.cc[VOLUME_LSB as usize] = 0;
-            self.cc[PAN_MSB as usize] = 64;
-            self.cc[PAN_LSB as usize] = 0;
+            self.cc[SOUND_CTRL1..=SOUND_CTRL10].fill(64);
+            self.cc[VOLUME_MSB] = 100;
+            self.cc[VOLUME_LSB] = 0;
+            self.cc[PAN_MSB] = 64;
+            self.cc[PAN_LSB] = 0;
         };
     }
 }
@@ -181,8 +170,6 @@ impl Channel {
         self.id
     }
 
-    //
-
     pub fn sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
         self.sfontnum
     }
@@ -190,8 +177,6 @@ impl Channel {
     pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
         self.sfontnum = sfontnum;
     }
-
-    //
 
     pub fn banknum(&self) -> u32 {
         self.banknum
@@ -201,8 +186,6 @@ impl Channel {
         self.banknum = banknum;
     }
 
-    //
-
     pub fn prognum(&self) -> u8 {
         self.prognum
     }
@@ -210,8 +193,6 @@ impl Channel {
     pub fn set_prognum(&mut self, prognum: u8) {
         self.prognum = prognum;
     }
-
-    //
 
     pub fn preset(&self) -> Option<&Arc<Preset>> {
         self.preset.as_ref()
@@ -221,8 +202,6 @@ impl Channel {
         self.preset = preset;
     }
 
-    //
-
     pub fn key_pressure(&self, id: usize) -> i8 {
         self.key_pressure[id]
     }
@@ -230,8 +209,6 @@ impl Channel {
     pub fn set_key_pressure(&mut self, id: usize, val: i8) {
         self.key_pressure[id] = val;
     }
-
-    //
 
     pub fn channel_pressure(&self) -> u8 {
         self.channel_pressure
@@ -241,8 +218,6 @@ impl Channel {
         self.channel_pressure = val;
     }
 
-    //
-
     pub fn pitch_bend(&self) -> u16 {
         self.pitch_bend
     }
@@ -250,8 +225,6 @@ impl Channel {
     pub fn set_pitch_bend(&mut self, val: u16) {
         self.pitch_bend = val;
     }
-
-    //
 
     pub fn pitch_wheel_sensitivity(&self) -> u8 {
         self.pitch_wheel_sensitivity
@@ -261,21 +234,13 @@ impl Channel {
         self.pitch_wheel_sensitivity = val;
     }
 
-    //
-
     pub fn cc(&self, id: usize) -> u8 {
-        if id < 128 {
-            self.cc[id]
-        } else {
-            0
-        }
+        self.cc.get(id).copied().unwrap_or(0)
     }
 
     pub fn cc_mut(&mut self, id: usize) -> &mut u8 {
         &mut self.cc[id]
     }
-
-    //
 
     pub fn bank_msb(&self) -> u8 {
         self.bank_msb
@@ -285,8 +250,6 @@ impl Channel {
         self.bank_msb = val;
     }
 
-    //
-
     pub fn interp_method(&self) -> InterpolationMethod {
         self.interp_method
     }
@@ -294,8 +257,6 @@ impl Channel {
     pub fn set_interp_method(&mut self, new_method: InterpolationMethod) {
         self.interp_method = new_method;
     }
-
-    //
 
     pub fn tuning(&self) -> Option<&Tuning> {
         self.tuning.as_ref()
@@ -305,8 +266,6 @@ impl Channel {
         self.tuning = val;
     }
 
-    //
-
     pub fn nrpn_select(&self) -> i16 {
         self.nrpn_select
     }
@@ -314,8 +273,6 @@ impl Channel {
     pub fn set_nrpn_select(&mut self, value: i16) {
         self.nrpn_select = value;
     }
-
-    //
 
     pub fn nrpn_active(&self) -> i16 {
         self.nrpn_active
@@ -325,8 +282,6 @@ impl Channel {
         self.nrpn_active = value;
     }
 
-    //
-
     pub fn gen(&self, id: usize) -> f32 {
         self.gen[id]
     }
@@ -334,8 +289,6 @@ impl Channel {
     pub fn set_gen(&mut self, id: usize, val: f32) {
         self.gen[id] = val;
     }
-
-    //
 
     pub fn gen_abs(&self, id: usize) -> i8 {
         self.gen_abs[id]
