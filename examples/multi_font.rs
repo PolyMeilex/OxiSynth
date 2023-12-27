@@ -41,7 +41,7 @@ fn synth_sf2() -> Result<(), OxiError> {
             })?;
 
             synth.write(samples.as_mut());
-            pcm.write(samples.as_byte_slice()).unwrap();
+            pcm.write_all(samples.as_byte_slice()).unwrap();
 
             synth.send_event(MidiEvent::NoteOff { channel: 0, key: n })?;
             synth.send_event(MidiEvent::NoteOff { channel: 1, key: n })?;
@@ -59,7 +59,7 @@ fn synth_sf2() -> Result<(), OxiError> {
             })?;
 
             synth.write(samples.as_mut());
-            pcm.write(samples.as_byte_slice()).unwrap();
+            pcm.write_all(samples.as_byte_slice()).unwrap();
 
             synth.send_event(MidiEvent::NoteOff {
                 channel: 0,

@@ -171,7 +171,7 @@ mod test {
             .unwrap();
 
         synth.write(samples.as_mut());
-        pcm.write(unsafe {
+        pcm.write_all(unsafe {
             from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
         })
         .unwrap();
@@ -184,7 +184,7 @@ mod test {
             .unwrap();
 
         synth.write(samples.as_mut());
-        pcm.write(unsafe {
+        pcm.write_all(unsafe {
             from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
         })
         .unwrap();
