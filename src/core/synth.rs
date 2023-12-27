@@ -39,8 +39,6 @@ pub struct Synth {
     pub channels: ChannelPool,
     pub voices: VoicePool,
 
-    nbuf: u8,
-
     left_buf: Vec<[f32; 64]>,
     right_buf: Vec<[f32; 64]>,
 
@@ -76,13 +74,10 @@ impl Synth {
         let min_note_length_ticks =
             (settings.min_note_length as f32 * settings.sample_rate / 1000.0) as usize;
 
-        let nbuf = {
-            let nbuf = settings.audio_channels;
-            if settings.audio_groups > nbuf {
-                settings.audio_groups
-            } else {
-                nbuf
-            }
+        let nbuf = if settings.audio_groups > settings.audio_channels {
+            settings.audio_groups
+        } else {
+            settings.audio_channels
         };
 
         let midi_channels = settings.midi_channels;
@@ -93,7 +88,6 @@ impl Synth {
 
             channels: ChannelPool::new(midi_channels as usize, None),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
-            nbuf,
             left_buf: vec![[0.0; 64]; nbuf as usize],
             right_buf: vec![[0.0; 64]; nbuf as usize],
 

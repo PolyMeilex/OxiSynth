@@ -1,22 +1,20 @@
 use crate::core::synth::Synth;
 
 impl Synth {
+    /// clean the audio buffers
+    fn clear_buffers(&mut self) {
+        self.left_buf.iter_mut().for_each(|buff| buff.fill(0.0));
+        self.right_buf.iter_mut().for_each(|buff| buff.fill(0.0));
+
+        self.fx_left_buf.reverb.fill(0.0);
+        self.fx_left_buf.chorus.fill(0.0);
+
+        self.fx_right_buf.reverb.fill(0.0);
+        self.fx_right_buf.chorus.fill(0.0);
+    }
+
     fn one_block(&mut self, do_not_mix_fx_to_out: bool) {
-        // clean the audio buffers
-        {
-            for i in 0..self.nbuf {
-                self.left_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
-                self.right_buf[i as usize].iter_mut().for_each(|v| *v = 0.0);
-            }
-
-            {
-                self.fx_left_buf.reverb.iter_mut().for_each(|v| *v = 0.0);
-                self.fx_left_buf.chorus.iter_mut().for_each(|v| *v = 0.0);
-
-                self.fx_right_buf.reverb.iter_mut().for_each(|v| *v = 0.0);
-                self.fx_right_buf.chorus.iter_mut().for_each(|v| *v = 0.0);
-            }
-        }
+        self.clear_buffers();
 
         /* Set up the reverb / chorus buffers only, when the effect is
          * enabled on synth level.  Nonexisting buffers are detected in the
