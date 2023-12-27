@@ -1,6 +1,6 @@
 mod voice;
 
-pub(crate) use voice::{Voice, VoiceAddMode, VoiceDescriptor, VoiceEnvelope, VoiceStatus};
+pub(crate) use voice::{EnvelopeStep, Voice, VoiceAddMode, VoiceDescriptor, VoiceStatus};
 
 use super::channel_pool::Channel;
 use super::soundfont::generator::GeneratorType;
@@ -171,7 +171,7 @@ impl VoicePool {
                 this_voice_prio -= 1000.0;
             }
             this_voice_prio -= noteid.wrapping_sub(voice.get_note_id()) as f32;
-            if voice.volenv_section != VoiceEnvelope::Attack as i32 {
+            if voice.volenv_section != EnvelopeStep::Attack {
                 this_voice_prio =
                     (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
             }
@@ -247,8 +247,7 @@ impl VoicePool {
         channels: &[Channel],
         min_note_length_ticks: usize,
         audio_groups: u8,
-        dsp_left_buf: &mut [[f32; 64]],
-        dsp_right_buf: &mut [[f32; 64]],
+        (dsp_left_buf, dsp_right_buf): (&mut [[f32; 64]], &mut [[f32; 64]]),
         fx_left_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
@@ -272,8 +271,7 @@ impl VoicePool {
             voice.write(
                 &channels[voice.get_channel_id()],
                 min_note_length_ticks,
-                &mut dsp_left_buf[auchan],
-                &mut dsp_right_buf[auchan],
+                (&mut dsp_left_buf[auchan], &mut dsp_right_buf[auchan]),
                 fx_left_buf,
                 reverb_active,
                 chorus_active,
