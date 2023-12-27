@@ -1,4 +1,4 @@
-use super::{Voice, VoiceEnvelope};
+use super::{EnvelopeStep, Voice};
 pub type Phase = u64;
 pub type GenType = u32;
 pub const GEN_SAMPLEMODE: GenType = 54;
@@ -125,7 +125,7 @@ impl Voice {
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < VoiceEnvelope::Release) as i32;
+                && self.volenv_section < EnvelopeStep::Release) as i32;
 
         let end_index = if looping != 0 {
             self.loopend - 1 as i32
@@ -196,7 +196,7 @@ impl Voice {
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < VoiceEnvelope::Release) as i32;
+                && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 2nd interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
@@ -303,7 +303,7 @@ impl Voice {
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < VoiceEnvelope::Release) as i32;
+                && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 4th interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
@@ -472,7 +472,7 @@ impl Voice {
         let looping = (self.gen[GEN_SAMPLEMODE as usize].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < VoiceEnvelope::Release) as i32;
+                && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 7th interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
