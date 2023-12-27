@@ -131,8 +131,6 @@ impl Mod {
             use SourcePolarity::*;
             use SourceType::*;
 
-            
-
             match (self.src.ty, self.src.polarity, self.src.direction) {
                 // 0
                 (Linear, Unipolar, Positive) => v1 / range1,
@@ -257,7 +255,6 @@ impl Mod {
             use SourceType::*;
 
             /* transform the second input value */
-            
 
             match (self.src2.ty, self.src2.polarity, self.src2.direction) {
                 // 0
@@ -358,7 +355,9 @@ impl Mod {
             false
         } else if self.src != mod2.src {
             false
-        } else { self.src2 == mod2.src2 }
+        } else {
+            self.src2 == mod2.src2
+        }
     }
 }
 
