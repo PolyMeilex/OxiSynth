@@ -173,8 +173,6 @@ impl Channel {
         self.id
     }
 
-    //
-
     pub fn sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
         self.sfontnum
     }
@@ -182,8 +180,6 @@ impl Channel {
     pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
         self.sfontnum = sfontnum;
     }
-
-    //
 
     pub fn banknum(&self) -> u32 {
         self.banknum
@@ -193,8 +189,6 @@ impl Channel {
         self.banknum = banknum;
     }
 
-    //
-
     pub fn prognum(&self) -> u8 {
         self.prognum
     }
@@ -202,8 +196,6 @@ impl Channel {
     pub fn set_prognum(&mut self, prognum: u8) {
         self.prognum = prognum;
     }
-
-    //
 
     pub fn preset(&self) -> Option<&Arc<Preset>> {
         self.preset.as_ref()
@@ -213,8 +205,6 @@ impl Channel {
         self.preset = preset;
     }
 
-    //
-
     pub fn key_pressure(&self, id: usize) -> i8 {
         self.key_pressure[id]
     }
@@ -222,8 +212,6 @@ impl Channel {
     pub fn set_key_pressure(&mut self, id: usize, val: i8) {
         self.key_pressure[id] = val;
     }
-
-    //
 
     pub fn channel_pressure(&self) -> u8 {
         self.channel_pressure
@@ -233,8 +221,6 @@ impl Channel {
         self.channel_pressure = val;
     }
 
-    //
-
     pub fn pitch_bend(&self) -> u16 {
         self.pitch_bend
     }
@@ -243,8 +229,6 @@ impl Channel {
         self.pitch_bend = val;
     }
 
-    //
-
     pub fn pitch_wheel_sensitivity(&self) -> u8 {
         self.pitch_wheel_sensitivity
     }
@@ -252,8 +236,6 @@ impl Channel {
     pub fn set_pitch_wheel_sensitivity(&mut self, val: u8) {
         self.pitch_wheel_sensitivity = val;
     }
-
-    //
 
     pub fn cc(&self, id: usize) -> u8 {
         if id < 128 {
@@ -267,8 +249,6 @@ impl Channel {
         &mut self.cc[id]
     }
 
-    //
-
     pub fn bank_msb(&self) -> u8 {
         self.bank_msb
     }
@@ -276,8 +256,6 @@ impl Channel {
     pub fn set_bank_msb(&mut self, val: u8) {
         self.bank_msb = val;
     }
-
-    //
 
     pub fn interp_method(&self) -> InterpolationMethod {
         self.interp_method
@@ -287,8 +265,6 @@ impl Channel {
         self.interp_method = new_method;
     }
 
-    //
-
     pub fn tuning(&self) -> Option<&Tuning> {
         self.tuning.as_ref()
     }
@@ -296,8 +272,6 @@ impl Channel {
     pub fn set_tuning(&mut self, val: Option<Tuning>) {
         self.tuning = val;
     }
-
-    //
 
     pub fn nrpn_select(&self) -> i16 {
         self.nrpn_select
@@ -307,8 +281,6 @@ impl Channel {
         self.nrpn_select = value;
     }
 
-    //
-
     pub fn nrpn_active(&self) -> i16 {
         self.nrpn_active
     }
@@ -317,8 +289,6 @@ impl Channel {
         self.nrpn_active = value;
     }
 
-    //
-
     pub fn gen(&self, id: usize) -> f32 {
         self.gen[id]
     }
@@ -326,8 +296,6 @@ impl Channel {
     pub fn set_gen(&mut self, id: usize, val: f32) {
         self.gen[id] = val;
     }
-
-    //
 
     pub fn gen_abs(&self, id: usize) -> i8 {
         self.gen_abs[id]
