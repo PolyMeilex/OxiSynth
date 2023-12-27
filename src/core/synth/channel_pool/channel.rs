@@ -238,11 +238,7 @@ impl Channel {
     }
 
     pub fn cc(&self, id: usize) -> u8 {
-        if id < 128 {
-            self.cc[id]
-        } else {
-            0
-        }
+        self.cc.get(id).copied().unwrap_or(0)
     }
 
     pub fn cc_mut(&mut self, id: usize) -> &mut u8 {
