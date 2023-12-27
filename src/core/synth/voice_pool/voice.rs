@@ -456,8 +456,7 @@ impl Voice {
                 if self.volenv_val > 0.0 {
                     let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
                     let amp: f32 = self.volenv_val * f32::powf(10.0, lfo / -200.0);
-                    let mut env_value: f32 =
-                        -((-200.0 * f32::ln(amp) / f32::ln(10.0) - lfo) / 960.0 - 1.0) as f32;
+                    let mut env_value = -((-200.0 * amp.ln() / f32::ln(10.0) - lfo) / 960.0 - 1.0);
                     env_value = if (env_value as f64) < 0.0f64 {
                         0.0f64
                     } else if env_value as f64 > 1.0f64 {
@@ -478,12 +477,12 @@ impl Voice {
     pub fn modulate(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
         #[inline(always)]
         fn mod_has_source(m: &Mod, is_cc: bool, ctrl: u8) -> bool {
-            let a1 = (m.src.index == ctrl) && m.src.is_cc() && (is_cc != false);
-            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && (is_cc == false);
+            let a1 = (m.src.index == ctrl) && m.src.is_cc() && is_cc;
+            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && !is_cc;
             let a3 = a1 || a2;
 
-            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && (is_cc != false);
-            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && (is_cc == false);
+            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && is_cc;
+            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && !is_cc;
             let b3 = b1 || b2;
 
             a3 || b3
@@ -833,15 +832,11 @@ impl Voice {
         &mut self,
         channel: &Channel,
         min_note_length_ticks: usize,
-        dsp_left_buf: &mut [f32; 64],
-        dsp_right_buf: &mut [f32; 64],
+        (dsp_left_buf, dsp_right_buf): (&mut [f32; 64], &mut [f32; 64]),
         fx_left_buf: &mut FxBuf,
         reverb_active: bool,
         chorus_active: bool,
     ) {
-        let current_block: u64;
-        let target_amp; /* target amplitude */
-
         let mut dsp_buf: [f32; 64] = [0.; 64];
 
         /* make sure we're playing and that we have sample data */
@@ -922,24 +917,24 @@ impl Voice {
 
         if self.ticks >= self.modlfo_delay {
             self.modlfo_val += self.modlfo_incr;
-            if self.modlfo_val as f64 > 1.0f64 {
+            if self.modlfo_val > 1.0 {
                 self.modlfo_incr = -self.modlfo_incr;
-                self.modlfo_val = 2.0f32 - self.modlfo_val
-            } else if ((self).modlfo_val as f64) < -1.0f64 {
+                self.modlfo_val = 2.0 - self.modlfo_val
+            } else if self.modlfo_val < -1.0 {
                 self.modlfo_incr = -self.modlfo_incr;
-                self.modlfo_val = -2.0f32 - self.modlfo_val
+                self.modlfo_val = -2.0 - self.modlfo_val
             }
         }
 
         /******************* vib lfo **********************/
         if self.ticks >= self.viblfo_delay {
             self.viblfo_val += self.viblfo_incr;
-            if self.viblfo_val > 1.0f32 {
+            if self.viblfo_val > 1.0 {
                 self.viblfo_incr = -self.viblfo_incr;
-                self.viblfo_val = 2.0f32 - self.viblfo_val
-            } else if (self.viblfo_val as f64) < -1.0f64 {
+                self.viblfo_val = 2.0 - self.viblfo_val
+            } else if self.viblfo_val < -1.0 {
                 self.viblfo_incr = -self.viblfo_incr;
-                self.viblfo_val = -2.0f32 - self.viblfo_val
+                self.viblfo_val = -2.0 - self.viblfo_val
             }
         }
 
@@ -950,22 +945,20 @@ impl Voice {
          * - amplitude envelope
          */
 
-        if self.volenv_section != EnvelopeStep::Delay {
+        let target_amplitude = if self.volenv_section != EnvelopeStep::Delay {
             if self.volenv_section == EnvelopeStep::Attack {
                 /* the envelope is in the attack section: ramp linearly to max value.
                  * A positive modlfo_to_vol should increase volume (negative attenuation).
                  */
-                target_amp = atten2amp(self.attenuation)
+                let target_amp = atten2amp(self.attenuation)
                     * cb2amp(self.modlfo_val * -self.modlfo_to_vol)
                     * self.volenv_val;
-                current_block = 576355610076403033;
-            } else {
-                let amplitude_that_reaches_noise_floor;
 
-                target_amp = atten2amp(self.attenuation)
+                Some(target_amp)
+            } else {
+                let target_amp = atten2amp(self.attenuation)
                     * cb2amp(
-                        960.0f32 * (1.0f32 - self.volenv_val)
-                            + self.modlfo_val * -self.modlfo_to_vol,
+                        960.0 * (1.0 - self.volenv_val) + self.modlfo_val * -self.modlfo_to_vol,
                     );
 
                 /* We turn off a voice, if the volume has dropped low enough. */
@@ -980,13 +973,11 @@ impl Voice {
                  */
 
                 /* Is the playing pointer already in the loop? */
-                if self.has_looped {
-                    amplitude_that_reaches_noise_floor =
-                        self.amplitude_that_reaches_noise_floor_loop
+                let amplitude_that_reaches_noise_floor = if self.has_looped {
+                    self.amplitude_that_reaches_noise_floor_loop
                 } else {
-                    amplitude_that_reaches_noise_floor =
-                        self.amplitude_that_reaches_noise_floor_nonloop
-                }
+                    self.amplitude_that_reaches_noise_floor_nonloop
+                };
 
                 /* voice->attenuation_min is a lower boundary for the attenuation
                  * now and in the future (possibly 0 in the worst case).  Now the
@@ -1000,174 +991,164 @@ impl Voice {
                  * can safely turn off the voice. Duh. */
                 if amp_max < amplitude_that_reaches_noise_floor {
                     self.off();
-                    //  goto post_process;
-                    current_block = 3632332525568699835;
+                    None
                 } else {
-                    current_block = 576355610076403033;
+                    Some(target_amp)
                 }
             }
-            match current_block {
-                3632332525568699835 => {}
-                _ => {
-                    /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
-                    let amp_incr = (target_amp - self.amp) / 64.0;
-                    /* no volume and not changing? - No need to process */
-                    if !(self.amp == 0.0 && amp_incr == 0.0) {
-                        /* Calculate the number of samples, that the DSP loop advances
-                         * through the original waveform with each step in the output
-                         * buffer. It is the ratio between the frequencies of original
-                         * waveform and output waveform.*/
-                        let mut phase_incr = ct2hz_real(
-                            self.pitch
-                                + self.modlfo_val * self.modlfo_to_pitch
-                                + self.viblfo_val * self.viblfo_to_pitch
-                                + self.modenv_val * self.modenv_to_pitch,
-                        ) / self.root_pitch;
+        } else {
+            None
+        };
 
-                        /* if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage) */
-                        if phase_incr == 0.0 {
-                            phase_incr = 1.0;
-                        }
+        if let Some(target_amp) = target_amplitude {
+            /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
+            let amp_incr = (target_amp - self.amp) / 64.0;
+            /* no volume and not changing? - No need to process */
+            if !(self.amp == 0.0 && amp_incr == 0.0) {
+                /* Calculate the number of samples, that the DSP loop advances
+                 * through the original waveform with each step in the output
+                 * buffer. It is the ratio between the frequencies of original
+                 * waveform and output waveform.*/
+                let mut phase_incr = ct2hz_real(
+                    self.pitch
+                        + self.modlfo_val * self.modlfo_to_pitch
+                        + self.viblfo_val * self.viblfo_to_pitch
+                        + self.modenv_val * self.modenv_to_pitch,
+                ) / self.root_pitch;
 
-                        /*************** resonant filter ******************/
+                /* if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage) */
+                if phase_incr == 0.0 {
+                    phase_incr = 1.0;
+                }
 
-                        /* calculate the frequency of the resonant filter in Hz */
-                        let fres = ct2hz(
-                            self.fres
-                                + self.modlfo_val * self.modlfo_to_fc
-                                + self.modenv_val * self.modenv_to_fc,
-                        );
+                /*************** resonant filter ******************/
 
-                        /* FIXME - Still potential for a click during turn on, can we interpolate
-                        between 20khz cutoff and 0 Q? */
+                /* calculate the frequency of the resonant filter in Hz */
+                let fres = ct2hz(
+                    self.fres
+                        + self.modlfo_val * self.modlfo_to_fc
+                        + self.modenv_val * self.modenv_to_fc,
+                );
 
-                        /* I removed the optimization of turning the filter off when the
-                         * resonance frequence is above the maximum frequency. Instead, the
-                         * filter frequency is set to a maximum of 0.45 times the sampling
-                         * rate. For a 44100 kHz sampling rate, this amounts to 19845
-                         * Hz. The reason is that there were problems with anti-aliasing when the
-                         * synthesizer was run at lower sampling rates. Thanks to Stephan
-                         * Tassart for pointing me to this bug. By turning the filter on and
-                         * clipping the maximum filter frequency at 0.45*srate, the filter
-                         * is used as an anti-aliasing filter. */
-                        let fres = if fres > 0.45 * self.output_rate {
-                            0.45 * self.output_rate
-                        } else if fres < 5.0 {
-                            5.0
-                        } else {
-                            fres
-                        };
+                /* FIXME - Still potential for a click during turn on, can we interpolate
+                between 20khz cutoff and 0 Q? */
 
-                        /* if filter enabled and there is a significant frequency change.. */
-                        if f64::abs((fres - self.last_fres) as f64) > 0.01 {
-                            /* The filter coefficients have to be recalculated (filter
-                             * parameters have changed). Recalculation for various reasons is
-                             * forced by setting last_fres to -1.  The flag filter_startup
-                             * indicates, that the DSP loop runs for the first time, in this
-                             * case, the filter is set directly, instead of smoothly fading
-                             * between old and new settings.
-                             *
-                             * Those equations from Robert Bristow-Johnson's `Cookbook
-                             * formulae for audio EQ biquad filter coefficients', obtained
-                             * from Harmony-central.com / Computer / Programming. They are
-                             * the result of the bilinear transform on an analogue filter
-                             * prototype. To quote, `BLT frequency warping has been taken
-                             * into account for both significant frequency relocation and for
-                             * bandwidth readjustment'. */
+                /* I removed the optimization of turning the filter off when the
+                 * resonance frequence is above the maximum frequency. Instead, the
+                 * filter frequency is set to a maximum of 0.45 times the sampling
+                 * rate. For a 44100 kHz sampling rate, this amounts to 19845
+                 * Hz. The reason is that there were problems with anti-aliasing when the
+                 * synthesizer was run at lower sampling rates. Thanks to Stephan
+                 * Tassart for pointing me to this bug. By turning the filter on and
+                 * clipping the maximum filter frequency at 0.45*srate, the filter
+                 * is used as an anti-aliasing filter. */
+                let fres = if fres > 0.45 * self.output_rate {
+                    0.45 * self.output_rate
+                } else if fres < 5.0 {
+                    5.0
+                } else {
+                    fres
+                };
 
-                            let omega: f32 =
-                                (2.0f64 * std::f64::consts::PI * (fres / self.output_rate) as f64)
-                                    as f32;
-                            let sin_coeff: f32 = f64::sin(omega.into()) as f32;
-                            let cos_coeff: f32 = f64::cos(omega.into()) as f32;
-                            let alpha_coeff: f32 = sin_coeff / (2.0f32 * self.q_lin);
-                            let a0_inv: f32 = 1.0 / (1.0 + alpha_coeff);
+                /* if filter enabled and there is a significant frequency change.. */
+                if (fres - self.last_fres).abs() > 0.01 {
+                    /* The filter coefficients have to be recalculated (filter
+                     * parameters have changed). Recalculation for various reasons is
+                     * forced by setting last_fres to -1.  The flag filter_startup
+                     * indicates, that the DSP loop runs for the first time, in this
+                     * case, the filter is set directly, instead of smoothly fading
+                     * between old and new settings.
+                     *
+                     * Those equations from Robert Bristow-Johnson's `Cookbook
+                     * formulae for audio EQ biquad filter coefficients', obtained
+                     * from Harmony-central.com / Computer / Programming. They are
+                     * the result of the bilinear transform on an analogue filter
+                     * prototype. To quote, `BLT frequency warping has been taken
+                     * into account for both significant frequency relocation and for
+                     * bandwidth readjustment'. */
 
-                            /* Calculate the filter coefficients. All coefficients are
-                             * normalized by a0. Think of `a1' as `a1/a0'.
-                             *
-                             * Here a couple of multiplications are saved by reusing common expressions.
-                             * The original equations should be:
-                             *  voice->b0=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
-                             *  voice->b1=(1.-cos_coeff)*a0_inv*voice->filter_gain;
-                             *  voice->b2=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain; */
-                            let a1_temp: f32 = -2.0f32 * cos_coeff * a0_inv;
-                            let a2_temp: f32 = (1.0f32 - alpha_coeff) * a0_inv;
-                            let b1_temp: f32 = (1.0f32 - cos_coeff) * a0_inv * (self).filter_gain;
-                            /* both b0 -and- b2 */
-                            let b02_temp: f32 = b1_temp * 0.5f32;
+                    let omega = 2.0 * std::f32::consts::PI * (fres / self.output_rate);
+                    let sin_coeff = omega.sin();
+                    let cos_coeff = omega.cos();
+                    let alpha_coeff = sin_coeff / (2.0 * self.q_lin);
+                    let a0_inv = 1.0 / (1.0 + alpha_coeff);
 
-                            if self.filter_startup {
-                                /* The filter is calculated, because the voice was started up.
-                                 * In this case set the filter coefficients without delay.
-                                 */
-                                self.a1 = a1_temp;
-                                self.a2 = a2_temp;
-                                self.b02 = b02_temp;
-                                self.b1 = b1_temp;
-                                self.filter_coeff_incr_count = 0;
-                                self.filter_startup = false;
-                            } else {
-                                /* The filter frequency is changed.  Calculate an increment
-                                 * factor, so that the new setting is reached after one buffer
-                                 * length. x_incr is added to the current value FLUID_BUFSIZE
-                                 * times. The length is arbitrarily chosen. Longer than one
-                                 * buffer will sacrifice some performance, though.  Note: If
-                                 * the filter is still too 'grainy', then increase this number
-                                 * at will.
-                                 */
-                                self.a1_incr = (a1_temp - self.a1) / 64.0;
-                                self.a2_incr = (a2_temp - self.a2) / 64.0;
-                                self.b02_incr = (b02_temp - self.b02) / 64.0;
-                                self.b1_incr = (b1_temp - self.b1) / 64.0;
-                                /* Have to add the increments filter_coeff_incr_count times. */
-                                self.filter_coeff_incr_count = 64;
-                            }
-                            self.last_fres = fres
-                        }
+                    /* Calculate the filter coefficients. All coefficients are
+                     * normalized by a0. Think of `a1' as `a1/a0'.
+                     *
+                     * Here a couple of multiplications are saved by reusing common expressions.
+                     * The original equations should be:
+                     *  voice->b0=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
+                     *  voice->b1=(1.-cos_coeff)*a0_inv*voice->filter_gain;
+                     *  voice->b2=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain; */
+                    let a1_temp = -2.0 * cos_coeff * a0_inv;
+                    let a2_temp = (1.0 - alpha_coeff) * a0_inv;
+                    let b1_temp = (1.0 - cos_coeff) * a0_inv * (self).filter_gain;
+                    /* both b0 -and- b2 */
+                    let b02_temp = b1_temp * 0.5;
 
-                        let count = match self.interp_method {
-                            InterpolationMethod::None => {
-                                self.dsp_float_interpolate_none(&mut dsp_buf, amp_incr, phase_incr)
-                            }
-                            InterpolationMethod::Linear => self.dsp_float_interpolate_linear(
-                                &mut dsp_buf,
-                                amp_incr,
-                                phase_incr,
-                            ),
-                            InterpolationMethod::FourthOrder => self
-                                .dsp_float_interpolate_4th_order(
-                                    &mut dsp_buf,
-                                    amp_incr,
-                                    phase_incr,
-                                ),
-                            InterpolationMethod::SeventhOrder => self
-                                .dsp_float_interpolate_7th_order(
-                                    &mut dsp_buf,
-                                    amp_incr,
-                                    phase_incr,
-                                ),
-                        };
-
-                        if count > 0 {
-                            self.effects(
-                                &mut dsp_buf,
-                                count,
-                                dsp_left_buf,
-                                dsp_right_buf,
-                                fx_left_buf,
-                                reverb_active,
-                                chorus_active,
-                            );
-                        }
-                        /* turn off voice if short count (sample ended and not looping) */
-                        if count < 64 {
-                            self.off();
-                        }
+                    if self.filter_startup {
+                        /* The filter is calculated, because the voice was started up.
+                         * In this case set the filter coefficients without delay.
+                         */
+                        self.a1 = a1_temp;
+                        self.a2 = a2_temp;
+                        self.b02 = b02_temp;
+                        self.b1 = b1_temp;
+                        self.filter_coeff_incr_count = 0;
+                        self.filter_startup = false;
+                    } else {
+                        /* The filter frequency is changed.  Calculate an increment
+                         * factor, so that the new setting is reached after one buffer
+                         * length. x_incr is added to the current value FLUID_BUFSIZE
+                         * times. The length is arbitrarily chosen. Longer than one
+                         * buffer will sacrifice some performance, though.  Note: If
+                         * the filter is still too 'grainy', then increase this number
+                         * at will.
+                         */
+                        self.a1_incr = (a1_temp - self.a1) / 64.0;
+                        self.a2_incr = (a2_temp - self.a2) / 64.0;
+                        self.b02_incr = (b02_temp - self.b02) / 64.0;
+                        self.b1_incr = (b1_temp - self.b1) / 64.0;
+                        /* Have to add the increments filter_coeff_incr_count times. */
+                        self.filter_coeff_incr_count = 64;
                     }
+                    self.last_fres = fres
+                }
+
+                let count = match self.interp_method {
+                    InterpolationMethod::None => {
+                        self.dsp_float_interpolate_none(&mut dsp_buf, amp_incr, phase_incr)
+                    }
+                    InterpolationMethod::Linear => {
+                        self.dsp_float_interpolate_linear(&mut dsp_buf, amp_incr, phase_incr)
+                    }
+                    InterpolationMethod::FourthOrder => {
+                        self.dsp_float_interpolate_4th_order(&mut dsp_buf, amp_incr, phase_incr)
+                    }
+                    InterpolationMethod::SeventhOrder => {
+                        self.dsp_float_interpolate_7th_order(&mut dsp_buf, amp_incr, phase_incr)
+                    }
+                };
+
+                if count > 0 {
+                    self.effects(
+                        &mut dsp_buf,
+                        count,
+                        dsp_left_buf,
+                        dsp_right_buf,
+                        fx_left_buf,
+                        reverb_active,
+                        chorus_active,
+                    );
+                }
+                /* turn off voice if short count (sample ended and not looping) */
+                if count < 64 {
+                    self.off();
                 }
             }
         }
+
         self.ticks += self.ticks.wrapping_add(64);
     }
 
