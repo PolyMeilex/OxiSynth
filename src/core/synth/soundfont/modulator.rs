@@ -352,12 +352,14 @@ impl Mod {
 
     pub fn test_identity(&self, mod2: &Mod) -> bool {
         if self.dest != mod2.dest {
-            false
-        } else if self.src != mod2.src {
-            false
-        } else {
-            self.src2 == mod2.src2
+            return false;
         }
+
+        if self.src != mod2.src {
+            return false;
+        }
+
+        self.src2 == mod2.src2
     }
 }
 
