@@ -31,8 +31,6 @@ pub struct Synth {
     core: crate::core::Synth,
 }
 
-
-
 impl Synth {
     /**
     Creates a new synthesizer object.

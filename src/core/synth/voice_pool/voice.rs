@@ -975,7 +975,7 @@ impl Voice {
                 current_block = 576355610076403033;
             } else {
                 let amplitude_that_reaches_noise_floor;
-                
+
                 target_amp = atten2amp(self.attenuation)
                     * cb2amp(
                         960.0f32 * (1.0f32 - self.volenv_val)
