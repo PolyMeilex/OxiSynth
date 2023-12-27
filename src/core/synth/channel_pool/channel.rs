@@ -5,7 +5,7 @@ use super::super::soundfont::{Preset, SoundFont};
 use crate::core::tuning::Tuning;
 use crate::core::utils::TypedIndex;
 
-type MidiControlChange = u32;
+type MidiControlChange = usize;
 const ALL_SOUND_OFF: MidiControlChange = 120;
 const RPN_MSB: MidiControlChange = 101;
 const RPN_LSB: MidiControlChange = 100;
@@ -138,7 +138,7 @@ impl Channel {
                     _ => {}
                 }
 
-                self.cc[i as usize] = 0;
+                self.cc[i] = 0;
             }
         } else {
             self.cc.fill(0);
@@ -146,24 +146,21 @@ impl Channel {
 
         self.key_pressure.fill(0);
 
-        self.cc[RPN_LSB as usize] = 127;
-        self.cc[RPN_MSB as usize] = 127;
-        self.cc[NRPN_LSB as usize] = 127;
-        self.cc[NRPN_MSB as usize] = 127;
-        self.cc[EXPRESSION_MSB as usize] = 127;
-        self.cc[EXPRESSION_LSB as usize] = 127;
+        self.cc[RPN_LSB] = 127;
+        self.cc[RPN_MSB] = 127;
+        self.cc[NRPN_LSB] = 127;
+        self.cc[NRPN_MSB] = 127;
+        self.cc[EXPRESSION_MSB] = 127;
+        self.cc[EXPRESSION_LSB] = 127;
 
         if is_all_ctrl_off == 0 {
             self.pitch_wheel_sensitivity = 2;
 
-            for i in SOUND_CTRL1..=SOUND_CTRL10 {
-                self.cc[i as usize] = 64;
-            }
-
-            self.cc[VOLUME_MSB as usize] = 100;
-            self.cc[VOLUME_LSB as usize] = 0;
-            self.cc[PAN_MSB as usize] = 64;
-            self.cc[PAN_LSB as usize] = 0;
+            self.cc[SOUND_CTRL1..=SOUND_CTRL10].fill(64);
+            self.cc[VOLUME_MSB] = 100;
+            self.cc[VOLUME_LSB] = 0;
+            self.cc[PAN_MSB] = 64;
+            self.cc[PAN_LSB] = 0;
         };
     }
 }
