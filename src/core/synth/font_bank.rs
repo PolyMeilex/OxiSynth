@@ -140,7 +140,7 @@ impl BankOffsets {
     pub fn set(&mut self, sfont_id: TypedIndex<SoundFont>, offset: u32) {
         let bank_offset = self.get_mut(sfont_id);
 
-        if let Some(mut bank_offset) = bank_offset {
+        if let Some(bank_offset) = bank_offset {
             bank_offset.offset = offset
         } else {
             let bank_offset = BankOffset { sfont_id, offset };
