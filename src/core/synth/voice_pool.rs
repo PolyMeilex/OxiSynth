@@ -171,7 +171,7 @@ impl VoicePool {
                 this_voice_prio -= 1000.0;
             }
             this_voice_prio -= noteid.wrapping_sub(voice.get_note_id()) as f32;
-            if voice.volenv_section != VoiceEnvelope::Attack as i32 {
+            if voice.volenv_section != VoiceEnvelope::Attack {
                 this_voice_prio =
                     (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
             }

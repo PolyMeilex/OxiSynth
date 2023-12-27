@@ -25,15 +25,29 @@ type Phase = u64;
 const GEN_ABS_NRPN: u32 = 2;
 const GEN_SET: u32 = 1;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum VoiceEnvelope {
-    Delay = 0,
-    Attack = 1,
-    Hold = 2,
-    Decay = 3,
-    Sustain = 4,
-    Release = 5,
-    Finished = 6,
+    Delay,
+    Attack,
+    Hold,
+    Decay,
+    Sustain,
+    Release,
+    Finished,
+}
+
+impl VoiceEnvelope {
+    fn next(&mut self) {
+        *self = match self {
+            VoiceEnvelope::Delay => VoiceEnvelope::Attack,
+            VoiceEnvelope::Attack => VoiceEnvelope::Hold,
+            VoiceEnvelope::Hold => VoiceEnvelope::Decay,
+            VoiceEnvelope::Decay => VoiceEnvelope::Sustain,
+            VoiceEnvelope::Sustain => VoiceEnvelope::Release,
+            VoiceEnvelope::Release => VoiceEnvelope::Finished,
+            VoiceEnvelope::Finished => VoiceEnvelope::Finished,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -91,12 +105,12 @@ pub struct Voice {
     filter_startup: bool,
 
     volenv_count: u32,
-    pub volenv_section: i32,
+    pub volenv_section: VoiceEnvelope,
     pub volenv_val: f32,
 
     pub amp: f32,
     modenv_count: u32,
-    modenv_section: i32,
+    modenv_section: VoiceEnvelope,
     modenv_val: f32,
 
     modlfo_val: f32,
@@ -154,8 +168,8 @@ pub struct Voice {
     pub loopstart: i32,
     pub loopend: i32,
 
-    volenv_data: [EnvData; 7],
-    modenv_data: [EnvData; 7],
+    volenv_data: EnvelopeList,
+    modenv_data: EnvelopeList,
     mod_0: [Mod; 64],
 
     output_rate: f32,
@@ -184,11 +198,27 @@ pub struct EnvData {
     pub max: f32,
 }
 
+#[derive(Copy, Clone, Default)]
+struct EnvelopeList([EnvData; 7]);
+
+impl std::ops::Index<VoiceEnvelope> for EnvelopeList {
+    type Output = EnvData;
+
+    fn index(&self, index: VoiceEnvelope) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+impl std::ops::IndexMut<VoiceEnvelope> for EnvelopeList {
+    fn index_mut(&mut self, index: VoiceEnvelope) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
 impl Voice {
     pub fn new(output_rate: f32, desc: VoiceDescriptor, note_id: usize) -> Voice {
-        let mut volenv_data = [EnvData::default(); 7];
+        let mut volenv_data = EnvelopeList::default();
         {
-            let sustain = &mut volenv_data[VoiceEnvelope::Sustain as usize];
+            let sustain = &mut volenv_data[VoiceEnvelope::Sustain];
 
             sustain.count = 0xffffffff;
             sustain.coeff = 1.0;
@@ -196,23 +226,23 @@ impl Voice {
             sustain.min = -1.0;
             sustain.max = 2.0;
 
-            let finished = &mut volenv_data[VoiceEnvelope::Finished as usize];
+            let finished = &mut volenv_data[VoiceEnvelope::Finished];
             finished.count = 0xffffffff;
             finished.coeff = 0.0;
             finished.incr = 0.0;
             finished.min = -1.0;
             finished.max = 1.0;
         }
-        let mut modenv_data = [EnvData::default(); 7];
+        let mut modenv_data = EnvelopeList::default();
         {
-            let sustain = &mut modenv_data[VoiceEnvelope::Sustain as usize];
+            let sustain = &mut modenv_data[VoiceEnvelope::Sustain];
             sustain.count = 0xffffffff;
             sustain.coeff = 1.0;
             sustain.incr = 0.0;
             sustain.min = -1.0;
             sustain.max = 2.0;
 
-            let finished = &mut modenv_data[VoiceEnvelope::Finished as usize];
+            let finished = &mut modenv_data[VoiceEnvelope::Finished];
             finished.count = 0xffffffff;
             finished.coeff = 0.0;
             finished.incr = 0.0;
@@ -248,12 +278,12 @@ impl Voice {
             filter_startup: true,
 
             volenv_count: 0,
-            volenv_section: 0,
+            volenv_section: VoiceEnvelope::Delay,
             volenv_val: 0.0,
 
             amp: 0.0,
             modenv_count: 0,
-            modenv_section: 0,
+            modenv_section: VoiceEnvelope::Decay,
             modenv_val: 0.0,
 
             modlfo_val: 0.0,
@@ -320,7 +350,7 @@ impl Voice {
     }
 
     pub fn is_on(&self) -> bool {
-        self.status == VoiceStatus::On && self.volenv_section < VoiceEnvelope::Release as i32
+        self.status == VoiceStatus::On && self.volenv_section < VoiceEnvelope::Release
     }
 
     pub fn is_playing(&self) -> bool {
@@ -421,10 +451,10 @@ impl Voice {
         self.gen_set(GeneratorType::ExclusiveClass, 0.0);
 
         /* If the voice is not yet in release state, put it into release state */
-        if self.volenv_section != VoiceEnvelope::Release as i32 {
-            self.volenv_section = VoiceEnvelope::Release as i32;
+        if self.volenv_section != VoiceEnvelope::Release {
+            self.volenv_section = VoiceEnvelope::Release;
             self.volenv_count = 0;
-            self.modenv_section = VoiceEnvelope::Release as i32;
+            self.modenv_section = VoiceEnvelope::Release;
             self.modenv_count = 0;
         }
 
@@ -460,7 +490,7 @@ impl Voice {
         if sustained {
             self.status = VoiceStatus::Sustained;
         } else {
-            if self.volenv_section == VoiceEnvelope::Attack as i32 {
+            if self.volenv_section == VoiceEnvelope::Attack {
                 /* A voice is turned off during the attack section of the volume
                  * envelope.  The attack section ramps up linearly with
                  * amplitude. The other sections use logarithmic scaling. Calculate new
@@ -482,9 +512,9 @@ impl Voice {
                     self.volenv_val = env_value
                 }
             }
-            self.volenv_section = VoiceEnvelope::Release as i32;
+            self.volenv_section = VoiceEnvelope::Release;
             self.volenv_count = 0;
-            self.modenv_section = VoiceEnvelope::Release as i32;
+            self.modenv_section = VoiceEnvelope::Release;
             self.modenv_count = 0;
         }
     }
@@ -550,9 +580,9 @@ impl Voice {
     /// anymore by the DSP loop.
     pub fn off(&mut self) {
         self.channel_id = 0xff;
-        self.volenv_section = VoiceEnvelope::Finished as i32;
+        self.volenv_section = VoiceEnvelope::Finished;
         self.volenv_count = 0;
-        self.modenv_section = VoiceEnvelope::Finished as i32;
+        self.modenv_section = VoiceEnvelope::Finished;
         self.modenv_count = 0;
         self.status = VoiceStatus::Off;
     }
@@ -794,7 +824,7 @@ impl Voice {
         end of the waveform data? */
         if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
             == LoopMode::UntilRelease as i32
-            && self.volenv_section < VoiceEnvelope::Release as i32
+            && self.volenv_section < VoiceEnvelope::Release
             || self.gen[GeneratorType::SampleMode as usize].val as i32
                 == LoopMode::DuringRelease as i32
         {
@@ -873,15 +903,15 @@ impl Voice {
         self.check_sample_sanity();
 
         /* skip to the next section of the envelope if necessary */
-        let mut env_data = &self.volenv_data[self.volenv_section as usize];
+        let mut env_data = &self.volenv_data[self.volenv_section];
         while self.volenv_count >= env_data.count {
             // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
-            if self.volenv_section == VoiceEnvelope::Decay as i32 {
+            if self.volenv_section == VoiceEnvelope::Decay {
                 self.volenv_val = env_data.min * env_data.coeff
             }
 
-            self.volenv_section += 1;
-            env_data = &self.volenv_data[self.volenv_section as usize];
+            self.volenv_section.next();
+            env_data = &self.volenv_data[self.volenv_section];
             self.volenv_count = 0;
         }
 
@@ -889,30 +919,30 @@ impl Voice {
         let mut x = env_data.coeff * self.volenv_val + env_data.incr;
         if x < env_data.min {
             x = env_data.min;
-            self.volenv_section += 1;
+            self.volenv_section.next();
             self.volenv_count = 0;
         } else if x > env_data.max {
             x = env_data.max;
-            self.volenv_section += 1;
+            self.volenv_section.next();
             self.volenv_count = 0;
         }
 
         self.volenv_val = x;
         self.volenv_count = self.volenv_count.wrapping_add(1);
 
-        if self.volenv_section == VoiceEnvelope::Finished as i32 {
+        if self.volenv_section == VoiceEnvelope::Finished {
             self.off();
             return;
         }
 
         /******************* mod env **********************/
 
-        let mut env_data = &self.modenv_data[self.modenv_section as usize];
+        let mut env_data = &self.modenv_data[self.modenv_section];
 
         /* skip to the next section of the envelope if necessary */
         while self.modenv_count >= env_data.count {
-            self.modenv_section += 1;
-            env_data = &self.modenv_data[self.modenv_section as usize];
+            self.modenv_section.next();
+            env_data = &self.modenv_data[self.modenv_section];
             self.modenv_count = 0;
         }
 
@@ -921,11 +951,11 @@ impl Voice {
 
         if x < env_data.min {
             x = env_data.min;
-            self.modenv_section += 1;
+            self.modenv_section.next();
             self.modenv_count = 0;
         } else if x > env_data.max {
             x = env_data.max;
-            self.modenv_section += 1;
+            self.modenv_section.next();
             self.modenv_count = 0;
         }
 
@@ -964,8 +994,8 @@ impl Voice {
          * - amplitude envelope
          */
 
-        if self.volenv_section != VoiceEnvelope::Delay as i32 {
-            if self.volenv_section == VoiceEnvelope::Attack as i32 {
+        if self.volenv_section != VoiceEnvelope::Delay {
+            if self.volenv_section == VoiceEnvelope::Attack {
                 /* the envelope is in the attack section: ramp linearly to max value.
                  * A positive modlfo_to_vol should increase volume (negative attenuation).
                  */
@@ -1748,11 +1778,11 @@ impl Voice {
                 };
 
                 let count = (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
-                self.volenv_data[VoiceEnvelope::Delay as usize].count = count;
-                self.volenv_data[VoiceEnvelope::Delay as usize].coeff = 0.0;
-                self.volenv_data[VoiceEnvelope::Delay as usize].incr = 0.0;
-                self.volenv_data[VoiceEnvelope::Delay as usize].min = -1.0;
-                self.volenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
+                self.volenv_data[VoiceEnvelope::Delay].count = count;
+                self.volenv_data[VoiceEnvelope::Delay].coeff = 0.0;
+                self.volenv_data[VoiceEnvelope::Delay].incr = 0.0;
+                self.volenv_data[VoiceEnvelope::Delay].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Delay].max = 1.0;
             }
 
             GeneratorType::VolEnvAttack => {
@@ -1768,12 +1798,12 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
-                self.volenv_data[VoiceEnvelope::Attack as usize].count = count;
-                self.volenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
-                self.volenv_data[VoiceEnvelope::Attack as usize].incr =
+                self.volenv_data[VoiceEnvelope::Attack].count = count;
+                self.volenv_data[VoiceEnvelope::Attack].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Attack].incr =
                     if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[VoiceEnvelope::Attack as usize].min = -1.0;
-                self.volenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
+                self.volenv_data[VoiceEnvelope::Attack].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Attack].max = 1.0;
             }
 
             GeneratorType::VolEnvHold | GeneratorType::KeyToVolEnvHold => {
@@ -1782,11 +1812,11 @@ impl Voice {
                     GeneratorType::KeyToVolEnvHold,
                     0,
                 ) as u32;
-                self.volenv_data[VoiceEnvelope::Hold as usize].count = count;
-                self.volenv_data[VoiceEnvelope::Hold as usize].coeff = 1.0;
-                self.volenv_data[VoiceEnvelope::Hold as usize].incr = 0.0;
-                self.volenv_data[VoiceEnvelope::Hold as usize].min = -1.0;
-                self.volenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
+                self.volenv_data[VoiceEnvelope::Hold].count = count;
+                self.volenv_data[VoiceEnvelope::Hold].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Hold].incr = 0.0;
+                self.volenv_data[VoiceEnvelope::Hold].min = -1.0;
+                self.volenv_data[VoiceEnvelope::Hold].max = 2.0;
             }
 
             GeneratorType::VolEnvDecay
@@ -1808,12 +1838,12 @@ impl Voice {
                     1,
                 ) as u32;
 
-                self.volenv_data[VoiceEnvelope::Decay as usize].count = count;
-                self.volenv_data[VoiceEnvelope::Decay as usize].coeff = 1.0;
-                self.volenv_data[VoiceEnvelope::Decay as usize].incr =
+                self.volenv_data[VoiceEnvelope::Decay].count = count;
+                self.volenv_data[VoiceEnvelope::Decay].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Decay].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[VoiceEnvelope::Decay as usize].min = y;
-                self.volenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
+                self.volenv_data[VoiceEnvelope::Decay].min = y;
+                self.volenv_data[VoiceEnvelope::Decay].max = 2.0;
             }
 
             GeneratorType::VolEnvRelease => {
@@ -1829,12 +1859,12 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
-                self.volenv_data[VoiceEnvelope::Release as usize].count = count;
-                self.volenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
-                self.volenv_data[VoiceEnvelope::Release as usize].incr =
+                self.volenv_data[VoiceEnvelope::Release].count = count;
+                self.volenv_data[VoiceEnvelope::Release].coeff = 1.0;
+                self.volenv_data[VoiceEnvelope::Release].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.volenv_data[VoiceEnvelope::Release as usize].min = 0.0;
-                self.volenv_data[VoiceEnvelope::Release as usize].max = 1.0;
+                self.volenv_data[VoiceEnvelope::Release].min = 0.0;
+                self.volenv_data[VoiceEnvelope::Release].max = 1.0;
             }
 
             GeneratorType::ModEnvDelay => {
@@ -1848,12 +1878,12 @@ impl Voice {
                     val
                 };
 
-                self.modenv_data[VoiceEnvelope::Delay as usize].count =
+                self.modenv_data[VoiceEnvelope::Delay].count =
                     (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
-                self.modenv_data[VoiceEnvelope::Delay as usize].coeff = 0.0;
-                self.modenv_data[VoiceEnvelope::Delay as usize].incr = 0.0;
-                self.modenv_data[VoiceEnvelope::Delay as usize].min = -1.0;
-                self.modenv_data[VoiceEnvelope::Delay as usize].max = 1.0;
+                self.modenv_data[VoiceEnvelope::Delay].coeff = 0.0;
+                self.modenv_data[VoiceEnvelope::Delay].incr = 0.0;
+                self.modenv_data[VoiceEnvelope::Delay].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Delay].max = 1.0;
             }
 
             GeneratorType::ModEnvAttack => {
@@ -1869,12 +1899,12 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
-                self.modenv_data[VoiceEnvelope::Attack as usize].count = count;
-                self.modenv_data[VoiceEnvelope::Attack as usize].coeff = 1.0;
-                self.modenv_data[VoiceEnvelope::Attack as usize].incr =
+                self.modenv_data[VoiceEnvelope::Attack].count = count;
+                self.modenv_data[VoiceEnvelope::Attack].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Attack].incr =
                     if count != 0 { 1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[VoiceEnvelope::Attack as usize].min = -1.0;
-                self.modenv_data[VoiceEnvelope::Attack as usize].max = 1.0;
+                self.modenv_data[VoiceEnvelope::Attack].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Attack].max = 1.0;
             }
 
             GeneratorType::ModEnvHold | GeneratorType::KeyToModEnvHold => {
@@ -1883,11 +1913,11 @@ impl Voice {
                     GeneratorType::KeyToModEnvHold,
                     0,
                 ) as u32;
-                self.modenv_data[VoiceEnvelope::Hold as usize].count = count;
-                self.modenv_data[VoiceEnvelope::Hold as usize].coeff = 1.0;
-                self.modenv_data[VoiceEnvelope::Hold as usize].incr = 0.0;
-                self.modenv_data[VoiceEnvelope::Hold as usize].min = -1.0;
-                self.modenv_data[VoiceEnvelope::Hold as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Hold].count = count;
+                self.modenv_data[VoiceEnvelope::Hold].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Hold].incr = 0.0;
+                self.modenv_data[VoiceEnvelope::Hold].min = -1.0;
+                self.modenv_data[VoiceEnvelope::Hold].max = 2.0;
             }
 
             GeneratorType::ModEnvDecay
@@ -1909,12 +1939,12 @@ impl Voice {
                     y
                 };
 
-                self.modenv_data[VoiceEnvelope::Decay as usize].count = count;
-                self.modenv_data[VoiceEnvelope::Decay as usize].coeff = 1.0;
-                self.modenv_data[VoiceEnvelope::Decay as usize].incr =
+                self.modenv_data[VoiceEnvelope::Decay].count = count;
+                self.modenv_data[VoiceEnvelope::Decay].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Decay].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[VoiceEnvelope::Decay as usize].min = y;
-                self.modenv_data[VoiceEnvelope::Decay as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Decay].min = y;
+                self.modenv_data[VoiceEnvelope::Decay].max = 2.0;
             }
 
             GeneratorType::ModEnvRelease => {
@@ -1930,12 +1960,12 @@ impl Voice {
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
-                self.modenv_data[VoiceEnvelope::Release as usize].count = count;
-                self.modenv_data[VoiceEnvelope::Release as usize].coeff = 1.0;
-                self.modenv_data[VoiceEnvelope::Release as usize].incr =
+                self.modenv_data[VoiceEnvelope::Release].count = count;
+                self.modenv_data[VoiceEnvelope::Release].coeff = 1.0;
+                self.modenv_data[VoiceEnvelope::Release].incr =
                     if count != 0 { -1.0 / count as f32 } else { 0.0 };
-                self.modenv_data[VoiceEnvelope::Release as usize].min = 0.0;
-                self.modenv_data[VoiceEnvelope::Release as usize].max = 2.0;
+                self.modenv_data[VoiceEnvelope::Release].min = 0.0;
+                self.modenv_data[VoiceEnvelope::Release].max = 2.0;
             }
             _ => {}
         }

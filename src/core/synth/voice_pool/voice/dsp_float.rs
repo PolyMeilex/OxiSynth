@@ -1,9 +1,7 @@
-use super::Voice;
+use super::{Voice, VoiceEnvelope};
 pub type Phase = u64;
 pub type GenType = u32;
 pub const GEN_SAMPLEMODE: GenType = 54;
-pub type VoiceEnvelopeIndex = u32;
-pub const FLUID_VOICE_ENVRELEASE: VoiceEnvelopeIndex = 5;
 pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
 pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
 pub type LoopMode = u32;
@@ -127,8 +125,7 @@ impl Voice {
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32)
-            as i32;
+                && self.volenv_section < VoiceEnvelope::Release) as i32;
 
         let end_index = if looping != 0 {
             self.loopend - 1 as i32
@@ -199,8 +196,7 @@ impl Voice {
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
                 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32)
-            as i32;
+                && self.volenv_section < VoiceEnvelope::Release) as i32;
 
         /* last index before 2nd interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
@@ -307,8 +303,7 @@ impl Voice {
         let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
             || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32)
-            as i32;
+                && self.volenv_section < VoiceEnvelope::Release) as i32;
 
         /* last index before 4th interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
@@ -474,10 +469,10 @@ impl Voice {
         let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
 
         /* voice is currently looping? */
-        let looping =
-            (self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_DURING_RELEASE as i32
-                || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                    && self.volenv_section < FLUID_VOICE_ENVRELEASE as i32) as i32;
+        let looping = (self.gen[GEN_SAMPLEMODE as usize].val as i32
+            == FLUID_LOOP_DURING_RELEASE as i32
+            || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+                && self.volenv_section < VoiceEnvelope::Release) as i32;
 
         /* last index before 7th interpolation point must be specially handled */
         let mut end_index = ((if looping != 0 {
