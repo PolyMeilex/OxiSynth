@@ -29,6 +29,14 @@ type Phase = u64;
 const GEN_ABS_NRPN: u32 = 2;
 const GEN_SET: u32 = 1;
 
+bitflags::bitflags! {
+    /// Flags for marking samples for sanity checks
+    struct SampleSanity: u32 {
+        const CHECK = 1 << 0;
+        const STARTUP = 1 << 1;
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum VoiceAddMode {
     Overwrite = 0,
@@ -105,7 +113,7 @@ pub struct Voice {
     amplitude_that_reaches_noise_floor_loop: f32,
 
     pub status: VoiceStatus,
-    check_sample_sanity_flag: i32,
+    check_sample_sanity_flag: SampleSanity,
     min_attenuation_c_b: f32,
 
     last_fres: f32,
@@ -256,7 +264,7 @@ impl Voice {
 
             status: VoiceStatus::Clean,
             mod_0: [Mod::default(); 64],
-            check_sample_sanity_flag: 0,
+            check_sample_sanity_flag: SampleSanity::empty(),
             output_rate,
             phase: 0,
             pitch: 0.0,
@@ -425,8 +433,13 @@ impl Voice {
     }
 
     pub fn start(&mut self, channel: &Channel) {
+        // The maximum volume of the loop is calculated and cached once for each
+        // sample with its nominal loop settings. This happens, when the sample is used
+        // for the first time.
         self.calculate_runtime_synthesis_parameters(channel);
-        self.check_sample_sanity_flag = 1i32 << 1i32;
+        // Force setting of the phase at the first DSP loop run
+        // This cannot be done earlier, because it depends on modulators.
+        self.check_sample_sanity_flag = SampleSanity::STARTUP;
         self.status = VoiceStatus::On;
     }
 
@@ -678,7 +691,7 @@ impl Voice {
         /* 'end' is last valid sample, loopend can be + 1 */
         let max_index_loop = self.sample.end as i32 + 1;
 
-        if self.check_sample_sanity_flag == 0 {
+        if self.check_sample_sanity_flag.is_empty() {
             return;
         }
 
@@ -758,7 +771,10 @@ impl Voice {
         }
 
         /* Run startup specific code (only once, when the voice is started) */
-        if self.check_sample_sanity_flag & 1i32 << 1i32 != 0 {
+        if self
+            .check_sample_sanity_flag
+            .contains(SampleSanity::STARTUP)
+        {
             if max_index_loop - min_index_loop < 2 {
                 if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
                     == LoopMode::UntilRelease as i32
@@ -802,7 +818,7 @@ impl Voice {
 
         /* Sample sanity has been assured. Don't check again, until some
         sample parameter is changed by modulation. */
-        self.check_sample_sanity_flag = 0;
+        self.check_sample_sanity_flag = SampleSanity::empty();
     }
 
     pub fn set_param(&mut self, gen: GeneratorType, nrpn_value: f32, abs: i32) {
@@ -1706,7 +1722,7 @@ impl Voice {
                     .wrapping_add(gen_sum!(GeneratorType::StartAddrOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32)
                     as i32;
-                self.check_sample_sanity_flag = 1 << 0;
+                self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndAddrOfs | GeneratorType::EndAddrCoarseOfs => {
@@ -1716,7 +1732,7 @@ impl Voice {
                     .wrapping_add(gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
                     as i32;
-                self.check_sample_sanity_flag = 1 << 0;
+                self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::StartLoopAddrOfs | GeneratorType::StartLoopAddrCoarseOfs => {
@@ -1726,7 +1742,7 @@ impl Voice {
                     .wrapping_add(gen_sum!(GeneratorType::StartLoopAddrOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32)
                     as i32;
-                self.check_sample_sanity_flag = 1 << 0;
+                self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndLoopAddrOfs | GeneratorType::EndLoopAddrCoarseOfs => {
@@ -1736,7 +1752,7 @@ impl Voice {
                     .wrapping_add(gen_sum!(GeneratorType::EndLoopAddrOfs) as u32)
                     .wrapping_add(32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32)
                     as i32;
-                self.check_sample_sanity_flag = 1 << 0;
+                self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             /* volume envelope
