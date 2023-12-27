@@ -3,6 +3,7 @@ use super::{utils::RangeCheck, OxiError};
 pub type U7 = u8;
 pub type U14 = u16;
 
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum MidiEvent {
     /// Send a noteon message.
     NoteOn {
