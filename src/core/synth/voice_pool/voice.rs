@@ -659,7 +659,7 @@ impl Voice {
             let mod_0 = &self.mod_0[i];
             let modval: f32 = mod_0.get_value(channel, self);
             let dest_gen_index = mod_0.dest as usize;
-            let mut dest_gen = &mut self.gen[dest_gen_index];
+            let dest_gen = &mut self.gen[dest_gen_index];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
