@@ -1,8 +1,6 @@
 use super::Chorus;
 
-/**
-Chorus type
- */
+/// Chorus type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(u32)]
 pub enum ChorusMode {
@@ -98,11 +96,9 @@ impl Chorus {
 }
 
 impl Chorus {
-    /**
-    Set up the chorus. It should be turned on with Chorus::set_active().
-    If faulty parameters are given, all new settings are discarded.
-    Keep in mind, that the needed CPU time is proportional to `nr`.
-     */
+    // Set up the chorus. It should be turned on with Chorus::set_active().
+    // If faulty parameters are given, all new settings are discarded.
+    // Keep in mind, that the needed CPU time is proportional to `nr`.
     pub fn set_chorus(&mut self, params: &ChorusParams) {
         self.set_chorus_params(
             params.nr,
@@ -113,11 +109,9 @@ impl Chorus {
         );
     }
 
-    /**
-    Set up the chorus. It should be turned on with Chorus::set_active().
-    If faulty parameters are given, all new settings are discarded.
-    Keep in mind, that the needed CPU time is proportional to `nr`.
-     */
+    /// Set up the chorus. It should be turned on with Chorus::set_active().
+    /// If faulty parameters are given, all new settings are discarded.
+    /// Keep in mind, that the needed CPU time is proportional to `nr`.
     pub fn set_chorus_params(
         &mut self,
         nr: u32,
@@ -134,9 +128,7 @@ impl Chorus {
         self.update();
     }
 
-    /**
-    Query the current chorus params
-     */
+    /// Query the current chorus params
     pub fn get_chorus(&self) -> ChorusParams {
         ChorusParams {
             nr: self.nr(),

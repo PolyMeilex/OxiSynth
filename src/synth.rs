@@ -3,12 +3,12 @@ mod midi;
 mod params;
 mod write;
 
-use crate::core::chorus::Chorus;
+use crate::chorus::Chorus;
 use crate::core::font_bank::FontBank;
-use crate::core::reverb::Reverb;
 pub use crate::core::soundfont::generator::GeneratorType;
 pub use crate::core::tuning::{Tuning, TuningManager};
 use crate::core::OxiError;
+use crate::reverb::Reverb;
 use crate::{MidiEvent, SettingsError, SynthDescriptor};
 
 /**

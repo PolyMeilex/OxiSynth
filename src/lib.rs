@@ -1,4 +1,6 @@
+pub mod chorus;
 mod core;
+pub mod reverb;
 mod synth;
 
 pub use crate::core::soundfont::{Preset, SoundFont};

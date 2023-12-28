@@ -40,7 +40,7 @@ struct Comb {
 }
 
 impl Comb {
-    pub fn new(size: usize) -> Self {
+    fn new(size: usize) -> Self {
         Self {
             feedback: 0f32,
             filterstore: 0f32,
@@ -51,16 +51,16 @@ impl Comb {
         }
     }
 
-    pub fn set_damp(&mut self, val: f32) {
+    fn set_damp(&mut self, val: f32) {
         self.damp1 = val;
         self.damp2 = 1f32 - val;
     }
 
-    pub fn set_feedback(&mut self, val: f32) {
+    fn set_feedback(&mut self, val: f32) {
         self.feedback = val;
     }
 
-    pub fn process(&mut self, input: f32) -> f32 {
+    fn process(&mut self, input: f32) -> f32 {
         let mut _tmp = self.buffer[self.bufidx];
         self.filterstore = _tmp * self.damp2 + self.filterstore * self.damp1;
         self.buffer[self.bufidx] = input + self.filterstore * self.feedback;
@@ -80,7 +80,7 @@ struct AllPass {
 }
 
 impl AllPass {
-    pub fn new(size: usize, feedback: f32) -> Self {
+    fn new(size: usize, feedback: f32) -> Self {
         Self {
             feedback,
             buffer: vec![DC_OFFSET; size],
@@ -88,7 +88,7 @@ impl AllPass {
         }
     }
 
-    pub fn process(&mut self, input: f32) -> f32 {
+    fn process(&mut self, input: f32) -> f32 {
         let bufout: f32 = self.buffer[self.bufidx];
         let output: f32 = bufout - input;
         self.buffer[self.bufidx] = input + bufout * self.feedback;
@@ -102,8 +102,8 @@ impl AllPass {
 
 #[derive(Clone)]
 struct LRPair<T> {
-    pub l: T,
-    pub r: T,
+    l: T,
+    r: T,
 }
 
 #[derive(Clone)]
