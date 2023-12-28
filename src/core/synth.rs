@@ -113,7 +113,7 @@ impl Synth {
         };
 
         if synth.settings.drums_channel_active {
-            synth.bank_select(9, 128).ok();
+            internal::midi::bank_select(&mut synth.channels[9], 128);
         }
 
         Ok(synth)

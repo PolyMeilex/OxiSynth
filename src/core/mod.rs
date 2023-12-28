@@ -14,7 +14,7 @@ pub use synth::{font_bank, InterpolationMethod, Synth};
 
 pub use synth::soundfont::{self, SoundFont};
 
-mod utils;
+pub mod utils;
 pub use utils::TypedIndex;
 
 pub mod error;

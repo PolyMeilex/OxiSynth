@@ -15,7 +15,7 @@ impl Synth {
         let id = self.core.font_bank.add_font(font);
 
         if reset_presets {
-            self.core.program_reset();
+            self.program_reset();
         }
 
         id
@@ -40,7 +40,7 @@ impl Synth {
 
         if sfont.is_some() {
             if reset_presets {
-                self.core.program_reset();
+                self.program_reset();
             } else {
                 self.update_presets();
             }
