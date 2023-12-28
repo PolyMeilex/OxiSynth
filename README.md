@@ -12,6 +12,5 @@ OxiSynth running in browser, with Boomwhacker soundfont bundled:
 
 ### Project Structure
 
-- `./src/core` - Safe but not rusty enough part of the project based on `fluidlite`, ideally it should be completely faded out over time.
-- `./src` - Temporary public api surface of `core`
-- `./soundfont-rs` - Pure Rust implementation of sf2 file parser (intended to be also usable outside `oxisynth`)
+- `./src` - OxiSynth
+- `./soundfont-rs` - Pure Rust implementation of sf2/3 file parser (intended to be also usable outside of `oxisynth`)
