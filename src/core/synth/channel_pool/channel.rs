@@ -4,6 +4,7 @@ use super::super::soundfont::{Preset, SoundFont};
 
 use crate::core::tuning::Tuning;
 use crate::core::utils::TypedIndex;
+use crate::GeneratorType;
 
 type MidiControlChange = usize;
 const ALL_SOUND_OFF: MidiControlChange = 120;
@@ -282,19 +283,23 @@ impl Channel {
         self.nrpn_active = value;
     }
 
-    pub fn gen(&self, id: usize) -> f32 {
-        self.gen[id]
+    /// Retreive the value of a generator. This function returns the value
+    /// set by a previous call 'set_gen()' or by an NRPN message.
+    ///
+    /// Returns the value of the generator.
+    pub fn gen(&self, id: GeneratorType) -> f32 {
+        self.gen[id as usize]
     }
 
-    pub fn set_gen(&mut self, id: usize, val: f32) {
-        self.gen[id] = val;
+    pub fn set_gen(&mut self, id: GeneratorType, val: f32) {
+        self.gen[id as usize] = val;
     }
 
-    pub fn gen_abs(&self, id: usize) -> i8 {
-        self.gen_abs[id]
+    pub fn gen_abs(&self, id: GeneratorType) -> i8 {
+        self.gen_abs[id as usize]
     }
 
-    pub fn set_gen_abs(&mut self, id: usize, val: i8) {
-        self.gen_abs[id] = val;
+    pub fn set_gen_abs(&mut self, id: GeneratorType, val: i8) {
+        self.gen_abs[id as usize] = val;
     }
 }

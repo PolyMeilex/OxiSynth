@@ -146,6 +146,12 @@ impl From<soundfont::data::GeneratorType> for GeneratorType {
     }
 }
 
+impl GeneratorType {
+    pub fn iter() -> impl Iterator<Item = Self> {
+        (0..Self::Last as u8).map(|v| num_traits::FromPrimitive::from_u8(v).unwrap())
+    }
+}
+
 #[derive(Copy, Default, Debug, PartialEq, Clone)]
 pub struct Generator {
     pub flags: u8,
@@ -167,9 +173,9 @@ impl GeneratorList {
     pub fn new(channel: &Channel) -> Self {
         let mut out = Self::default();
 
-        for (id, gen) in out.0.iter_mut().enumerate() {
-            gen.nrpn = channel.gen(id) as f64;
-            if channel.gen_abs(id) != 0 {
+        for (gen, ty) in out.0.iter_mut().zip(GeneratorType::iter()) {
+            gen.nrpn = channel.gen(ty) as f64;
+            if channel.gen_abs(ty) != 0 {
                 gen.flags = GEN_ABS_NRPN;
             }
         }
