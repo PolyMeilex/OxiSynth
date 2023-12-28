@@ -1,4 +1,4 @@
-use crate::core::{synth::internal, utils::RangeCheck, OxiError};
+use crate::core::{synth::midi, utils::RangeCheck, OxiError};
 use crate::SoundFontId;
 use crate::Synth;
 
@@ -22,7 +22,7 @@ impl Synth {
     /// Set the pitch wheel sensitivity.
     pub fn pitch_wheel_sens(&mut self, channel: u8, val: u8) -> Result<(), OxiError> {
         let channel = self.core.channels.get_mut(channel as usize)?;
-        internal::midi::pitch_wheel_sens(channel, &mut self.core.voices, val);
+        midi::pitch_wheel_sens(channel, &mut self.core.voices, val);
         Ok(())
     }
 
@@ -101,7 +101,7 @@ impl Synth {
     /// This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
     pub fn program_reset(&mut self) {
         for channel in self.core.channels.iter_mut() {
-            internal::midi::program_change(
+            midi::program_change(
                 channel,
                 &self.core.font_bank,
                 channel.prognum(),

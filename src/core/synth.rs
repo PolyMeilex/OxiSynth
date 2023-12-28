@@ -1,4 +1,4 @@
-pub(crate) mod internal;
+pub(crate) mod midi;
 pub(crate) mod write;
 
 pub(crate) mod channel_pool;
@@ -121,7 +121,7 @@ impl Synth {
     pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
         match event.check()? {
             MidiEvent::NoteOn { channel, key, vel } => {
-                internal::midi::noteon(
+                midi::noteon(
                     self.channels.get(channel as usize)?,
                     &mut self.voices,
                     self.ticks,
@@ -143,7 +143,7 @@ impl Synth {
                 ctrl,
                 value,
             } => {
-                internal::midi::cc(
+                midi::cc(
                     self.channels.get_mut(channel as usize)?,
                     &mut self.voices,
                     self.min_note_length_ticks,
@@ -172,7 +172,7 @@ impl Synth {
                 channel,
                 program_id,
             } => {
-                internal::midi::program_change(
+                midi::program_change(
                     self.channels.get_mut(channel as usize)?,
                     &self.font_bank,
                     program_id,

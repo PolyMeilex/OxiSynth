@@ -18,8 +18,27 @@ const NRPN_MSB: MidiControlChange = 99;
 const NRPN_LSB: MidiControlChange = 98;
 const DATA_ENTRY_LSB: MidiControlChange = 38;
 
+/// Change the value of a generator. This function allows to control
+/// all synthesis parameters in real-time. The changes are additive,
+/// i.e. they add up to the existing parameter value. This function is
+/// similar to sending an NRPN message to the synthesizer. The
+/// function accepts a float as the value of the parameter. The
+/// parameter numbers and ranges are described in the SoundFont 2.01
+/// specification, paragraph 8.1.3, page 48.
+pub(crate) fn set_gen(
+    channel: &mut Channel,
+    voices: &mut VoicePool,
+    param: GeneratorType,
+    value: f32,
+) {
+    channel.set_gen(param, value);
+    channel.set_gen_abs(param, 0);
+
+    voices.set_gen(channel.id(), param, value);
+}
+
 /// Send a noteon message.
-pub fn noteon(
+pub(in super::super) fn noteon(
     channel: &Channel,
     voices: &mut VoicePool,
     start_time: usize,
@@ -360,7 +379,7 @@ pub(in super::super) fn cc(
                         let scale_nrpn: f32 = gen_scale_nrpn(nrpn_select, data);
 
                         let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();
-                        super::gen::set_gen(channel, voices, param, scale_nrpn)
+                        set_gen(channel, voices, param, scale_nrpn)
                     }
 
                     channel.set_nrpn_select(0); // Reset to 0
@@ -373,7 +392,7 @@ pub(in super::super) fn cc(
                     0 => pitch_wheel_sens(channel, voices, value),
                     // RPN_CHANNEL_FINE_TUNE
                     1 => {
-                        super::gen::set_gen(
+                        set_gen(
                             channel,
                             voices,
                             GeneratorType::FineTune,
@@ -382,7 +401,7 @@ pub(in super::super) fn cc(
                     }
                     // RPN_CHANNEL_COARSE_TUNE
                     2 => {
-                        super::gen::set_gen(
+                        set_gen(
                             channel,
                             voices,
                             GeneratorType::CoarseTune,
