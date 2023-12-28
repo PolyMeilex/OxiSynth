@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use super::generator::{self, Generator};
+use crate::GeneratorType;
+
+use super::generator::GeneratorList;
 use super::modulator::Mod;
 use super::Sample;
 
@@ -63,7 +65,7 @@ pub struct InstrumentZone {
     pub key_high: u8,
     pub vel_low: u8,
     pub vel_high: u8,
-    pub gen: [Generator; 60],
+    pub gen: GeneratorList,
     pub mods: Vec<Mod>,
 }
 
@@ -79,7 +81,7 @@ impl InstrumentZone {
         let mut vel_low = 0;
         let mut vel_high = 128;
 
-        let mut gen = generator::get_default_values();
+        let mut gen = GeneratorList::default();
 
         for new_gen in zone
             .gen_list
@@ -98,9 +100,10 @@ impl InstrumentZone {
                     vel_high = amount.high;
                 }
                 _ => {
+                    let ty = GeneratorType::from(new_gen.ty);
                     // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                    gen[new_gen.ty as usize].val = *new_gen.amount.as_i16().unwrap() as f64;
-                    gen[new_gen.ty as usize].flags = GEN_SET as u8;
+                    gen[ty].val = *new_gen.amount.as_i16().unwrap() as f64;
+                    gen[ty].flags = GEN_SET as u8;
                 }
             }
         }

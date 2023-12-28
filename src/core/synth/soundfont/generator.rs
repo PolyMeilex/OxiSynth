@@ -140,12 +140,56 @@ pub enum GeneratorType {
     Last = 60,
 }
 
+impl From<soundfont::data::GeneratorType> for GeneratorType {
+    fn from(value: soundfont::data::GeneratorType) -> Self {
+        num_traits::FromPrimitive::from_u8(value as u8).unwrap()
+    }
+}
+
 #[derive(Copy, Default, Debug, PartialEq, Clone)]
 pub struct Generator {
     pub flags: u8,
     pub val: f64,
     pub mod_0: f64,
     pub nrpn: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct GeneratorList([Generator; 60]);
+
+impl Default for GeneratorList {
+    fn default() -> Self {
+        Self(get_default_values())
+    }
+}
+
+impl GeneratorList {
+    pub fn new(channel: &Channel) -> Self {
+        let mut out = Self::default();
+
+        for (id, gen) in out.0.iter_mut().enumerate() {
+            gen.nrpn = channel.gen(id) as f64;
+            if channel.gen_abs(id) != 0 {
+                gen.flags = GEN_ABS_NRPN;
+            }
+        }
+
+        out
+    }
+}
+
+impl std::ops::Index<GeneratorType> for GeneratorList {
+    type Output = Generator;
+
+    fn index(&self, index: GeneratorType) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl std::ops::IndexMut<GeneratorType> for GeneratorList {
+    fn index_mut(&mut self, index: GeneratorType) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
 }
 
 const GEN_ABS_NRPN: u8 = 2;
@@ -647,7 +691,7 @@ static GEN_INFO: [GenInfo; 60] = [
 /// Flag the generators as unused.
 ///
 /// This also sets the generator values to default, but they will be overwritten anyway, if used.
-pub(crate) fn get_default_values() -> [Generator; 60] {
+fn get_default_values() -> [Generator; 60] {
     let mut out = [Generator::default(); 60];
 
     for (id, gen) in out.iter_mut().enumerate() {
@@ -655,19 +699,6 @@ pub(crate) fn get_default_values() -> [Generator; 60] {
         gen.mod_0 = 0.0;
         gen.nrpn = 0.0;
         gen.val = GEN_INFO[id].def as f64;
-    }
-
-    out
-}
-
-pub(crate) fn gen_init(channel: &Channel) -> [Generator; 60] {
-    let mut out = get_default_values();
-
-    for (id, gen) in out.iter_mut().enumerate() {
-        gen.nrpn = channel.gen(id) as f64;
-        if channel.gen_abs(id) != 0 {
-            gen.flags = GEN_ABS_NRPN;
-        }
     }
 
     out
