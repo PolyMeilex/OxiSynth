@@ -1,5 +1,5 @@
 pub(crate) mod internal;
-mod public;
+pub(crate) mod write;
 
 pub(crate) mod channel_pool;
 pub(crate) use channel_pool::Channel;
