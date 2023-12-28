@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use crate::core::{soundfont::Preset, utils::TypedArena, SoundFont, TypedIndex};
+use crate::arena::{TypedArena, TypedIndex};
+use crate::core::{soundfont::Preset, SoundFont};
 
 pub struct FontBank {
     fonts: TypedArena<SoundFont>,
