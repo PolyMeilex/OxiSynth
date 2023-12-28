@@ -1,5 +1,5 @@
-pub(crate) mod internal;
-mod public;
+pub(crate) mod midi;
+pub(crate) mod write;
 
 pub(crate) mod channel_pool;
 pub(crate) use channel_pool::Channel;
@@ -16,7 +16,6 @@ use super::reverb::Reverb;
 use super::OxiError;
 
 pub mod soundfont;
-use self::soundfont::Preset;
 
 use voice_pool::VoicePool;
 
@@ -113,7 +112,7 @@ impl Synth {
         };
 
         if synth.settings.drums_channel_active {
-            synth.bank_select(9, 128).ok();
+            synth.channels[9].set_banknum(128);
         }
 
         Ok(synth)
@@ -122,7 +121,7 @@ impl Synth {
     pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
         match event.check()? {
             MidiEvent::NoteOn { channel, key, vel } => {
-                internal::midi::noteon(
+                midi::noteon(
                     self.channels.get(channel as usize)?,
                     &mut self.voices,
                     self.ticks,
@@ -133,9 +132,8 @@ impl Synth {
                 )?;
             }
             MidiEvent::NoteOff { channel, key } => {
-                internal::midi::noteoff(
+                self.voices.noteoff(
                     self.channels.get(channel as usize)?,
-                    &mut self.voices,
                     self.min_note_length_ticks,
                     key,
                 );
@@ -145,7 +143,7 @@ impl Synth {
                 ctrl,
                 value,
             } => {
-                internal::midi::cc(
+                midi::cc(
                     self.channels.get_mut(channel as usize)?,
                     &mut self.voices,
                     self.min_note_length_ticks,
@@ -155,27 +153,26 @@ impl Synth {
                 );
             }
             MidiEvent::AllNotesOff { channel } => {
-                internal::midi::all_notes_off(
+                self.voices.all_notes_off(
                     self.channels.get_mut(channel as usize)?,
-                    &mut self.voices,
                     self.min_note_length_ticks,
                 );
             }
             MidiEvent::AllSoundOff { channel } => {
-                internal::all_sounds_off(channel as usize, &mut self.voices);
+                self.voices.all_sounds_off(channel as usize);
             }
             MidiEvent::PitchBend { channel, value } => {
-                internal::pitch_bend(
-                    self.channels.get_mut(channel as usize)?,
-                    &mut self.voices,
-                    value,
-                );
+                let channel = self.channels.get_mut(channel as usize)?;
+
+                const MOD_PITCHWHEEL: u8 = 14;
+                channel.set_pitch_bend(value);
+                self.voices.modulate_voices(channel, false, MOD_PITCHWHEEL);
             }
             MidiEvent::ProgramChange {
                 channel,
                 program_id,
             } => {
-                internal::midi::program_change(
+                midi::program_change(
                     self.channels.get_mut(channel as usize)?,
                     &self.font_bank,
                     program_id,
@@ -183,32 +180,33 @@ impl Synth {
                 );
             }
             MidiEvent::ChannelPressure { channel, value } => {
-                internal::midi::channel_pressure(
-                    self.channels.get_mut(channel as usize)?,
-                    &mut self.voices,
-                    value,
-                );
+                let channel = self.channels.get_mut(channel as usize)?;
+
+                const MOD_CHANNELPRESSURE: u8 = 13;
+                channel.set_channel_pressure(value);
+                self.voices
+                    .modulate_voices(channel, false, MOD_CHANNELPRESSURE);
             }
             MidiEvent::PolyphonicKeyPressure {
                 channel,
                 key,
                 value,
             } => {
-                internal::midi::key_pressure(
-                    self.channels.get_mut(channel as usize)?,
-                    &mut self.voices,
-                    key,
-                    value,
-                );
+                let channel = self.channels.get_mut(channel as usize)?;
+                channel.set_key_pressure(key as usize, value as i8);
+                self.voices.key_pressure(channel, key);
             }
             MidiEvent::SystemReset => {
-                internal::midi::system_reset(
-                    &mut self.voices,
-                    &mut self.channels,
-                    &self.font_bank,
-                    &mut self.chorus,
-                    &mut self.reverb,
-                );
+                self.voices.system_reset();
+
+                let preset = self.font_bank.find_preset(0, 0).map(|p| p.1);
+                for channel in self.channels.iter_mut() {
+                    channel.init(preset.clone());
+                    channel.init_ctrl(0);
+                }
+
+                self.chorus.reset();
+                self.reverb.reset();
             }
         };
 
