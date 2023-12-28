@@ -1,13 +1,13 @@
 use std::convert::TryInto;
 
+use crate::core::channel_pool::Channel;
+use crate::core::font_bank::FontBank;
 use crate::core::soundfont::modulator::Mod;
 use crate::core::soundfont::{
     generator::{gen_scale_nrpn, GeneratorType},
     InstrumentZone, PresetZone,
 };
-use crate::core::synth::channel_pool::Channel;
-use crate::core::synth::font_bank::FontBank;
-use crate::core::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
+use crate::core::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
 use crate::OxiError;
 use num_traits::cast::FromPrimitive;
 

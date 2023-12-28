@@ -1,4 +1,4 @@
-use crate::core::synth::Synth;
+use crate::core::Synth;
 
 impl Synth {
     /// clean the audio buffers
