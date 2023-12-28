@@ -53,9 +53,7 @@ impl Tuning {
     }
 
     pub fn set_all(&mut self, pitch: &[f64; 128]) {
-        for i in 0..128 {
-            self.pitch[i] = pitch[i];
-        }
+        self.pitch = *pitch;
     }
 
     pub fn set_pitch(&mut self, key: u32, pitch: f64) {
@@ -64,11 +62,10 @@ impl Tuning {
         }
     }
 
-    pub fn tune_notes(&mut self, key_pitch: &[(u32, f64)]) -> Result<(), ()> {
+    pub fn tune_notes(&mut self, key_pitch: &[(u32, f64)]) {
         for (key, pitch) in key_pitch.iter() {
             self.set_pitch(*key, *pitch);
         }
-        Ok(())
     }
 }
 
@@ -145,18 +142,18 @@ impl TuningManager {
             .and_then(|bank| bank.get_mut(program).and_then(|t| t.as_mut()))
     }
 
-    pub fn tuning_iter<'a>(&'a self) -> impl Iterator<Item = &'a Tuning> {
+    pub fn tuning_iter(&self) -> impl Iterator<Item = &Tuning> {
         self.tuning.iter().flatten().filter_map(|t| t.as_ref())
     }
 
-    pub fn tuning_iter_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut Tuning> {
+    pub fn tuning_iter_mut(&mut self) -> impl Iterator<Item = &mut Tuning> {
         self.tuning.iter_mut().flatten().filter_map(|t| t.as_mut())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::core::{Tuning, TuningManager};
+    use super::{Tuning, TuningManager};
 
     #[test]
     fn tuning() {

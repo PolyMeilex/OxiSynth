@@ -10,10 +10,9 @@ pub use channel_pool::InterpolationMethod;
 
 pub mod font_bank;
 
-use super::midi_event::MidiEvent;
-use super::OxiError;
 use crate::chorus::Chorus;
 use crate::reverb::Reverb;
+use crate::{MidiEvent, OxiError};
 
 pub mod soundfont;
 
@@ -22,7 +21,7 @@ use voice_pool::VoicePool;
 use self::channel_pool::ChannelPool;
 use self::font_bank::FontBank;
 
-use super::settings::{Settings, SettingsError, SynthDescriptor};
+use crate::{Settings, SettingsError, SynthDescriptor};
 use std::convert::TryInto;
 
 #[derive(Clone)]

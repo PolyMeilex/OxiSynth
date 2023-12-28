@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use super::super::soundfont::{Preset, SoundFont};
 
-use crate::core::tuning::Tuning;
 use crate::core::utils::TypedIndex;
 use crate::GeneratorType;
+use crate::Tuning;
 
 type MidiControlChange = usize;
 const ALL_SOUND_OFF: MidiControlChange = 120;

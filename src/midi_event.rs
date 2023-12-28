@@ -1,4 +1,5 @@
-use super::{utils::RangeCheck, OxiError};
+use crate::core::utils::RangeCheck;
+use crate::error::OxiError;
 
 pub type U7 = u8;
 pub type U14 = u16;

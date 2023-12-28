@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-use crate::core::error::OxiError;
 use crate::core::soundfont::modulator::Mod;
 use crate::core::soundfont::{
     generator::{gen_scale_nrpn, GeneratorType},
@@ -9,6 +8,7 @@ use crate::core::soundfont::{
 use crate::core::synth::channel_pool::Channel;
 use crate::core::synth::font_bank::FontBank;
 use crate::core::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
+use crate::OxiError;
 use num_traits::cast::FromPrimitive;
 
 type MidiControlChange = u32;
