@@ -16,7 +16,6 @@ use super::reverb::Reverb;
 use super::OxiError;
 
 pub mod soundfont;
-use self::soundfont::Preset;
 
 use voice_pool::VoicePool;
 
