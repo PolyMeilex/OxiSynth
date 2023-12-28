@@ -34,15 +34,19 @@ impl Synth {
 
     /// Select a bank.
     pub fn bank_select(&mut self, channel: u8, bank: u32) -> Result<(), OxiError> {
-        let channel = self.core.channels.get_mut(channel as usize)?;
-        internal::midi::bank_select(channel, bank);
+        self.core
+            .channels
+            .get_mut(channel as usize)?
+            .set_banknum(bank);
         Ok(())
     }
 
     /// Select a sfont.
     pub fn sfont_select(&mut self, channel: u8, sfont_id: SoundFontId) -> Result<(), OxiError> {
-        let channel = self.core.channels.get_mut(channel as usize)?;
-        internal::midi::sfont_select(channel, sfont_id);
+        self.core
+            .channels
+            .get_mut(channel as usize)?
+            .set_sfontnum(Some(sfont_id));
         Ok(())
     }
 
@@ -58,23 +62,51 @@ impl Synth {
         preset_id: u8,
     ) -> Result<(), OxiError> {
         let channel = self.core.channels.get_mut(channel as usize)?;
-        internal::midi::program_select(channel, &self.core.font_bank, sfont_id, bank_id, preset_id)
+        let preset = self.core.font_bank.preset(sfont_id, bank_id, preset_id);
+
+        if preset.is_none() {
+            log::error!(
+                "There is no preset with bank number {} and preset number {} in SoundFont {:?}",
+                bank_id,
+                preset_id,
+                sfont_id
+            );
+            Err(OxiError::PresetNotFound {
+                bank_id,
+                preset_id,
+                sfont_id,
+            })
+        } else {
+            channel.set_sfontnum(Some(sfont_id));
+            channel.set_banknum(bank_id);
+            channel.set_prognum(preset_id);
+            channel.set_preset(preset);
+            Ok(())
+        }
     }
 
     /// Returns the program, bank, and SoundFont number of the preset on a given channel.
     pub fn get_program(&self, channel: u8) -> Result<(Option<SoundFontId>, u32, u32), OxiError> {
         let channel = self.core.channels.get(channel as usize)?;
-        Ok(internal::midi::get_program(channel))
+
+        Ok((
+            channel.sfontnum(),
+            channel.banknum(),
+            channel.prognum() as u32,
+        ))
     }
 
     /// Send a bank select and a program change to every channel to reinitialize the preset of the channel.
     ///
     /// This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
     pub fn program_reset(&mut self) {
-        internal::midi::program_reset(
-            &mut self.core.channels,
-            &self.core.font_bank,
-            self.core.settings.drums_channel_active,
-        )
+        for channel in self.core.channels.iter_mut() {
+            internal::midi::program_change(
+                channel,
+                &self.core.font_bank,
+                channel.prognum(),
+                self.core.settings.drums_channel_active,
+            );
+        }
     }
 }

@@ -1,17 +1,14 @@
 use std::convert::TryInto;
 
-use crate::core::chorus::Chorus;
 use crate::core::error::OxiError;
-use crate::core::reverb::Reverb;
 use crate::core::soundfont::modulator::Mod;
 use crate::core::soundfont::{
     generator::{gen_scale_nrpn, GeneratorType},
-    InstrumentZone, PresetZone, SoundFont,
+    InstrumentZone, PresetZone,
 };
 use crate::core::synth::channel_pool::Channel;
 use crate::core::synth::font_bank::FontBank;
 use crate::core::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
-use crate::core::utils::TypedIndex;
 use num_traits::cast::FromPrimitive;
 
 type MidiControlChange = u32;
@@ -21,9 +18,7 @@ const NRPN_MSB: MidiControlChange = 99;
 const NRPN_LSB: MidiControlChange = 98;
 const DATA_ENTRY_LSB: MidiControlChange = 38;
 
-/**
-Send a noteon message.
- */
+/// Send a noteon message.
 pub fn noteon(
     channel: &Channel,
     voices: &mut VoicePool,
@@ -34,7 +29,7 @@ pub fn noteon(
     vel: u8,
 ) -> Result<(), OxiError> {
     if vel == 0 {
-        noteoff(channel, voices, min_note_length_ticks, key);
+        voices.noteoff(channel, min_note_length_ticks, key);
         Ok(())
     } else if channel.preset().is_none() {
         Err(OxiError::ChannelHasNoPreset)
@@ -275,17 +270,8 @@ fn inner_noteon(
     }
 }
 
-/**
-Send a noteoff message.
- */
-pub fn noteoff(channel: &Channel, voices: &mut VoicePool, min_note_length_ticks: usize, key: u8) {
-    voices.noteoff(channel, min_note_length_ticks, key)
-}
-
-/**
-Send a control change message.
- */
-pub fn cc(
+/// Send a control change message.
+pub(in super::super) fn cc(
     channel: &mut Channel,
     voices: &mut VoicePool,
     min_note_length_ticks: usize,
@@ -342,12 +328,12 @@ pub fn cc(
 
         // ALL_NOTES_OFF
         123 => {
-            all_notes_off(channel, voices, min_note_length_ticks);
+            voices.all_notes_off(channel, min_note_length_ticks);
         }
 
         // ALL_SOUND_OFF
         120 => {
-            all_notes_off(channel, voices, min_note_length_ticks);
+            voices.all_notes_off(channel, min_note_length_ticks);
         }
 
         // ALL_CTRL_OFF
@@ -439,59 +425,15 @@ pub fn cc(
     }
 }
 
-/**
-Get a control value.
- */
-// pub fn get_cc(channel: &Channel, num: u16) -> u8 {
-//     channel.cc(num as usize)
-// }
-
-pub fn all_notes_off(channel: &Channel, voices: &mut VoicePool, min_note_length_ticks: usize) {
-    voices.all_notes_off(channel, min_note_length_ticks)
-}
-
-pub fn all_sounds_off(channel_id: usize, voices: &mut VoicePool) {
-    voices.all_sounds_off(channel_id)
-}
-
-/**
-Send a pitch bend message.
- */
-pub fn pitch_bend(channel: &mut Channel, voices: &mut VoicePool, val: u16) {
-    const MOD_PITCHWHEEL: u8 = 14;
-
-    channel.set_pitch_bend(val);
-    voices.modulate_voices(channel, false, MOD_PITCHWHEEL);
-}
-
-// /**
-// Get the pitch bend value.
-//  */
-// pub fn get_pitch_bend(channel: &Channel) -> i16 {
-//     channel.pitch_bend()
-// }
-
-/**
-Set the pitch wheel sensitivity.
- */
-pub fn pitch_wheel_sens(channel: &mut Channel, voices: &mut VoicePool, val: u8) {
+/// Set the pitch wheel sensitivity.
+pub(crate) fn pitch_wheel_sens(channel: &mut Channel, voices: &mut VoicePool, val: u8) {
     const MOD_PITCHWHEELSENS: u8 = 16;
-
     channel.set_pitch_wheel_sensitivity(val);
     voices.modulate_voices(channel, false, MOD_PITCHWHEELSENS);
 }
 
-// /**
-// Get the pitch wheel sensitivity.
-//  */
-// pub fn get_pitch_wheel_sens(channel: &Channel) -> u8 {
-//     channel.pitch_wheel_sensitivity()
-// }
-
-/**
-Send a program change message.
- */
-pub fn program_change(
+/// Send a program change message.
+pub(crate) fn program_change(
     channel: &mut Channel,
     font_bank: &FontBank,
     program_id: u8,
@@ -530,121 +472,4 @@ pub fn program_change(
 
     channel.set_sfontnum(preset.as_ref().map(|p| p.0));
     channel.set_preset(preset.map(|p| p.1));
-}
-
-/**
-Set channel pressure
- */
-pub fn channel_pressure(channel: &mut Channel, voices: &mut VoicePool, val: u8) {
-    const MOD_CHANNELPRESSURE: u8 = 13;
-
-    channel.set_channel_pressure(val);
-    voices.modulate_voices(channel, false, MOD_CHANNELPRESSURE);
-}
-
-/**
-Set key pressure (aftertouch)
- */
-pub fn key_pressure(channel: &mut Channel, voices: &mut VoicePool, key: u8, val: u8) {
-    channel.set_key_pressure(key as usize, val as i8);
-    voices.key_pressure(channel, key);
-}
-
-/**
-Select a bank.
- */
-pub fn bank_select(channel: &mut Channel, bank: u32) {
-    channel.set_banknum(bank);
-}
-
-/**
-Select a sfont.
- */
-pub fn sfont_select(channel: &mut Channel, sfont_id: TypedIndex<SoundFont>) {
-    channel.set_sfontnum(Some(sfont_id));
-}
-
-/**
-Select a preset for a channel. The preset is specified by the
-SoundFont ID, the bank number, and the preset number. This
-allows any preset to be selected and circumvents preset masking
-due to previously loaded SoundFonts on the SoundFont stack.
- */
-pub fn program_select(
-    channel: &mut Channel,
-    font_bank: &FontBank,
-    sfont_id: TypedIndex<SoundFont>,
-    bank_id: u32,
-    preset_id: u8,
-) -> Result<(), OxiError> {
-    let preset = font_bank.preset(sfont_id, bank_id, preset_id);
-
-    if preset.is_none() {
-        log::error!(
-            "There is no preset with bank number {} and preset number {} in SoundFont {:?}",
-            bank_id,
-            preset_id,
-            sfont_id
-        );
-        Err(OxiError::PresetNotFound {
-            bank_id,
-            preset_id,
-            sfont_id,
-        })
-    } else {
-        channel.set_sfontnum(Some(sfont_id));
-        channel.set_banknum(bank_id);
-        channel.set_prognum(preset_id);
-        channel.set_preset(preset);
-        Ok(())
-    }
-}
-
-/**
-Returns the program, bank, and SoundFont number of the preset on a given channel.
- */
-pub fn get_program(channel: &Channel) -> (Option<TypedIndex<SoundFont>>, u32, u32) {
-    (
-        channel.sfontnum(),
-        channel.banknum(),
-        channel.prognum() as u32,
-    )
-}
-
-/**
-Send a bank select and a program change to every channel to reinitialize the preset of the channel.
-
-This function is useful mainly after a SoundFont has been loaded, unloaded or reloaded.
- */
-pub fn program_reset(channels: &mut [Channel], font_bank: &FontBank, drums_channel_active: bool) {
-    for channel in channels.iter_mut() {
-        program_change(channel, font_bank, channel.prognum(), drums_channel_active);
-    }
-}
-
-/**
-Send a reset.
-
-A reset turns all the notes off and resets the controller values.
-
-Purpose:
-Respond to the MIDI command 'system reset' (0xFF, big red 'panic' button)
- */
-pub fn system_reset(
-    voices: &mut VoicePool,
-    channels: &mut [Channel],
-    font_bank: &FontBank,
-    chorus: &mut Chorus,
-    reverb: &mut Reverb,
-) {
-    voices.system_reset();
-
-    let preset = font_bank.find_preset(0, 0).map(|p| p.1);
-    for channel in channels.iter_mut() {
-        channel.init(preset.clone());
-        channel.init_ctrl(0);
-    }
-
-    chorus.reset();
-    reverb.reset();
 }
