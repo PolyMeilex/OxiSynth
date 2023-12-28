@@ -1,7 +1,7 @@
+use crate::GeneratorType;
+
 use super::{EnvelopeStep, Voice};
 pub type Phase = u64;
-pub type GenType = u32;
-pub const GEN_SAMPLEMODE: GenType = 54;
 pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
 pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
 pub type LoopMode = u32;
@@ -121,10 +121,9 @@ impl Voice {
         let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
-        let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+        let looping = (self.gen[GeneratorType::SampleMode].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         let end_index = if looping != 0 {
@@ -192,10 +191,9 @@ impl Voice {
         let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
-        let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+        let looping = (self.gen[GeneratorType::SampleMode].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
-                == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 2nd interpolation point must be specially handled */
@@ -300,9 +298,9 @@ impl Voice {
         let dsp_phase_incr = phase_set_float(phase_incr);
 
         /* voice is currently looping? */
-        let looping = (self.gen[GEN_SAMPLEMODE as i32 as usize].val as i32
+        let looping = (self.gen[GeneratorType::SampleMode].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 4th interpolation point must be specially handled */
@@ -469,9 +467,9 @@ impl Voice {
         let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
 
         /* voice is currently looping? */
-        let looping = (self.gen[GEN_SAMPLEMODE as usize].val as i32
+        let looping = (self.gen[GeneratorType::SampleMode].val as i32
             == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GEN_SAMPLEMODE as usize].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 7th interpolation point must be specially handled */

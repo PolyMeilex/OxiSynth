@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::generator::{self, Generator};
+use super::generator::{GeneratorList, GeneratorType};
 use super::modulator::Mod;
 use super::{instrument::Instrument, Sample};
 
@@ -78,7 +78,7 @@ pub struct PresetZone {
     pub key_high: u8,
     pub vel_low: u8,
     pub vel_high: u8,
-    pub gen: [Generator; 60],
+    pub gen: GeneratorList,
     pub mods: Vec<Mod>,
 }
 
@@ -94,7 +94,7 @@ impl PresetZone {
         let mut vel_low = 0;
         let mut vel_high = 128;
 
-        let mut gen = generator::get_default_values();
+        let mut gen = GeneratorList::default();
 
         for sfgen in zone
             .gen_list
@@ -113,9 +113,11 @@ impl PresetZone {
                     vel_high = amount.high;
                 }
                 _ => {
+                    let ty = GeneratorType::from(sfgen.ty);
+
                     // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                    gen[sfgen.ty as usize].val = *sfgen.amount.as_i16().unwrap() as f64;
-                    gen[sfgen.ty as usize].flags = GEN_SET as u8;
+                    gen[ty].val = *sfgen.amount.as_i16().unwrap() as f64;
+                    gen[ty].flags = GEN_SET as u8;
                 }
             }
         }

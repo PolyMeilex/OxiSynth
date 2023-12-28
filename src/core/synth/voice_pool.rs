@@ -193,9 +193,9 @@ impl VoicePool {
     fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
         let excl_class = {
             let new_voice = &mut self.voices[new_voice.0];
-            let excl_class: i32 = (new_voice.gen[GeneratorType::ExclusiveClass as usize].val
-                + new_voice.gen[GeneratorType::ExclusiveClass as usize].mod_0
-                + new_voice.gen[GeneratorType::ExclusiveClass as usize].nrpn)
+            let excl_class: i32 = (new_voice.gen[GeneratorType::ExclusiveClass].val
+                + new_voice.gen[GeneratorType::ExclusiveClass].mod_0
+                + new_voice.gen[GeneratorType::ExclusiveClass].nrpn)
                 as i32;
             excl_class
         };
@@ -207,9 +207,9 @@ impl VoicePool {
 
                 if existing_voice.is_playing() {
                     if existing_voice.get_channel_id() == new_voice.get_channel_id() {
-                        if (existing_voice.gen[GeneratorType::ExclusiveClass as usize].val
-                            + existing_voice.gen[GeneratorType::ExclusiveClass as usize].mod_0
-                            + existing_voice.gen[GeneratorType::ExclusiveClass as usize].nrpn)
+                        if (existing_voice.gen[GeneratorType::ExclusiveClass].val
+                            + existing_voice.gen[GeneratorType::ExclusiveClass].mod_0
+                            + existing_voice.gen[GeneratorType::ExclusiveClass].nrpn)
                             as i32
                             == excl_class
                         {

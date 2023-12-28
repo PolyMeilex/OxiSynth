@@ -12,6 +12,7 @@ use crate::core::synth::channel_pool::Channel;
 use crate::core::synth::font_bank::FontBank;
 use crate::core::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
 use crate::core::utils::TypedIndex;
+use num_traits::cast::FromPrimitive;
 
 type GenType = u32;
 const GEN_LAST: GenType = 60;
@@ -95,24 +96,19 @@ fn inner_noteon(
                             voice.add_default_mods();
 
                             // Instrument level, generators
-                            for i in 0..GEN_LAST {
-                                use num_traits::FromPrimitive;
+                            for i in 0..GeneratorType::Last as u8 {
+                                let gen = GeneratorType::from_u8(i).unwrap();
+
                                 /* SF 2.01 section 9.4 'bullet' 4:
                                  *
                                  * A generator in a local instrument zone supersedes a
                                  * global instrument zone generator.  Both cases supersede
                                  * the default generator -> voice_gen_set */
-                                if inst_zone.gen[i as usize].flags != 0 {
-                                    voice.gen_set(
-                                        FromPrimitive::from_u8(i as u8).unwrap(),
-                                        inst_zone.gen[i as usize].val,
-                                    );
+                                if inst_zone.gen[gen].flags != 0 {
+                                    voice.gen_set(gen, inst_zone.gen[gen].val);
                                 } else if let Some(global_inst_zone) = &global_inst_zone {
-                                    if global_inst_zone.gen[i as usize].flags as i32 != 0 {
-                                        voice.gen_set(
-                                            FromPrimitive::from_u8(i as u8).unwrap(),
-                                            global_inst_zone.gen[i as usize].val,
-                                        );
+                                    if global_inst_zone.gen[gen].flags as i32 != 0 {
+                                        voice.gen_set(gen, global_inst_zone.gen[gen].val);
                                     }
                                 } else {
                                     /* The generator has not been defined in this instrument.
@@ -140,11 +136,11 @@ fn inner_noteon(
                                  *  list entry to NULL.  The list length is known, NULL
                                  *  entries will be ignored later.  SF2.01 section 9.5.1
                                  *  page 69, 'bullet' 3 defines 'identical'.  */
-                                for i in 0..mod_list_count {
-                                    if mod_list[i].is_some()
-                                        && m.test_identity(mod_list[i].as_ref().unwrap())
-                                    {
-                                        mod_list[i] = None;
+                                for mod_slot in mod_list.iter_mut().take(mod_list_count) {
+                                    if let Some(mod_0) = mod_slot {
+                                        if m.test_identity(mod_0) {
+                                            *mod_slot = None;
+                                        }
                                     }
                                 }
 
@@ -155,65 +151,45 @@ fn inner_noteon(
                             }
 
                             // Add instrument modulators (global / local) to the voice.
-                            for i in 0..mod_list_count {
-                                let mod_0 = mod_list[i];
-                                if mod_0.is_some() {
+                            for mod_slot in mod_list.iter().take(mod_list_count) {
+                                if let Some(mod_0) = mod_slot.as_ref() {
                                     // disabled modulators CANNOT be skipped.
 
                                     /* Instrument modulators -supersede- existing (default)
                                      * modulators.  SF 2.01 page 69, 'bullet' 6 */
-                                    voice.add_mod(mod_0.as_ref().unwrap(), VoiceAddMode::Overwrite);
+                                    voice.add_mod(mod_0, VoiceAddMode::Overwrite);
                                 }
                             }
 
-                            const GEN_STARTADDROFS: u32 = 0;
-                            const GEN_ENDADDROFS: u32 = 1;
-                            const GEN_STARTLOOPADDROFS: u32 = 2;
-                            const GEN_ENDLOOPADDROFS: u32 = 3;
-                            const GEN_STARTADDRCOARSEOFS: u32 = 4;
-
-                            const GEN_ENDADDRCOARSEOFS: u32 = 12;
-
-                            const GEN_STARTLOOPADDRCOARSEOFS: u32 = 45;
-                            const GEN_KEYNUM: u32 = 46;
-                            const GEN_VELOCITY: u32 = 47;
-
-                            const GEN_ENDLOOPADDRCOARSEOFS: u32 = 50;
-                            const GEN_SAMPLEMODE: u32 = 54;
-                            const GEN_EXCLUSIVECLASS: u32 = 57;
-                            const GEN_OVERRIDEROOTKEY: u32 = 58;
-                            const GEN_LAST: u32 = 60;
-
                             /* Preset level, generators */
-                            for i in 0..GEN_LAST {
+                            for gen in 0..GeneratorType::Last as u8 {
+                                let gen = GeneratorType::from_u8(gen).unwrap();
+
                                 /* SF 2.01 section 8.5 page 58: If some generators are
                                  * encountered at preset level, they should be ignored */
-                                if i != GEN_STARTADDROFS
-                                    && i != GEN_ENDADDROFS
-                                    && i != GEN_STARTLOOPADDROFS
-                                    && i != GEN_ENDLOOPADDROFS
-                                    && i != GEN_STARTADDRCOARSEOFS
-                                    && i != GEN_ENDADDRCOARSEOFS
-                                    && i != GEN_STARTLOOPADDRCOARSEOFS
-                                    && i != GEN_KEYNUM
-                                    && i != GEN_VELOCITY
-                                    && i != GEN_ENDLOOPADDRCOARSEOFS
-                                    && i != GEN_SAMPLEMODE
-                                    && i != GEN_EXCLUSIVECLASS
-                                    && i != GEN_OVERRIDEROOTKEY
+                                if gen != GeneratorType::StartAddrOfs
+                                    && gen != GeneratorType::EndAddrOfs
+                                    && gen != GeneratorType::StartLoopAddrOfs
+                                    && gen != GeneratorType::EndLoopAddrOfs
+                                    && gen != GeneratorType::StartAddrCoarseOfs
+                                    && gen != GeneratorType::EndAddrCoarseOfs
+                                    && gen != GeneratorType::StartLoopAddrCoarseOfs
+                                    && gen != GeneratorType::KeyNum
+                                    && gen != GeneratorType::Velocity
+                                    && gen != GeneratorType::EndLoopAddrCoarseOfs
+                                    && gen != GeneratorType::SampleMode
+                                    && gen != GeneratorType::ExclusiveClass
+                                    && gen != GeneratorType::OverrideRootKey
                                 {
                                     /* SF 2.01 section 9.4 'bullet' 9: A generator in a
                                      * local preset zone supersedes a global preset zone
                                      * generator.  The effect is -added- to the destination
                                      * summing node -> voice_gen_incr */
-                                    if preset_zone.gen[i as usize].flags != 0 {
-                                        voice.gen_incr(i, preset_zone.gen[i as usize].val);
+                                    if preset_zone.gen[gen].flags != 0 {
+                                        voice.gen_incr(gen, preset_zone.gen[gen].val);
                                     } else if let Some(global_preset_zone) = &global_preset_zone {
-                                        if global_preset_zone.gen[i as usize].flags != 0 {
-                                            voice.gen_incr(
-                                                i,
-                                                global_preset_zone.gen[i as usize].val,
-                                            );
+                                        if global_preset_zone.gen[gen].flags != 0 {
+                                            voice.gen_incr(gen, global_preset_zone.gen[gen].val);
                                         }
                                     } else {
                                         /* The generator has not been defined in this preset
@@ -402,8 +378,6 @@ pub fn cc(
                 // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
                 if nrpn_msb == 120 && nrpn_lsb < 100 {
                     if (nrpn_select as i32) < GEN_LAST as i32 {
-                        use num_traits::FromPrimitive;
-
                         let scale_nrpn: f32 = gen_scale_nrpn(nrpn_select, data);
 
                         let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();

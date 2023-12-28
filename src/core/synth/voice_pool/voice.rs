@@ -10,7 +10,7 @@ use super::super::{
 };
 
 use super::super::soundfont::{
-    generator::{self, Generator, GeneratorType},
+    generator::{Generator, GeneratorList, GeneratorType},
     modulator::Mod,
     Sample,
 };
@@ -106,7 +106,7 @@ pub struct Voice {
     hist1: f32,
     hist2: f32,
 
-    pub(crate) gen: [Generator; 60],
+    pub(super) gen: GeneratorList,
     synth_gain: f32,
 
     amplitude_that_reaches_noise_floor_nonloop: f32,
@@ -256,7 +256,7 @@ impl Voice {
             hist1: 0.0,
             hist2: 0.0,
 
-            gen: generator::gen_init(desc.channel),
+            gen: GeneratorList::new(desc.channel),
             synth_gain,
 
             amplitude_that_reaches_noise_floor_nonloop: 0.00003 / synth_gain,
@@ -385,14 +385,14 @@ impl Voice {
         self.add_mod(&DEFAULT_PITCH_BEND_MOD, VoiceAddMode::Default);
     }
 
-    pub fn gen_incr(&mut self, i: u32, val: f64) {
-        self.gen[i as usize].val += val;
-        self.gen[i as usize].flags = GEN_SET as u8;
+    pub fn gen_incr(&mut self, i: GeneratorType, val: f64) {
+        self.gen[i].val += val;
+        self.gen[i].flags = GEN_SET as u8;
     }
 
     pub fn gen_set(&mut self, i: GeneratorType, val: f64) {
-        self.gen[i as usize].val = val;
-        self.gen[i as usize].flags = GEN_SET as u8;
+        self.gen[i].val = val;
+        self.gen[i].flags = GEN_SET as u8;
     }
 
     /*
@@ -515,7 +515,7 @@ impl Voice {
                     }
                     k += 1
                 }
-                self.gen[gen as usize].mod_0 = modval as f64;
+                self.gen[gen].mod_0 = modval as f64;
                 self.update_param(gen);
             }
             i += 1
@@ -536,7 +536,7 @@ impl Voice {
                 }
                 k += 1
             }
-            self.gen[gen as usize].mod_0 = modval as f64;
+            self.gen[gen].mod_0 = modval as f64;
             self.update_param(gen);
             i += 1
         }
@@ -656,21 +656,19 @@ impl Voice {
         while i < self.mod_count {
             let mod_0 = &self.mod_0[i];
             let modval: f32 = mod_0.get_value(channel, self);
-            let dest_gen_index = mod_0.dest as usize;
-            let dest_gen = &mut self.gen[dest_gen_index];
+            let dest_gen = &mut self.gen[mod_0.dest];
             dest_gen.mod_0 += modval as f64;
             i += 1
         }
         let tuning = channel.tuning();
         if let Some(tuning) = tuning {
-            self.gen[GeneratorType::Pitch as usize].val = tuning.pitch[60]
-                + self.gen[GeneratorType::ScaleTune as usize].val / 100.0f32 as f64
+            self.gen[GeneratorType::Pitch].val = tuning.pitch[60]
+                + self.gen[GeneratorType::ScaleTune].val / 100.0f32 as f64
                     * (tuning.pitch[self.key as usize] - tuning.pitch[60])
         } else {
-            self.gen[GeneratorType::Pitch as usize].val =
-                self.gen[GeneratorType::ScaleTune as usize].val
-                    * (self.key as i32 as f32 - 60.0f32) as f64
-                    + (100.0f32 * 60.0f32) as f64
+            self.gen[GeneratorType::Pitch].val = self.gen[GeneratorType::ScaleTune].val
+                * (self.key as i32 as f32 - 60.0f32) as f64
+                + (100.0f32 * 60.0f32) as f64
         }
 
         for gen in list_of_generators_to_initialize.iter() {
@@ -721,9 +719,8 @@ impl Voice {
             return;
         }
 
-        if self.gen[GeneratorType::SampleMode as usize].val as i32 == LoopMode::UntilRelease as i32
-            || self.gen[GeneratorType::SampleMode as usize].val as i32
-                == LoopMode::DuringRelease as i32
+        if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
         {
             /* Keep the loop start point within the sample data */
             if self.loopstart < min_index_loop {
@@ -748,8 +745,7 @@ impl Voice {
 
             /* Loop too short? Then don't loop. */
             if self.loopend < self.loopstart + 2 {
-                self.gen[GeneratorType::SampleMode as i32 as usize].val =
-                    LoopMode::UnLooped as i32 as f64
+                self.gen[GeneratorType::SampleMode].val = LoopMode::UnLooped as i32 as f64
             }
 
             /* The loop points may have changed. Obtain a new estimate for the loop volume. */
@@ -776,13 +772,11 @@ impl Voice {
             .contains(SampleSanity::STARTUP)
         {
             if max_index_loop - min_index_loop < 2 {
-                if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
-                    == LoopMode::UntilRelease as i32
-                    || self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
+                if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
+                    || self.gen[GeneratorType::SampleMode].val as i32
                         == LoopMode::DuringRelease as i32
                 {
-                    self.gen[GeneratorType::SampleMode as i32 as usize].val =
-                        LoopMode::UnLooped as i32 as f64
+                    self.gen[GeneratorType::SampleMode].val = LoopMode::UnLooped as i32 as f64
                 }
             }
 
@@ -793,11 +787,9 @@ impl Voice {
 
         /* Is this voice run in loop mode, or does it run straight to the
         end of the waveform data? */
-        if self.gen[GeneratorType::SampleMode as i32 as usize].val as i32
-            == LoopMode::UntilRelease as i32
+        if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
             && self.volenv_section < EnvelopeStep::Release
-            || self.gen[GeneratorType::SampleMode as usize].val as i32
-                == LoopMode::DuringRelease as i32
+            || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
         {
             /* Yes, it will loop as soon as it reaches the loop point.  In
              * this case we must prevent, that the playback pointer (phase)
@@ -822,8 +814,8 @@ impl Voice {
     }
 
     pub fn set_param(&mut self, gen: GeneratorType, nrpn_value: f32, abs: i32) {
-        self.gen[gen as usize].nrpn = nrpn_value as f64;
-        self.gen[gen as usize].flags = if abs != 0 {
+        self.gen[gen].nrpn = nrpn_value as f64;
+        self.gen[gen].flags = if abs != 0 {
             GEN_ABS_NRPN as i32
         } else {
             GEN_SET as i32
@@ -1336,13 +1328,12 @@ impl Voice {
         gen_key2base: GeneratorType,
         is_decay: i32,
     ) -> i32 {
-        let mut timecents = (self.gen[gen_base as usize].val
-            + self.gen[gen_base as usize].mod_0
-            + self.gen[gen_base as usize].nrpn)
-            + (self.gen[gen_key2base as usize].val
-                + self.gen[gen_key2base as usize].mod_0
-                + self.gen[gen_key2base as usize].nrpn)
-                * (60.0 - self.key as f64);
+        let mut timecents =
+            (self.gen[gen_base].val + self.gen[gen_base].mod_0 + self.gen[gen_base].nrpn)
+                + (self.gen[gen_key2base].val
+                    + self.gen[gen_key2base].mod_0
+                    + self.gen[gen_key2base].nrpn)
+                    * (60.0 - self.key as f64);
         if is_decay != 0 {
             if timecents > 8000.0 {
                 timecents = 8000.0;
@@ -1381,7 +1372,7 @@ impl Voice {
             ($id: expr) => {{
                 let Generator {
                     val, mod_0, nrpn, ..
-                } = &self.gen[$id as usize];
+                } = &self.gen[$id];
 
                 (val + mod_0 + nrpn) as f32
             }};
@@ -1400,11 +1391,10 @@ impl Voice {
                 // Alternate attenuation scale used by EMU10K1 cards when setting the attenuation at the preset or instrument level within the SoundFont bank.
                 static ALT_ATTENUATION_SCALE: f64 = 0.4;
 
-                self.attenuation = (self.gen[GeneratorType::Attenuation as usize].val
-                    * ALT_ATTENUATION_SCALE
-                    + self.gen[GeneratorType::Attenuation as usize].mod_0
-                    + self.gen[GeneratorType::Attenuation as usize].nrpn)
-                    as f32;
+                self.attenuation =
+                    (self.gen[GeneratorType::Attenuation].val * ALT_ATTENUATION_SCALE
+                        + self.gen[GeneratorType::Attenuation].mod_0
+                        + self.gen[GeneratorType::Attenuation].nrpn) as f32;
 
                 /* Range: SF2.01 section 8.1.3 # 48
                  * Motivation for range checking:
@@ -1464,9 +1454,8 @@ impl Voice {
                  * inverted with respect to the root note (so subtract it, not add).
                  */
                 //FIXME: use flag instead of -1
-                if self.gen[GeneratorType::OverrideRootKey as usize].val > -1.0 {
-                    self.root_pitch = (self.gen[GeneratorType::OverrideRootKey as usize].val
-                        * 100.0
+                if self.gen[GeneratorType::OverrideRootKey].val > -1.0 {
+                    self.root_pitch = (self.gen[GeneratorType::OverrideRootKey].val * 100.0
                         - self.sample.pitchadj as f64) as f32
                 } else {
                     self.root_pitch =
