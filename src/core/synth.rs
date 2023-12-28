@@ -11,9 +11,9 @@ pub use channel_pool::InterpolationMethod;
 pub mod font_bank;
 
 use super::midi_event::MidiEvent;
-use super::reverb::Reverb;
 use super::OxiError;
 use crate::chorus::Chorus;
+use crate::reverb::Reverb;
 
 pub mod soundfont;
 

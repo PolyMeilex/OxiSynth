@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 
-pub mod reverb;
-
 pub mod settings;
 pub use settings::{Settings, SettingsError, SynthDescriptor};
 
