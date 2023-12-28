@@ -14,9 +14,6 @@ use crate::core::synth::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, Voice
 use crate::core::utils::TypedIndex;
 use num_traits::cast::FromPrimitive;
 
-type GenType = u32;
-const GEN_LAST: GenType = 60;
-
 type MidiControlChange = u32;
 const RPN_MSB: MidiControlChange = 101;
 const RPN_LSB: MidiControlChange = 100;
@@ -96,9 +93,7 @@ fn inner_noteon(
                             voice.add_default_mods();
 
                             // Instrument level, generators
-                            for i in 0..GeneratorType::Last as u8 {
-                                let gen = GeneratorType::from_u8(i).unwrap();
-
+                            for gen in GeneratorType::iter() {
                                 /* SF 2.01 section 9.4 'bullet' 4:
                                  *
                                  * A generator in a local instrument zone supersedes a
@@ -162,9 +157,7 @@ fn inner_noteon(
                             }
 
                             /* Preset level, generators */
-                            for gen in 0..GeneratorType::Last as u8 {
-                                let gen = GeneratorType::from_u8(gen).unwrap();
-
+                            for gen in GeneratorType::iter() {
                                 /* SF 2.01 section 8.5 page 58: If some generators are
                                  * encountered at preset level, they should be ignored */
                                 if gen != GeneratorType::StartAddrOfs
@@ -377,7 +370,7 @@ pub fn cc(
 
                 // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
                 if nrpn_msb == 120 && nrpn_lsb < 100 {
-                    if (nrpn_select as i32) < GEN_LAST as i32 {
+                    if (nrpn_select as i32) < GeneratorType::Last as i32 {
                         let scale_nrpn: f32 = gen_scale_nrpn(nrpn_select, data);
 
                         let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();

@@ -127,7 +127,7 @@ impl Synth {
     /// Returns the value of the generator.
     pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, OxiError> {
         let channel = self.core.channels.get(chan as usize)?;
-        Ok(crate::core::synth::internal::gen(channel, param))
+        Ok(channel.gen(param))
     }
 }
 
