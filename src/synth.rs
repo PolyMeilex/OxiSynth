@@ -3,7 +3,7 @@ mod midi;
 mod params;
 mod write;
 
-use crate::core::chorus::Chorus;
+use crate::chorus::Chorus;
 use crate::core::font_bank::FontBank;
 use crate::core::reverb::Reverb;
 pub use crate::core::soundfont::generator::GeneratorType;

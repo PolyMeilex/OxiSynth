@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 
-pub mod chorus;
 pub mod reverb;
 
 pub mod settings;

@@ -1,3 +1,4 @@
+mod chorus;
 mod core;
 mod synth;
 
