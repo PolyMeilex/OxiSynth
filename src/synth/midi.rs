@@ -1,6 +1,5 @@
-use crate::core::{synth::midi, utils::RangeCheck, OxiError};
-use crate::SoundFontId;
-use crate::Synth;
+use crate::core::{synth::midi, utils::RangeCheck};
+use crate::{OxiError, SoundFontId, Synth};
 
 // MIDI channel messages
 impl Synth {

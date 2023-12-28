@@ -6,10 +6,10 @@ mod write;
 use crate::chorus::Chorus;
 use crate::core::font_bank::FontBank;
 pub use crate::core::soundfont::generator::GeneratorType;
-pub use crate::core::tuning::{Tuning, TuningManager};
-use crate::core::OxiError;
+use crate::error::OxiError;
 use crate::reverb::Reverb;
 use crate::{MidiEvent, SettingsError, SynthDescriptor};
+pub use crate::{Tuning, TuningManager};
 
 /**
 The synth object
@@ -182,7 +182,7 @@ mod test {
         .unwrap();
 
         synth
-            .send_event(crate::core::MidiEvent::NoteOff {
+            .send_event(MidiEvent::NoteOff {
                 channel: 0,
                 key: 60,
             })

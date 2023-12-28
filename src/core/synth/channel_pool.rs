@@ -3,7 +3,8 @@ use std::sync::Arc;
 mod channel;
 pub use channel::{Channel, InterpolationMethod};
 
-use crate::core::{soundfont::Preset, OxiError};
+use crate::core::soundfont::Preset;
+use crate::OxiError;
 
 pub struct ChannelPool(Vec<Channel>);
 

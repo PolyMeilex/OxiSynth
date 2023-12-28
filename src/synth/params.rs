@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::{Preset, Synth};
+use crate::{Preset, Settings, Synth};
 
-use crate::core::{InterpolationMethod, Settings};
+use crate::core::InterpolationMethod;
 
 // Synthesis parameters
 impl Synth {
