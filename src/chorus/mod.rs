@@ -86,7 +86,7 @@ impl Chorus {
         chorus
     }
 
-    pub(crate) fn init(&mut self) {
+    fn init(&mut self) {
         // Init
         {
             for i in 0..((1 as i32) << 12 as i32 - 1 as i32) {
@@ -97,7 +97,7 @@ impl Chorus {
         }
     }
 
-    pub(crate) fn update(&mut self) {
+    fn update(&mut self) {
         let mut modulation_depth_samples: i32;
         if self.new_number_blocks > 99 {
             log::warn!(

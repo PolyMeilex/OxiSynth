@@ -300,7 +300,7 @@ impl Reverb {
         }
     }
 
-    pub(crate) fn update(&mut self) {
+    fn update(&mut self) {
         self.wet1 = self.wet * (self.width / 2f32 + 0.5f32);
         self.wet2 = self.wet * ((1f32 - self.width) / 2f32);
         for comb in self.comb.iter_mut() {
