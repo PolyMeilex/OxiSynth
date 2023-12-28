@@ -43,11 +43,12 @@ impl Synth {
         })
     }
 
-    /**
-    Set synth sample rate
-     */
+    /// Set synth sample rate
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.core.set_sample_rate(sample_rate);
+        self.core.settings.sample_rate = sample_rate;
+        self.core.voices.set_sample_rate(sample_rate);
+
+        self.core.chorus = Chorus::new(sample_rate, self.core.chorus.active());
     }
 
     pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
