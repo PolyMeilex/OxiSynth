@@ -1,4 +1,4 @@
-use crate::core::SoundFont;
+use crate::core::soundfont::SoundFont;
 use crate::SoundFontId;
 use crate::Synth;
 

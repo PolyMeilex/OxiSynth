@@ -117,7 +117,7 @@ impl Synth {
     ) -> Result<(), OxiError> {
         let channel = self.core.channels.get_mut(chan)?;
 
-        crate::core::synth::midi::set_gen(channel, &mut self.core.voices, param, value);
+        crate::core::midi::set_gen(channel, &mut self.core.voices, param, value);
 
         Ok(())
     }
