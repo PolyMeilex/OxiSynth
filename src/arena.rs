@@ -36,7 +36,7 @@ impl<T> PartialEq for TypedIndex<T> {
     }
 }
 
-pub struct TypedArena<T>(Arena<T>);
+pub(crate) struct TypedArena<T>(Arena<T>);
 
 impl<T> TypedArena<T> {
     pub fn new() -> Self {
@@ -67,21 +67,5 @@ impl<T> std::ops::Deref for TypedArena<T> {
 impl<T> std::ops::DerefMut for TypedArena<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-pub struct RangeCheck {}
-
-impl RangeCheck {
-    pub fn check<E, T: PartialOrd, C: std::ops::RangeBounds<T>>(
-        range: C,
-        value: &T,
-        error: E,
-    ) -> Result<(), E> {
-        if range.contains(value) {
-            Ok(())
-        } else {
-            Err(error)
-        }
     }
 }

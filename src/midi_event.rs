@@ -1,5 +1,5 @@
-use crate::core::utils::RangeCheck;
 use crate::error::OxiError;
+use crate::range_check::range_check;
 
 pub type U7 = u8;
 pub type U14 = u16;
@@ -63,30 +63,30 @@ impl MidiEvent {
     pub fn check(self) -> Result<Self, OxiError> {
         match &self {
             MidiEvent::NoteOn { key, vel, .. } => {
-                RangeCheck::check(0..=127, key, OxiError::KeyOutOfRange)?;
-                RangeCheck::check(0..=127, vel, OxiError::VelocityOutOfRange)?;
+                range_check(0..=127, key, OxiError::KeyOutOfRange)?;
+                range_check(0..=127, vel, OxiError::VelocityOutOfRange)?;
             }
             MidiEvent::NoteOff { key, .. } => {
-                RangeCheck::check(0..=127, key, OxiError::KeyOutOfRange)?;
+                range_check(0..=127, key, OxiError::KeyOutOfRange)?;
             }
             MidiEvent::ControlChange { ctrl, value, .. } => {
-                RangeCheck::check(0..=127, ctrl, OxiError::CtrlOutOfRange)?;
-                RangeCheck::check(0..=127, value, OxiError::CCValueOutOfRange)?;
+                range_check(0..=127, ctrl, OxiError::CtrlOutOfRange)?;
+                range_check(0..=127, value, OxiError::CCValueOutOfRange)?;
             }
             MidiEvent::AllNotesOff { .. } => {}
             MidiEvent::AllSoundOff { .. } => {}
             MidiEvent::PitchBend { value, .. } => {
-                RangeCheck::check(0..=16383, value, OxiError::PithBendOutOfRange)?;
+                range_check(0..=16383, value, OxiError::PithBendOutOfRange)?;
             }
             MidiEvent::ProgramChange { program_id, .. } => {
-                RangeCheck::check(0..=127, program_id, OxiError::ProgramOutOfRange)?;
+                range_check(0..=127, program_id, OxiError::ProgramOutOfRange)?;
             }
             MidiEvent::ChannelPressure { value, .. } => {
-                RangeCheck::check(0..=127, value, OxiError::ChannelPressureOutOfRange)?;
+                range_check(0..=127, value, OxiError::ChannelPressureOutOfRange)?;
             }
             MidiEvent::PolyphonicKeyPressure { key, value, .. } => {
-                RangeCheck::check(0..=127, key, OxiError::KeyOutOfRange)?;
-                RangeCheck::check(0..=127, value, OxiError::KeyPressureOutOfRange)?;
+                range_check(0..=127, key, OxiError::KeyOutOfRange)?;
+                range_check(0..=127, value, OxiError::KeyPressureOutOfRange)?;
             }
             MidiEvent::SystemReset => {}
         };

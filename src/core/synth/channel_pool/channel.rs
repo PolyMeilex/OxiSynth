@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::super::soundfont::{Preset, SoundFont};
 
-use crate::core::utils::TypedIndex;
+use crate::arena::TypedIndex;
 use crate::GeneratorType;
 use crate::Tuning;
 

@@ -4,6 +4,3 @@ pub mod synth;
 pub use synth::{font_bank, InterpolationMethod, Synth};
 
 pub use synth::soundfont::{self, SoundFont};
-
-pub mod utils;
-pub use utils::TypedIndex;

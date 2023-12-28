@@ -1,5 +1,5 @@
-use crate::core::{synth::midi, utils::RangeCheck};
-use crate::{OxiError, SoundFontId, Synth};
+use crate::core::synth::midi;
+use crate::{range_check::range_check, OxiError, SoundFontId, Synth};
 
 // MIDI channel messages
 impl Synth {
@@ -7,7 +7,7 @@ impl Synth {
     pub fn get_cc(&self, channel: u8, ctrl: u16) -> Result<u8, OxiError> {
         let channel = self.core.channels.get(channel as usize)?;
 
-        RangeCheck::check(0..=127, &ctrl, OxiError::CtrlOutOfRange)?;
+        range_check(0..=127, &ctrl, OxiError::CtrlOutOfRange)?;
 
         Ok(channel.cc(ctrl as usize))
     }
