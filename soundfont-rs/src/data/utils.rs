@@ -24,14 +24,18 @@ impl Reader {
         let end = self.curr + len;
         self.curr = end;
 
-        let mut data = self.data[start..end].to_vec();
-        // Null terminate it, just in case...
-        data.push(0x0);
+        let data = &self.data[start..end];
 
-        let name = unsafe { std::ffi::CStr::from_ptr(data.as_ptr() as _) };
+        let data = if let Some(end) = data.iter().position(|v| *v == 0) {
+            &data[..end]
+        } else {
+            &data
+        };
 
-        let name = name.to_str().map_err(ParseError::from)?;
-        let name = name.to_owned();
+        // Acording to the spec, strings have to be in ASCII.
+        // But obviously this is SF2 world, spec is just a suggestion, people use non ASCII characters.
+        // So let's just use � for those characters.
+        let name = String::from_utf8_lossy(&data).to_string();
 
         Ok(name)
     }
