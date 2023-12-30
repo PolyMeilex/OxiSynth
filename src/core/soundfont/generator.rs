@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use super::super::Channel;
 
 use num_derive::FromPrimitive;
@@ -136,19 +138,25 @@ pub enum GeneratorType {
     modulator.
     */
     Pitch = 59,
-
-    Last = 60,
 }
 
-impl From<soundfont::data::GeneratorType> for GeneratorType {
-    fn from(value: soundfont::data::GeneratorType) -> Self {
-        num_traits::FromPrimitive::from_u8(value as u8).unwrap()
+impl GeneratorType {
+    pub fn last() -> u8 {
+        60
+    }
+}
+
+impl TryFrom<soundfont::data::GeneratorType> for GeneratorType {
+    type Error = ();
+
+    fn try_from(value: soundfont::data::GeneratorType) -> Result<Self, Self::Error> {
+        num_traits::FromPrimitive::from_u8(value as u8).ok_or(())
     }
 }
 
 impl GeneratorType {
     pub fn iter() -> impl Iterator<Item = Self> {
-        (0..Self::Last as u8).map(|v| num_traits::FromPrimitive::from_u8(v).unwrap())
+        (0..Self::last()).map(|v| num_traits::FromPrimitive::from_u8(v).unwrap())
     }
 }
 

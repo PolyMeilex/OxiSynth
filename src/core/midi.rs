@@ -375,7 +375,7 @@ pub(in super::super) fn cc(
 
                 // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
                 if nrpn_msb == 120 && nrpn_lsb < 100 {
-                    if (nrpn_select as i32) < GeneratorType::Last as i32 {
+                    if (nrpn_select as i32) < GeneratorType::last() as i32 {
                         let scale_nrpn: f32 = gen_scale_nrpn(nrpn_select, data);
 
                         let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();
