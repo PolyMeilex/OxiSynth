@@ -1,3 +1,4 @@
+use std::convert::TryFrom as _;
 use std::sync::Arc;
 
 use super::generator::{GeneratorList, GeneratorType};
@@ -113,11 +114,11 @@ impl PresetZone {
                     vel_high = amount.high;
                 }
                 _ => {
-                    let ty = GeneratorType::from(sfgen.ty);
-
-                    // FIXME: some generators have an unsigned word amount value but i don't know which ones
-                    gen[ty].val = *sfgen.amount.as_i16().unwrap() as f64;
-                    gen[ty].flags = GEN_SET as u8;
+                    if let Ok(ty) = GeneratorType::try_from(sfgen.ty) {
+                        // FIXME: some generators have an unsigned word amount value but i don't know which ones
+                        gen[ty].val = *sfgen.amount.as_i16().unwrap() as f64;
+                        gen[ty].flags = GEN_SET as u8;
+                    }
                 }
             }
         }
