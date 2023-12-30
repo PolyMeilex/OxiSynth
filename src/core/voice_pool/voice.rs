@@ -31,6 +31,7 @@ const GEN_SET: u32 = 1;
 
 bitflags::bitflags! {
     /// Flags for marking samples for sanity checks
+    #[derive(Clone)]
     struct SampleSanity: u32 {
         const CHECK = 1 << 0;
         const STARTUP = 1 << 1;
