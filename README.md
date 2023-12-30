@@ -7,6 +7,10 @@
 
 ### Showcase
 
+OxiSynth running in [Neothesia](https://github.com/PolyMeilex/Neothesia)
+
+https://github.com/PolyMeilex/OxiSynth/assets/20758186/e1d1c3c1-0869-4a8f-96c9-6f16a56767cb
+
 OxiSynth running in browser, with Boomwhacker soundfont bundled:
 [https://oxisynth.netlify.app](https://oxisynth.netlify.app)
 
