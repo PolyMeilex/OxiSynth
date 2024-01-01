@@ -49,13 +49,13 @@ impl SoundFont {
         let sample_pos = smpl.offset() + 8;
         let sample_size = smpl.len() as usize;
 
-        let sample_data = Arc::new(SampleData::load(file, sample_pos, sample_size)?);
+        let sample_data = SampleData::load(file, sample_pos, sample_size)?;
 
         let mut samples = Vec::new();
 
         for sfsample in sf2.sample_headers.iter() {
             let sample = Sample::import(sfsample, sample_data.clone())?.optimize_sample();
-            samples.push(Arc::new(sample));
+            samples.push(sample);
         }
 
         let mut presets = Vec::new();

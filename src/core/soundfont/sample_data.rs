@@ -1,10 +1,13 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::{
+    io::{Read, Seek, SeekFrom},
+    sync::Arc,
+};
 
-#[derive(Debug)]
-pub struct SampleData(Vec<i16>);
+#[derive(Debug, Clone)]
+pub struct SampleData(Arc<[i16]>);
 
 impl SampleData {
-    pub fn new(data: Vec<i16>) -> Self {
+    pub fn new(data: Arc<[i16]>) -> Self {
         Self(data)
     }
 
@@ -26,12 +29,12 @@ impl SampleData {
             return Err(());
         }
 
-        Ok(Self(data))
+        Ok(Self(data.into()))
     }
 }
 
 impl std::ops::Deref for SampleData {
-    type Target = Vec<i16>;
+    type Target = [i16];
 
     fn deref(&self) -> &Self::Target {
         &self.0
