@@ -357,9 +357,8 @@ pub(in super::super) fn cc(
             /* FIXME: according to the Downloadable Sounds II specification,
             bit 31 should be set when we receive the message on channel
             10 (drum channel) */
-            channel.set_banknum(
-                (value as u32 & 0x7f).wrapping_add((channel.bank_msb() as u32) << 7 as i32),
-            );
+            channel
+                .set_banknum((value as u32 & 0x7f).wrapping_add((channel.bank_msb() as u32) << 7));
         }
 
         // ALL_NOTES_OFF
@@ -380,8 +379,7 @@ pub(in super::super) fn cc(
 
         // DATA_ENTRY_MSB
         6 => {
-            let data: i32 =
-                ((value as i32) << 7 as i32) + channel.cc(DATA_ENTRY_LSB as usize) as i32;
+            let data: i32 = ((value as i32) << 7) + channel.cc(DATA_ENTRY_LSB as usize) as i32;
 
             if channel.nrpn_active() != 0 {
                 let (nrpn_select, nrpn_msb, nrpn_lsb) = (
@@ -409,6 +407,7 @@ pub(in super::super) fn cc(
                     0 => pitch_wheel_sens(channel, voices, value),
                     // RPN_CHANNEL_FINE_TUNE
                     1 => {
+                        // Fine tune is 14 bit over +/-1 semitone (+/- 100 cents, 8192 = center)
                         set_gen(
                             channel,
                             voices,
@@ -418,6 +417,7 @@ pub(in super::super) fn cc(
                     }
                     // RPN_CHANNEL_COARSE_TUNE
                     2 => {
+                        // Coarse tune is 7 bit and in semitones (64 is center)
                         set_gen(
                             channel,
                             voices,
@@ -425,8 +425,13 @@ pub(in super::super) fn cc(
                             (value - 64) as f32,
                         );
                     }
+                    // TODO: This is fishy, for some reason those are missing from FluidLite, but
+                    // are pressent in Fluidsynth
+                    // https://github.com/FluidSynth/fluidsynth/blob/fa5173cbaefed60121db057bad7be7686165f7cc/src/synth/fluid_synth.c#L1857
+
                     // RPN_TUNING_PROGRAM_CHANGE | RPN_TUNING_BANK_SELECT | RPN_MODULATION_DEPTH_RANGE
-                    3 | 4 | 5 | _ => {}
+                    // 3 | 4 | 5 => {}
+                    _ => {}
                 }
             }
         }
