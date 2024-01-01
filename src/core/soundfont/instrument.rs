@@ -1,5 +1,4 @@
 use std::convert::TryFrom as _;
-use std::sync::Arc;
 
 use crate::GeneratorType;
 
@@ -20,7 +19,7 @@ impl Instrument {
     pub fn import(
         sf2: &soundfont::SoundFont2,
         inst: &soundfont::Instrument,
-        samples: &[Arc<Sample>],
+        samples: &[Sample],
     ) -> Result<Self, ()> {
         let name = if !inst.header.name.is_empty() {
             inst.header.name.clone()
@@ -61,7 +60,7 @@ impl Instrument {
 #[repr(C)]
 pub struct InstrumentZone {
     pub name: String,
-    pub sample: Option<Arc<Sample>>,
+    pub sample: Option<Sample>,
     pub key_low: u8,
     pub key_high: u8,
     pub vel_low: u8,
@@ -75,7 +74,7 @@ impl InstrumentZone {
         name: String,
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
-        samples: &[Arc<Sample>],
+        samples: &[Sample],
     ) -> Result<InstrumentZone, ()> {
         let mut key_low = 0;
         let mut key_high = 128;
@@ -115,7 +114,10 @@ impl InstrumentZone {
             let name = &sample.name;
 
             // Find Sample by name:
-            let sample = samples.iter().find(|sample| &sample.name == name).cloned();
+            let sample = samples
+                .iter()
+                .find(|sample| sample.name.as_ref() == name.as_str())
+                .cloned();
 
             if sample.is_none() {
                 log::error!("Couldn't find sample name",);

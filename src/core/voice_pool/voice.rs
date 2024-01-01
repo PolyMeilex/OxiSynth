@@ -22,8 +22,6 @@ use super::super::conv::{
 
 use soundfont::data::modulator::{ControllerPalette, GeneralPalette};
 
-use std::sync::Arc;
-
 type Phase = u64;
 
 const GEN_ABS_NRPN: u32 = 2;
@@ -62,7 +60,7 @@ pub enum LoopMode {
 }
 
 pub struct VoiceDescriptor<'a> {
-    pub sample: Arc<Sample>,
+    pub sample: Sample,
     pub channel: &'a Channel,
     pub key: u8,
     pub vel: u8,
@@ -82,7 +80,7 @@ pub struct Voice {
     interp_method: InterpolationMethod,
     mod_count: usize,
 
-    pub sample: Arc<Sample>,
+    pub sample: Sample,
     pub start_time: usize,
 
     pub ticks: usize,

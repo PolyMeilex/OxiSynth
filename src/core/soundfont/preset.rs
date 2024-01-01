@@ -1,5 +1,4 @@
 use std::convert::TryFrom as _;
-use std::sync::Arc;
 
 use super::generator::{GeneratorList, GeneratorType};
 use super::modulator::Mod;
@@ -19,7 +18,7 @@ impl Preset {
     pub fn import(
         sf2: &soundfont::SoundFont2,
         preset: &soundfont::Preset,
-        samples: &[Arc<Sample>],
+        samples: &[Sample],
     ) -> Result<Self, ()> {
         let name = if !preset.header.name.is_empty() {
             preset.header.name.clone()
@@ -88,7 +87,7 @@ impl PresetZone {
         name: String,
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
-        samples: &[Arc<Sample>],
+        samples: &[Sample],
     ) -> Result<Self, ()> {
         let mut key_low = 0;
         let mut key_high = 128;

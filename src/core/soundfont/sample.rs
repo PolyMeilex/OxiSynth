@@ -6,7 +6,7 @@ use super::SampleData;
 
 #[derive(Clone, Debug)]
 pub struct Sample {
-    pub name: String,
+    pub name: Arc<str>,
     pub start: u32,
     pub end: u32,
     pub loop_start: u32,
@@ -16,18 +16,15 @@ pub struct Sample {
     pub pitchadj: i8,
     pub sample_type: SampleLink,
     pub valid: bool,
-    pub data: Arc<SampleData>,
+    pub data: SampleData,
     pub amplitude_that_reaches_noise_floor_is_valid: i32,
     pub amplitude_that_reaches_noise_floor: f64,
 }
 
 impl Sample {
-    pub fn import(
-        sample: &soundfont::data::SampleHeader,
-        data: Arc<SampleData>,
-    ) -> Result<Sample, ()> {
+    pub fn import(sample: &soundfont::data::SampleHeader, data: SampleData) -> Result<Sample, ()> {
         let mut sample = Sample {
-            name: sample.name.clone(),
+            name: sample.name.clone().into(),
             start: sample.start,
             end: sample.end,
             loop_start: sample.loop_start,
@@ -68,7 +65,7 @@ impl Sample {
 
                 sample.start = 0;
                 sample.end = (new.len() - 1) as u32;
-                sample.data = Arc::new(SampleData::new(new));
+                sample.data = SampleData::new(new.into());
 
                 // loop is fowled?? (cluck cluck :)
                 if sample.loop_end > sample.end
