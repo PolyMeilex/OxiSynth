@@ -98,7 +98,7 @@ mod test {
 
         // Load first font
         let sin = {
-            let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
+            let mut file = std::fs::File::open("../testdata/sin.sf2").unwrap();
             let font = SoundFont::load(&mut file).unwrap();
 
             let id = synth.add_font(font, true);
@@ -117,7 +117,7 @@ mod test {
 
         // Load next font
         let boom = {
-            let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+            let mut file = std::fs::File::open("../testdata/Boomwhacker.sf2").unwrap();
             let font = SoundFont::load(&mut file).unwrap();
 
             let id = synth.add_font(font, true);

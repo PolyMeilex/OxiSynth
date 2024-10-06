@@ -1,10 +1,12 @@
 mod arena;
-pub mod chorus;
+
+pub use oxisynth_chorus as chorus;
+pub use oxisynth_reverb as reverb;
+
 mod core;
 mod error;
 mod midi_event;
 mod range_check;
-pub mod reverb;
 pub mod settings;
 mod synth;
 mod tuning;
