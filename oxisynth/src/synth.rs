@@ -8,8 +8,8 @@ use crate::core::font_bank::FontBank;
 pub use crate::core::soundfont::generator::GeneratorType;
 use crate::error::OxiError;
 use crate::reverb::Reverb;
+pub use crate::Tuning;
 use crate::{MidiEvent, SettingsError, SynthDescriptor};
-pub use crate::{Tuning, TuningManager};
 
 /**
 The synth object
@@ -160,7 +160,7 @@ mod test {
 
         let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
 
-        let mut file = std::fs::File::open("./testdata/Boomwhacker.sf2").unwrap();
+        let mut file = std::fs::File::open("../testdata/Boomwhacker.sf2").unwrap();
         let font = SoundFont::load(&mut file).unwrap();
 
         synth.add_font(font, true);

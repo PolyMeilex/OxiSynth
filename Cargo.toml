@@ -1,50 +1,9 @@
-[package]
-name = "oxisynth"
-version = "0.0.5"
-edition = "2018"
+[workspace]
+resolver = "2"
+members = ["oxisynth", "oxisynth-chorus", "oxisynth-reverb", "soundfont-rs"]
 
-authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
-description = "Rust soundfont synthesizer"
-keywords = ["audio", "soundfont"]
-license = "LGPL-2.1"
-repository = "https://github.com/PolyMeilex/oxisynth"
-documentation = "https://docs.rs/oxisynth"
-
-[features]
-# default=["sf3"]
-i16-out = ["getrandom", "rand"]
-sf3 = ["lewton"]
-
-[dependencies]
-bitflags = "2.4"
-byte-slice-cast = "1.0.0"
-byteorder = "1.4.3"
-lazy_static = "1.4.0"
-generational-arena = "0.2.8"
-
-log = "0.4.14"
-
-num-traits = "0.2"
-num-derive = "0.4"
-
+[workspace.dependencies]
 soundfont = { version = "0.0.3", path = "./soundfont-rs" }
-
-# i16-out
-getrandom = { version = "0.2", features = ["js"], optional = true }
-rand = { version = "0.8.3", optional = true }
-
-lewton = { version = "0.10.2", optional = true }
-thiserror = "1.0.25"
-
-[dev-dependencies]
-env_logger = "0.10"
-byte-slice-cast = "1.0.0"
-
-[[example]]
-name = "multi_font"
-[[example]]
-name = "polyphony"
-[[example]]
-name = "sf2"
-[[example]]
-name = "simple"
+oxisynth-chorus = { path = "./oxisynth-chorus" }
+oxisynth-reverb = { path = "./oxisynth-reverb" }
+log = "0.4.14"
