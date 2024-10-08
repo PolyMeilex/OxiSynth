@@ -1,9 +1,13 @@
+use std::{f64::consts::PI, sync::LazyLock};
+
 use crate::GeneratorType;
 
 use super::{EnvelopeStep, Voice};
-pub type Phase = u64;
 pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
 pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
+const INTERP_MAX: usize = 256;
+const SINC_INTERP_ORDER: usize = 7; /* 7th order constant */
+
 pub type LoopMode = u32;
 
 pub struct DspFloatGlobal {
@@ -12,58 +16,64 @@ pub struct DspFloatGlobal {
     sinc_table7: [[f32; 7]; 256],
 }
 impl DspFloatGlobal {
+    /// Initializes interpolation tables
     fn new() -> Self {
-        let mut global = DspFloatGlobal {
-            interp_coeff_linear: [[0.; 2]; 256],
-            interp_coeff: [[0.; 4]; 256],
-            sinc_table7: [[0.; 7]; 256],
-        };
+        // Initialize the coefficients for the interpolation. The math comes
+        // from a mail, posted by Olli Niemitalo to the music-dsp mailing
+        // list (http://www.smartelectronix.com/musicdsp).
 
-        let mut i: usize;
-        let mut i2: i32;
-        let mut x: f64;
-        let mut v: f64;
-        let mut i_shifted: f64;
-        i = 0 as usize;
-        while i < 256 {
-            x = i as f64 / 256 as i32 as f64;
-            global.interp_coeff[i][0] = (x * (-0.5f64 + x * (1 as i32 as f64 - 0.5f64 * x))) as f32;
-            global.interp_coeff[i][1] = (1.0f64 + x * x * (1.5f64 * x - 2.5f64)) as f32;
-            global.interp_coeff[i][2] = (x * (0.5f64 + x * (2.0f64 - 1.5f64 * x))) as f32;
-            global.interp_coeff[i][3] = (0.5f64 * x * x * (x - 1.0f64)) as f32;
-            global.interp_coeff_linear[i][0] = (1.0f64 - x) as f32;
-            global.interp_coeff_linear[i][1] = x as f32;
-            i += 1
+        let mut interp_coeff = [[0.0; 4]; INTERP_MAX];
+        let mut interp_coeff_linear = [[0.0; 2]; INTERP_MAX];
+
+        for (i, (coeff, coeff_linear)) in interp_coeff
+            .iter_mut()
+            .zip(interp_coeff_linear.iter_mut())
+            .enumerate()
+        {
+            let x = i as f64 / INTERP_MAX as f64;
+            coeff[0] = (x * (-0.5 + x * (1.0 - 0.5 * x))) as f32;
+            coeff[1] = (1.0 + x * x * (1.5 * x - 2.5)) as f32;
+            coeff[2] = (x * (0.5 + x * (2.0 - 1.5 * x))) as f32;
+            coeff[3] = (0.5 * x * x * (x - 1.0)) as f32;
+
+            coeff_linear[0] = (1.0 - x) as f32;
+            coeff_linear[1] = x as f32;
         }
-        i = 0;
-        while i < 7 {
-            i2 = 0 as i32;
-            while i2 < 256 as i32 {
-                i_shifted = i as f64 - 7 as i32 as f64 / 2.0f64 + i2 as f64 / 256 as i32 as f64;
-                if f64::abs(i_shifted) > 0.000001f64 {
-                    v = f64::sin(i_shifted * std::f64::consts::PI) as f32 as f64
-                        / (std::f64::consts::PI * i_shifted);
-                    v *= 0.5f64
-                        * (1.0f64
-                            + f64::cos(
-                                2.0f64 * std::f64::consts::PI * i_shifted / 7 as i32 as f32 as f64,
-                            ))
+
+        let mut sinc_table7 = [[0.0; 7]; INTERP_MAX];
+
+        // i: Offset in terms of whole samples
+        for i in 0..SINC_INTERP_ORDER {
+            // i2: Offset in terms of fractional samples ('subsamples')
+            let mut i2 = 0;
+            while i2 < INTERP_MAX as i32 {
+                // center on middle of table
+                let i_shifted = i as f64 - 7.0 / 2.0 + i2 as f64 / INTERP_MAX as f64;
+
+                // sinc(0) cannot be calculated straightforward (limit needed for 0/0)
+                let v = if i_shifted.abs() > 0.000001 {
+                    let mut v = f64::sin(i_shifted * PI) as f32 as f64 / (PI * i_shifted);
+                    // Hamming window
+                    v *= 0.5 * (1.0 + f64::cos(2.0 * PI * i_shifted / 7.0));
+                    v
                 } else {
-                    v = 1.0f64
-                }
-                global.sinc_table7[(256 as i32 - i2 - 1 as i32) as usize][i as usize] = v as f32;
+                    1.0
+                };
+
+                sinc_table7[(INTERP_MAX as i32 - i2 - 1) as usize][i] = v as f32;
                 i2 += 1
             }
-            i += 1
         }
 
-        global
+        Self {
+            interp_coeff_linear,
+            interp_coeff,
+            sinc_table7,
+        }
     }
 }
 
-lazy_static! {
-    static ref DSP_FLOAT_GLOBAL: DspFloatGlobal = DspFloatGlobal::new();
-}
+static DSP_FLOAT_GLOBAL: LazyLock<DspFloatGlobal> = LazyLock::new(DspFloatGlobal::new);
 
 /// Return the index and the fractional part, respectively.
 #[inline(always)]
@@ -113,9 +123,9 @@ impl Voice {
         dsp_amp_incr: f32,
         phase_incr: f32,
     ) -> usize {
-        let mut dsp_phase: Phase = self.phase;
-        let dsp_data: &[i16] = &self.sample.data;
-        let mut dsp_amp: f32 = self.amp;
+        let mut dsp_phase = self.phase;
+        let dsp_data = &self.sample.data;
+        let mut dsp_amp = self.amp;
 
         /* Convert playback "speed" floating point value to phase index/fract */
         let dsp_phase_incr = phase_set_float(phase_incr);
@@ -127,7 +137,7 @@ impl Voice {
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         let end_index = if looping != 0 {
-            self.loopend - 1 as i32
+            self.loopend - 1
         } else {
             self.end
         } as usize;
@@ -135,18 +145,16 @@ impl Voice {
         let mut dsp_i: usize = 0;
         loop {
             /* round to nearest point */
-            let mut dsp_phase_index =
-                (dsp_phase.wrapping_add(0x80000000 as u32 as u64) >> 32 as i32) as usize;
+            let mut dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
 
             /* interpolate sequence of sample points */
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 dsp_buf[dsp_i] = dsp_amp * dsp_data[dsp_phase_index] as f32;
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase as Phase;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 /* round to nearest point */
-                dsp_phase_index =
-                    (dsp_phase.wrapping_add(0x80000000 as u32 as u64) >> 32 as i32) as usize;
+                dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -156,9 +164,7 @@ impl Voice {
             }
             /* go back to loop start */
             if dsp_phase_index > end_index {
-                dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
-                    as Phase as Phase;
+                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 self.has_looped = true;
             }
 
@@ -183,7 +189,7 @@ impl Voice {
         dsp_amp_incr: f32,
         phase_incr: f32,
     ) -> usize {
-        let mut dsp_phase: Phase = self.phase;
+        let mut dsp_phase = self.phase;
         let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
 
@@ -197,11 +203,11 @@ impl Voice {
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 2nd interpolation point must be specially handled */
-        let mut end_index = ((if looping != 0 {
-            (self.loopend) - 1 as i32
+        let mut end_index = if looping != 0 {
+            self.loopend - 1 - 1
         } else {
-            self.end
-        }) - 1 as i32) as usize;
+            self.end - 1
+        } as usize;
 
         /* 2nd interpolation point to use at end of loop or sample */
         let point = if looping != 0 {
@@ -214,7 +220,7 @@ impl Voice {
 
         let mut dsp_i: usize = 0;
         loop {
-            let mut dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+            let mut dsp_phase_index = (dsp_phase >> 32) as usize;
 
             /* interpolate the sequence of sample points */
             while dsp_i < 64 && dsp_phase_index <= end_index {
@@ -223,10 +229,10 @@ impl Voice {
 
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_add(1) as usize] as f32);
+                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32);
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -246,8 +252,8 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32 + coeffs[1] * point as f32);
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 /* increment amplitude */
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
@@ -259,9 +265,7 @@ impl Voice {
 
             /* go back to loop start (if past */
             if dsp_phase_index > end_index {
-                dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
-                    as Phase as Phase;
+                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 self.has_looped = true;
             }
 
@@ -288,7 +292,7 @@ impl Voice {
         dsp_amp_incr: f32,
         phase_incr: f32,
     ) -> usize {
-        let mut dsp_phase: Phase = self.phase;
+        let mut dsp_phase = self.phase;
         let dsp_data: &[i16] = &self.sample.data;
         let mut dsp_amp: f32 = self.amp;
         let end_point1: i16;
@@ -304,11 +308,11 @@ impl Voice {
                 && self.volenv_section < EnvelopeStep::Release) as i32;
 
         /* last index before 4th interpolation point must be specially handled */
-        let mut end_index = ((if looping != 0 {
-            (self.loopend) - 1 as i32
+        let mut end_index = if looping != 0 {
+            self.loopend - 1 - 2
         } else {
-            self.end
-        }) - 2 as i32) as usize;
+            self.end - 2
+        } as usize;
 
         let mut start_index: usize;
         let mut start_point: i16;
@@ -317,7 +321,7 @@ impl Voice {
             /* set start_index and start point if looped or not */
             start_index = self.loopstart as usize;
             /* last point in loop (wrap around) */
-            start_point = dsp_data[(self.loopend - 1 as i32) as usize];
+            start_point = dsp_data[(self.loopend - 1) as usize];
         } else {
             start_index = self.start as usize;
             /* just duplicate the point */
@@ -327,7 +331,7 @@ impl Voice {
         /* get points off the end (loop start if looping, duplicate point if end) */
         if looping != 0 {
             end_point1 = dsp_data[self.loopstart as usize];
-            end_point2 = dsp_data[(self.loopstart + 1 as i32) as usize];
+            end_point2 = dsp_data[self.loopstart as usize + 1];
         } else {
             end_point1 = dsp_data[self.end as usize];
             end_point2 = end_point1
@@ -335,7 +339,7 @@ impl Voice {
 
         let mut dsp_i: usize = 0;
         loop {
-            let mut dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+            let mut dsp_phase_index = (dsp_phase >> 32) as usize;
             /* interpolate first sample point (start or loop start) if needed */
             while dsp_phase_index == start_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
@@ -348,8 +352,8 @@ impl Voice {
                         + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -366,8 +370,8 @@ impl Voice {
                         + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -392,8 +396,8 @@ impl Voice {
                         + coeffs[3] * end_point1 as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -406,14 +410,14 @@ impl Voice {
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
 
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1) as usize] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
                         + coeffs[2] * end_point1 as f32
                         + coeffs[3] * end_point2 as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -425,9 +429,7 @@ impl Voice {
 
             /* go back to loop start */
             if dsp_phase_index > end_index {
-                dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32 as i32)
-                    as Phase as Phase;
+                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 if !self.has_looped {
                     self.has_looped = true;
                     start_index = self.loopstart as usize;
@@ -512,7 +514,7 @@ impl Voice {
         let mut dsp_i: usize = 0;
         let mut dsp_phase_index: usize;
         loop {
-            dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+            dsp_phase_index = (dsp_phase >> 32) as usize;
 
             /* interpolate first sample point (start or loop start) if needed */
             while dsp_phase_index == start_index && dsp_i < 64 {
@@ -528,8 +530,8 @@ impl Voice {
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -549,8 +551,8 @@ impl Voice {
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -571,8 +573,8 @@ impl Voice {
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -594,8 +596,8 @@ impl Voice {
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -622,8 +624,8 @@ impl Voice {
                         + coeffs[6] * end_points[0] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -645,8 +647,8 @@ impl Voice {
                         + coeffs[6] * end_points[1] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -668,8 +670,8 @@ impl Voice {
                         + coeffs[6] * end_points[2] as f32);
 
                 /* increment phase and amplitude */
-                dsp_phase = (dsp_phase as u64).wrapping_add(dsp_phase_incr) as Phase;
-                dsp_phase_index = (dsp_phase >> 32 as i32) as usize;
+                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -681,9 +683,7 @@ impl Voice {
 
             /* go back to loop start */
             if dsp_phase_index > end_index {
-                dsp_phase = (dsp_phase as u64)
-                    .wrapping_sub(((self.loopend - self.loopstart) as u64) << 32i32)
-                    as Phase;
+                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
 
                 if !self.has_looped {
                     self.has_looped = true;
