@@ -25,6 +25,55 @@ pub enum ParseError {
     UnexpectedMemberOfHydra(Chunk),
     UnexpectedMemberOfInfo(Chunk),
     UnexpectedMemberOfSampleData(Chunk),
+
+    MissingChunk(MissingChunk),
+}
+
+#[derive(Debug)]
+pub enum MissingChunk {
+    /// "INFO"
+    Info,
+    /// "sdta"
+    SampleData,
+    /// "pdta"
+    Hydra,
+    /// "ifil"
+    Version,
+
+    /// "phdr"
+    PresetHeaders,
+    /// "pbag"
+    PresetBags,
+    /// "pmod"
+    PresetModulators,
+    /// "pgen"
+    PresetGenerators,
+
+    /// "inst"
+    InstrumentHeaders,
+    /// "ibag"
+    InstrumentBags,
+    /// "imod"
+    InstrumentModulators,
+    /// "igen"
+    InstrumentGenerators,
+
+    /// "shdr"
+    SampleHeaders,
+}
+
+// TODO: Proper error, maybe with `thiserror`
+impl std::error::Error for ParseError {}
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+
+impl From<MissingChunk> for ParseError {
+    fn from(err: MissingChunk) -> Self {
+        Self::MissingChunk(err)
+    }
 }
 
 impl From<Utf8Error> for ParseError {

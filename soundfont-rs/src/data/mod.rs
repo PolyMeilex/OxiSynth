@@ -5,7 +5,7 @@ pub mod info;
 pub mod sample_data;
 
 use crate::{
-    error::ParseError,
+    error::{MissingChunk, ParseError},
     riff::{self, ChunkId},
 };
 use std::io::{Read, Seek};
@@ -54,9 +54,9 @@ impl SFData {
         }
 
         Ok(SFData {
-            info: info.unwrap(),
-            sample_data: sample_data.unwrap(),
-            hydra: hydra.unwrap(),
+            info: info.ok_or(MissingChunk::Info)?,
+            sample_data: sample_data.ok_or(MissingChunk::SampleData)?,
+            hydra: hydra.ok_or(MissingChunk::Hydra)?,
         })
     }
 }

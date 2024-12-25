@@ -16,6 +16,7 @@ pub use instrument::InstrumentHeader;
 pub mod sample;
 pub use sample::SampleHeader;
 
+use crate::error::MissingChunk;
 use crate::riff::{Chunk, ScratchReader};
 use crate::{error::ParseError, riff::ChunkId};
 
@@ -85,18 +86,19 @@ impl Hydra {
             }
         }
 
+        use MissingChunk::*;
         Ok(Self {
-            preset_headers: preset_headers.unwrap(),
-            preset_bags: preset_bags.unwrap(),
-            preset_modulators: preset_modulators.unwrap(),
-            preset_generators: preset_generators.unwrap(),
+            preset_headers: preset_headers.ok_or(PresetHeaders)?,
+            preset_bags: preset_bags.ok_or(PresetBags)?,
+            preset_modulators: preset_modulators.ok_or(PresetModulators)?,
+            preset_generators: preset_generators.ok_or(PresetGenerators)?,
 
-            instrument_headers: instrument_headers.unwrap(),
-            instrument_bags: instrument_bags.unwrap(),
-            instrument_modulators: instrument_modulators.unwrap(),
-            instrument_generators: instrument_generators.unwrap(),
+            instrument_headers: instrument_headers.ok_or(InstrumentHeaders)?,
+            instrument_bags: instrument_bags.ok_or(InstrumentBags)?,
+            instrument_modulators: instrument_modulators.ok_or(InstrumentModulators)?,
+            instrument_generators: instrument_generators.ok_or(InstrumentGenerators)?,
 
-            sample_headers: sample_headers.unwrap(),
+            sample_headers: sample_headers.ok_or(SampleHeaders)?,
         })
     }
 
