@@ -143,7 +143,7 @@ impl Info {
                     software = Some(data.read_string(ch.len() as usize)?);
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemeberOfInfo(ch));
+                    return Err(ParseError::UnexpectedMemberOfInfo(ch));
                 }
             }
         }

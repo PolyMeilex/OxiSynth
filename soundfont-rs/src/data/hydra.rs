@@ -80,7 +80,7 @@ impl Hydra {
                 // The Sample Headers
                 ChunkId::shdr => sample_headers = Some(SampleHeader::read_all(&ch, file)?),
                 _ => {
-                    return Err(ParseError::UnexpectedMemeberOfHydra(ch));
+                    return Err(ParseError::UnexpectedMemberOfHydra(ch));
                 }
             }
         }

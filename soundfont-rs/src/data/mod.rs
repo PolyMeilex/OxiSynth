@@ -48,7 +48,7 @@ impl SFData {
                     hydra = Some(Hydra::read(&ch, &mut file)?);
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemeberOfRoot(ch));
+                    return Err(ParseError::UnexpectedMemberOfRoot(ch));
                 }
             }
         }

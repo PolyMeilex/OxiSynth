@@ -21,10 +21,10 @@ pub enum ParseError {
     UnknownSampleType(u16),
     UnknownModulatorTransform(u16),
 
-    UnexpectedMemeberOfRoot(Chunk),
-    UnexpectedMemeberOfHydra(Chunk),
-    UnexpectedMemeberOfInfo(Chunk),
-    UnexpectedMemeberOfSampleData(Chunk),
+    UnexpectedMemberOfRoot(Chunk),
+    UnexpectedMemberOfHydra(Chunk),
+    UnexpectedMemberOfInfo(Chunk),
+    UnexpectedMemberOfSampleData(Chunk),
 }
 
 impl From<Utf8Error> for ParseError {

@@ -41,7 +41,7 @@ impl SampleData {
                     sm24 = Some(ch);
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemeberOfSampleData(ch));
+                    return Err(ParseError::UnexpectedMemberOfSampleData(ch));
                 }
             }
         }
