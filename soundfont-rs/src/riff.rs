@@ -3,7 +3,6 @@
 // (Based on `riff` MIT crate: Copyright 2018 Francesco Bertolaccini)
 
 use std::{
-    convert::TryInto,
     fmt,
     io::{Read, Seek, SeekFrom},
 };
@@ -206,13 +205,42 @@ impl Chunk {
     }
 
     /// Reads the entirety of the contents of a chunk.
+    pub fn read_to<T>(&self, stream: &mut T, buf: &mut [u8]) -> std::io::Result<()>
+    where
+        T: Read + Seek,
+    {
+        stream.seek(SeekFrom::Start(self.pos + 8))?;
+
+        stream.read_exact(buf)?;
+
+        Ok(())
+    }
+
+    /// Reads the entirety of the contents of a chunk.
+    pub fn read_to_scratch<'a, T>(
+        &self,
+        stream: &mut T,
+        buf: &'a mut Vec<u8>,
+    ) -> std::io::Result<&'a [u8]>
+    where
+        T: Read + Seek,
+    {
+        stream.seek(SeekFrom::Start(self.pos + 8))?;
+
+        buf.resize(self.len as usize, 0);
+        stream.read_exact(buf)?;
+
+        Ok(buf)
+    }
+
+    /// Reads the entirety of the contents of a chunk.
     pub fn read_contents<T>(&self, stream: &mut T) -> std::io::Result<Vec<u8>>
     where
         T: Read + Seek,
     {
         stream.seek(SeekFrom::Start(self.pos + 8))?;
 
-        let mut data: Vec<u8> = vec![0; self.len.try_into().unwrap()];
+        let mut data: Vec<u8> = vec![0; self.len as usize];
         stream.read_exact(&mut data)?;
 
         Ok(data)

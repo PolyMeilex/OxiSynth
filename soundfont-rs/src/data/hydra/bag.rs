@@ -31,7 +31,7 @@ impl Bag {
             let amount = size / 4;
 
             let data = pbag.read_contents(file).unwrap();
-            let mut reader = Reader::new(data);
+            let mut reader = Reader::new(&data);
 
             (0..amount).map(|_| Self::read(&mut reader)).collect()
         }

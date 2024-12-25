@@ -27,7 +27,7 @@ impl InstrumentHeader {
             let amount = size / 22;
 
             let data = phdr.read_contents(file).unwrap();
-            let mut reader = Reader::new(data);
+            let mut reader = Reader::new(&data);
 
             (0..amount).map(|_| Self::read(&mut reader)).collect()
         }

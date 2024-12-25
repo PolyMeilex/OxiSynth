@@ -1,12 +1,12 @@
 use crate::error::ParseError;
 use std::convert::TryInto;
 
-pub struct Reader {
-    data: Vec<u8>,
+pub struct Reader<'a> {
+    data: &'a [u8],
     curr: usize,
 }
-impl Reader {
-    pub fn new(data: Vec<u8>) -> Self {
+impl<'a> Reader<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
         Self { data, curr: 0 }
     }
 

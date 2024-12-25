@@ -95,7 +95,7 @@ impl Generator {
             let amount = size / 4;
 
             let data = pmod.read_contents(file).unwrap();
-            let mut reader = Reader::new(data);
+            let mut reader = Reader::new(&data);
 
             Ok((0..amount)
                 .filter_map(|_| Self::read(&mut reader).ok())

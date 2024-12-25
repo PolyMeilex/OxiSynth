@@ -88,7 +88,7 @@ impl SampleHeader {
             let amount = size / 46;
 
             let data = phdr.read_contents(file).unwrap();
-            let mut reader = Reader::new(data);
+            let mut reader = Reader::new(&data);
 
             (0..amount).map(|_| Self::read(&mut reader)).collect()
         }

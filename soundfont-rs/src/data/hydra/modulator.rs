@@ -303,7 +303,7 @@ impl Modulator {
             let amount = size / 10;
 
             let data = pmod.read_contents(file).unwrap();
-            let mut reader = Reader::new(data);
+            let mut reader = Reader::new(&data);
 
             (0..amount)
                 .map(|id| Self::read(&mut reader, id == amount - 1))
