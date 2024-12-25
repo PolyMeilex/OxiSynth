@@ -1,4 +1,5 @@
 use super::utils::Reader;
+use crate::error::MissingChunk;
 use crate::riff::{Chunk, ScratchReader};
 use crate::{error::ParseError, riff::ChunkId};
 
@@ -149,7 +150,7 @@ impl Info {
         }
 
         Ok(Info {
-            version: version.unwrap(),
+            version: version.ok_or(MissingChunk::Version)?,
             // Those two are requited by the specs, but you can often find files without them
             // so that's why `unwrap_or_default` is used.
             sound_engine: sound_engine.unwrap_or_default(),
