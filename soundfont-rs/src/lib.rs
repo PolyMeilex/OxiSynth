@@ -127,7 +127,7 @@ impl SoundFont2 {
                     zones.len()
                 };
 
-                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+                let zone_items = get_zones(zones, modulators, generators, start, end);
 
                 // Ignore Terminator
                 if header.name != "EOS" {
@@ -164,7 +164,7 @@ impl SoundFont2 {
                     zones.len()
                 };
 
-                let zone_items = get_zones(&zones, &modulators, &generators, start, end);
+                let zone_items = get_zones(zones, modulators, generators, start, end);
 
                 // Ignore Terminator
                 if header.name != "EOP" {
@@ -199,13 +199,7 @@ impl SoundFont2 {
             let bbal = (b.header.bank as i32) << 16 | b.header.preset as i32;
             let cmp = aval - bbal;
 
-            if cmp < 0 {
-                std::cmp::Ordering::Less
-            } else if cmp > 0 {
-                std::cmp::Ordering::Greater
-            } else {
-                std::cmp::Ordering::Equal
-            }
+            cmp.cmp(&0)
         });
         self
     }

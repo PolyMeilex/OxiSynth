@@ -248,7 +248,7 @@ impl TryFrom<u16> for GeneratorType {
     type Error = ParseError;
     fn try_from(id: u16) -> Result<Self, Self::Error> {
         if id <= 60 {
-            Ok(unsafe { std::mem::transmute(id) })
+            Ok(unsafe { std::mem::transmute::<u16, Self>(id) })
         } else {
             Err(ParseError::UnknownGeneratorType(id))
         }

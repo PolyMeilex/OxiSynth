@@ -1,5 +1,5 @@
-use crate::raw::generator::GeneratorType;
 use crate::error::ParseError;
+use crate::raw::generator::GeneratorType;
 
 use super::super::utils::Reader;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
@@ -368,7 +368,7 @@ pub mod default_modulators {
         // Note:
         // In SF2.01 it used to be 0x502
         // But in SF2.04 it is just 0x0
-        // I belive that 0x502 was causing a problem in FS:
+        // I believe that 0x502 was causing a problem in FS:
         // You can read about 0x502 problem here: https://github.com/FluidSynth/fluidsynth/blob/e4241469d49551b92478afbd2209939ff89441d5/src/synth/fluid_synth.c#L324
         amt_src: zero_mod!(),
         transform: ModulatorTransform::Linear,

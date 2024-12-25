@@ -15,8 +15,7 @@ impl<'a> Reader<'a> {
         let end = self.curr + len;
         self.curr = end;
 
-        let out = &self.data[start..end];
-        out
+        &self.data[start..end]
     }
 
     pub fn read_string(&mut self, len: usize) -> Result<String, ParseError> {
@@ -29,13 +28,13 @@ impl<'a> Reader<'a> {
         let data = if let Some(end) = data.iter().position(|v| *v == 0) {
             &data[..end]
         } else {
-            &data
+            data
         };
 
-        // Acording to the spec, strings have to be in ASCII.
+        // According to the spec, strings have to be in ASCII.
         // But obviously this is SF2 world, spec is just a suggestion, people use non ASCII characters.
         // So let's just use � for those characters.
-        let name = String::from_utf8_lossy(&data).to_string();
+        let name = String::from_utf8_lossy(data).to_string();
 
         Ok(name)
     }

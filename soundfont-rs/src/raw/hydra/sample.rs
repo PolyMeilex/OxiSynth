@@ -125,50 +125,50 @@ pub enum SampleLink {
 
 impl SampleLink {
     pub fn is_mono(&self) -> bool {
-        match self {
-            Self::MonoSample | Self::RomMonoSample | Self::VorbisMonoSample => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::MonoSample | Self::RomMonoSample | Self::VorbisMonoSample
+        )
     }
 
     pub fn is_right(&self) -> bool {
-        match self {
-            Self::RightSample | Self::RomRightSample | Self::VorbisRightSample => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::RightSample | Self::RomRightSample | Self::VorbisRightSample
+        )
     }
 
     pub fn is_left(&self) -> bool {
-        match self {
-            Self::LeftSample | Self::RomLeftSample | Self::VorbisLeftSample => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::LeftSample | Self::RomLeftSample | Self::VorbisLeftSample
+        )
     }
 
     pub fn is_linked(&self) -> bool {
-        match self {
-            Self::LinkedSample | Self::RomLinkedSample | Self::VorbisLinkedSample => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::LinkedSample | Self::RomLinkedSample | Self::VorbisLinkedSample
+        )
     }
 
     pub fn is_rom(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::RomMonoSample
-            | Self::RomRightSample
-            | Self::RomLeftSample
-            | Self::RomLinkedSample => true,
-            _ => false,
-        }
+                | Self::RomRightSample
+                | Self::RomLeftSample
+                | Self::RomLinkedSample
+        )
     }
 
     pub fn is_vorbis(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Self::VorbisMonoSample
-            | Self::VorbisRightSample
-            | Self::VorbisLeftSample
-            | Self::VorbisLinkedSample => true,
-            _ => false,
-        }
+                | Self::VorbisRightSample
+                | Self::VorbisLeftSample
+                | Self::VorbisLinkedSample
+        )
     }
 }
