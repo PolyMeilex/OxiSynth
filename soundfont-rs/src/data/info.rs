@@ -44,7 +44,7 @@ impl Info {
         assert_eq!(info.id().as_str(), "LIST");
         assert_eq!(info.read_type(file).unwrap().as_str(), "INFO");
 
-        let children: Vec<Chunk> = info.iter(file).collect();
+        let children: Vec<_> = info.iter(file).collect();
 
         let mut version = None;
         let mut sound_engine = None;
@@ -61,6 +61,7 @@ impl Info {
         let mut software = None;
 
         for ch in children.into_iter() {
+            let ch = ch?;
             let id = ch.id();
 
             match id.as_str() {

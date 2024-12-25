@@ -56,6 +56,7 @@ impl Hydra {
         let mut sample_headers = None;
 
         for ch in chunks.into_iter() {
+            let ch = ch?;
             let id = ch.id();
 
             match id.as_str() {

@@ -27,6 +27,7 @@ impl SampleData {
         let mut sm24 = None;
 
         for ch in sdta.iter(file) {
+            let ch = ch?;
             let id = ch.id();
 
             match id.as_str() {

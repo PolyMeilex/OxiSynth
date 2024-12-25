@@ -31,6 +31,7 @@ impl SFData {
         let mut hydra = None;
 
         for ch in chunks.into_iter() {
+            let ch = ch?;
             assert_eq!(ch.id().as_str(), "LIST");
             let ty = ch.read_type(file).unwrap();
             match ty.as_str() {

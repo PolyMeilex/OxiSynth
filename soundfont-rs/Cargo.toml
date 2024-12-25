@@ -12,4 +12,4 @@ documentation = "https://docs.rs/soundfont"
 
 
 [dependencies]
-riff = "1.0.1"
+riff = "2.0.0"

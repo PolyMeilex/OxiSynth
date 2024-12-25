@@ -1,4 +1,5 @@
 use std::array::TryFromSliceError;
+use std::io;
 use std::str::Utf8Error;
 
 use riff::Chunk;
@@ -6,6 +7,7 @@ use riff::Chunk;
 #[derive(Debug)]
 pub enum ParseError {
     StringError(Utf8Error),
+    Io(io::Error),
     NumSliceError(TryFromSliceError),
 
     InvalidBagChunkSize(u32),
@@ -28,6 +30,12 @@ pub enum ParseError {
 impl From<Utf8Error> for ParseError {
     fn from(err: Utf8Error) -> Self {
         Self::StringError(err)
+    }
+}
+
+impl From<io::Error> for ParseError {
+    fn from(err: io::Error) -> Self {
+        Self::Io(err)
     }
 }
 
