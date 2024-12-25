@@ -1,7 +1,7 @@
-use crate::error::ParseError;
+use crate::{error::ParseError, riff::ChunkId};
 
 use super::super::utils::Reader;
-use riff::Chunk;
+use crate::riff::Chunk;
 use std::io::{Read, Seek};
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl Bag {
     }
 
     pub fn read_all<F: Read + Seek>(pbag: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert!(pbag.id().as_str() == "pbag" || pbag.id().as_str() == "ibag");
+        assert!(pbag.id() == ChunkId::pbag || pbag.id() == ChunkId::ibag);
 
         let size = pbag.len();
         if size % 4 != 0 || size == 0 {

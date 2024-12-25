@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
-use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::Chunk;
+use crate::{error::ParseError, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -45,7 +45,7 @@ impl PresetHeader {
     }
 
     pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert_eq!(phdr.id().as_str(), "phdr");
+        assert_eq!(phdr.id(), ChunkId::phdr);
 
         let size = phdr.len();
         if size % 38 != 0 || size == 0 {

@@ -2,7 +2,7 @@ use std::array::TryFromSliceError;
 use std::io;
 use std::str::Utf8Error;
 
-use riff::Chunk;
+use crate::riff::Chunk;
 
 #[derive(Debug)]
 pub enum ParseError {

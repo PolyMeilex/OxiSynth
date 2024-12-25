@@ -1,5 +1,5 @@
-use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::Chunk;
+use crate::{error::ParseError, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -20,8 +20,8 @@ pub struct SampleData {
 
 impl SampleData {
     pub fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
-        assert_eq!(sdta.id().as_str(), "LIST");
-        assert_eq!(sdta.read_type(file).unwrap().as_str(), "sdta");
+        assert_eq!(sdta.id(), ChunkId::LIST);
+        assert_eq!(sdta.read_type(file)?, ChunkId::sdta);
 
         let mut smpl = None;
         let mut sm24 = None;
@@ -30,13 +30,13 @@ impl SampleData {
             let ch = ch?;
             let id = ch.id();
 
-            match id.as_str() {
-                // [<smpl-ck>] The Digital Audio Samples for the upper 16 bits
-                "smpl" => {
+            match id {
+                // The Digital Audio Samples for the upper 16 bits
+                ChunkId::smpl => {
                     smpl = Some(ch);
                 }
-                // [<sm24-ck>] The Digital Audio Samples for the lower 8 bits
-                "sm24" => {
+                // The Digital Audio Samples for the lower 8 bits
+                ChunkId::sm24 => {
                     sm24 = Some(ch);
                 }
                 _ => {

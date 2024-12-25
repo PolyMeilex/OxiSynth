@@ -2,7 +2,7 @@ use crate::data::generator::GeneratorType;
 use crate::error::ParseError;
 
 use super::super::utils::Reader;
-use riff::Chunk;
+use crate::riff::{Chunk, ChunkId};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
@@ -275,7 +275,7 @@ impl Modulator {
         let mut transform: u16 = reader.read_u16()?;
 
         // "The terminal record conventionally contains zero in all fields, and is always ignored."
-        // This sadly is not always true, so let's zero it out ourselfs.
+        // This sadly is not always true, so let's zero it out ourselves.
         if terminal {
             src = 0;
             dest = 0;
@@ -294,7 +294,7 @@ impl Modulator {
     }
 
     pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert!(pmod.id().as_str() == "pmod" || pmod.id().as_str() == "imod");
+        assert!(pmod.id() == ChunkId::pmod || pmod.id() == ChunkId::imod);
 
         let size = pmod.len();
         if size % 10 != 0 || size == 0 {

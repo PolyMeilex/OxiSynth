@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
 use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::{Chunk, ChunkId};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
@@ -86,7 +86,7 @@ impl Generator {
     }
 
     pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert!(pmod.id().as_str() == "pgen" || pmod.id().as_str() == "igen");
+        assert!(pmod.id() == ChunkId::pgen || pmod.id() == ChunkId::igen);
 
         let size = pmod.len();
         if size % 4 != 0 || size == 0 {
