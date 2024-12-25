@@ -4,7 +4,7 @@ use super::super::voice_pool::Voice;
 
 use super::generator::GeneratorType;
 
-use soundfont::data::modulator::{
+use soundfont::raw::modulator::{
     ControllerPalette, GeneralPalette, Modulator as SFModulator, ModulatorSource,
     ModulatorTransform, SourceDirection, SourcePolarity, SourceType,
 };
@@ -365,8 +365,8 @@ impl Mod {
 
 pub mod default {
     use super::Mod;
-    use soundfont::data::generator::GeneratorType;
-    use soundfont::data::modulator::default_modulators;
+    use soundfont::raw::generator::GeneratorType;
+    use soundfont::raw::modulator::default_modulators;
 
     lazy_static! {
         /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use soundfont::data::hydra::sample::SampleLink;
+use soundfont::raw::hydra::sample::SampleLink;
 
 use super::SampleData;
 
@@ -22,7 +22,7 @@ pub struct Sample {
 }
 
 impl Sample {
-    pub fn import(sample: &soundfont::data::SampleHeader, data: SampleData) -> Result<Sample, ()> {
+    pub fn import(sample: &soundfont::raw::SampleHeader, data: SampleData) -> Result<Sample, ()> {
         let mut sample = Sample {
             name: sample.name.clone().into(),
             start: sample.start,

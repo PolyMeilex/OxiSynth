@@ -146,10 +146,10 @@ impl GeneratorType {
     }
 }
 
-impl TryFrom<soundfont::data::GeneratorType> for GeneratorType {
+impl TryFrom<soundfont::raw::GeneratorType> for GeneratorType {
     type Error = ();
 
-    fn try_from(value: soundfont::data::GeneratorType) -> Result<Self, Self::Error> {
+    fn try_from(value: soundfont::raw::GeneratorType) -> Result<Self, Self::Error> {
         num_traits::FromPrimitive::from_u8(value as u8).ok_or(())
     }
 }

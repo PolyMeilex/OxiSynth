@@ -20,7 +20,7 @@ use super::super::conv::{
     tc2sec_release,
 };
 
-use soundfont::data::modulator::{ControllerPalette, GeneralPalette};
+use soundfont::raw::modulator::{ControllerPalette, GeneralPalette};
 
 type Phase = u64;
 

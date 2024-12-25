@@ -1,3 +1,11 @@
+//! A low-level SoundFont™ file reader
+//!
+//! This performs no postprocessing, it just presents the data from the file as is.
+//!
+//! The data structures should mostly reflect [SoundFont™ 2.04 spec](https://github.com/PolyMeilex/OxiSynth/wiki/SoundFont%E2%84%A2-Specification).
+//!
+//! For higher level abstraction see [`crate::SoundFont2`].
+
 mod utils;
 
 pub mod hydra;
@@ -14,6 +22,9 @@ pub use hydra::*;
 pub use info::*;
 pub use sample_data::*;
 
+/// A low-level SoundFont™ file reader
+///
+/// Read [`module level docs`](self) for more information.
 #[derive(Debug)]
 pub struct SFData {
     pub info: Info,

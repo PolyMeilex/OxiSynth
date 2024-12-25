@@ -99,15 +99,15 @@ impl PresetZone {
         for sfgen in zone
             .gen_list
             .iter()
-            .filter(|g| g.ty != soundfont::data::GeneratorType::Instrument)
+            .filter(|g| g.ty != soundfont::raw::GeneratorType::Instrument)
         {
             match sfgen.ty {
-                soundfont::data::GeneratorType::KeyRange => {
+                soundfont::raw::GeneratorType::KeyRange => {
                     let amount = sfgen.amount.as_range().unwrap();
                     key_low = amount.low;
                     key_high = amount.high;
                 }
-                soundfont::data::GeneratorType::VelRange => {
+                soundfont::raw::GeneratorType::VelRange => {
                     let amount = sfgen.amount.as_range().unwrap();
                     vel_low = amount.low;
                     vel_high = amount.high;

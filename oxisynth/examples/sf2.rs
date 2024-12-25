@@ -1,4 +1,4 @@
-use soundfont::{data::SFData, SoundFont2};
+use soundfont::{raw::SFData, SoundFont2};
 
 fn main() {
     let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
@@ -8,7 +8,7 @@ fn main() {
     // let mut file = Cursor::new(include_bytes!("../testdata/sin.sf2"));
 
     let data = SFData::load(&mut file).unwrap();
-    let sf2 = SoundFont2::from_data(data);
+    let sf2 = SoundFont2::from_raw(data);
 
     for p in sf2.presets.iter() {
         println!("====== Preset =======");

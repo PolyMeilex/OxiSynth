@@ -1,4 +1,4 @@
-use crate::data::generator::GeneratorType;
+use crate::raw::generator::GeneratorType;
 use crate::error::ParseError;
 
 use super::super::utils::Reader;
@@ -318,7 +318,7 @@ impl Modulator {
 /// 8.4  Default Modulators
 pub mod default_modulators {
     use super::*;
-    use crate::data::generator::GeneratorType;
+    use crate::raw::generator::GeneratorType;
     use SourceDirection::*;
     use SourcePolarity::*;
     use SourceType::*;
