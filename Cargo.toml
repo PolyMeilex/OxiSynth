@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["oxisynth", "oxisynth-chorus", "oxisynth-reverb", "soundfont-rs"]
+members = ["oxisynth", "oxisynth-chorus", "oxisynth-reverb", "soundfont-rs", "./oxisynth/examples/real-time"]
 
 [workspace.dependencies]
 soundfont = { version = "0.0.3", path = "./soundfont-rs" }

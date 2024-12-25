@@ -173,7 +173,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(in_port)?;
 
-    let (_stream, mut synth_conn) = synth.new_output_connection(&"../../testdata/sin.sf2");
+    let (_stream, mut synth_conn) = synth.new_output_connection(&"./testdata/sin.sf2");
 
     // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
     let _conn_in = midi_in.connect(
