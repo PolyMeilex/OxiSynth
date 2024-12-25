@@ -26,7 +26,8 @@ impl SampleData {
         let mut smpl = None;
         let mut sm24 = None;
 
-        for ch in sdta.iter(file) {
+        let mut iter = sdta.iter();
+        while let Some(ch) = iter.next(file) {
             let ch = ch?;
             let id = ch.id();
 

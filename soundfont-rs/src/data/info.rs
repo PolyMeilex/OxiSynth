@@ -44,8 +44,6 @@ impl Info {
         assert_eq!(info.id(), ChunkId::LIST);
         assert_eq!(info.read_type(file)?, ChunkId::INFO);
 
-        let children: Vec<_> = info.iter(file).collect();
-
         let mut version = None;
         let mut sound_engine = None;
         let mut bank_name = None;
@@ -60,7 +58,8 @@ impl Info {
         let mut comments = None;
         let mut software = None;
 
-        for ch in children.into_iter() {
+        let mut iter = info.iter();
+        while let Some(ch) = iter.next(file) {
             let ch = ch?;
             let id = ch.id();
 

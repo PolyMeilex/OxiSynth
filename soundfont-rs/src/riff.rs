@@ -131,33 +131,25 @@ pub struct Chunk {
 }
 
 /// An iterator over the children of a `Chunk`
-pub struct Iter<'a, T>
-where
-    T: Seek + Read,
-{
+pub struct Iter {
     end: u64,
     cur: u64,
-    // TODO: Make stream a `next` function argument
-    stream: &'a mut T,
 }
 
-impl<T> Iterator for Iter<'_, T>
-where
-    T: Seek + Read,
-{
-    type Item = std::io::Result<Chunk>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl Iter {
+    pub fn next<T: Seek + Read>(&mut self, stream: &mut T) -> Option<std::io::Result<Chunk>> {
         if self.cur >= self.end {
             return None;
         }
 
-        let chunk = match Chunk::read(&mut self.stream, self.cur) {
+        let chunk = match Chunk::read(stream, self.cur) {
             Ok(chunk) => chunk,
             Err(err) => return Some(Err(err)),
         };
+
         let len = chunk.len() as u64;
         self.cur = self.cur + len + 8 + (len % 2);
+
         Some(Ok(chunk))
     }
 }
@@ -227,14 +219,10 @@ impl Chunk {
     }
 
     /// Returns an iterator over the children of the chunk.
-    pub fn iter<'a, T>(&self, stream: &'a mut T) -> Iter<'a, T>
-    where
-        T: Seek + Read,
-    {
+    pub fn iter(&self) -> Iter {
         Iter {
             cur: self.pos + 12,
             end: self.pos + 4 + (self.len as u64),
-            stream,
         }
     }
 }
