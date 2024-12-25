@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
 use crate::error::ParseError;
-use crate::riff::{Chunk, ChunkId};
+use crate::riff::{Chunk, ChunkId, ScratchReader};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
@@ -85,7 +85,10 @@ impl Generator {
         Ok(Self { ty, amount })
     }
 
-    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
+    pub fn read_all(
+        pmod: &Chunk,
+        file: &mut ScratchReader<impl Read + Seek>,
+    ) -> Result<Vec<Self>, ParseError> {
         assert!(pmod.id() == ChunkId::pgen || pmod.id() == ChunkId::igen);
 
         let size = pmod.len();
@@ -94,7 +97,7 @@ impl Generator {
         } else {
             let amount = size / 4;
 
-            let data = pmod.read_contents(file).unwrap();
+            let data = pmod.read_contents(file)?;
             let mut reader = Reader::new(data);
 
             Ok((0..amount)

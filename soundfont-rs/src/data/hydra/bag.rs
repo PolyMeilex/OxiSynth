@@ -1,4 +1,7 @@
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{
+    error::ParseError,
+    riff::{ChunkId, ScratchReader},
+};
 
 use super::super::utils::Reader;
 use crate::riff::Chunk;
@@ -21,7 +24,10 @@ impl Bag {
         })
     }
 
-    pub fn read_all<F: Read + Seek>(pbag: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
+    pub fn read_all(
+        pbag: &Chunk,
+        file: &mut ScratchReader<impl Read + Seek>,
+    ) -> Result<Vec<Self>, ParseError> {
         assert!(pbag.id() == ChunkId::pbag || pbag.id() == ChunkId::ibag);
 
         let size = pbag.len();
@@ -30,7 +36,7 @@ impl Bag {
         } else {
             let amount = size / 4;
 
-            let data = pbag.read_contents(file).unwrap();
+            let data = pbag.read_contents(file)?;
             let mut reader = Reader::new(data);
 
             (0..amount).map(|_| Self::read(&mut reader)).collect()

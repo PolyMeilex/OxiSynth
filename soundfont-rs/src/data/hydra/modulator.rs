@@ -2,7 +2,7 @@ use crate::data::generator::GeneratorType;
 use crate::error::ParseError;
 
 use super::super::utils::Reader;
-use crate::riff::{Chunk, ChunkId};
+use crate::riff::{Chunk, ChunkId, ScratchReader};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
@@ -293,7 +293,10 @@ impl Modulator {
         })
     }
 
-    pub fn read_all<F: Read + Seek>(pmod: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
+    pub fn read_all(
+        pmod: &Chunk,
+        file: &mut ScratchReader<impl Read + Seek>,
+    ) -> Result<Vec<Self>, ParseError> {
         assert!(pmod.id() == ChunkId::pmod || pmod.id() == ChunkId::imod);
 
         let size = pmod.len();
@@ -302,7 +305,7 @@ impl Modulator {
         } else {
             let amount = size / 10;
 
-            let data = pmod.read_contents(file).unwrap();
+            let data = pmod.read_contents(file)?;
             let mut reader = Reader::new(data);
 
             (0..amount)

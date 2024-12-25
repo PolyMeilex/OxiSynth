@@ -4,7 +4,10 @@ pub mod hydra;
 pub mod info;
 pub mod sample_data;
 
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{
+    error::ParseError,
+    riff::{self, ChunkId},
+};
 use std::io::{Read, Seek};
 
 pub use hydra::*;
@@ -20,7 +23,7 @@ pub struct SFData {
 
 impl SFData {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
-        let sfbk = crate::riff::Chunk::read(file, 0).unwrap();
+        let sfbk = riff::Chunk::read(file, 0)?;
         assert_eq!(sfbk.id(), ChunkId::RIFF);
         assert_eq!(sfbk.read_type(file)?, ChunkId::sfbk);
 
@@ -28,19 +31,21 @@ impl SFData {
         let mut sample_data = None;
         let mut hydra = None;
 
+        let mut file = riff::ScratchReader::new(file);
         let mut iter = sfbk.iter();
-        while let Some(ch) = iter.next(file) {
+        while let Some(ch) = iter.next(&mut file) {
             let ch = ch?;
             assert_eq!(ch.id(), ChunkId::LIST);
-            match ch.read_type(file)? {
+
+            match ch.read_type(&mut file)? {
                 ChunkId::INFO => {
-                    info = Some(Info::read(&ch, file)?);
+                    info = Some(Info::read(&ch, &mut file)?);
                 }
                 ChunkId::sdta => {
-                    sample_data = Some(SampleData::read(&ch, file)?);
+                    sample_data = Some(SampleData::read(&ch, &mut file)?);
                 }
                 ChunkId::pdta => {
-                    hydra = Some(Hydra::read(&ch, file)?);
+                    hydra = Some(Hydra::read(&ch, &mut file)?);
                 }
                 _ => {
                     return Err(ParseError::UnexpectedMemeberOfRoot(ch));

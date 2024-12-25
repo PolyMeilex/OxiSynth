@@ -3,10 +3,36 @@
 // (Based on `riff` MIT crate: Copyright 2018 Francesco Bertolaccini)
 
 use std::{
-    convert::TryInto,
     fmt,
     io::{Read, Seek, SeekFrom},
 };
+
+pub struct ScratchReader<T> {
+    /// Scratch buffer
+    buff: Vec<u8>,
+    pub io: T,
+}
+
+impl<T> ScratchReader<T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            buff: Vec::new(),
+            io,
+        }
+    }
+}
+
+impl<T: Read> Read for ScratchReader<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.io.read(buf)
+    }
+}
+
+impl<T: Seek> Seek for ScratchReader<T> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.io.seek(pos)
+    }
+}
 
 /// A chunk id, also known as FourCC
 #[derive(PartialEq, Eq, Clone, Copy, Hash)]
@@ -206,13 +232,42 @@ impl Chunk {
     }
 
     /// Reads the entirety of the contents of a chunk.
-    pub fn read_contents<T>(&self, stream: &mut T) -> std::io::Result<Vec<u8>>
+    pub fn read_to<T>(&self, stream: &mut T, buf: &mut [u8]) -> std::io::Result<()>
     where
         T: Read + Seek,
     {
         stream.seek(SeekFrom::Start(self.pos + 8))?;
 
-        let mut data: Vec<u8> = vec![0; self.len.try_into().unwrap()];
+        stream.read_exact(buf)?;
+
+        Ok(())
+    }
+
+    pub fn read_contents<'a, T>(
+        &self,
+        stream: &'a mut ScratchReader<T>,
+    ) -> std::io::Result<&'a [u8]>
+    where
+        T: Read + Seek,
+    {
+        let ScratchReader { buff, io } = stream;
+
+        io.seek(SeekFrom::Start(self.pos + 8))?;
+
+        buff.resize(self.len as usize, 0);
+        io.read_exact(buff)?;
+
+        Ok(buff)
+    }
+
+    /// Reads the entirety of the contents of a chunk.
+    pub fn read_to_vec<T>(&self, stream: &mut T) -> std::io::Result<Vec<u8>>
+    where
+        T: Read + Seek,
+    {
+        stream.seek(SeekFrom::Start(self.pos + 8))?;
+
+        let mut data: Vec<u8> = vec![0; self.len as usize];
         stream.read_exact(&mut data)?;
 
         Ok(data)

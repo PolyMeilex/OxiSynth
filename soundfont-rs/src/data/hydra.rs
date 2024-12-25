@@ -16,7 +16,7 @@ pub use instrument::InstrumentHeader;
 pub mod sample;
 pub use sample::SampleHeader;
 
-use crate::riff::Chunk;
+use crate::riff::{Chunk, ScratchReader};
 use crate::{error::ParseError, riff::ChunkId};
 
 use std::io::{Read, Seek};
@@ -37,7 +37,10 @@ pub struct Hydra {
 }
 
 impl Hydra {
-    pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
+    pub fn read(
+        pdta: &Chunk,
+        file: &mut ScratchReader<impl Read + Seek>,
+    ) -> Result<Self, ParseError> {
         assert_eq!(pdta.id(), ChunkId::LIST);
         assert_eq!(pdta.read_type(file)?, ChunkId::pdta);
 
