@@ -4,7 +4,7 @@ pub mod hydra;
 pub mod info;
 pub mod sample_data;
 
-use crate::error::ParseError;
+use crate::{error::ParseError, riff::ChunkId};
 use std::io::{Read, Seek};
 
 pub use hydra::*;
@@ -20,9 +20,9 @@ pub struct SFData {
 
 impl SFData {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
-        let sfbk = riff::Chunk::read(file, 0).unwrap();
-        assert_eq!(sfbk.id().as_str(), "RIFF");
-        assert_eq!(sfbk.read_type(file).unwrap().as_str(), "sfbk");
+        let sfbk = crate::riff::Chunk::read(file, 0).unwrap();
+        assert_eq!(sfbk.id(), ChunkId::RIFF);
+        assert_eq!(sfbk.read_type(file)?, ChunkId::sfbk);
 
         let chunks: Vec<_> = sfbk.iter(file).collect();
 
@@ -32,16 +32,15 @@ impl SFData {
 
         for ch in chunks.into_iter() {
             let ch = ch?;
-            assert_eq!(ch.id().as_str(), "LIST");
-            let ty = ch.read_type(file).unwrap();
-            match ty.as_str() {
-                "INFO" => {
+            assert_eq!(ch.id(), ChunkId::LIST);
+            match ch.read_type(file)? {
+                ChunkId::INFO => {
                     info = Some(Info::read(&ch, file)?);
                 }
-                "sdta" => {
+                ChunkId::sdta => {
                     sample_data = Some(SampleData::read(&ch, file)?);
                 }
-                "pdta" => {
+                ChunkId::pdta => {
                     hydra = Some(Hydra::read(&ch, file)?);
                 }
                 _ => {

@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
-use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::Chunk;
+use crate::{error::ParseError, riff::ChunkId};
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
@@ -79,7 +79,7 @@ impl SampleHeader {
     }
 
     pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert_eq!(phdr.id().as_str(), "shdr");
+        assert_eq!(phdr.id(), ChunkId::shdr);
 
         let size = phdr.len();
         if size % 46 != 0 || size == 0 {

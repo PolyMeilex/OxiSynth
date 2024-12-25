@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
-use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::Chunk;
+use crate::{error::ParseError, riff::ChunkId};
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ impl InstrumentHeader {
     }
 
     pub fn read_all<F: Read + Seek>(phdr: &Chunk, file: &mut F) -> Result<Vec<Self>, ParseError> {
-        assert_eq!(phdr.id().as_str(), "inst");
+        assert_eq!(phdr.id(), ChunkId::inst);
 
         let size = phdr.len();
         if size % 22 != 0 || size == 0 {

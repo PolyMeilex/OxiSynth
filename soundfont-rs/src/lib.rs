@@ -1,5 +1,6 @@
 pub mod data;
 pub mod error;
+mod riff;
 
 use data::{
     Bag, Generator, GeneratorAmountRange, GeneratorType, Info, InstrumentHeader, Modulator,

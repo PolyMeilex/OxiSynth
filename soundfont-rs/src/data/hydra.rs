@@ -16,8 +16,8 @@ pub use instrument::InstrumentHeader;
 pub mod sample;
 pub use sample::SampleHeader;
 
-use crate::error::ParseError;
-use riff::Chunk;
+use crate::riff::Chunk;
+use crate::{error::ParseError, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -38,8 +38,8 @@ pub struct Hydra {
 
 impl Hydra {
     pub fn read<F: Read + Seek>(pdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
-        assert_eq!(pdta.id().as_str(), "LIST");
-        assert_eq!(pdta.read_type(file).unwrap().as_str(), "pdta");
+        assert_eq!(pdta.id(), ChunkId::LIST);
+        assert_eq!(pdta.read_type(file)?, ChunkId::pdta);
 
         let chunks: Vec<_> = pdta.iter(file).collect();
 
@@ -57,27 +57,26 @@ impl Hydra {
 
         for ch in chunks.into_iter() {
             let ch = ch?;
-            let id = ch.id();
 
-            match id.as_str() {
+            match ch.id() {
                 // The Preset Headers
-                "phdr" => preset_headers = Some(PresetHeader::read_all(&ch, file)?),
+                ChunkId::phdr => preset_headers = Some(PresetHeader::read_all(&ch, file)?),
                 // The Preset Index list
-                "pbag" => preset_bags = Some(Bag::read_all(&ch, file)?),
+                ChunkId::pbag => preset_bags = Some(Bag::read_all(&ch, file)?),
                 // The Preset Modulator list
-                "pmod" => preset_modulators = Some(Modulator::read_all(&ch, file)?),
+                ChunkId::pmod => preset_modulators = Some(Modulator::read_all(&ch, file)?),
                 // The Preset Generator list
-                "pgen" => preset_generators = Some(Generator::read_all(&ch, file)?),
+                ChunkId::pgen => preset_generators = Some(Generator::read_all(&ch, file)?),
                 // The Instrument Names and Indices
-                "inst" => instrument_headers = Some(InstrumentHeader::read_all(&ch, file)?),
+                ChunkId::inst => instrument_headers = Some(InstrumentHeader::read_all(&ch, file)?),
                 // The Instrument Index list
-                "ibag" => instrument_bags = Some(Bag::read_all(&ch, file)?),
+                ChunkId::ibag => instrument_bags = Some(Bag::read_all(&ch, file)?),
                 // The Instrument Modulator list
-                "imod" => instrument_modulators = Some(Modulator::read_all(&ch, file)?),
+                ChunkId::imod => instrument_modulators = Some(Modulator::read_all(&ch, file)?),
                 // The Instrument Generator list
-                "igen" => instrument_generators = Some(Generator::read_all(&ch, file)?),
+                ChunkId::igen => instrument_generators = Some(Generator::read_all(&ch, file)?),
                 // The Sample Headers
-                "shdr" => sample_headers = Some(SampleHeader::read_all(&ch, file)?),
+                ChunkId::shdr => sample_headers = Some(SampleHeader::read_all(&ch, file)?),
                 _ => {
                     return Err(ParseError::UnexpectedMemeberOfHydra(ch));
                 }
