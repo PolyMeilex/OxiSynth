@@ -41,8 +41,6 @@ impl Hydra {
         assert_eq!(pdta.id(), ChunkId::LIST);
         assert_eq!(pdta.read_type(file)?, ChunkId::pdta);
 
-        let chunks: Vec<_> = pdta.iter(file).collect();
-
         let mut preset_headers = None;
         let mut preset_bags = None;
         let mut preset_modulators = None;
@@ -55,7 +53,8 @@ impl Hydra {
 
         let mut sample_headers = None;
 
-        for ch in chunks.into_iter() {
+        let mut iter = pdta.iter();
+        while let Some(ch) = iter.next(file) {
             let ch = ch?;
 
             match ch.id() {

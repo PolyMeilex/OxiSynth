@@ -24,13 +24,12 @@ impl SFData {
         assert_eq!(sfbk.id(), ChunkId::RIFF);
         assert_eq!(sfbk.read_type(file)?, ChunkId::sfbk);
 
-        let chunks: Vec<_> = sfbk.iter(file).collect();
-
         let mut info = None;
         let mut sample_data = None;
         let mut hydra = None;
 
-        for ch in chunks.into_iter() {
+        let mut iter = sfbk.iter();
+        while let Some(ch) = iter.next(file) {
             let ch = ch?;
             assert_eq!(ch.id(), ChunkId::LIST);
             match ch.read_type(file)? {
