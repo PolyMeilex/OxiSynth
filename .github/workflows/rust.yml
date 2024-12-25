@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install alsa
+        shell: bash
+        run: sudo apt install libasound2-dev
       - run: cargo build
 
   build-sf3:
@@ -19,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install alsa
+        shell: bash
+        run: sudo apt install libasound2-dev
       - run: cargo build --features sf3
 
   build-i16-out:
@@ -26,6 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install alsa
+        shell: bash
+        run: sudo apt install libasound2-dev
       - run: cargo build --features i16-out
 
   test:
@@ -33,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install alsa
+        shell: bash
+        run: sudo apt install libasound2-dev
       - run: cargo test
 
   fmt:
