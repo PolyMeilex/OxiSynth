@@ -10,14 +10,14 @@ pub struct InstrumentHeader {
 }
 
 impl InstrumentHeader {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         let bag_id: u16 = reader.read_u16()?;
 
         Ok(Self { name, bag_id })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         phdr: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {

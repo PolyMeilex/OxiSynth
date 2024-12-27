@@ -14,7 +14,7 @@ pub struct Bag {
 }
 
 impl Bag {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let generator_id: u16 = reader.read_u16()?;
         let modulator_id: u16 = reader.read_u16()?;
 
@@ -24,7 +24,7 @@ impl Bag {
         })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         pbag: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {

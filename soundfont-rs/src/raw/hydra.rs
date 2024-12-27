@@ -56,7 +56,7 @@ pub struct Hydra {
 }
 
 impl Hydra {
-    pub fn read(
+    pub(crate) fn read(
         pdta: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Self, ParseError> {
@@ -118,18 +118,5 @@ impl Hydra {
 
             sample_headers: sample_headers.ok_or(SampleHeaders)?,
         })
-    }
-
-    pub fn pop_terminators(&mut self) {
-        self.preset_headers.pop().unwrap();
-        self.preset_bags.pop().unwrap();
-        self.preset_modulators.pop().unwrap();
-        self.preset_generators.pop().unwrap();
-
-        self.instrument_headers.pop().unwrap();
-        self.instrument_bags.pop().unwrap();
-        self.instrument_modulators.pop().unwrap();
-        self.instrument_generators.pop().unwrap();
-        self.sample_headers.pop().unwrap();
     }
 }

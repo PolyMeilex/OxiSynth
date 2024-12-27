@@ -3,6 +3,8 @@ use std::{
     sync::Arc,
 };
 
+use soundfont::raw::SampleChunk;
+
 #[derive(Debug, Clone)]
 pub struct SampleData(Arc<[i16]>);
 
@@ -11,11 +13,10 @@ impl SampleData {
         Self(data)
     }
 
-    pub fn load<F: Read + Seek>(
-        file: &mut F,
-        sample_pos: u64,
-        sample_size: usize,
-    ) -> Result<Self, ()> {
+    pub fn load<F: Read + Seek>(file: &mut F, smpl: &SampleChunk) -> Result<Self, ()> {
+        let sample_pos = smpl.offset;
+        let sample_size = smpl.len as usize;
+
         if file.seek(SeekFrom::Start(sample_pos)).is_err() {
             log::error!("Failed to seek position in data file",);
             return Err(());

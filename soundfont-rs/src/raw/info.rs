@@ -50,7 +50,7 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn read(
+    pub(crate) fn read(
         info: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Self, ParseError> {

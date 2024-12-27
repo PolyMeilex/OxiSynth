@@ -267,7 +267,7 @@ pub struct Modulator {
 }
 
 impl Modulator {
-    pub fn read(reader: &mut Reader, terminal: bool) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader, terminal: bool) -> Result<Self, ParseError> {
         let mut src: u16 = reader.read_u16()?;
         let mut dest: u16 = reader.read_u16()?;
         let mut amount: i16 = reader.read_i16()?;
@@ -293,7 +293,7 @@ impl Modulator {
         })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         pmod: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {

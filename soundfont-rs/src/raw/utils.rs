@@ -1,7 +1,7 @@
 use crate::error::ParseError;
 use std::convert::TryInto;
 
-pub struct Reader<'a> {
+pub(crate) struct Reader<'a> {
     data: &'a [u8],
     curr: usize,
 }
@@ -10,6 +10,7 @@ impl<'a> Reader<'a> {
         Self { data, curr: 0 }
     }
 
+    #[allow(dead_code)]
     pub fn read(&mut self, len: usize) -> &[u8] {
         let start = self.curr;
         let end = self.curr + len;

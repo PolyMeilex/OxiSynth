@@ -23,7 +23,7 @@ pub struct PresetHeader {
 }
 
 impl PresetHeader {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         let preset: u16 = reader.read_u16()?;
         let bank: u16 = reader.read_u16()?;
@@ -44,7 +44,7 @@ impl PresetHeader {
         })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         phdr: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {

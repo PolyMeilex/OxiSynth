@@ -20,7 +20,7 @@ pub struct SampleHeader {
 }
 
 impl SampleHeader {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         // 20
 
@@ -78,7 +78,7 @@ impl SampleHeader {
         })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         phdr: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {

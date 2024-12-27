@@ -10,7 +10,7 @@ use std::{
 pub struct ScratchReader<T> {
     /// Scratch buffer
     buff: Vec<u8>,
-    pub io: T,
+    io: T,
 }
 
 impl<T> ScratchReader<T> {
@@ -148,7 +148,7 @@ impl fmt::Debug for ChunkId {
     }
 }
 
-/// A chunk, also known as a form
+/// A RIFF chunk
 #[derive(PartialEq, Eq, Debug)]
 pub struct Chunk {
     pos: u64,
@@ -191,9 +191,9 @@ impl Chunk {
         self.len
     }
 
-    /// Returns the offset of this chunk from the start of the stream.
-    pub fn offset(&self) -> u64 {
-        self.pos
+    /// Returns the content offset of this chunk from the start of the stream.
+    pub fn content_offset(&self) -> u64 {
+        self.pos + 8
     }
 
     /// Reads the chunk type of this chunk.
@@ -236,7 +236,7 @@ impl Chunk {
     where
         T: Read + Seek,
     {
-        stream.seek(SeekFrom::Start(self.pos + 8))?;
+        stream.seek(SeekFrom::Start(self.content_offset()))?;
 
         stream.read_exact(buf)?;
 
@@ -252,25 +252,12 @@ impl Chunk {
     {
         let ScratchReader { buff, io } = stream;
 
-        io.seek(SeekFrom::Start(self.pos + 8))?;
+        io.seek(SeekFrom::Start(self.content_offset()))?;
 
         buff.resize(self.len as usize, 0);
         io.read_exact(buff)?;
 
         Ok(buff)
-    }
-
-    /// Reads the entirety of the contents of a chunk.
-    pub fn read_to_vec<T>(&self, stream: &mut T) -> std::io::Result<Vec<u8>>
-    where
-        T: Read + Seek,
-    {
-        stream.seek(SeekFrom::Start(self.pos + 8))?;
-
-        let mut data: Vec<u8> = vec![0; self.len as usize];
-        stream.read_exact(&mut data)?;
-
-        Ok(data)
     }
 
     /// Returns an iterator over the children of the chunk.

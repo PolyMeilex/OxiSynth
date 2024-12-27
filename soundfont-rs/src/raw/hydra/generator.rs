@@ -65,7 +65,7 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let id: u16 = reader.read_u16()?;
 
         let ty = GeneratorType::try_from(id)
@@ -88,7 +88,7 @@ impl Generator {
         Ok(Self { ty, amount })
     }
 
-    pub fn read_all(
+    pub(crate) fn read_all(
         pmod: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
     ) -> Result<Vec<Self>, ParseError> {
