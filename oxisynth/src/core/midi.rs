@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use crate::core::channel_pool::Channel;
 use crate::core::font_bank::FontBank;
@@ -9,7 +9,6 @@ use crate::core::soundfont::{
 };
 use crate::core::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
 use crate::OxiError;
-use num_traits::cast::FromPrimitive;
 
 type MidiControlChange = u32;
 const RPN_MSB: MidiControlChange = 101;
@@ -393,7 +392,7 @@ pub(in super::super) fn cc(
                     if (nrpn_select as i32) < GeneratorType::last() as i32 {
                         let scale_nrpn: f32 = gen_scale_nrpn(nrpn_select, data);
 
-                        let param = FromPrimitive::from_u8(nrpn_select as u8).unwrap();
+                        let param = GeneratorType::try_from(nrpn_select as u8).unwrap();
                         set_gen(channel, voices, param, scale_nrpn)
                     }
 

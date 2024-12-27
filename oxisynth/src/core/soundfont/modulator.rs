@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use super::super::channel_pool::Channel;
 use super::super::conv::{concave, convex};
 use super::super::voice_pool::Voice;
@@ -22,7 +24,7 @@ impl From<&SFModulator> for Mod {
     fn from(mod_src: &SFModulator) -> Self {
         let mut amount = mod_src.amount as f64;
 
-        let dest = mod_src.dest as u8; // index of controlled generator
+        let dest = mod_src.dest; // index of controlled generator
 
         if let SourceType::Unknown(_) = mod_src.src.ty {
             /* This shouldn't happen - unknown type!
@@ -43,12 +45,10 @@ impl From<&SFModulator> for Mod {
             amount = 0.0;
         }
 
-        use num_traits::FromPrimitive;
-
         Mod {
             src: mod_src.src,
             amount,
-            dest: FromPrimitive::from_u8(dest).unwrap(), // index of controlled generator
+            dest: dest.try_into().unwrap(), // index of controlled generator
             src2: mod_src.amt_src,
         }
     }

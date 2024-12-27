@@ -1,142 +1,166 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use super::super::Channel;
 
-use num_derive::FromPrimitive;
+macro_rules! u8_to_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($(#[$vmeta:meta])* $vname:ident $(= $val:expr)?,)*
+        }
+    ) => {
+        $(#[$meta])*
+        $vis enum $name {
+            $($(#[$vmeta])* $vname $(= $val)?,)*
+        }
 
-/// Generator (effect) numbers
-///
-/// See also _SoundFont 2.01 specifications section 8.1.3
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromPrimitive)]
-#[repr(u8)]
-pub enum GeneratorType {
-    /// Sample start address offset (0-32767)
-    StartAddrOfs = 0,
-    ///< Sample end address offset (-32767-0)
-    EndAddrOfs = 1,
-    ///< Sample loop start address offset (-32767-32767)
-    StartLoopAddrOfs = 2,
-    ///< Sample loop end address offset (-32767-32767)
-    EndLoopAddrOfs = 3,
-    /// Sample start address coarse offset (X 32768)
-    StartAddrCoarseOfs = 4,
-    /// Modulation LFO to pitch
-    ModLfoToPitch = 5,
-    /// Vibrato LFO to pitch
-    VibLfoToPitch = 6,
-    /// Modulation envelope to pitch
-    ModEnvToPitch = 7,
-    /// Filter cutoff
-    FilterFc = 8,
-    /// Filter Q
-    FilterQ = 9,
-    /// Modulation LFO to filter cutoff
-    ModLfoToFilterFc = 10,
-    /// Modulation envelope to filter cutoff
-    ModEnvToFilterFc = 11,
-    /// Sample end address coarse offset (X 32768)
-    EndAddrCoarseOfs = 12,
-    /// Modulation LFO to volume
-    ModLfoToVol = 13,
-    /// Unused
-    Unused = 14,
-    /// Chorus send amount
-    ChorusSend = 15,
-    /// Reverb send amount
-    ReverbSend = 16,
-    /// Stereo panning
-    Pan = 17,
-    /// Unused
-    Unused2 = 18,
-    /// Unused
-    Unused3 = 19,
-    /// Unused
-    Unused4 = 20,
-    /// Modulation LFO delay
-    ModLfoDelay = 21,
-    /// Modulation LFO frequency
-    ModLfoFreq = 22,
-    /// Vibrato LFO delay
-    VibLfoDelay = 23,
-    /// Vibrato LFO frequency
-    VibLfoFreq = 24,
-    /// Modulation envelope delay
-    ModEnvDelay = 25,
-    /// Modulation envelope attack
-    ModEnvAttack = 26,
-    /// Modulation envelope hold
-    ModEnvHold = 27,
-    /// Modulation envelope decay
-    ModEnvDecay = 28,
-    /// Modulation envelope sustain
-    ModEnvSustain = 29,
-    /// Modulation envelope release
-    ModEnvRelease = 30,
-    /// Key to modulation envelope hold
-    KeyToModEnvHold = 31,
-    /// Key to modulation envelope decay
-    KeyToModEnvDecay = 32,
-    /// Volume envelope delay
-    VolEnvDelay = 33,
-    /// Volume envelope attack
-    VolEnvAttack = 34,
-    /// Volume envelope hold
-    VolEnvHold = 35,
-    /// Volume envelope decay
-    VolEnvDecay = 36,
-    /// Volume envelope sustain
-    VolEnvSustain = 37,
-    /// Volume envelope release
-    VolEnvRelease = 38,
-    /// Key to volume envelope hold
-    KeyToVolEnvHold = 39,
-    /// Key to volume envelope decay
-    KeyToVolEnvDecay = 40,
-    /// Instrument ID (shouldn't be set by user)
-    Instrument = 41,
-    /// Reserved
-    Reserved1 = 42,
-    /// MIDI note range
-    KeyRange = 43,
-    /// MIDI velocity range
-    VelRange = 44,
-    /// Sample start loop address coarse offset (X 32768)
-    StartLoopAddrCoarseOfs = 45,
-    /// Fixed MIDI note number
-    KeyNum = 46,
-    /// Fixed MIDI velocity value
-    Velocity = 47,
-    /// Initial volume attenuation
-    Attenuation = 48,
-    /// Reserved
-    Reserved2 = 49,
-    /// Sample end loop address coarse offset (X 32768)
-    EndLoopAddrCoarseOfs = 50,
-    /// Coarse tuning
-    CoarseTune = 51,
-    /// Fine tuning
-    FineTune = 52,
-    /// Sample ID (shouldn't be set by user)
-    SampleId = 53,
-    /// Sample mode flags
-    SampleMode = 54,
-    /// Reserved
-    Reserved3 = 55,
-    /// Scale tuning
-    ScaleTune = 56,
-    /// Exclusive class number
-    ExclusiveClass = 57,
-    /// Sample root note override
-    OverrideRootKey = 58,
-    /** Pitch (NOTE: Not a real SoundFont generator)
+        impl std::convert::TryFrom<u8> for $name {
+            type Error = ();
 
-    The initial pitch is not a "standard" generator. It is not
-    mentioned in the list of generator in the SF2 specifications. It
-    is used, however, as the destination for the default pitch wheel
-    modulator.
-    */
-    Pitch = 59,
+            fn try_from(v: u8) -> Result<Self, Self::Error> {
+                match v {
+                    $(x if x == $name::$vname as u8 => Ok($name::$vname),)*
+                    _ => Err(()),
+                }
+            }
+        }
+    }
 }
+
+u8_to_enum!(
+    /// Generator (effect) numbers
+    ///
+    /// See also _SoundFont 2.01 specifications section 8.1.3
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[repr(u8)]
+    pub enum GeneratorType {
+        /// Sample start address offset (0-32767)
+        StartAddrOfs = 0,
+        ///< Sample end address offset (-32767-0)
+        EndAddrOfs = 1,
+        ///< Sample loop start address offset (-32767-32767)
+        StartLoopAddrOfs = 2,
+        ///< Sample loop end address offset (-32767-32767)
+        EndLoopAddrOfs = 3,
+        /// Sample start address coarse offset (X 32768)
+        StartAddrCoarseOfs = 4,
+        /// Modulation LFO to pitch
+        ModLfoToPitch = 5,
+        /// Vibrato LFO to pitch
+        VibLfoToPitch = 6,
+        /// Modulation envelope to pitch
+        ModEnvToPitch = 7,
+        /// Filter cutoff
+        FilterFc = 8,
+        /// Filter Q
+        FilterQ = 9,
+        /// Modulation LFO to filter cutoff
+        ModLfoToFilterFc = 10,
+        /// Modulation envelope to filter cutoff
+        ModEnvToFilterFc = 11,
+        /// Sample end address coarse offset (X 32768)
+        EndAddrCoarseOfs = 12,
+        /// Modulation LFO to volume
+        ModLfoToVol = 13,
+        /// Unused
+        Unused = 14,
+        /// Chorus send amount
+        ChorusSend = 15,
+        /// Reverb send amount
+        ReverbSend = 16,
+        /// Stereo panning
+        Pan = 17,
+        /// Unused
+        Unused2 = 18,
+        /// Unused
+        Unused3 = 19,
+        /// Unused
+        Unused4 = 20,
+        /// Modulation LFO delay
+        ModLfoDelay = 21,
+        /// Modulation LFO frequency
+        ModLfoFreq = 22,
+        /// Vibrato LFO delay
+        VibLfoDelay = 23,
+        /// Vibrato LFO frequency
+        VibLfoFreq = 24,
+        /// Modulation envelope delay
+        ModEnvDelay = 25,
+        /// Modulation envelope attack
+        ModEnvAttack = 26,
+        /// Modulation envelope hold
+        ModEnvHold = 27,
+        /// Modulation envelope decay
+        ModEnvDecay = 28,
+        /// Modulation envelope sustain
+        ModEnvSustain = 29,
+        /// Modulation envelope release
+        ModEnvRelease = 30,
+        /// Key to modulation envelope hold
+        KeyToModEnvHold = 31,
+        /// Key to modulation envelope decay
+        KeyToModEnvDecay = 32,
+        /// Volume envelope delay
+        VolEnvDelay = 33,
+        /// Volume envelope attack
+        VolEnvAttack = 34,
+        /// Volume envelope hold
+        VolEnvHold = 35,
+        /// Volume envelope decay
+        VolEnvDecay = 36,
+        /// Volume envelope sustain
+        VolEnvSustain = 37,
+        /// Volume envelope release
+        VolEnvRelease = 38,
+        /// Key to volume envelope hold
+        KeyToVolEnvHold = 39,
+        /// Key to volume envelope decay
+        KeyToVolEnvDecay = 40,
+        /// Instrument ID (shouldn't be set by user)
+        Instrument = 41,
+        /// Reserved
+        Reserved1 = 42,
+        /// MIDI note range
+        KeyRange = 43,
+        /// MIDI velocity range
+        VelRange = 44,
+        /// Sample start loop address coarse offset (X 32768)
+        StartLoopAddrCoarseOfs = 45,
+        /// Fixed MIDI note number
+        KeyNum = 46,
+        /// Fixed MIDI velocity value
+        Velocity = 47,
+        /// Initial volume attenuation
+        Attenuation = 48,
+        /// Reserved
+        Reserved2 = 49,
+        /// Sample end loop address coarse offset (X 32768)
+        EndLoopAddrCoarseOfs = 50,
+        /// Coarse tuning
+        CoarseTune = 51,
+        /// Fine tuning
+        FineTune = 52,
+        /// Sample ID (shouldn't be set by user)
+        SampleId = 53,
+        /// Sample mode flags
+        SampleMode = 54,
+        /// Reserved
+        Reserved3 = 55,
+        /// Scale tuning
+        ScaleTune = 56,
+        /// Exclusive class number
+        ExclusiveClass = 57,
+        /// Sample root note override
+        OverrideRootKey = 58,
+        /// Pitch (NOTE: Not a real SoundFont generator)
+        ///
+        /// The initial pitch is not a "standard" generator. It is not
+        /// mentioned in the list of generator in the SF2 specifications. It
+        /// is used, however, as the destination for the default pitch wheel
+        /// modulator.
+        Pitch = 59,
+    }
+);
 
 impl GeneratorType {
     pub fn last() -> u8 {
@@ -148,13 +172,13 @@ impl TryFrom<soundfont::raw::GeneratorType> for GeneratorType {
     type Error = ();
 
     fn try_from(value: soundfont::raw::GeneratorType) -> Result<Self, Self::Error> {
-        num_traits::FromPrimitive::from_u8(value as u8).ok_or(())
+        (value as u8).try_into()
     }
 }
 
 impl GeneratorType {
     pub fn iter() -> impl Iterator<Item = Self> {
-        (0..Self::last()).map(|v| num_traits::FromPrimitive::from_u8(v).unwrap())
+        (0..Self::last()).map(Self::try_from).map(Result::unwrap)
     }
 }
 

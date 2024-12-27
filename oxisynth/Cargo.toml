@@ -27,9 +27,6 @@ byteorder = "1.4.3"
 lazy_static = "1.4.0"
 generational-arena = "0.2.8"
 
-num-traits = "0.2"
-num-derive = "0.4"
-
 # i16-out
 getrandom = { version = "0.2", features = ["js"], optional = true }
 rand = { version = "0.8.3", optional = true }
