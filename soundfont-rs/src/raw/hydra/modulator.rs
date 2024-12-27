@@ -323,21 +323,17 @@ pub mod default_modulators {
     use SourcePolarity::*;
     use SourceType::*;
 
-    macro_rules! zero_mod {
-        () => {
-            ModulatorSource {
-                index: 0,
-                controller_palette: ControllerPalette::General(GeneralPalette::NoController),
-                direction: Positive,
-                polarity: Unipolar,
-                ty: Linear,
-            }
-        };
-    }
+    const NO_CONTROLLER_SRC: ModulatorSource = ModulatorSource {
+        index: 0,
+        controller_palette: ControllerPalette::General(GeneralPalette::NoController),
+        direction: Positive,
+        polarity: Unipolar,
+        ty: Linear,
+    };
 
     /// 8.4.1  MIDI Note-On Velocity to Initial Attenuation
     pub static DEFAULT_VEL2ATT_MOD: Modulator = Modulator {
-        dest: GeneratorType::InitialAttenuation as _,
+        dest: GeneratorType::InitialAttenuation,
         amount: 960,
 
         src: ModulatorSource {
@@ -348,13 +344,13 @@ pub mod default_modulators {
             ty: Concave,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.2  MIDI Note-On Velocity to Filter Cutoff
     pub static DEFAULT_VEL2FILTER_MOD: Modulator = Modulator {
-        dest: GeneratorType::InitialFilterFc as _,
+        dest: GeneratorType::InitialFilterFc,
         amount: -2400,
 
         src: ModulatorSource {
@@ -370,13 +366,13 @@ pub mod default_modulators {
         // But in SF2.04 it is just 0x0
         // I believe that 0x502 was causing a problem in FS:
         // You can read about 0x502 problem here: https://github.com/FluidSynth/fluidsynth/blob/e4241469d49551b92478afbd2209939ff89441d5/src/synth/fluid_synth.c#L324
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.3  MIDI Channel Pressure to Vibrato LFO Pitch Depth
     pub static DEFAULT_AT2VIBLFO_MOD: Modulator = Modulator {
-        dest: GeneratorType::VibLfoToPitch as _,
+        dest: GeneratorType::VibLfoToPitch,
         amount: 50,
 
         src: ModulatorSource {
@@ -387,13 +383,13 @@ pub mod default_modulators {
             ty: Linear,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.4  MIDI Continuous Controller 1 to Vibrato LFO Pitch Depth
     pub static DEFAULT_MOD2VIBLFO_MOD: Modulator = Modulator {
-        dest: GeneratorType::VibLfoToPitch as _,
+        dest: GeneratorType::VibLfoToPitch,
         amount: 50,
 
         src: ModulatorSource {
@@ -405,13 +401,13 @@ pub mod default_modulators {
             ty: Linear,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.5  MIDI Continuous Controller 7 to Initial Attenuation
     pub static DEFAULT_ATT_MOD: Modulator = Modulator {
-        dest: GeneratorType::InitialAttenuation as _,
+        dest: GeneratorType::InitialAttenuation,
         amount: 960,
 
         src: ModulatorSource {
@@ -423,13 +419,13 @@ pub mod default_modulators {
             ty: Concave,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.6  MIDI Continuous Controller 10 to Pan Position
     pub static DEFAULT_PAN_MOD: Modulator = Modulator {
-        dest: GeneratorType::Pan as _,
+        dest: GeneratorType::Pan,
 
         // Amount: 500. The SF specs 8.4.6, says: "Amount = 1000 tenths of a percent".
         // The center value (64) corresponds to 50%, so it follows that amount = 50% x 1000/% = 500.
@@ -444,13 +440,13 @@ pub mod default_modulators {
             ty: Linear,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.7  MIDI Continuous Controller 11 to Initial Attenuation
     pub static DEFAULT_EXPR_MOD: Modulator = Modulator {
-        dest: GeneratorType::InitialAttenuation as _,
+        dest: GeneratorType::InitialAttenuation,
         amount: 960,
 
         src: ModulatorSource {
@@ -462,13 +458,13 @@ pub mod default_modulators {
             ty: Concave,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.8  MIDI Continuous Controller 91 to Reverb Effects Send
     pub static DEFAULT_REVERB_MOD: Modulator = Modulator {
-        dest: GeneratorType::ReverbEffectsSend as _,
+        dest: GeneratorType::ReverbEffectsSend,
         amount: 200,
 
         src: ModulatorSource {
@@ -480,13 +476,13 @@ pub mod default_modulators {
             ty: Linear,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
     /// 8.4.9  MIDI Continuous Controller 93 to Chorus Effects Send
     pub static DEFAULT_CHORUS_MOD: Modulator = Modulator {
-        dest: GeneratorType::ChorusEffectsSend as _,
+        dest: GeneratorType::ChorusEffectsSend,
         amount: 200,
 
         src: ModulatorSource {
@@ -498,7 +494,7 @@ pub mod default_modulators {
             ty: Linear,
         },
 
-        amt_src: zero_mod!(),
+        amt_src: NO_CONTROLLER_SRC,
         transform: ModulatorTransform::Linear,
     };
 
@@ -510,7 +506,7 @@ pub mod default_modulators {
     /// user has to decide the destination themself.
     pub const fn default_pitch_bend_mod(dest: GeneratorType) -> Modulator {
         Modulator {
-            dest: dest as _,
+            dest,
             amount: 12700,
 
             src: ModulatorSource {
