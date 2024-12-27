@@ -91,7 +91,11 @@ fn inner_noteon(
             continue;
         }
 
-        let inst = preset_zone.inst.as_ref().unwrap();
+        let Some(inst) = preset_zone.inst.as_ref() else {
+            // TODO: Not sure why this is missing sometimes
+            log::debug!("Instrument for zone: {:?} is missing", preset_zone.name);
+            continue;
+        };
 
         let mut global_inst_zone = &inst.global_zone();
 
