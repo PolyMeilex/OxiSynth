@@ -92,8 +92,7 @@ fn inner_noteon(
         }
 
         let Some(inst) = preset_zone.inst.as_ref() else {
-            // TODO: Not sure why this is missing sometimes
-            log::debug!("Instrument for zone: {:?} is missing", preset_zone.name);
+            log::error!("Instrument for zone: {:?} is missing", preset_zone.name);
             continue;
         };
 

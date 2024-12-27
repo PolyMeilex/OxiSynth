@@ -67,7 +67,8 @@ impl Generator {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let id: u16 = reader.read_u16()?;
 
-        let ty: GeneratorType = id.try_into()?;
+        // TODO: Make this loseless
+        let ty: GeneratorType = id.try_into().unwrap_or(GeneratorType::EndOper);
 
         let amount = match ty {
             GeneratorType::KeyRange | GeneratorType::VelRange => {
@@ -100,9 +101,7 @@ impl Generator {
             let data = pmod.read_contents(file)?;
             let mut reader = Reader::new(data);
 
-            Ok((0..amount)
-                .filter_map(|_| Self::read(&mut reader).ok())
-                .collect())
+            (0..amount).map(|_| Self::read(&mut reader)).collect()
         }
     }
 }
