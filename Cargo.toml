@@ -3,7 +3,7 @@ resolver = "2"
 members = ["oxisynth", "oxisynth-chorus", "oxisynth-reverb", "soundfont-rs", "./oxisynth/examples/real-time"]
 
 [workspace.dependencies]
-soundfont = { version = "0.0.3", path = "./soundfont-rs" }
+soundfont = { version = "0.1.0", path = "./soundfont-rs" }
 oxisynth-chorus = { path = "./oxisynth-chorus" }
 oxisynth-reverb = { path = "./oxisynth-reverb" }
 log = "0.4.14"

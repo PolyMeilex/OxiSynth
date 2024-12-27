@@ -2,7 +2,7 @@
 
 WIP! Pure rust soundfont file reader
 
-Suported formats:
+Supported formats:
 
 - [x] sf2
 - [x] sf3 🚧
