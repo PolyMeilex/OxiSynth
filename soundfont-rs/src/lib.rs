@@ -237,3 +237,26 @@ impl Zone {
             .map(|g| g.amount.as_u16().unwrap())
     }
 }
+
+/// In SoundFont™ world where specification might as well be a suggestion
+/// we have to support people putting random values in random places.
+///
+/// In places where spec valolations commonly occcu we use [`SfEnum`].
+/// When value is spec compliant it will be [`SfEnum::Value`],
+/// otherwise the value will be stored as a raw int in [`SfEnum::Unknown`].
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum SfEnum<T, RAW> {
+    Value(T),
+    Unknown(RAW),
+}
+
+impl<T: PartialEq, RAW> PartialEq<T> for SfEnum<T, RAW> {
+    #[inline]
+    fn eq(&self, other: &T) -> bool {
+        if let Self::Value(ty) = self {
+            ty == other
+        } else {
+            false
+        }
+    }
+}

@@ -101,7 +101,11 @@ impl PresetZone {
             .iter()
             .filter(|g| g.ty != soundfont::raw::GeneratorType::Instrument)
         {
-            match sfgen.ty {
+            let Ok(ty) = sfgen.ty.into_result() else {
+                continue;
+            };
+
+            match ty {
                 soundfont::raw::GeneratorType::KeyRange => {
                     let amount = sfgen.amount.as_range().unwrap();
                     key_low = amount.low;
@@ -113,7 +117,7 @@ impl PresetZone {
                     vel_high = amount.high;
                 }
                 _ => {
-                    if let Ok(ty) = GeneratorType::try_from(sfgen.ty) {
+                    if let Ok(ty) = GeneratorType::try_from(ty) {
                         // FIXME: some generators have an unsigned word amount value but i don't know which ones
                         gen[ty].val = *sfgen.amount.as_i16().unwrap() as f64;
                         gen[ty].flags = GEN_SET as u8;

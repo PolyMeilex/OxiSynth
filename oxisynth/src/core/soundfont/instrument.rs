@@ -88,7 +88,11 @@ impl InstrumentZone {
             .iter()
             .filter(|g| g.ty != soundfont::raw::GeneratorType::SampleID)
         {
-            match new_gen.ty {
+            let Ok(ty) = new_gen.ty.into_result() else {
+                continue;
+            };
+
+            match ty {
                 soundfont::raw::GeneratorType::KeyRange => {
                     let amount = new_gen.amount.as_range().unwrap();
                     key_low = amount.low;
@@ -100,7 +104,7 @@ impl InstrumentZone {
                     vel_high = amount.high;
                 }
                 _ => {
-                    if let Ok(ty) = GeneratorType::try_from(new_gen.ty) {
+                    if let Ok(ty) = GeneratorType::try_from(ty) {
                         // FIXME: some generators have an unsigned word amount value but i don't know which ones
                         gen[ty].val = *new_gen.amount.as_i16().unwrap() as f64;
                         gen[ty].flags = GEN_SET as u8;

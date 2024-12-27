@@ -1,7 +1,8 @@
 use super::super::utils::Reader;
 use crate::error::ParseError;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
-use std::convert::{TryFrom, TryInto};
+use crate::SfEnum;
+use std::convert::TryFrom;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
@@ -59,7 +60,7 @@ pub struct GeneratorAmountRange {
 
 #[derive(Debug, Clone)]
 pub struct Generator {
-    pub ty: GeneratorType,
+    pub ty: SfEnum<GeneratorType, u16>,
     pub amount: GeneratorAmount,
 }
 
@@ -67,10 +68,11 @@ impl Generator {
     pub fn read(reader: &mut Reader) -> Result<Self, ParseError> {
         let id: u16 = reader.read_u16()?;
 
-        // TODO: Make this loseless
-        let ty: GeneratorType = id.try_into().unwrap_or(GeneratorType::EndOper);
+        let ty = GeneratorType::try_from(id)
+            .map(SfEnum::Value)
+            .unwrap_or(SfEnum::Unknown(id));
 
-        let amount = match ty {
+        let amount = match ty.into_result().unwrap_or(GeneratorType::EndOper) {
             GeneratorType::KeyRange | GeneratorType::VelRange => {
                 GeneratorAmount::Range(GeneratorAmountRange {
                     low: reader.read_u8()?,
@@ -106,7 +108,25 @@ impl Generator {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+impl SfEnum<GeneratorType, u16> {
+    #[inline]
+    pub fn as_raw(&self) -> u16 {
+        match *self {
+            Self::Value(v) => v as u16,
+            Self::Unknown(v) => v,
+        }
+    }
+
+    #[inline]
+    pub fn into_result(&self) -> Result<GeneratorType, ParseError> {
+        match *self {
+            Self::Value(v) => Ok(v),
+            Self::Unknown(v) => Err(ParseError::UnknownGeneratorType(v)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[repr(u16)]
 pub enum GeneratorType {
     /// Sample start address offset (0-32767)
