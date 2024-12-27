@@ -5,6 +5,8 @@ pub mod raw;
 pub use raw as data;
 
 pub mod error;
+pub use error::Error;
+
 mod riff;
 
 use raw::{
@@ -12,7 +14,6 @@ use raw::{
     PresetHeader, RawSoundFontData, SampleData, SampleHeader,
 };
 
-use crate::error::ParseError;
 use std::io::{Read, Seek};
 
 #[derive(Debug)]
@@ -37,7 +38,7 @@ pub struct SoundFont2 {
 }
 
 impl SoundFont2 {
-    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, Error> {
         RawSoundFontData::load(file).map(Self::from_raw)
     }
 

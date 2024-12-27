@@ -1,5 +1,5 @@
 use super::super::utils::Reader;
-use crate::error::ParseError;
+use crate::error::Error;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
 use crate::SfEnum;
 use std::convert::TryFrom;
@@ -65,7 +65,7 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, Error> {
         let id: u16 = reader.read_u16()?;
 
         let ty = GeneratorType::try_from(id)
@@ -91,12 +91,12 @@ impl Generator {
     pub(crate) fn read_all(
         pmod: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Vec<Self>, ParseError> {
+    ) -> Result<Vec<Self>, Error> {
         assert!(pmod.id() == ChunkId::pgen || pmod.id() == ChunkId::igen);
 
         let size = pmod.len();
         if size % 4 != 0 || size == 0 {
-            Err(ParseError::InvalidGeneratorChunkSize(size))
+            Err(Error::InvalidGeneratorChunkSize(size))
         } else {
             let amount = size / 4;
 
@@ -118,10 +118,10 @@ impl SfEnum<GeneratorType, u16> {
     }
 
     #[inline]
-    pub fn into_result(&self) -> Result<GeneratorType, ParseError> {
+    pub fn into_result(&self) -> Result<GeneratorType, Error> {
         match *self {
             Self::Value(v) => Ok(v),
-            Self::Unknown(v) => Err(ParseError::UnknownGeneratorType(v)),
+            Self::Unknown(v) => Err(Error::UnknownGeneratorType(v)),
         }
     }
 }
@@ -264,12 +264,12 @@ pub enum GeneratorType {
 }
 
 impl TryFrom<u16> for GeneratorType {
-    type Error = ParseError;
+    type Error = Error;
     fn try_from(id: u16) -> Result<Self, Self::Error> {
         if id <= 60 {
             Ok(unsafe { std::mem::transmute::<u16, Self>(id) })
         } else {
-            Err(ParseError::UnknownGeneratorType(id))
+            Err(Error::UnknownGeneratorType(id))
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::error::ParseError;
+use crate::error::Error;
 use std::convert::TryInto;
 
 pub(crate) struct Reader<'a> {
@@ -19,7 +19,7 @@ impl<'a> Reader<'a> {
         &self.data[start..end]
     }
 
-    pub fn read_string(&mut self, len: usize) -> Result<String, ParseError> {
+    pub fn read_string(&mut self, len: usize) -> Result<String, Error> {
         let start = self.curr;
         let end = self.curr + len;
         self.curr = end;
@@ -40,48 +40,48 @@ impl<'a> Reader<'a> {
         Ok(name)
     }
 
-    pub fn read_u8(&mut self) -> Result<u8, ParseError> {
+    pub fn read_u8(&mut self) -> Result<u8, Error> {
         let start = self.curr;
         let end = self.curr + 1;
         self.curr = end;
 
-        let out: [u8; 1] = self.data[start..end].try_into().map_err(ParseError::from)?;
+        let out: [u8; 1] = self.data[start..end].try_into().map_err(Error::from)?;
         Ok(u8::from_le_bytes(out))
     }
 
-    pub fn read_u16(&mut self) -> Result<u16, ParseError> {
+    pub fn read_u16(&mut self) -> Result<u16, Error> {
         let start = self.curr;
         let end = self.curr + 2;
         self.curr = end;
 
-        let out: [u8; 2] = self.data[start..end].try_into().map_err(ParseError::from)?;
+        let out: [u8; 2] = self.data[start..end].try_into().map_err(Error::from)?;
         Ok(u16::from_le_bytes(out))
     }
 
-    pub fn read_u32(&mut self) -> Result<u32, ParseError> {
+    pub fn read_u32(&mut self) -> Result<u32, Error> {
         let start = self.curr;
         let end = self.curr + 4;
         self.curr = end;
 
-        let out: [u8; 4] = self.data[start..end].try_into().map_err(ParseError::from)?;
+        let out: [u8; 4] = self.data[start..end].try_into().map_err(Error::from)?;
         Ok(u32::from_le_bytes(out))
     }
 
-    pub fn read_i8(&mut self) -> Result<i8, ParseError> {
+    pub fn read_i8(&mut self) -> Result<i8, Error> {
         let start = self.curr;
         let end = self.curr + 1;
         self.curr = end;
 
-        let out: [u8; 1] = self.data[start..end].try_into().map_err(ParseError::from)?;
+        let out: [u8; 1] = self.data[start..end].try_into().map_err(Error::from)?;
         Ok(i8::from_le_bytes(out))
     }
 
-    pub fn read_i16(&mut self) -> Result<i16, ParseError> {
+    pub fn read_i16(&mut self) -> Result<i16, Error> {
         let start = self.curr;
         let end = self.curr + 2;
         self.curr = end;
 
-        let out: [u8; 2] = self.data[start..end].try_into().map_err(ParseError::from)?;
+        let out: [u8; 2] = self.data[start..end].try_into().map_err(Error::from)?;
         Ok(i16::from_le_bytes(out))
     }
 }

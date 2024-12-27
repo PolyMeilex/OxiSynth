@@ -4,8 +4,11 @@ use std::str::Utf8Error;
 
 use crate::riff::Chunk;
 
+#[allow(unused)]
+type Result<T> = std::result::Result<T, self::Error>;
+
 #[derive(Debug)]
-pub enum ParseError {
+pub enum Error {
     StringError(Utf8Error),
     Io(io::Error),
     NumSliceError(TryFromSliceError),
@@ -63,32 +66,32 @@ pub enum MissingChunk {
 }
 
 // TODO: Proper error, maybe with `thiserror`
-impl std::error::Error for ParseError {}
-impl std::fmt::Display for ParseError {
+impl std::error::Error for Error {}
+impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f)
     }
 }
 
-impl From<MissingChunk> for ParseError {
+impl From<MissingChunk> for Error {
     fn from(err: MissingChunk) -> Self {
         Self::MissingChunk(err)
     }
 }
 
-impl From<Utf8Error> for ParseError {
+impl From<Utf8Error> for Error {
     fn from(err: Utf8Error) -> Self {
         Self::StringError(err)
     }
 }
 
-impl From<io::Error> for ParseError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Self::Io(err)
     }
 }
 
-impl From<TryFromSliceError> for ParseError {
+impl From<TryFromSliceError> for Error {
     fn from(err: TryFromSliceError) -> Self {
         Self::NumSliceError(err)
     }

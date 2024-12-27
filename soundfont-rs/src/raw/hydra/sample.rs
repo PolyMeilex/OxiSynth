@@ -1,6 +1,6 @@
 use super::super::utils::Reader;
 use crate::riff::{Chunk, ScratchReader};
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{error::Error, riff::ChunkId};
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub struct SampleHeader {
 }
 
 impl SampleHeader {
-    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, Error> {
         let name: String = reader.read_string(20)?.trim_end().to_owned();
         // 20
 
@@ -60,7 +60,7 @@ impl SampleHeader {
             0x18 => SampleLink::VorbisLinkedSample,
 
             v => {
-                return Err(ParseError::UnknownSampleType(v));
+                return Err(Error::UnknownSampleType(v));
             }
         };
 
@@ -81,12 +81,12 @@ impl SampleHeader {
     pub(crate) fn read_all(
         phdr: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Vec<Self>, ParseError> {
+    ) -> Result<Vec<Self>, Error> {
         assert_eq!(phdr.id(), ChunkId::shdr);
 
         let size = phdr.len();
         if size % 46 != 0 || size == 0 {
-            Err(ParseError::InvalidSampleChunkSize(size))
+            Err(Error::InvalidSampleChunkSize(size))
         } else {
             let amount = size / 46;
 

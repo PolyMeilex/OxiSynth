@@ -1,5 +1,5 @@
 use crate::{
-    error::ParseError,
+    error::Error,
     riff::{ChunkId, ScratchReader},
 };
 
@@ -14,7 +14,7 @@ pub struct Bag {
 }
 
 impl Bag {
-    pub(crate) fn read(reader: &mut Reader) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader) -> Result<Self, Error> {
         let generator_id: u16 = reader.read_u16()?;
         let modulator_id: u16 = reader.read_u16()?;
 
@@ -27,12 +27,12 @@ impl Bag {
     pub(crate) fn read_all(
         pbag: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Vec<Self>, ParseError> {
+    ) -> Result<Vec<Self>, Error> {
         assert!(pbag.id() == ChunkId::pbag || pbag.id() == ChunkId::ibag);
 
         let size = pbag.len();
         if size % 4 != 0 || size == 0 {
-            Err(ParseError::InvalidBagChunkSize(size))
+            Err(Error::InvalidBagChunkSize(size))
         } else {
             let amount = size / 4;
 

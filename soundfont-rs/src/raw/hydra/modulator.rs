@@ -1,4 +1,4 @@
-use crate::error::ParseError;
+use crate::error::Error;
 use crate::raw::GeneratorType;
 
 use super::super::utils::Reader;
@@ -247,12 +247,12 @@ pub enum ModulatorTransform {
 }
 
 impl TryFrom<u16> for ModulatorTransform {
-    type Error = ParseError;
+    type Error = Error;
     fn try_from(v: u16) -> Result<Self, Self::Error> {
         match v {
             0 => Ok(Self::Linear),
             2 => Ok(Self::Absolute),
-            v => Err(ParseError::UnknownModulatorTransform(v)),
+            v => Err(Error::UnknownModulatorTransform(v)),
         }
     }
 }
@@ -267,7 +267,7 @@ pub struct Modulator {
 }
 
 impl Modulator {
-    pub(crate) fn read(reader: &mut Reader, terminal: bool) -> Result<Self, ParseError> {
+    pub(crate) fn read(reader: &mut Reader, terminal: bool) -> Result<Self, Error> {
         let mut src: u16 = reader.read_u16()?;
         let mut dest: u16 = reader.read_u16()?;
         let mut amount: i16 = reader.read_i16()?;
@@ -296,12 +296,12 @@ impl Modulator {
     pub(crate) fn read_all(
         pmod: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Vec<Self>, ParseError> {
+    ) -> Result<Vec<Self>, Error> {
         assert!(pmod.id() == ChunkId::pmod || pmod.id() == ChunkId::imod);
 
         let size = pmod.len();
         if size % 10 != 0 || size == 0 {
-            Err(ParseError::InvalidModulatorChunkSize(size))
+            Err(Error::InvalidModulatorChunkSize(size))
         } else {
             let amount = size / 10;
 

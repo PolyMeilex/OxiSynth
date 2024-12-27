@@ -36,7 +36,7 @@ pub use sample::*;
 
 use crate::error::MissingChunk;
 use crate::riff::{Chunk, ScratchReader};
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{error::Error, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -59,7 +59,7 @@ impl Hydra {
     pub(crate) fn read(
         pdta: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Self, ParseError> {
+    ) -> Result<Self, Error> {
         assert_eq!(pdta.id(), ChunkId::LIST);
         assert_eq!(pdta.read_type(file)?, ChunkId::pdta);
 
@@ -99,7 +99,7 @@ impl Hydra {
                 // The Sample Headers
                 ChunkId::shdr => sample_headers = Some(SampleHeader::read_all(&ch, file)?),
                 _ => {
-                    return Err(ParseError::UnexpectedMemberOfHydra(ch));
+                    return Err(Error::UnexpectedMemberOfHydra(ch));
                 }
             }
         }

@@ -1,7 +1,7 @@
 use super::utils::Reader;
 use crate::error::MissingChunk;
 use crate::riff::{Chunk, ScratchReader};
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{error::Error, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -53,7 +53,7 @@ impl Info {
     pub(crate) fn read(
         info: &Chunk,
         file: &mut ScratchReader<impl Read + Seek>,
-    ) -> Result<Self, ParseError> {
+    ) -> Result<Self, Error> {
         assert_eq!(info.id(), ChunkId::LIST);
         assert_eq!(info.read_type(file)?, ChunkId::INFO);
 
@@ -144,7 +144,7 @@ impl Info {
                     software = Some(data.read_string(ch.len() as usize)?);
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemberOfInfo(ch));
+                    return Err(Error::UnexpectedMemberOfInfo(ch));
                 }
             }
         }

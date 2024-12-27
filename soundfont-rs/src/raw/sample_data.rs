@@ -1,5 +1,5 @@
 use crate::riff::Chunk;
-use crate::{error::ParseError, riff::ChunkId};
+use crate::{error::Error, riff::ChunkId};
 
 use std::io::{Read, Seek};
 
@@ -41,7 +41,7 @@ pub struct SampleData {
 }
 
 impl SampleData {
-    pub(crate) fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Result<Self, ParseError> {
+    pub(crate) fn read<F: Read + Seek>(sdta: &Chunk, file: &mut F) -> Result<Self, Error> {
         assert_eq!(sdta.id(), ChunkId::LIST);
         assert_eq!(sdta.read_type(file)?, ChunkId::sdta);
 
@@ -63,7 +63,7 @@ impl SampleData {
                     sm24 = Some(SampleChunk::new(ch));
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemberOfSampleData(ch));
+                    return Err(Error::UnexpectedMemberOfSampleData(ch));
                 }
             }
         }

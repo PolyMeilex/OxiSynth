@@ -14,7 +14,7 @@ mod info;
 mod sample_data;
 
 use crate::{
-    error::{MissingChunk, ParseError},
+    error::{Error, MissingChunk},
     riff::{self, ChunkId},
 };
 use std::io::{Read, Seek};
@@ -34,7 +34,7 @@ pub struct RawSoundFontData {
 }
 
 impl RawSoundFontData {
-    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, Error> {
         let sfbk = riff::Chunk::read(file, 0)?;
         assert_eq!(sfbk.id(), ChunkId::RIFF);
         assert_eq!(sfbk.read_type(file)?, ChunkId::sfbk);
@@ -60,7 +60,7 @@ impl RawSoundFontData {
                     hydra = Some(Hydra::read(&ch, &mut file)?);
                 }
                 _ => {
-                    return Err(ParseError::UnexpectedMemberOfRoot(ch));
+                    return Err(Error::UnexpectedMemberOfRoot(ch));
                 }
             }
         }
