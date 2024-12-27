@@ -2,15 +2,16 @@
 //!
 //! This performs no postprocessing, it just presents the data from the file as is.
 //!
-//! The data structures should mostly reflect [SoundFont™ 2.04 spec](https://github.com/PolyMeilex/OxiSynth/wiki/SoundFont%E2%84%A2-Specification).
+//! [`SFData`] is the entry point to the low-level reader,
+//! its data structures should mostly reflect [SoundFont™ 2.04 spec](https://github.com/PolyMeilex/OxiSynth/wiki/SoundFont%E2%84%A2-Specification).
 //!
 //! For higher level abstraction see [`crate::SoundFont2`].
 
 mod utils;
 
-pub mod hydra;
-pub mod info;
-pub mod sample_data;
+mod hydra;
+mod info;
+mod sample_data;
 
 use crate::{
     error::{MissingChunk, ParseError},

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use soundfont::raw::hydra::sample::SampleLink;
+use soundfont::raw::SampleLink;
 
 use super::SampleData;
 

@@ -1,5 +1,5 @@
 use crate::error::ParseError;
-use crate::raw::generator::GeneratorType;
+use crate::raw::GeneratorType;
 
 use super::super::utils::Reader;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
@@ -318,7 +318,7 @@ impl Modulator {
 /// 8.4  Default Modulators
 pub mod default_modulators {
     use super::*;
-    use crate::raw::generator::GeneratorType;
+    use crate::raw::GeneratorType;
     use SourceDirection::*;
     use SourcePolarity::*;
     use SourceType::*;

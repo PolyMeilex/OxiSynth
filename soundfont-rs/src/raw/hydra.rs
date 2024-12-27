@@ -1,20 +1,38 @@
-pub mod generator;
-pub use generator::{Generator, GeneratorAmount, GeneratorAmountRange, GeneratorType};
+mod generator;
+pub use generator::{
+    Generator, GeneratorAmount, GeneratorAmountRange, GeneratorAmountUnion, GeneratorType,
+};
 
-pub mod modulator;
-pub use modulator::Modulator;
+mod modulator;
+pub use modulator::{
+    default_modulators, ControllerPalette, GeneralPalette, Modulator, ModulatorSource,
+    ModulatorTransform, SourceDirection, SourcePolarity, SourceType,
+};
 
-pub mod bag;
+mod bag;
 pub use bag::Bag;
 
-pub mod preset;
+mod preset;
 pub use preset::PresetHeader;
 
-pub mod instrument;
+mod instrument;
 pub use instrument::InstrumentHeader;
 
-pub mod sample;
-pub use sample::SampleHeader;
+mod sample;
+pub use sample::{SampleHeader, SampleLink};
+
+#[allow(unused_imports)]
+pub use bag::*;
+#[allow(unused_imports)]
+pub use generator::*;
+#[allow(unused_imports)]
+pub use instrument::*;
+#[allow(unused_imports)]
+pub use modulator::*;
+#[allow(unused_imports)]
+pub use preset::*;
+#[allow(unused_imports)]
+pub use sample::*;
 
 use crate::error::MissingChunk;
 use crate::riff::{Chunk, ScratchReader};
