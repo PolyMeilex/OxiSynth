@@ -129,11 +129,11 @@ pub enum GeneratorType {
     ModEnvToPitch = 7,
     /// Filter cutoff
     InitialFilterFc = 8,
-    /// Modulation envelope to filter cutoff
+    /// Filter Q
     InitialFilterQ = 9,
-    /// Modulation envelope to filter cutoff
+    /// Modulation LFO to filter cutoff
     ModLfoToFilterFc = 10,
-    /// Modulation LFO to volume
+    /// Modulation envelope to filter cutoff
     ModEnvToFilterFc = 11,
     /// Sample end address coarse offset (X 32768)
     EndAddrsCoarseOffset = 12,

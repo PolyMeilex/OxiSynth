@@ -4,131 +4,129 @@ use super::super::Channel;
 
 use num_derive::FromPrimitive;
 
-/**
-Generator (effect) numbers
-
-See also _SoundFont 2.01 specifications section 8.1.3_
- */
+/// Generator (effect) numbers
+///
+/// See also _SoundFont 2.01 specifications section 8.1.3
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromPrimitive)]
 #[repr(u8)]
 pub enum GeneratorType {
-    /** Sample start address offset (0-32767) */
+    /// Sample start address offset (0-32767)
     StartAddrOfs = 0,
-    /**< Sample end address offset (-32767-0) */
+    ///< Sample end address offset (-32767-0)
     EndAddrOfs = 1,
-    /**< Sample loop start address offset (-32767-32767) */
+    ///< Sample loop start address offset (-32767-32767)
     StartLoopAddrOfs = 2,
-    /**< Sample loop end address offset (-32767-32767) */
+    ///< Sample loop end address offset (-32767-32767)
     EndLoopAddrOfs = 3,
-    /** Sample start address coarse offset (X 32768) */
+    /// Sample start address coarse offset (X 32768)
     StartAddrCoarseOfs = 4,
-    /** Modulation LFO to pitch */
+    /// Modulation LFO to pitch
     ModLfoToPitch = 5,
-    /** Vibrato LFO to pitch */
+    /// Vibrato LFO to pitch
     VibLfoToPitch = 6,
-    /** Modulation envelope to pitch */
+    /// Modulation envelope to pitch
     ModEnvToPitch = 7,
-    /** Filter cutoff */
+    /// Filter cutoff
     FilterFc = 8,
-    /** Filter Q */
+    /// Filter Q
     FilterQ = 9,
-    /** Modulation LFO to filter cutoff */
+    /// Modulation LFO to filter cutoff
     ModLfoToFilterFc = 10,
-    /** Modulation envelope to filter cutoff */
+    /// Modulation envelope to filter cutoff
     ModEnvToFilterFc = 11,
-    /** Sample end address coarse offset (X 32768) */
+    /// Sample end address coarse offset (X 32768)
     EndAddrCoarseOfs = 12,
-    /** Modulation LFO to volume */
+    /// Modulation LFO to volume
     ModLfoToVol = 13,
-    /** Unused */
+    /// Unused
     Unused = 14,
-    /** Chorus send amount */
+    /// Chorus send amount
     ChorusSend = 15,
-    /** Reverb send amount */
+    /// Reverb send amount
     ReverbSend = 16,
-    /** Stereo panning */
+    /// Stereo panning
     Pan = 17,
-    /** Unused */
+    /// Unused
     Unused2 = 18,
-    /** Unused */
+    /// Unused
     Unused3 = 19,
-    /** Unused */
+    /// Unused
     Unused4 = 20,
-    /** Modulation LFO delay */
+    /// Modulation LFO delay
     ModLfoDelay = 21,
-    /** Modulation LFO frequency */
+    /// Modulation LFO frequency
     ModLfoFreq = 22,
-    /** Vibrato LFO delay */
+    /// Vibrato LFO delay
     VibLfoDelay = 23,
-    /** Vibrato LFO frequency */
+    /// Vibrato LFO frequency
     VibLfoFreq = 24,
-    /** Modulation envelope delay */
+    /// Modulation envelope delay
     ModEnvDelay = 25,
-    /** Modulation envelope attack */
+    /// Modulation envelope attack
     ModEnvAttack = 26,
-    /** Modulation envelope hold */
+    /// Modulation envelope hold
     ModEnvHold = 27,
-    /** Modulation envelope decay */
+    /// Modulation envelope decay
     ModEnvDecay = 28,
-    /** Modulation envelope sustain */
+    /// Modulation envelope sustain
     ModEnvSustain = 29,
-    /** Modulation envelope release */
+    /// Modulation envelope release
     ModEnvRelease = 30,
-    /** Key to modulation envelope hold */
+    /// Key to modulation envelope hold
     KeyToModEnvHold = 31,
-    /** Key to modulation envelope decay */
+    /// Key to modulation envelope decay
     KeyToModEnvDecay = 32,
-    /** Volume envelope delay */
+    /// Volume envelope delay
     VolEnvDelay = 33,
-    /** Volume envelope attack */
+    /// Volume envelope attack
     VolEnvAttack = 34,
-    /** Volume envelope hold */
+    /// Volume envelope hold
     VolEnvHold = 35,
-    /** Volume envelope decay */
+    /// Volume envelope decay
     VolEnvDecay = 36,
-    /** Volume envelope sustain */
+    /// Volume envelope sustain
     VolEnvSustain = 37,
-    /** Volume envelope release */
+    /// Volume envelope release
     VolEnvRelease = 38,
-    /** Key to volume envelope hold */
+    /// Key to volume envelope hold
     KeyToVolEnvHold = 39,
-    /** Key to volume envelope decay */
+    /// Key to volume envelope decay
     KeyToVolEnvDecay = 40,
-    /** Instrument ID (shouldn't be set by user) */
+    /// Instrument ID (shouldn't be set by user)
     Instrument = 41,
-    /** Reserved */
+    /// Reserved
     Reserved1 = 42,
-    /** MIDI note range */
+    /// MIDI note range
     KeyRange = 43,
-    /** MIDI velocity range */
+    /// MIDI velocity range
     VelRange = 44,
-    /** Sample start loop address coarse offset (X 32768) */
+    /// Sample start loop address coarse offset (X 32768)
     StartLoopAddrCoarseOfs = 45,
-    /** Fixed MIDI note number */
+    /// Fixed MIDI note number
     KeyNum = 46,
-    /** Fixed MIDI velocity value */
+    /// Fixed MIDI velocity value
     Velocity = 47,
-    /** Initial volume attenuation */
+    /// Initial volume attenuation
     Attenuation = 48,
-    /** Reserved */
+    /// Reserved
     Reserved2 = 49,
-    /** Sample end loop address coarse offset (X 32768) */
+    /// Sample end loop address coarse offset (X 32768)
     EndLoopAddrCoarseOfs = 50,
-    /** Coarse tuning */
+    /// Coarse tuning
     CoarseTune = 51,
-    /** Fine tuning */
+    /// Fine tuning
     FineTune = 52,
-    /** Sample ID (shouldn't be set by user) */
+    /// Sample ID (shouldn't be set by user)
     SampleId = 53,
-    /** Sample mode flags */
+    /// Sample mode flags
     SampleMode = 54,
-    /** Reserved */
+    /// Reserved
     Reserved3 = 55,
-    /** Scale tuning */
+    /// Scale tuning
     ScaleTune = 56,
-    /** Exclusive class number */
+    /// Exclusive class number
     ExclusiveClass = 57,
-    /** Sample root note override */
+    /// Sample root note override
     OverrideRootKey = 58,
     /** Pitch (NOTE: Not a real SoundFont generator)
 
