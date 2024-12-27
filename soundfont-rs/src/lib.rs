@@ -9,7 +9,7 @@ mod riff;
 
 use raw::{
     Bag, Generator, GeneratorAmountRange, GeneratorType, Info, InstrumentHeader, Modulator,
-    PresetHeader, SFData, SampleData, SampleHeader,
+    PresetHeader, RawSoundFontData, SampleData, SampleHeader,
 };
 
 use crate::error::ParseError;
@@ -38,15 +38,10 @@ pub struct SoundFont2 {
 
 impl SoundFont2 {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
-        SFData::load(file).map(Self::from_raw)
+        RawSoundFontData::load(file).map(Self::from_raw)
     }
 
-    #[deprecated = "use `from_raw` instead"]
-    pub fn from_data(data: SFData) -> Self {
-        Self::from_raw(data)
-    }
-
-    pub fn from_raw(data: SFData) -> Self {
+    pub fn from_raw(data: RawSoundFontData) -> Self {
         fn get_zones(
             zones: &[Bag],
             modulators: &[Modulator],

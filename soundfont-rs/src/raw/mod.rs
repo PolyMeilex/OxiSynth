@@ -27,13 +27,13 @@ pub use sample_data::*;
 ///
 /// Read [`module level docs`](self) for more information.
 #[derive(Debug)]
-pub struct SFData {
+pub struct RawSoundFontData {
     pub info: Info,
     pub sample_data: SampleData,
     pub hydra: Hydra,
 }
 
-impl SFData {
+impl RawSoundFontData {
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ParseError> {
         let sfbk = riff::Chunk::read(file, 0)?;
         assert_eq!(sfbk.id(), ChunkId::RIFF);
@@ -65,7 +65,7 @@ impl SFData {
             }
         }
 
-        Ok(SFData {
+        Ok(RawSoundFontData {
             info: info.ok_or(MissingChunk::Info)?,
             sample_data: sample_data.ok_or(MissingChunk::SampleData)?,
             hydra: hydra.ok_or(MissingChunk::Hydra)?,
