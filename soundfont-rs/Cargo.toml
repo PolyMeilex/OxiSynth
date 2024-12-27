@@ -9,9 +9,3 @@ keywords = ["sf2","soundfont"]
 license = "MIT"
 repository = "https://github.com/PolyMeilex/OxiSynth"
 documentation = "https://docs.rs/soundfont"
-
-[dependencies]
-log = "0.4"
-
-[dev-dependencies]
-env_logger = "0.11.6"
