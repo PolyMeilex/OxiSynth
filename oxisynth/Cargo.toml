@@ -43,6 +43,4 @@ name = "multi_font"
 [[example]]
 name = "polyphony"
 [[example]]
-name = "sf2"
-[[example]]
 name = "simple"

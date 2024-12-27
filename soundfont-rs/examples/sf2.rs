@@ -1,6 +1,8 @@
 use soundfont::{raw::SFData, SoundFont2};
 
 fn main() {
+    env_logger::init();
+
     let mut file = std::fs::File::open("./testdata/sin.sf2").unwrap();
 
     // Load from memory
