@@ -9,11 +9,7 @@ pub trait IsSamples {
 impl IsSamples for &mut [i16] {
     /// Write samples interleaved
     fn write_samples(self, synth: &mut Synth) {
-        let len = self.len() / 2;
-        unsafe {
-            let ptr = self as *mut _;
-            synth.write_i16(len, &mut *ptr, 0, 2, &mut *ptr, 1, 2)
-        }
+        crate::unsafe_stuff::write_samples_interleaved(self, synth)
     }
 }
 

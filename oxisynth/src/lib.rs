@@ -11,6 +11,8 @@ pub mod settings;
 mod synth;
 mod tuning;
 
+mod unsafe_stuff;
+
 pub use crate::core::soundfont::{Preset, SoundFont};
 pub use error::OxiError;
 pub use midi_event::MidiEvent;

@@ -26,12 +26,7 @@ impl SampleData {
         let mut data = vec![0i16; sample_size / 2];
 
         {
-            // [i16] -> [u8] conversion
-            let byte_slice = {
-                let slice: &mut [i16] = &mut data;
-                let len = std::mem::size_of_val(slice);
-                unsafe { std::slice::from_raw_parts_mut(slice.as_ptr() as *mut u8, len) }
-            };
+            let byte_slice = crate::unsafe_stuff::slice_i16_to_u8_mut(&mut data);
 
             if let Err(err) = file.read_exact(byte_slice) {
                 log::error!("Failed to read sample data: {err}");
@@ -52,9 +47,7 @@ impl SampleData {
 
     #[cfg_attr(not(feature = "sf3"), allow(dead_code))]
     pub fn as_byte_slice(&self) -> &[u8] {
-        let slice: &[i16] = &self.0;
-        let len = std::mem::size_of_val(slice);
-        unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const u8, len) }
+        crate::unsafe_stuff::slice_i16_to_u8(&self.0)
     }
 }
 

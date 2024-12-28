@@ -152,7 +152,7 @@ impl Synth {
 #[cfg(test)]
 mod test {
     use crate::{MidiEvent, SoundFont, Synth, SynthDescriptor};
-    use std::{fs::File, io::Write, slice::from_raw_parts};
+    use std::{fs::File, io::Write};
 
     #[test]
     fn synth_sf2() {
@@ -176,10 +176,8 @@ mod test {
             .unwrap();
 
         synth.write(samples.as_mut());
-        pcm.write_all(unsafe {
-            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        })
-        .unwrap();
+        pcm.write_all(crate::unsafe_stuff::slice_f32_to_u8(&samples))
+            .unwrap();
 
         synth
             .send_event(MidiEvent::NoteOff {
@@ -189,10 +187,8 @@ mod test {
             .unwrap();
 
         synth.write(samples.as_mut());
-        pcm.write_all(unsafe {
-            from_raw_parts(samples.as_ptr() as _, std::mem::size_of_val(&samples))
-        })
-        .unwrap();
+        pcm.write_all(crate::unsafe_stuff::slice_f32_to_u8(&samples))
+            .unwrap();
 
         drop(synth);
     }
