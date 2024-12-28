@@ -8,22 +8,35 @@ pub trait IsSamples {
 #[cfg(feature = "i16-out")]
 impl IsSamples for &mut [i16] {
     /// Write samples interleaved
+    #[inline(always)]
     fn write_samples(self, synth: &mut Synth) {
-        crate::unsafe_stuff::write_samples_interleaved(self, synth)
+        let len = self.len() / 2;
+
+        // interleaved
+        synth.write_i16(len, 0, 2, 1, 2, |left, right| {
+            self[left.0] = left.1;
+            self[right.0] = right.1;
+        });
     }
 }
 
 #[cfg(feature = "i16-out")]
 impl IsSamples for (&mut [i16], &mut [i16]) {
     /// Write samples non-interleaved
+    #[inline(always)]
     fn write_samples(self, synth: &mut Synth) {
         let len = self.0.len().min(self.1.len());
-        synth.write_i16(len, self.0, 0, 1, self.1, 0, 1)
+
+        synth.write_i16(len, 0, 1, 0, 1, |left, right| {
+            self.0[left.0] = left.1;
+            self.1[right.0] = right.1;
+        });
     }
 }
 
 impl IsSamples for &mut [f32] {
     /// Write samples interleaved
+    #[inline(always)]
     fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
         synth.write_cb(len, 2, |id, l, r| {
@@ -35,6 +48,7 @@ impl IsSamples for &mut [f32] {
 
 impl IsSamples for (&mut [f32], &mut [f32]) {
     /// Write samples non-interleaved
+    #[inline(always)]
     fn write_samples(self, synth: &mut Synth) {
         let len = self.0.len().min(self.1.len());
         synth.write_cb(len, 1, |id, l, r| {
@@ -46,6 +60,7 @@ impl IsSamples for (&mut [f32], &mut [f32]) {
 
 impl IsSamples for &mut [f64] {
     /// Write samples interleaved
+    #[inline(always)]
     fn write_samples(self, synth: &mut Synth) {
         let len = self.len() / 2;
         synth.write_cb(len, 2, |id, l, r| {
@@ -70,33 +85,31 @@ impl Synth {
         self.core.read_next()
     }
 
+    #[inline(always)]
     pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, cb: F) {
         self.core.write(len, incr, cb)
     }
 
-    /**
-    Write samples as 16-bit signed integers
-
-    # Safety
-
-    The `len` must corresponds to the lenghtes of buffers.
-     */
+    /// Write samples as 16-bit signed integers
+    ///
+    /// ```ignore
+    /// synth.write_i16(len, 0, 1, 0, 1, |left, right| {
+    ///     left_buf[left.0] = left.1;
+    ///     right_buf[right.0] = right.1;
+    /// });
+    /// ```
     #[cfg(feature = "i16-out")]
-    #[allow(clippy::too_many_arguments)]
-    #[inline]
+    #[inline(always)]
     pub fn write_i16(
         &mut self,
         len: usize,
-        left_out: &mut [i16],
-        loff: u32,
-        lincr: u32,
-        right_out: &mut [i16],
-        roff: u32,
-        rincr: u32,
+        loff: usize,
+        lincr: usize,
+        roff: usize,
+        rincr: usize,
+        cb: impl FnMut((usize, i16), (usize, i16)),
     ) {
-        self.core.write_s16(
-            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
-        )
+        self.core.write_i16(len, loff, lincr, roff, rincr, cb);
     }
 
     /**

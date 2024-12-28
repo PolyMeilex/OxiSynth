@@ -68,6 +68,7 @@ impl Synth {
         self.ticks = self.ticks.wrapping_add(64);
     }
 
+    #[inline]
     pub fn read_next(&mut self) -> (f32, f32) {
         if self.cur == 64 {
             self.one_block(false);
@@ -79,6 +80,7 @@ impl Synth {
         out
     }
 
+    #[inline]
     pub fn write<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
         for i in 0..len {
             let next = self.read_next();
@@ -87,6 +89,7 @@ impl Synth {
         }
     }
 
+    #[inline]
     pub fn write_f32(
         &mut self,
         len: usize,
@@ -105,6 +108,7 @@ impl Synth {
         }
     }
 
+    #[inline]
     pub fn write_f64(
         &mut self,
         len: usize,
@@ -124,71 +128,59 @@ impl Synth {
     }
 
     #[cfg(feature = "i16-out")]
-    pub fn write_s16(
+    #[inline]
+    pub fn write_i16(
         &mut self,
         len: usize,
-        left_out: &mut [i16],
         loff: usize,
         lincr: usize,
-        right_out: &mut [i16],
         roff: usize,
         rincr: usize,
+        mut cb: impl FnMut((usize, i16), (usize, i16)),
     ) {
-        let mut di: i32 = self.dither_index;
+        let mut di = self.dither_index;
 
         let mut cur = self.cur;
         let mut i: usize = 0;
         let mut j = loff;
         let mut k = roff;
+
         while i < len {
-            /* fill up the buffers as needed */
+            // fill up the buffers as needed
             if cur == 64 {
                 self.one_block(false);
                 cur = 0;
             }
-            /*
-             * Converts stereo floating point sample data to signed 16 bit data with
-             * dithering.
-             */
 
-            let mut left_sample = f32::round(
-                self.left_buf[0][cur as usize] * 32766.0f32
-                    + RAND_TABLE[0 as i32 as usize][di as usize],
-            );
-            let mut right_sample = f32::round(
-                self.right_buf[0][cur as usize] * 32766.0f32
-                    + RAND_TABLE[1 as i32 as usize][di as usize],
-            );
+            // Converts stereo floating point sample data to signed 16 bit data with
+            // dithering.
+
+            let mut left_sample = f32::round(self.left_buf[0][cur] * 32766.0 + RAND_TABLE[0][di]);
+            let mut right_sample = f32::round(self.right_buf[0][cur] * 32766.0 + RAND_TABLE[1][di]);
 
             di += 1;
-            if di >= 48000 as i32 {
-                di = 0 as i32
+            if di >= 48000 {
+                di = 0;
             }
 
-            /* digital clipping */
-            if left_sample > 32767.0f32 {
-                left_sample = 32767.0f32
-            }
-            if left_sample < -32768.0f32 {
-                left_sample = -32768.0f32
-            }
-            if right_sample > 32767.0f32 {
-                right_sample = 32767.0f32
-            }
-            if right_sample < -32768.0f32 {
-                right_sample = -32768.0f32
-            }
+            // digital clipping
+            left_sample = left_sample.clamp(-32768.0, 32767.0);
+            right_sample = right_sample.clamp(-32768.0, 32767.0);
 
-            left_out[j as usize] = left_sample as i16;
-            right_out[k as usize] = right_sample as i16;
+            cb(
+                (j, left_sample as i16),
+                (k, right_sample as i16),
+                //
+            );
 
             i += 1;
             cur += 1;
             j += lincr;
             k += rincr
         }
+
         self.cur = cur;
-        /* keep dither buffer continuous */
+        // keep dither buffer continuous
         self.dither_index = di;
     }
 }

@@ -54,7 +54,7 @@ pub struct Synth {
     pub settings: Settings,
 
     #[cfg(feature = "i16-out")]
-    dither_index: i32,
+    dither_index: usize,
 }
 
 impl Default for Synth {
