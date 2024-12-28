@@ -464,15 +464,8 @@ impl Voice {
                 if self.volenv_val > 0.0 {
                     let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
                     let amp: f32 = self.volenv_val * f32::powf(10.0, lfo / -200.0);
-                    let mut env_value = -((-200.0 * amp.ln() / f32::ln(10.0) - lfo) / 960.0 - 1.0);
-                    env_value = if (env_value as f64) < 0.0f64 {
-                        0.0f64
-                    } else if env_value as f64 > 1.0f64 {
-                        1.0f64
-                    } else {
-                        env_value as f64
-                    } as f32;
-                    self.volenv_val = env_value
+                    let env_value = -((-200.0 * amp.ln() / f32::ln(10.0) - lfo) / 960.0 - 1.0);
+                    self.volenv_val = env_value.clamp(0.0, 1.0);
                 }
             }
             self.volenv_section = EnvelopeStep::Release;
@@ -1391,13 +1384,7 @@ impl Voice {
                 // Range: SF2.01 section 8.1.3 # 48
                 // Motivation for range checking:
                 // OHPiano.SF2 sets initial attenuation to a whooping -96 dB
-                self.attenuation = if self.attenuation < 0.0 {
-                    0.0
-                } else if self.attenuation > 1440.0 {
-                    1440.0
-                } else {
-                    self.attenuation
-                };
+                self.attenuation = self.attenuation.clamp(0.0, 1440.0);
             }
             // The pitch is calculated from three different generators.
             // Read comment in fluidlite.h about GEN_PITCH.
@@ -1413,13 +1400,7 @@ impl Voice {
                 // The generator unit is 'tenths of a percent'.
                 self.reverb_send = gen_sum!(GeneratorType::ReverbSend) / 1000.0;
 
-                self.reverb_send = if self.reverb_send < 0.0 {
-                    0.0
-                } else if self.reverb_send > 1.0 {
-                    1.0
-                } else {
-                    self.reverb_send
-                };
+                self.reverb_send = self.reverb_send.clamp(0.0, 1.0);
                 self.amp_reverb = self.reverb_send * self.synth_gain / 32768.0;
             }
 
@@ -1427,13 +1408,7 @@ impl Voice {
                 // The generator unit is 'tenths of a percent'.
                 self.chorus_send = gen_sum!(GeneratorType::ChorusSend) / 1000.0;
 
-                self.chorus_send = if self.chorus_send < 0.0 {
-                    0.0
-                } else if self.chorus_send > 1.0 {
-                    1.0
-                } else {
-                    self.chorus_send
-                };
+                self.chorus_send = self.chorus_send.clamp(0.0, 1.0);
                 self.amp_chorus = self.chorus_send * self.synth_gain / 32768.0;
             }
 
@@ -1475,13 +1450,7 @@ impl Voice {
                 // obtain dB
                 let q_db = gen_sum!(GeneratorType::FilterQ) / 10.0;
                 // Range: SF2.01 section 8.1.3 # 8 (convert from cB to dB => /10)
-                let mut q_db = if q_db < 0.0 {
-                    0.0
-                } else if q_db > 96.0 {
-                    96.0
-                } else {
-                    q_db
-                };
+                let mut q_db = q_db.clamp(0.0, 96.0);
 
                 // Short version: Modify the Q definition in a way, that a Q of 0
                 // dB leads to no resonance hump in the freq. response.
@@ -1522,49 +1491,25 @@ impl Voice {
             GeneratorType::ModLfoToPitch => {
                 self.modlfo_to_pitch = gen_sum!(GeneratorType::ModLfoToPitch);
 
-                self.modlfo_to_pitch = if self.modlfo_to_pitch < -12000.0 {
-                    -12000.0
-                } else if self.modlfo_to_pitch > 12000.0 {
-                    12000.0
-                } else {
-                    self.modlfo_to_pitch
-                };
+                self.modlfo_to_pitch = self.modlfo_to_pitch.clamp(-12000.0, 12000.0);
             }
 
             GeneratorType::ModLfoToVol => {
                 self.modlfo_to_vol = gen_sum!(GeneratorType::ModLfoToVol);
 
-                self.modlfo_to_vol = if self.modlfo_to_vol < -960.0 {
-                    -960.0
-                } else if self.modlfo_to_vol > 960.0 {
-                    960.0
-                } else {
-                    self.modlfo_to_vol
-                };
+                self.modlfo_to_vol = self.modlfo_to_vol.clamp(-960.0, 960.0);
             }
 
             GeneratorType::ModLfoToFilterFc => {
                 self.modlfo_to_fc = gen_sum!(GeneratorType::ModLfoToFilterFc);
 
-                self.modlfo_to_fc = if self.modlfo_to_fc < -12000.0 {
-                    -12000.0
-                } else if self.modlfo_to_fc > 12000.0 {
-                    12000.0
-                } else {
-                    self.modlfo_to_fc
-                };
+                self.modlfo_to_fc = self.modlfo_to_fc.clamp(-12000.0, 12000.0);
             }
 
             GeneratorType::ModLfoDelay => {
                 let val = gen_sum!(GeneratorType::ModLfoDelay);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 5000.0 {
-                    5000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 5000.0);
                 self.modlfo_delay = (self.output_rate * tc2sec_delay(val)) as usize;
             }
 
@@ -1573,13 +1518,7 @@ impl Voice {
                 // - the delay into a sample delay
                 let val = gen_sum!(GeneratorType::ModLfoFreq);
 
-                let val = if val < -16000.0 {
-                    -16000.0
-                } else if val > 4500.0 {
-                    4500.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-16000.0, 4500.0);
                 self.modlfo_incr = 4.0 * 64.0 * act2hz(val) / self.output_rate;
             }
 
@@ -1590,39 +1529,21 @@ impl Voice {
                 // - the delay into a sample delay
                 let freq = gen_sum!(GeneratorType::VibLfoFreq);
 
-                let freq = if freq < -16000.0 {
-                    -16000.0
-                } else if freq > 4500.0 {
-                    4500.0
-                } else {
-                    freq
-                };
+                let freq = freq.clamp(-16000.0, 4500.0);
                 self.viblfo_incr = 4.0 * 64.0 * act2hz(freq) / self.output_rate;
             }
 
             GeneratorType::VibLfoDelay => {
                 let val = gen_sum!(GeneratorType::VibLfoDelay);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 5000.0 {
-                    5000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 5000.0);
                 self.viblfo_delay = (self.output_rate * tc2sec_delay(val)) as usize;
             }
 
             GeneratorType::VibLfoToPitch => {
                 self.viblfo_to_pitch = gen_sum!(GeneratorType::VibLfoToPitch);
 
-                self.viblfo_to_pitch = if self.viblfo_to_pitch < -12000.0 {
-                    -12000.0
-                } else if self.viblfo_to_pitch > 12000.0 {
-                    12000.0
-                } else {
-                    self.viblfo_to_pitch
-                };
+                self.viblfo_to_pitch = self.viblfo_to_pitch.clamp(-12000.0, 12000.0);
             }
 
             GeneratorType::KeyNum => {
@@ -1657,13 +1578,7 @@ impl Voice {
             GeneratorType::ModEnvToPitch => {
                 self.modenv_to_pitch = gen_sum!(GeneratorType::ModEnvToPitch);
 
-                self.modenv_to_pitch = if self.modenv_to_pitch < -12000.0 {
-                    -12000.0
-                } else if self.modenv_to_pitch > 12000.0 {
-                    12000.0
-                } else {
-                    self.modenv_to_pitch
-                };
+                self.modenv_to_pitch = self.modenv_to_pitch.clamp(-12000.0, 12000.0);
             }
 
             GeneratorType::ModEnvToFilterFc => {
@@ -1672,13 +1587,7 @@ impl Voice {
                 // Range: SF2.01 section 8.1.3 # 1
                 // Motivation for range checking:
                 // Filter is reported to make funny noises now and then
-                self.modenv_to_fc = if self.modenv_to_fc < -12000.0 {
-                    -12000.0
-                } else if self.modenv_to_fc > 12000.0 {
-                    12000.0
-                } else {
-                    self.modenv_to_fc
-                };
+                self.modenv_to_fc = self.modenv_to_fc.clamp(-12000.0, 12000.0);
             }
 
             // sample start and ends points
@@ -1731,13 +1640,7 @@ impl Voice {
             GeneratorType::VolEnvDelay => {
                 let val = gen_sum!(GeneratorType::VolEnvDelay);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 5000.0 {
-                    5000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 5000.0);
 
                 let count = (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
 
@@ -1753,13 +1656,7 @@ impl Voice {
             GeneratorType::VolEnvAttack => {
                 let val = gen_sum!(GeneratorType::VolEnvAttack);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 8000.0 {
-                    8000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 8000.0);
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
@@ -1794,13 +1691,7 @@ impl Voice {
             | GeneratorType::KeyToVolEnvDecay => {
                 let y = 1.0 - 0.001 * gen_sum!(GeneratorType::VolEnvSustain);
 
-                let y = if y < 0.0 {
-                    0.0
-                } else if y > 1.0 {
-                    1.0
-                } else {
-                    y
-                };
+                let y = y.clamp(0.0, 1.0);
 
                 let count = self.calculate_hold_decay_buffers(
                     GeneratorType::VolEnvDecay,
@@ -1820,13 +1711,7 @@ impl Voice {
             GeneratorType::VolEnvRelease => {
                 let val = gen_sum!(GeneratorType::VolEnvRelease);
 
-                let val = if val < -7200.0 {
-                    -7200.0
-                } else if val > 8000.0 {
-                    8000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-7200.0, 8000.0);
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
@@ -1843,13 +1728,7 @@ impl Voice {
             GeneratorType::ModEnvDelay => {
                 let val = gen_sum!(GeneratorType::ModEnvDelay);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 5000.0 {
-                    5000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 5000.0);
 
                 self.modenv_data[EnvelopeStep::Delay] = EnvelopePortion {
                     count: (self.output_rate * tc2sec_delay(val) / 64.0) as u32,
@@ -1863,13 +1742,7 @@ impl Voice {
             GeneratorType::ModEnvAttack => {
                 let val = gen_sum!(GeneratorType::ModEnvAttack);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 8000.0 {
-                    8000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 8000.0);
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
@@ -1909,13 +1782,7 @@ impl Voice {
 
                 let y = 1.0 - 0.001 * gen_sum!(GeneratorType::ModEnvSustain);
 
-                let y = if y < 0.0 {
-                    0.0
-                } else if y > 1.0 {
-                    1.0
-                } else {
-                    y
-                };
+                let y = y.clamp(0.0, 1.0);
 
                 self.modenv_data[EnvelopeStep::Decay] = EnvelopePortion {
                     count,
@@ -1929,13 +1796,7 @@ impl Voice {
             GeneratorType::ModEnvRelease => {
                 let val = gen_sum!(GeneratorType::ModEnvRelease);
 
-                let val = if val < -12000.0 {
-                    -12000.0
-                } else if val > 8000.0 {
-                    8000.0
-                } else {
-                    val
-                };
+                let val = val.clamp(-12000.0, 8000.0);
 
                 let count =
                     1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
