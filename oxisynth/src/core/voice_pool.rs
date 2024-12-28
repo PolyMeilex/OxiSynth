@@ -1,6 +1,6 @@
 mod voice;
 
-pub(crate) use voice::{EnvelopeStep, Voice, VoiceAddMode, VoiceDescriptor, VoiceStatus};
+pub(crate) use voice::{EnvelopeStep, Voice, VoiceAddMode, VoiceDescriptor};
 
 use super::channel_pool::Channel;
 use super::soundfont::generator::GeneratorType;
@@ -42,7 +42,7 @@ impl VoicePool {
 
     /// Set the polyphony limit
     pub fn set_polyphony_limit(&mut self, polyphony: usize) {
-        /* remove any voices above the new limit */
+        // remove any voices above the new limit
         self.voices.truncate(polyphony);
         self.polyphony_limit = polyphony;
     }
@@ -69,16 +69,16 @@ impl VoicePool {
             .iter_mut()
             .filter(|v| v.is_on())
             .filter(|v| v.get_channel_id() == channel.id())
-            .filter(|v| v.key == key)
+            .filter(|v| v.key() == key)
         {
             log::trace!(
                 "noteoff\t{}\t{}\t{}\t{}\t{}\t\t{}\t",
                 voice.get_channel_id(),
-                voice.key,
+                voice.key(),
                 0,
                 voice.get_note_id(),
-                voice.start_time.wrapping_add(voice.ticks) as f32 / 44100.0,
-                voice.ticks as f32 / 44100.0,
+                (voice.start_time() + voice.ticks()) as f32 / 44100.0,
+                voice.ticks() as f32 / 44100.0,
             );
             voice.noteoff(channel, min_note_length_ticks);
         }
@@ -118,7 +118,7 @@ impl VoicePool {
             .voices
             .iter_mut()
             .filter(|v| v.get_channel_id() == channel.id())
-            .filter(|v| v.key == key)
+            .filter(|v| v.key() == key)
         {
             voice.modulate(channel, false, MOD_KEYPRESSURE);
         }
@@ -129,7 +129,7 @@ impl VoicePool {
             .voices
             .iter_mut()
             .filter(|v| v.get_channel_id() == channel.id())
-            .filter(|v| v.status == VoiceStatus::Sustained)
+            .filter(|v| v.is_sustained())
         {
             voice.noteoff(channel, min_note_length_ticks);
         }
@@ -156,7 +156,7 @@ impl VoicePool {
     }
 
     fn free_voice_by_kill(&mut self, noteid: usize) -> Option<VoiceId> {
-        let mut best_prio: f32 = 999999.0f32;
+        let mut best_prio = 999999.0;
         let mut best_voice_index: Option<usize> = None;
 
         for (id, voice) in self.voices.iter_mut().enumerate() {
@@ -167,13 +167,12 @@ impl VoicePool {
             if voice.get_channel_id() == 0xff {
                 this_voice_prio -= 2000.0;
             }
-            if voice.status == VoiceStatus::Sustained {
+            if voice.is_sustained() {
                 this_voice_prio -= 1000.0;
             }
             this_voice_prio -= noteid.wrapping_sub(voice.get_note_id()) as f32;
-            if voice.volenv_section != EnvelopeStep::Attack {
-                this_voice_prio =
-                    (this_voice_prio as f64 + voice.volenv_val as f64 * 1000.0f64) as f32
+            if voice.volenv_section() != EnvelopeStep::Attack {
+                this_voice_prio += voice.volenv_val() * 1000.0;
             }
             if this_voice_prio < best_prio {
                 best_voice_index = Some(id);
@@ -191,34 +190,30 @@ impl VoicePool {
     }
 
     fn kill_by_exclusive_class(&mut self, new_voice: VoiceId) {
-        let excl_class = {
-            let new_voice = &mut self.voices[new_voice.0];
-            let excl_class: i32 = (new_voice.gen[GeneratorType::ExclusiveClass].val
-                + new_voice.gen[GeneratorType::ExclusiveClass].mod_0
-                + new_voice.gen[GeneratorType::ExclusiveClass].nrpn)
-                as i32;
-            excl_class
-        };
+        let new_class_sum = self.voices[new_voice.0].exclusive_class_sum();
 
-        if excl_class != 0 {
-            for i in 0..self.voices.len() {
-                let new_voice = &self.voices[new_voice.0];
-                let existing_voice = &self.voices[i as usize];
+        if new_class_sum.trunc() == 0.0 {
+            return;
+        }
 
-                if existing_voice.is_playing() {
-                    if existing_voice.get_channel_id() == new_voice.get_channel_id() {
-                        if (existing_voice.gen[GeneratorType::ExclusiveClass].val
-                            + existing_voice.gen[GeneratorType::ExclusiveClass].mod_0
-                            + existing_voice.gen[GeneratorType::ExclusiveClass].nrpn)
-                            as i32
-                            == excl_class
-                        {
-                            if existing_voice.get_note_id() != new_voice.get_note_id() {
-                                self.voices[i as usize].kill_excl();
-                            }
-                        }
-                    }
-                }
+        for i in 0..self.voices.len() {
+            let new_voice = &self.voices[new_voice.0];
+            let existing_voice = &self.voices[i];
+
+            if !existing_voice.is_playing() {
+                continue;
+            }
+
+            if existing_voice.get_channel_id() != new_voice.get_channel_id() {
+                continue;
+            }
+
+            if existing_voice.exclusive_class_sum() != new_class_sum {
+                continue;
+            }
+
+            if existing_voice.get_note_id() != new_voice.get_note_id() {
+                self.voices[i].kill_excl();
             }
         }
     }
@@ -235,13 +230,14 @@ impl VoicePool {
             .iter_mut()
             .filter(|v| v.get_channel_id() == channel.id())
             .filter(|v| v.is_playing())
-            .filter(|v| v.key == key)
+            .filter(|v| v.key() == key)
             .filter(|v| v.get_note_id() != noteid)
         {
             voice.noteoff(channel, min_note_length_ticks);
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn write_voices(
         &mut self,
         channels: &[Channel],
@@ -253,18 +249,17 @@ impl VoicePool {
         chorus_active: bool,
     ) {
         for voice in self.voices.iter_mut().filter(|v| v.is_playing()) {
-            /* The output associated with a MIDI channel is wrapped around
-             * using the number of audio groups as modulo divider.  This is
-             * typically the number of output channels on the 'sound card',
-             * as long as the LADSPA Fx unit is not used. In case of LADSPA
-             * unit, think of it as subgroups on a mixer.
-             *
-             * For example: Assume that the number of groups is set to 2.
-             * Then MIDI channel 1, 3, 5, 7 etc. go to output 1, channels 2,
-             * 4, 6, 8 etc to output 2.  Or assume 3 groups: Then MIDI
-             * channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
-             * output 2, 3, 6, 9, 12 etc to output 3.
-             */
+            // The output associated with a MIDI channel is wrapped around
+            // using the number of audio groups as modulo divider.  This is
+            // typically the number of output channels on the 'sound card',
+            // as long as the LADSPA Fx unit is not used. In case of LADSPA
+            // unit, think of it as subgroups on a mixer.
+            //
+            // For example: Assume that the number of groups is set to 2.
+            // Then MIDI channel 1, 3, 5, 7 etc. go to output 1, channels 2,
+            // 4, 6, 8 etc to output 2.  Or assume 3 groups: Then MIDI
+            // channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
+            // output 2, 3, 6, 9, 12 etc to output 3.
             let mut auchan = voice.get_channel_id();
             auchan %= audio_groups as usize;
 

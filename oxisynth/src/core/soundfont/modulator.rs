@@ -118,9 +118,9 @@ impl Mod {
                 ControllerPalette::Midi(id) => chan.cc(id as usize) as f32,
                 ControllerPalette::General(g) => match g {
                     NoController => range1,
-                    NoteOnVelocity => voice.vel as f32,
-                    NoteOnKeyNumber => voice.key as f32,
-                    PolyPressure => chan.key_pressure(voice.key as usize) as f32,
+                    NoteOnVelocity => voice.vel() as f32,
+                    NoteOnKeyNumber => voice.key() as f32,
+                    PolyPressure => chan.key_pressure(voice.key() as usize) as f32,
                     ChannelPressure => chan.channel_pressure() as f32,
                     PitchWheel => {
                         range1 = 0x4000 as f32;
@@ -239,9 +239,9 @@ impl Mod {
                 ControllerPalette::Midi(id) => chan.cc(id as usize) as f32,
                 ControllerPalette::General(g) => match g {
                     NoController => range2,
-                    NoteOnVelocity => voice.vel as f32,
-                    NoteOnKeyNumber => voice.key as f32,
-                    PolyPressure => chan.key_pressure(voice.key as usize) as f32,
+                    NoteOnVelocity => voice.vel() as f32,
+                    NoteOnKeyNumber => voice.key() as f32,
+                    PolyPressure => chan.key_pressure(voice.key() as usize) as f32,
                     ChannelPressure => chan.channel_pressure() as f32,
                     PitchWheel => chan.pitch_bend() as f32,
                     PitchWheelSensitivity => chan.pitch_wheel_sensitivity() as f32,

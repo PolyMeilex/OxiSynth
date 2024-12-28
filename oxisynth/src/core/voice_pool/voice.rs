@@ -46,7 +46,7 @@ pub enum VoiceAddMode {
 const FLUID_OK: i32 = 0;
 
 #[derive(PartialEq, Clone)]
-pub enum VoiceStatus {
+enum VoiceStatus {
     Clean,
     On,
     Sustained,
@@ -61,7 +61,7 @@ pub enum VoiceStatus {
 /// interpreted as indicating no loop, and 3 indicates a sound which loops for the
 /// duration of key depression then proceeds to play the remainder of the sample.
 #[derive(PartialEq, Eq, Clone, Copy)]
-pub enum SampleMode {
+enum SampleMode {
     UnLooped = 0,
     DuringRelease = 1,
     // _Unused = 2,
@@ -112,32 +112,32 @@ pub struct VoiceDescriptor<'a> {
 }
 
 #[derive(Clone)]
-pub struct Voice {
-    pub note_id: usize,
+pub(crate) struct Voice {
+    note_id: usize,
 
     channel_id: usize,
 
-    pub key: u8,
-    pub vel: u8,
+    key: u8,
+    vel: u8,
 
     interp_method: InterpolationMethod,
     mod_count: usize,
 
-    pub sample: Sample,
-    pub start_time: usize,
+    sample: Sample,
+    start_time: usize,
 
-    pub ticks: usize,
+    ticks: usize,
     noteoff_ticks: usize,
 
-    pub has_looped: bool,
+    has_looped: bool,
 
     filter_startup: bool,
 
     volenv_count: u32,
-    pub volenv_section: EnvelopeStep,
-    pub volenv_val: f32,
+    volenv_section: EnvelopeStep,
+    volenv_val: f32,
 
-    pub amp: f32,
+    amp: f32,
     modenv_count: u32,
     modenv_section: EnvelopeStep,
     modenv_val: f32,
@@ -148,13 +148,13 @@ pub struct Voice {
     hist1: f32,
     hist2: f32,
 
-    pub(super) gen: GeneratorList,
+    gen: GeneratorList,
     synth_gain: f32,
 
     amplitude_that_reaches_noise_floor_nonloop: f32,
     amplitude_that_reaches_noise_floor_loop: f32,
 
-    pub status: VoiceStatus,
+    status: VoiceStatus,
     check_sample_sanity_flag: SampleSanity,
     min_attenuation_c_b: f32,
 
@@ -192,10 +192,10 @@ pub struct Voice {
     modenv_to_pitch: f32,
     modenv_to_fc: f32,
 
-    pub start: u32,
-    pub end: u32,
-    pub loopstart: u32,
-    pub loopend: u32,
+    start: u32,
+    end: u32,
+    loopstart: u32,
+    loopend: u32,
 
     volenv_data: Envelope,
     modenv_data: Envelope,
@@ -203,7 +203,7 @@ pub struct Voice {
 
     output_rate: f32,
 
-    pub phase: Phase,
+    phase: Phase,
 
     filter_coeff_incr_count: i32,
 
@@ -219,7 +219,7 @@ pub struct Voice {
 }
 
 impl Voice {
-    pub fn new(output_rate: f32, desc: VoiceDescriptor, note_id: usize) -> Voice {
+    pub(super) fn new(output_rate: f32, desc: VoiceDescriptor, note_id: usize) -> Voice {
         let mut volenv_data = Envelope::default();
 
         volenv_data[EnvelopeStep::Sustain] = EnvelopePortion {
@@ -351,18 +351,6 @@ impl Voice {
         }
     }
 
-    pub fn is_available(&self) -> bool {
-        self.status == VoiceStatus::Clean || self.status == VoiceStatus::Off
-    }
-
-    pub fn is_on(&self) -> bool {
-        self.status == VoiceStatus::On && self.volenv_section < EnvelopeStep::Release
-    }
-
-    pub fn is_playing(&self) -> bool {
-        self.status == VoiceStatus::On || self.status == VoiceStatus::Sustained
-    }
-
     /// Adds a modulator to the voice.  "mode" indicates, what to do, if
     /// an identical modulator exists already.
     ///
@@ -443,7 +431,7 @@ impl Voice {
     /// all other voices having that exclusive class within the same preset
     /// or channel.  fluid_voice_kill_excl gets called, when 'voice' is to
     /// be killed for that reason.
-    pub fn kill_excl(&mut self) {
+    pub(super) fn kill_excl(&mut self) {
         if !self.is_playing() {
             return;
         }
@@ -470,7 +458,7 @@ impl Voice {
         self.update_param(GeneratorType::ModEnvRelease);
     }
 
-    pub fn start(&mut self, channel: &Channel) {
+    pub(super) fn start(&mut self, channel: &Channel) {
         // The maximum volume of the loop is calculated and cached once for each
         // sample with its nominal loop settings. This happens, when the sample is used
         // for the first time.
@@ -482,7 +470,7 @@ impl Voice {
         self.status = VoiceStatus::On;
     }
 
-    pub fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: usize) {
+    pub(super) fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: usize) {
         if min_note_length_ticks > self.ticks {
             /* Delay noteoff */
             self.noteoff_ticks = min_note_length_ticks;
@@ -518,7 +506,7 @@ impl Voice {
         }
     }
 
-    pub fn modulate(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
+    pub(super) fn modulate(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
         #[inline(always)]
         fn mod_has_source(m: &Mod, is_cc: bool, ctrl: u8) -> bool {
             let a1 = (m.src.index == ctrl) && m.src.is_cc() && is_cc;
@@ -553,7 +541,7 @@ impl Voice {
         }
     }
 
-    pub fn modulate_all(&mut self, channel: &Channel) -> i32 {
+    pub(super) fn modulate_all(&mut self, channel: &Channel) -> i32 {
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
@@ -577,7 +565,7 @@ impl Voice {
 
     /// Turns off a voice, meaning that it is not processed
     /// anymore by the DSP loop.
-    pub fn off(&mut self) {
+    pub(super) fn off(&mut self) {
         self.channel_id = 0xff;
         self.volenv_section = EnvelopeStep::Finished;
         self.volenv_count = 0;
@@ -586,11 +574,11 @@ impl Voice {
         self.status = VoiceStatus::Off;
     }
 
-    pub fn get_channel_id(&self) -> usize {
+    pub(super) fn get_channel_id(&self) -> usize {
         self.channel_id
     }
 
-    pub fn get_note_id(&self) -> usize {
+    pub(super) fn get_note_id(&self) -> usize {
         self.note_id
     }
 
@@ -710,7 +698,7 @@ impl Voice {
 
     /// Make sure, that sample start / end point and loop points are in
     /// proper order. When starting up, calculate the initial phase.
-    pub fn check_sample_sanity(&mut self) {
+    fn check_sample_sanity(&mut self) {
         let min_index_nonloop = self.sample.start();
         let max_index_nonloop = self.sample.end();
 
@@ -846,7 +834,7 @@ impl Voice {
         self.check_sample_sanity_flag = SampleSanity::empty();
     }
 
-    pub fn set_param(&mut self, gen: GeneratorType, nrpn_value: f32, abs: i32) {
+    pub(super) fn set_param(&mut self, gen: GeneratorType, nrpn_value: f32, abs: i32) {
         self.gen[gen].nrpn = nrpn_value as f64;
         self.gen[gen].flags = if abs != 0 {
             GEN_ABS_NRPN as i32
@@ -856,7 +844,7 @@ impl Voice {
         self.update_param(gen);
     }
 
-    pub fn set_gain(&mut self, mut gain: f32) {
+    pub(super) fn set_gain(&mut self, mut gain: f32) {
         // avoid division by zero
         if gain < 0.0000001 {
             gain = 0.0000001;
@@ -1349,7 +1337,7 @@ impl Voice {
         self.filter_coeff_incr_count = dsp_filter_coeff_incr_count;
     }
 
-    pub fn calculate_hold_decay_buffers(
+    fn calculate_hold_decay_buffers(
         &mut self,
         gen_base: GeneratorType,
         gen_key2base: GeneratorType,
@@ -1394,7 +1382,7 @@ impl Voice {
     /// offset caused by modulators .mod, and an offset caused by the
     /// NRPN system. _GEN(voice, generator_enumerator) returns the sum
     /// of all three.
-    pub fn update_param(&mut self, gen: GeneratorType) {
+    fn update_param(&mut self, gen: GeneratorType) {
         macro_rules! gen_sum {
             ($id: expr) => {{
                 let Generator {
@@ -1853,5 +1841,60 @@ impl Voice {
             }
             _ => {}
         }
+    }
+}
+
+impl Voice {
+    #[inline(always)]
+    pub(crate) fn key(&self) -> u8 {
+        self.key
+    }
+
+    #[inline(always)]
+    pub(crate) fn vel(&self) -> u8 {
+        self.vel
+    }
+
+    #[inline(always)]
+    pub(super) fn start_time(&self) -> usize {
+        self.start_time
+    }
+
+    #[inline(always)]
+    pub(super) fn ticks(&self) -> usize {
+        self.ticks
+    }
+
+    #[inline(always)]
+    pub(super) fn volenv_section(&self) -> EnvelopeStep {
+        self.volenv_section
+    }
+
+    #[inline(always)]
+    pub(super) fn volenv_val(&self) -> f32 {
+        self.volenv_val
+    }
+
+    #[inline(always)]
+    pub(super) fn exclusive_class_sum(&self) -> f64 {
+        let class = &self.gen[GeneratorType::ExclusiveClass];
+        class.val + class.mod_0 + class.nrpn
+    }
+
+    pub(super) fn is_available(&self) -> bool {
+        matches!(self.status, VoiceStatus::Clean | VoiceStatus::Off)
+    }
+
+    pub(super) fn is_on(&self) -> bool {
+        self.status == VoiceStatus::On && self.volenv_section < EnvelopeStep::Release
+    }
+
+    pub(super) fn is_playing(&self) -> bool {
+        matches!(self.status, VoiceStatus::On | VoiceStatus::Sustained)
+    }
+
+    #[inline(always)]
+    pub(super) fn is_sustained(&self) -> bool {
+        self.status == VoiceStatus::Sustained
     }
 }
