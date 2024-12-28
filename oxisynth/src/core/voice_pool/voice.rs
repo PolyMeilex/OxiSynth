@@ -149,11 +149,10 @@ pub struct Voice {
     modenv_to_pitch: f32,
     modenv_to_fc: f32,
 
-    // TODO: Unsign those?
-    pub start: i32,
-    pub end: i32,
-    pub loopstart: i32,
-    pub loopend: i32,
+    pub start: u32,
+    pub end: u32,
+    pub loopstart: u32,
+    pub loopend: u32,
 
     volenv_data: Envelope,
     modenv_data: Envelope,
@@ -329,11 +328,10 @@ impl Voice {
     /// mode == FLUID_VOICE_DEFAULT: This is a default modulator, there can be no identical modulator.
     ///                             Don't check.
     pub fn add_mod(&mut self, mod_0: &Mod, mode: VoiceAddMode) {
-        /*
-         * Some soundfonts come with a huge number of non-standard
-         * controllers, because they have been designed for one particular
-         * sound card.  Discard them, maybe print a warning.
-         */
+        //
+        // Some soundfonts come with a huge number of non-standard
+        // controllers, because they have been designed for one particular
+        // sound card.  Discard them, maybe print a warning.
         if let ControllerPalette::General(g) = &mod_0.src.controller_palette {
             match g {
                 GeneralPalette::Unknown(_) | GeneralPalette::Link => {
@@ -345,7 +343,7 @@ impl Voice {
         }
 
         if mode == VoiceAddMode::Add {
-            /* if identical modulator exists, add them */
+            // if identical modulator exists, add them
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount += mod_0.amount;
@@ -353,7 +351,7 @@ impl Voice {
                 }
             }
         } else if mode == VoiceAddMode::Overwrite {
-            /* if identical modulator exists, replace it (only the amount has to be changed) */
+            // if identical modulator exists, replace it (only the amount has to be changed)
             for m in self.mod_0.iter_mut().take(self.mod_count) {
                 if m.test_identity(mod_0) {
                     m.amount = mod_0.amount;
@@ -362,9 +360,9 @@ impl Voice {
             }
         }
 
-        /* Add a new modulator (No existing modulator to add / overwrite).
-        Also, default modulators (VOICE_DEFAULT) are added without
-        checking, if the same modulator already exists. */
+        // Add a new modulator (No existing modulator to add / overwrite).
+        // Also, default modulators (VOICE_DEFAULT) are added without
+        // checking, if the same modulator already exists.
         if self.mod_count < 64 {
             self.mod_0[self.mod_count] = *mod_0;
             self.mod_count += 1;
@@ -395,26 +393,23 @@ impl Voice {
         self.gen[i].flags = GEN_SET as u8;
     }
 
-    /*
-     * Percussion sounds can be mutually exclusive: for example, a 'closed
-     * hihat' sound will terminate an 'open hihat' sound ringing at the
-     * same time. This behaviour is modeled using 'exclusive classes',
-     * turning on a voice with an exclusive class other than 0 will kill
-     * all other voices having that exclusive class within the same preset
-     * or channel.  fluid_voice_kill_excl gets called, when 'voice' is to
-     * be killed for that reason.
-     */
+    /// Percussion sounds can be mutually exclusive: for example, a 'closed
+    /// hihat' sound will terminate an 'open hihat' sound ringing at the
+    /// same time. This behaviour is modeled using 'exclusive classes',
+    /// turning on a voice with an exclusive class other than 0 will kill
+    /// all other voices having that exclusive class within the same preset
+    /// or channel.  fluid_voice_kill_excl gets called, when 'voice' is to
+    /// be killed for that reason.
     pub fn kill_excl(&mut self) {
         if !self.is_playing() {
             return;
         }
 
-        /* Turn off the exclusive class information for this voice,
-           so that it doesn't get killed twice
-        */
+        // Turn off the exclusive class information for this voice,
+        // so that it doesn't get killed twice
         self.gen_set(GeneratorType::ExclusiveClass, 0.0);
 
-        /* If the voice is not yet in release state, put it into release state */
+        // If the voice is not yet in release state, put it into release state
         if self.volenv_section != EnvelopeStep::Release {
             self.volenv_section = EnvelopeStep::Release;
             self.volenv_count = 0;
@@ -422,12 +417,12 @@ impl Voice {
             self.modenv_count = 0;
         }
 
-        /* Speed up the volume envelope */
-        /* The value was found through listening tests with hi-hat samples. */
+        // Speed up the volume envelope
+        // The value was found through listening tests with hi-hat samples.
         self.gen_set(GeneratorType::VolEnvRelease, -200.0);
         self.update_param(GeneratorType::VolEnvRelease);
 
-        /* Speed up the modulation envelope */
+        // Speed up the modulation envelope
         self.gen_set(GeneratorType::ModEnvRelease, -200.0);
         self.update_param(GeneratorType::ModEnvRelease);
     }
@@ -437,6 +432,7 @@ impl Voice {
         // sample with its nominal loop settings. This happens, when the sample is used
         // for the first time.
         self.calculate_runtime_synthesis_parameters(channel);
+
         // Force setting of the phase at the first DSP loop run
         // This cannot be done earlier, because it depends on modulators.
         self.check_sample_sanity_flag = SampleSanity::STARTUP;
@@ -460,12 +456,11 @@ impl Voice {
             self.status = VoiceStatus::Sustained;
         } else {
             if self.volenv_section == EnvelopeStep::Attack {
-                /* A voice is turned off during the attack section of the volume
-                 * envelope.  The attack section ramps up linearly with
-                 * amplitude. The other sections use logarithmic scaling. Calculate new
-                 * volenv_val to achieve equievalent amplitude during the release phase
-                 * for seamless volume transition.
-                 */
+                // A voice is turned off during the attack section of the volume
+                // envelope.  The attack section ramps up linearly with
+                // amplitude. The other sections use logarithmic scaling. Calculate new
+                // volenv_val to achieve equivalent amplitude during the release phase
+                // for seamless volume transition.
                 if self.volenv_val > 0.0 {
                     let lfo: f32 = self.modlfo_val * -self.modlfo_to_vol;
                     let amp: f32 = self.volenv_val * f32::powf(10.0, lfo / -200.0);
@@ -576,7 +571,7 @@ impl Voice {
         for i in 0..self.mod_count {
             let mod_0 = &self.mod_0[i];
 
-            /* Modulator has attenuation as target and can change over time? */
+            // Modulator has attenuation as target and can change over time?
             if mod_0.dest == GeneratorType::Attenuation && (mod_0.src.is_cc() || mod_0.src2.is_cc())
             {
                 let current_val: f32 = mod_0.get_value(channel, self);
@@ -587,17 +582,16 @@ impl Voice {
                     || mod_0.src2.is_bipolar()
                     || mod_0.amount < 0.0
                 {
-                    /* Can this modulator produce a negative contribution? */
+                    // Can this modulator produce a negative contribution?
                     v *= -1.0;
                 } else {
                     v = 0.0;
                 }
 
-                /* For example:
-                 * - current_val=100
-                 * - min_val=-4000
-                 * - possible_att_reduction_cB += 4100
-                 */
+                // For example:
+                // - current_val=100
+                // - min_val=-4000
+                // - possible_att_reduction_cB += 4100
                 if current_val > v {
                     possible_att_reduction_c_b += current_val - v
                 }
@@ -606,7 +600,7 @@ impl Voice {
 
         let mut lower_bound = self.attenuation - possible_att_reduction_c_b;
 
-        /* SF2.01 specs do not allow negative attenuation */
+        // SF2.01 specs do not allow negative attenuation
         if lower_bound < 0.0 {
             lower_bound = 0.0;
         }
@@ -681,39 +675,42 @@ impl Voice {
     /// Make sure, that sample start / end point and loop points are in
     /// proper order. When starting up, calculate the initial phase.
     pub fn check_sample_sanity(&mut self) {
-        let min_index_nonloop = self.sample.start() as i32;
-        let max_index_nonloop = self.sample.end() as i32;
+        let min_index_nonloop = self.sample.start();
+        let max_index_nonloop = self.sample.end();
 
-        /* make sure we have enough samples surrounding the loop */
-        let min_index_loop = self.sample.start() as i32;
-        /* 'end' is last valid sample, loopend can be + 1 */
-        let max_index_loop = self.sample.end() as i32 + 1;
+        // make sure we have enough samples surrounding the loop
+        let min_index_loop = self.sample.start();
+        // 'end' is last valid sample, loopend can be + 1
+        let max_index_loop = self.sample.end() + 1;
 
         if self.check_sample_sanity_flag.is_empty() {
             return;
         }
 
-        /* Keep the start point within the sample data */
+        // Keep the start point within the sample data
         if self.start < min_index_nonloop {
             self.start = min_index_nonloop
         } else if self.start > max_index_nonloop {
             self.start = max_index_nonloop
         }
-        /* Keep the end point within the sample data */
+
+        // Keep the end point within the sample data
         if self.end < min_index_nonloop {
             self.end = min_index_nonloop
         } else if self.end > max_index_nonloop {
             self.end = max_index_nonloop
         }
 
-        /* Keep start and end point in the right order */
+        // Keep start and end point in the right order
         if self.start > self.end {
-            let temp: i32 = self.start;
-            self.start = self.end;
-            self.end = temp
+            let start = self.start;
+            let end = self.end;
+
+            self.start = end;
+            self.end = start;
         }
 
-        /* Zero length? */
+        // Zero length?
         if self.start == self.end {
             self.off();
             return;
@@ -722,52 +719,53 @@ impl Voice {
         if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
             || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
         {
-            /* Keep the loop start point within the sample data */
+            // Keep the loop start point within the sample data
             if self.loopstart < min_index_loop {
                 self.loopstart = min_index_loop
             } else if self.loopstart > max_index_loop {
                 self.loopstart = max_index_loop
             }
 
-            /* Keep the loop end point within the sample data */
+            // Keep the loop end point within the sample data
             if self.loopend < min_index_loop {
                 self.loopend = min_index_loop
             } else if self.loopend > max_index_loop {
                 self.loopend = max_index_loop
             }
 
-            /* Keep loop start and end point in the right order */
+            // Keep loop start and end point in the right order
             if self.loopstart > self.loopend {
-                let temp_0: i32 = self.loopstart;
-                self.loopstart = self.loopend;
-                self.loopend = temp_0
+                let start = self.loopstart;
+                let end = self.loopend;
+
+                self.loopstart = end;
+                self.loopend = start;
             }
 
-            /* Loop too short? Then don't loop. */
+            // Loop too short? Then don't loop.
             if self.loopend < self.loopstart + 2 {
                 self.gen[GeneratorType::SampleMode].val = LoopMode::UnLooped as i32 as f64
             }
 
-            /* The loop points may have changed. Obtain a new estimate for the loop volume. */
-            /* Is the voice loop within the sample loop? */
-            if self.loopstart >= self.sample.loop_start() as i32
-                && self.loopend <= self.sample.loop_end() as i32
+            // The loop points may have changed. Obtain a new estimate for the loop volume.
+            // Is the voice loop within the sample loop?
+            if self.loopstart >= self.sample.loop_start() && self.loopend <= self.sample.loop_end()
             {
-                /* Is there a valid peak amplitude available for the loop? */
+                // Is there a valid peak amplitude available for the loop?
                 if let Some(amplitude_that_reaches_noise_floor) =
                     self.sample.amplitude_that_reaches_noise_floor()
                 {
                     self.amplitude_that_reaches_noise_floor_loop =
                         (amplitude_that_reaches_noise_floor / self.synth_gain as f64) as f32
                 } else {
-                    /* Worst case */
+                    // Worst case
                     self.amplitude_that_reaches_noise_floor_loop =
                         self.amplitude_that_reaches_noise_floor_nonloop
                 }
             }
         }
 
-        /* Run startup specific code (only once, when the voice is started) */
+        // Run startup specific code (only once, when the voice is started)
         if self
             .check_sample_sanity_flag
             .contains(SampleSanity::STARTUP)
@@ -781,36 +779,35 @@ impl Voice {
                 }
             }
 
-            /* Set the initial phase of the voice (using the result from the
-            start offset modulators). */
+            // Set the initial phase of the voice (using the result from the
+            // start offset modulators).
             self.phase = (self.start as u64) << 32i32
         }
 
-        /* Is this voice run in loop mode, or does it run straight to the
-        end of the waveform data? */
+        // Is this voice run in loop mode, or does it run straight to the
+        // end of the waveform data?
         if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
             && self.volenv_section < EnvelopeStep::Release
             || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
         {
-            /* Yes, it will loop as soon as it reaches the loop point.  In
-             * this case we must prevent, that the playback pointer (phase)
-             * happens to end up beyond the 2nd loop point, because the
-             * point has moved.  The DSP algorithm is unable to cope with
-             * that situation.  So if the phase is beyond the 2nd loop
-             * point, set it to the start of the loop. No way to avoid some
-             * noise here.  Note: If the sample pointer ends up -before the
-             * first loop point- instead, then the DSP loop will just play
-             * the sample, enter the loop and proceed as expected => no
-             * actions required.
-             */
+            // Yes, it will loop as soon as it reaches the loop point.  In
+            // this case we must prevent, that the playback pointer (phase)
+            // happens to end up beyond the 2nd loop point, because the
+            // point has moved.  The DSP algorithm is unable to cope with
+            // that situation.  So if the phase is beyond the 2nd loop
+            // point, set it to the start of the loop. No way to avoid some
+            // noise here.  Note: If the sample pointer ends up -before the
+            // first loop point- instead, then the DSP loop will just play
+            // the sample, enter the loop and proceed as expected => no
+            // actions required.
             let index_in_sample: i32 = (self.phase >> 32i32) as u32 as i32;
-            if index_in_sample >= self.loopend {
+            if index_in_sample >= self.loopend as i32 {
                 self.phase = (self.loopstart as u64) << 32i32
             }
         }
 
-        /* Sample sanity has been assured. Don't check again, until some
-        sample parameter is changed by modulation. */
+        // Sample sanity has been assured. Don't check again, until some
+        // sample parameter is changed by modulation.
         self.check_sample_sanity_flag = SampleSanity::empty();
     }
 
@@ -825,7 +822,7 @@ impl Voice {
     }
 
     pub fn set_gain(&mut self, mut gain: f32) {
-        /* avoid division by zero*/
+        // avoid division by zero
         if gain < 0.0000001 {
             gain = 0.0000001;
         }
@@ -848,21 +845,21 @@ impl Voice {
     ) {
         let mut dsp_buf: [f32; 64] = [0.; 64];
 
-        /* make sure we're playing and that we have sample data */
+        // make sure we're playing and that we have sample data
         if !self.is_playing() {
             return;
         }
 
-        /******************* sample **********************/
+        // sample
         if self.noteoff_ticks != 0 && self.ticks >= self.noteoff_ticks {
             self.noteoff(channel, min_note_length_ticks);
         }
 
-        /* Range checking for sample- and loop-related parameters
-         * Initial phase is calculated here*/
+        // Range checking for sample- and loop-related parameters
+        // Initial phase is calculated here
         self.check_sample_sanity();
 
-        /* skip to the next section of the envelope if necessary */
+        // skip to the next section of the envelope if necessary
         let mut env_data = &self.volenv_data[self.volenv_section];
         while self.volenv_count >= env_data.count {
             // If we're switching envelope stages from decay to sustain, force the value to be the end value of the previous stage
@@ -875,7 +872,7 @@ impl Voice {
             self.volenv_count = 0;
         }
 
-        /* calculate the envelope value and check for valid range */
+        // calculate the envelope value and check for valid range
         let mut x = env_data.coeff * self.volenv_val + env_data.incr;
         if x < env_data.min {
             x = env_data.min;
@@ -895,18 +892,18 @@ impl Voice {
             return;
         }
 
-        /******************* mod env **********************/
+        // mod env
 
         let mut env_data = &self.modenv_data[self.modenv_section];
 
-        /* skip to the next section of the envelope if necessary */
+        // skip to the next section of the envelope if necessary
         while self.modenv_count >= env_data.count {
             self.modenv_section.next();
             env_data = &self.modenv_data[self.modenv_section];
             self.modenv_count = 0;
         }
 
-        /* calculate the envelope value and check for valid range */
+        // calculate the envelope value and check for valid range
         let mut x = env_data.coeff * self.modenv_val + env_data.incr;
 
         if x < env_data.min {
@@ -922,7 +919,7 @@ impl Voice {
         self.modenv_val = x;
         self.modenv_count = self.modenv_count.wrapping_add(1);
 
-        /******************* mod lfo **********************/
+        // mod lfo
 
         if self.ticks >= self.modlfo_delay {
             self.modlfo_val += self.modlfo_incr;
@@ -935,7 +932,7 @@ impl Voice {
             }
         }
 
-        /******************* vib lfo **********************/
+        // vib lfo
         if self.ticks >= self.viblfo_delay {
             self.viblfo_val += self.viblfo_incr;
             if self.viblfo_val > 1.0 {
@@ -947,18 +944,16 @@ impl Voice {
             }
         }
 
-        /******************* amplitude **********************/
+        // amplitude
 
-        /* calculate final amplitude
-         * - initial gain
-         * - amplitude envelope
-         */
+        // calculate final amplitude
+        // - initial gain
+        // - amplitude envelope
 
         let target_amplitude = if self.volenv_section != EnvelopeStep::Delay {
             if self.volenv_section == EnvelopeStep::Attack {
-                /* the envelope is in the attack section: ramp linearly to max value.
-                 * A positive modlfo_to_vol should increase volume (negative attenuation).
-                 */
+                // the envelope is in the attack section: ramp linearly to max value.
+                // A positive modlfo_to_vol should increase volume (negative attenuation).
                 let target_amp = atten2amp(self.attenuation)
                     * cb2amp(self.modlfo_val * -self.modlfo_to_vol)
                     * self.volenv_val;
@@ -970,34 +965,31 @@ impl Voice {
                         960.0 * (1.0 - self.volenv_val) + self.modlfo_val * -self.modlfo_to_vol,
                     );
 
-                /* We turn off a voice, if the volume has dropped low enough. */
+                // We turn off a voice, if the volume has dropped low enough.
 
-                /* A voice can be turned off, when an estimate for the volume
-                 * (upper bound) falls below that volume, that will drop the
-                 * sample below the noise floor.
-                 */
+                // A voice can be turned off, when an estimate for the volume
+                // (upper bound) falls below that volume, that will drop the
+                // sample below the noise floor.
 
-                /* If the loop amplitude is known, we can use it if the voice loop is within
-                 * the sample loop
-                 */
+                // If the loop amplitude is known, we can use it if the voice loop is within
+                // the sample loop
 
-                /* Is the playing pointer already in the loop? */
+                // Is the playing pointer already in the loop?
                 let amplitude_that_reaches_noise_floor = if self.has_looped {
                     self.amplitude_that_reaches_noise_floor_loop
                 } else {
                     self.amplitude_that_reaches_noise_floor_nonloop
                 };
 
-                /* voice->attenuation_min is a lower boundary for the attenuation
-                 * now and in the future (possibly 0 in the worst case).  Now the
-                 * amplitude of sample and volenv cannot exceed amp_max (since
-                 * volenv_val can only drop):
-                 */
+                // voice->attenuation_min is a lower boundary for the attenuation
+                // now and in the future (possibly 0 in the worst case).  Now the
+                // amplitude of sample and volenv cannot exceed amp_max (since
+                // volenv_val can only drop):
                 let amp_max = atten2amp(self.min_attenuation_c_b) * self.volenv_val;
 
-                /* And if amp_max is already smaller than the known amplitude,
-                 * which will attenuate the sample below the noise floor, then we
-                 * can safely turn off the voice. Duh. */
+                // And if amp_max is already smaller than the known amplitude,
+                // which will attenuate the sample below the noise floor, then we
+                // can safely turn off the voice. Duh.
                 if amp_max < amplitude_that_reaches_noise_floor {
                     self.off();
                     None
@@ -1010,14 +1002,14 @@ impl Voice {
         };
 
         if let Some(target_amp) = target_amplitude {
-            /* Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps */
+            // Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps
             let amp_incr = (target_amp - self.amp) / 64.0;
-            /* no volume and not changing? - No need to process */
+            // no volume and not changing? - No need to process
             if !(self.amp == 0.0 && amp_incr == 0.0) {
-                /* Calculate the number of samples, that the DSP loop advances
-                 * through the original waveform with each step in the output
-                 * buffer. It is the ratio between the frequencies of original
-                 * waveform and output waveform.*/
+                // Calculate the number of samples, that the DSP loop advances
+                // through the original waveform with each step in the output
+                // buffer. It is the ratio between the frequencies of original
+                // waveform and output waveform.
                 let mut phase_incr = ct2hz_real(
                     self.pitch
                         + self.modlfo_val * self.modlfo_to_pitch
@@ -1025,32 +1017,32 @@ impl Voice {
                         + self.modenv_val * self.modenv_to_pitch,
                 ) / self.root_pitch;
 
-                /* if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage) */
+                // if phase_incr is not advancing, set it to the minimum fraction value (prevent stuckage)
                 if phase_incr == 0.0 {
                     phase_incr = 1.0;
                 }
 
-                /*************** resonant filter ******************/
+                // resonant filter
 
-                /* calculate the frequency of the resonant filter in Hz */
+                // calculate the frequency of the resonant filter in Hz
                 let fres = ct2hz(
                     self.fres
                         + self.modlfo_val * self.modlfo_to_fc
                         + self.modenv_val * self.modenv_to_fc,
                 );
 
-                /* FIXME - Still potential for a click during turn on, can we interpolate
-                between 20khz cutoff and 0 Q? */
+                // FIXME - Still potential for a click during turn on, can we interpolate
+                // between 20khz cutoff and 0 Q?
 
-                /* I removed the optimization of turning the filter off when the
-                 * resonance frequence is above the maximum frequency. Instead, the
-                 * filter frequency is set to a maximum of 0.45 times the sampling
-                 * rate. For a 44100 kHz sampling rate, this amounts to 19845
-                 * Hz. The reason is that there were problems with anti-aliasing when the
-                 * synthesizer was run at lower sampling rates. Thanks to Stephan
-                 * Tassart for pointing me to this bug. By turning the filter on and
-                 * clipping the maximum filter frequency at 0.45*srate, the filter
-                 * is used as an anti-aliasing filter. */
+                // I removed the optimization of turning the filter off when the
+                // resonance frequencies is above the maximum frequency. Instead, the
+                // filter frequency is set to a maximum of 0.45 times the sampling
+                // rate. For a 44100 kHz sampling rate, this amounts to 19845
+                // Hz. The reason is that there were problems with anti-aliasing when the
+                // synthesizer was run at lower sampling rates. Thanks to Stephan
+                // Tassart for pointing me to this bug. By turning the filter on and
+                // clipping the maximum filter frequency at 0.45*srate, the filter
+                // is used as an anti-aliasing filter.
                 let fres = if fres > 0.45 * self.output_rate {
                     0.45 * self.output_rate
                 } else if fres < 5.0 {
@@ -1059,22 +1051,22 @@ impl Voice {
                     fres
                 };
 
-                /* if filter enabled and there is a significant frequency change.. */
+                // if filter enabled and there is a significant frequency change..
                 if (fres - self.last_fres).abs() > 0.01 {
-                    /* The filter coefficients have to be recalculated (filter
-                     * parameters have changed). Recalculation for various reasons is
-                     * forced by setting last_fres to -1.  The flag filter_startup
-                     * indicates, that the DSP loop runs for the first time, in this
-                     * case, the filter is set directly, instead of smoothly fading
-                     * between old and new settings.
-                     *
-                     * Those equations from Robert Bristow-Johnson's `Cookbook
-                     * formulae for audio EQ biquad filter coefficients', obtained
-                     * from Harmony-central.com / Computer / Programming. They are
-                     * the result of the bilinear transform on an analogue filter
-                     * prototype. To quote, `BLT frequency warping has been taken
-                     * into account for both significant frequency relocation and for
-                     * bandwidth readjustment'. */
+                    // The filter coefficients have to be recalculated (filter
+                    // parameters have changed). Recalculation for various reasons is
+                    // forced by setting last_fres to -1.  The flag filter_startup
+                    // indicates, that the DSP loop runs for the first time, in this
+                    // case, the filter is set directly, instead of smoothly fading
+                    // between old and new settings.
+                    //
+                    // Those equations from Robert Bristow-Johnson's `Cookbook
+                    // formulae for audio EQ biquad filter coefficients', obtained
+                    // from Harmony-central.com / Computer / Programming. They are
+                    // the result of the bilinear transform on an analogue filter
+                    // prototype. To quote, `BLT frequency warping has been taken
+                    // into account for both significant frequency relocation and for
+                    // bandwidth readjustment'.
 
                     let omega = 2.0 * std::f32::consts::PI * (fres / self.output_rate);
                     let sin_coeff = omega.sin();
@@ -1082,24 +1074,23 @@ impl Voice {
                     let alpha_coeff = sin_coeff / (2.0 * self.q_lin);
                     let a0_inv = 1.0 / (1.0 + alpha_coeff);
 
-                    /* Calculate the filter coefficients. All coefficients are
-                     * normalized by a0. Think of `a1' as `a1/a0'.
-                     *
-                     * Here a couple of multiplications are saved by reusing common expressions.
-                     * The original equations should be:
-                     *  voice->b0=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
-                     *  voice->b1=(1.-cos_coeff)*a0_inv*voice->filter_gain;
-                     *  voice->b2=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain; */
+                    // Calculate the filter coefficients. All coefficients are
+                    // normalized by a0. Think of `a1' as `a1/a0'.
+                    //
+                    // Here a couple of multiplications are saved by reusing common expressions.
+                    // The original equations should be:
+                    //  voice->b0=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
+                    //  voice->b1=(1.-cos_coeff)*a0_inv*voice->filter_gain;
+                    //  voice->b2=(1.-cos_coeff)*a0_inv*0.5*voice->filter_gain;
                     let a1_temp = -2.0 * cos_coeff * a0_inv;
                     let a2_temp = (1.0 - alpha_coeff) * a0_inv;
                     let b1_temp = (1.0 - cos_coeff) * a0_inv * (self).filter_gain;
-                    /* both b0 -and- b2 */
+                    // both b0 -and- b2
                     let b02_temp = b1_temp * 0.5;
 
                     if self.filter_startup {
-                        /* The filter is calculated, because the voice was started up.
-                         * In this case set the filter coefficients without delay.
-                         */
+                        // The filter is calculated, because the voice was started up.
+                        // In this case set the filter coefficients without delay.
                         self.a1 = a1_temp;
                         self.a2 = a2_temp;
                         self.b02 = b02_temp;
@@ -1107,19 +1098,19 @@ impl Voice {
                         self.filter_coeff_incr_count = 0;
                         self.filter_startup = false;
                     } else {
-                        /* The filter frequency is changed.  Calculate an increment
-                         * factor, so that the new setting is reached after one buffer
-                         * length. x_incr is added to the current value FLUID_BUFSIZE
-                         * times. The length is arbitrarily chosen. Longer than one
-                         * buffer will sacrifice some performance, though.  Note: If
-                         * the filter is still too 'grainy', then increase this number
-                         * at will.
-                         */
+                        // The filter frequency is changed.  Calculate an increment
+                        // factor, so that the new setting is reached after one buffer
+                        // length. x_incr is added to the current value FLUID_BUFSIZE
+                        // times. The length is arbitrarily chosen. Longer than one
+                        // buffer will sacrifice some performance, though.  Note: If
+                        // the filter is still too 'grainy', then increase this number
+                        // at will.
                         self.a1_incr = (a1_temp - self.a1) / 64.0;
                         self.a2_incr = (a2_temp - self.a2) / 64.0;
                         self.b02_incr = (b02_temp - self.b02) / 64.0;
                         self.b1_incr = (b1_temp - self.b1) / 64.0;
-                        /* Have to add the increments filter_coeff_incr_count times. */
+
+                        // Have to add the increments filter_coeff_incr_count times.
                         self.filter_coeff_incr_count = 64;
                     }
                     self.last_fres = fres
@@ -1150,7 +1141,7 @@ impl Voice {
                         chorus_active,
                     );
                 }
-                /* turn off voice if short count (sample ended and not looping) */
+                // turn off voice if short count (sample ended and not looping)
                 if count < 64 {
                     self.off();
                 }
@@ -1397,9 +1388,9 @@ impl Voice {
                         + self.gen[GeneratorType::Attenuation].mod_0
                         + self.gen[GeneratorType::Attenuation].nrpn) as f32;
 
-                /* Range: SF2.01 section 8.1.3 # 48
-                 * Motivation for range checking:
-                 * OHPiano.SF2 sets initial attenuation to a whooping -96 dB */
+                // Range: SF2.01 section 8.1.3 # 48
+                // Motivation for range checking:
+                // OHPiano.SF2 sets initial attenuation to a whooping -96 dB
                 self.attenuation = if self.attenuation < 0.0 {
                     0.0
                 } else if self.attenuation > 1440.0 {
@@ -1408,11 +1399,10 @@ impl Voice {
                     self.attenuation
                 };
             }
-            /* The pitch is calculated from three different generators.
-             * Read comment in fluidlite.h about GEN_PITCH.
-             */
+            // The pitch is calculated from three different generators.
+            // Read comment in fluidlite.h about GEN_PITCH.
             GeneratorType::Pitch | GeneratorType::CoarseTune | GeneratorType::FineTune => {
-                /* The testing for allowed range is done in 'fluid_ct2hz' */
+                // The testing for allowed range is done in 'fluid_ct2hz'
 
                 self.pitch = gen_sum!(GeneratorType::Pitch)
                     + 100.0 * gen_sum!(GeneratorType::CoarseTune)
@@ -1420,7 +1410,7 @@ impl Voice {
             }
 
             GeneratorType::ReverbSend => {
-                /* The generator unit is 'tenths of a percent'. */
+                // The generator unit is 'tenths of a percent'.
                 self.reverb_send = gen_sum!(GeneratorType::ReverbSend) / 1000.0;
 
                 self.reverb_send = if self.reverb_send < 0.0 {
@@ -1434,7 +1424,7 @@ impl Voice {
             }
 
             GeneratorType::ChorusSend => {
-                /* The generator unit is 'tenths of a percent'. */
+                // The generator unit is 'tenths of a percent'.
                 self.chorus_send = gen_sum!(GeneratorType::ChorusSend) / 1000.0;
 
                 self.chorus_send = if self.chorus_send < 0.0 {
@@ -1448,13 +1438,13 @@ impl Voice {
             }
 
             GeneratorType::OverrideRootKey => {
-                /* This is a non-realtime parameter. Therefore the .mod part of the generator
-                 * can be neglected.
-                 * NOTE: origpitch sets MIDI root note while pitchadj is a fine tuning amount
-                 * which offsets the original rate.  This means that the fine tuning is
-                 * inverted with respect to the root note (so subtract it, not add).
-                 */
-                //FIXME: use flag instead of -1
+                // This is a non-realtime parameter. Therefore the .mod part of the generator
+                // can be neglected.
+                // NOTE: origpitch sets MIDI root note while pitchadj is a fine tuning amount
+                // which offsets the original rate.  This means that the fine tuning is
+                // inverted with respect to the root note (so subtract it, not add).
+
+                // FIXME: use flag instead of -1
                 if self.gen[GeneratorType::OverrideRootKey].val > -1.0 {
                     self.root_pitch = (self.gen[GeneratorType::OverrideRootKey].val * 100.0
                         - self.sample.pitchadj() as f64)
@@ -1469,22 +1459,22 @@ impl Voice {
             }
 
             GeneratorType::FilterFc => {
-                /* The resonance frequency is converted from absolute cents to
-                 * midicents .val and .mod are both used, this permits real-time
-                 * modulation.  The allowed range is tested in the 'fluid_ct2hz'
-                 * function [PH,20021214]
-                 */
+                // The resonance frequency is converted from absolute cents to
+                // midicents .val and .mod are both used, this permits real-time
+                // modulation.  The allowed range is tested in the 'fluid_ct2hz'
+                // function [PH,20021214]
+
                 self.fres = gen_sum!(GeneratorType::FilterFc);
-                /* The synthesis loop will have to recalculate the filter
-                 * coefficients. */
+                // The synthesis loop will have to recalculate the filter
+                // coefficients.
                 self.last_fres = -1.0;
             }
 
             GeneratorType::FilterQ => {
-                /* The generator contains 'centibels' (1/10 dB) => divide by 10 to
-                 * obtain dB */
+                // The generator contains 'centibels' (1/10 dB) => divide by 10 to
+                // obtain dB
                 let q_db = gen_sum!(GeneratorType::FilterQ) / 10.0;
-                /* Range: SF2.01 section 8.1.3 # 8 (convert from cB to dB => /10) */
+                // Range: SF2.01 section 8.1.3 # 8 (convert from cB to dB => /10)
                 let mut q_db = if q_db < 0.0 {
                     0.0
                 } else if q_db > 96.0 {
@@ -1492,40 +1482,40 @@ impl Voice {
                 } else {
                     q_db
                 };
-                /* Short version: Modify the Q definition in a way, that a Q of 0
-                 * dB leads to no resonance hump in the freq. response.
-                 *
-                 * Long version: From SF2.01, page 39, item 9 (initialFilterQ):
-                 * "The gain at the cutoff frequency may be less than zero when
-                 * zero is specified".  Assume q_dB=0 / q_lin=1: If we would leave
-                 * q as it is, then this results in a 3 dB hump slightly below
-                 * fc. At fc, the gain is exactly the DC gain (0 dB).  What is
-                 * (probably) meant here is that the filter does not show a
-                 * resonance hump for q_dB=0. In this case, the corresponding
-                 * q_lin is 1/sqrt(2)=0.707.  The filter should have 3 dB of
-                 * attenuation at fc now.  In this case Q_dB is the height of the
-                 * resonance peak not over the DC gain, but over the frequency
-                 * response of a non-resonant filter.  This idea is implemented as
-                 * follows: */
+
+                // Short version: Modify the Q definition in a way, that a Q of 0
+                // dB leads to no resonance hump in the freq. response.
+                //
+                // Long version: From SF2.01, page 39, item 9 (initialFilterQ):
+                // "The gain at the cutoff frequency may be less than zero when
+                // zero is specified".  Assume q_dB=0 / q_lin=1: If we would leave
+                // q as it is, then this results in a 3 dB hump slightly below
+                // fc. At fc, the gain is exactly the DC gain (0 dB).  What is
+                // (probably) meant here is that the filter does not show a
+                // resonance hump for q_dB=0. In this case, the corresponding
+                // q_lin is 1/sqrt(2)=0.707.  The filter should have 3 dB of
+                // attenuation at fc now.  In this case Q_dB is the height of the
+                // resonance peak not over the DC gain, but over the frequency
+                // response of a non-resonant filter.  This idea is implemented as
+                // follows:
                 q_db -= 3.01;
 
-                /* The 'sound font' Q is defined in dB. The filter needs a linear
-                q. Convert. */
+                // The 'sound font' Q is defined in dB. The filter needs a linear
+                // q. Convert.
                 self.q_lin = f32::powf(10.0, q_db / 20.0);
-                /* SF 2.01 page 59:
-                 *
-                 *  The SoundFont specs ask for a gain reduction equal to half the
-                 *  height of the resonance peak (Q).  For example, for a 10 dB
-                 *  resonance peak, the gain is reduced by 5 dB.  This is done by
-                 *  multiplying the total gain with sqrt(1/Q).  `Sqrt' divides dB
-                 *  by 2 (100 lin = 40 dB, 10 lin = 20 dB, 3.16 lin = 10 dB etc)
-                 *  The gain is later factored into the 'b' coefficients
-                 *  (numerator of the filter equation).  This gain factor depends
-                 *  only on Q, so this is the right place to calculate it.
-                 */
+                // SF 2.01 page 59:
+                //
+                //  The SoundFont specs ask for a gain reduction equal to half the
+                //  height of the resonance peak (Q).  For example, for a 10 dB
+                //  resonance peak, the gain is reduced by 5 dB.  This is done by
+                //  multiplying the total gain with sqrt(1/Q).  `Sqrt' divides dB
+                //  by 2 (100 lin = 40 dB, 10 lin = 20 dB, 3.16 lin = 10 dB etc)
+                //  The gain is later factored into the 'b' coefficients
+                //  (numerator of the filter equation).  This gain factor depends
+                //  only on Q, so this is the right place to calculate it.
                 self.filter_gain = 1.0 / f32::sqrt(self.q_lin);
 
-                /* The synthesis loop will have to recalculate the filter coefficients. */
+                // The synthesis loop will have to recalculate the filter coefficients.
                 self.last_fres = -1.0;
             }
 
@@ -1579,9 +1569,8 @@ impl Voice {
             }
 
             GeneratorType::ModLfoFreq => {
-                /* - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
-                 * - the delay into a sample delay
-                 */
+                // - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
+                // - the delay into a sample delay
                 let val = gen_sum!(GeneratorType::ModLfoFreq);
 
                 let val = if val < -16000.0 {
@@ -1595,11 +1584,10 @@ impl Voice {
             }
 
             GeneratorType::VibLfoFreq => {
-                /* vib lfo
-                 *
-                 * - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
-                 * - the delay into a sample delay
-                 */
+                // vib lfo
+                //
+                // - the frequency is converted into a delta value, per buffer of FLUID_BUFSIZE samples
+                // - the delay into a sample delay
                 let freq = gen_sum!(GeneratorType::VibLfoFreq);
 
                 let freq = if freq < -16000.0 {
@@ -1638,14 +1626,13 @@ impl Voice {
             }
 
             GeneratorType::KeyNum => {
-                /* GEN_KEYNUM: SF2.01 page 46, item 46
-                 *
-                 * If this generator is active, it forces the key number to its
-                 * value.  Non-realtime controller.
-                 *
-                 * There is a flag, which should indicate, whether a generator is
-                 * enabled or not.  But here we rely on the default value of -1.
-                 * */
+                // GEN_KEYNUM: SF2.01 page 46, item 46
+                //
+                // If this generator is active, it forces the key number to its
+                // value.  Non-realtime controller.
+                //
+                // There is a flag, which should indicate, whether a generator is
+                // enabled or not.  But here we rely on the default value of -1.
                 let val = gen_sum!(GeneratorType::KeyNum);
 
                 if val >= 0.0 {
@@ -1654,13 +1641,13 @@ impl Voice {
             }
 
             GeneratorType::Velocity => {
-                /* GEN_VELOCITY: SF2.01 page 46, item 47
-                 *
-                 * If this generator is active, it forces the velocity to its
-                 * value. Non-realtime controller.
-                 *
-                 * There is a flag, which should indicate, whether a generator is
-                 * enabled or not. But here we rely on the default value of -1.  */
+                // GEN_VELOCITY: SF2.01 page 46, item 47
+                //
+                // If this generator is active, it forces the velocity to its
+                // value. Non-realtime controller.
+                //
+                // There is a flag, which should indicate, whether a generator is
+                // enabled or not. But here we rely on the default value of -1.
                 let val = gen_sum!(GeneratorType::Velocity);
                 if val > 0.0 {
                     self.vel = val as u8;
@@ -1682,10 +1669,9 @@ impl Voice {
             GeneratorType::ModEnvToFilterFc => {
                 self.modenv_to_fc = gen_sum!(GeneratorType::ModEnvToFilterFc);
 
-                /* Range: SF2.01 section 8.1.3 # 1
-                 * Motivation for range checking:
-                 * Filter is reported to make funny noises now and then
-                 */
+                // Range: SF2.01 section 8.1.3 # 1
+                // Motivation for range checking:
+                // Filter is reported to make funny noises now and then
                 self.modenv_to_fc = if self.modenv_to_fc < -12000.0 {
                     -12000.0
                 } else if self.modenv_to_fc > 12000.0 {
@@ -1695,59 +1681,53 @@ impl Voice {
                 };
             }
 
-            /* sample start and ends points
-             *
-             * Range checking is initiated via the
-             * voice->check_sample_sanity flag,
-             * because it is impossible to check here:
-             * During the voice setup, all modulators are processed, while
-             * the voice is inactive. Therefore, illegal settings may
-             * occur during the setup (for example: First move the loop
-             * end point ahead of the loop start point => invalid, then
-             * move the loop start point forward => valid again.
-             */
+            // sample start and ends points
+            //
+            // Range checking is initiated via the
+            // voice->check_sample_sanity flag,
+            // because it is impossible to check here:
+            // During the voice setup, all modulators are processed, while
+            // the voice is inactive. Therefore, illegal settings may
+            // occur during the setup (for example: First move the loop
+            // end point ahead of the loop start point => invalid, then
+            // move the loop start point forward => valid again.
             GeneratorType::StartAddrOfs | GeneratorType::StartAddrCoarseOfs => {
-                let mut start = self.sample.start();
-                start += gen_sum!(GeneratorType::StartAddrOfs) as u32;
-                start += 32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32;
+                self.start = self.sample.start();
+                self.start += gen_sum!(GeneratorType::StartAddrOfs) as u32;
+                self.start += 32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32;
 
-                self.start = start as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndAddrOfs | GeneratorType::EndAddrCoarseOfs => {
-                let mut end = self.sample.end();
-                end += gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
-                end += 32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
+                self.end = self.sample.end();
+                self.end += gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
+                self.end += 32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
 
-                self.end = end as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::StartLoopAddrOfs | GeneratorType::StartLoopAddrCoarseOfs => {
-                let mut loopstart = self.sample.loop_start();
-                loopstart += gen_sum!(GeneratorType::StartLoopAddrOfs) as u32;
-                loopstart += 32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32;
+                self.loopstart = self.sample.loop_start();
+                self.loopstart += gen_sum!(GeneratorType::StartLoopAddrOfs) as u32;
+                self.loopstart += 32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32;
 
-                self.loopstart = loopstart as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndLoopAddrOfs | GeneratorType::EndLoopAddrCoarseOfs => {
-                let mut loopend = self.sample.loop_end();
-                loopend += gen_sum!(GeneratorType::EndLoopAddrOfs) as u32;
-                loopend += 32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32;
+                self.loopend = self.sample.loop_end();
+                self.loopend += gen_sum!(GeneratorType::EndLoopAddrOfs) as u32;
+                self.loopend += 32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32;
 
-                self.loopend = loopend as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
-            /* volume envelope
-             *
-             * - delay and hold times are converted to absolute number of samples
-             * - sustain is converted to its absolute value
-             * - attack, decay and release are converted to their increment per sample
-             */
+            // volume envelope
+            //
+            // - delay and hold times are converted to absolute number of samples
+            // - sustain is converted to its absolute value
+            // - attack, decay and release are converted to their increment per sample
             GeneratorType::VolEnvDelay => {
                 let val = gen_sum!(GeneratorType::VolEnvDelay);
 
