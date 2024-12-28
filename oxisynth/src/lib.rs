@@ -6,7 +6,6 @@ pub use oxisynth_reverb as reverb;
 mod core;
 mod error;
 mod midi_event;
-mod range_check;
 pub mod settings;
 mod synth;
 mod tuning;

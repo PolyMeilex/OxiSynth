@@ -1,5 +1,4 @@
-use crate::error::OxiError;
-use crate::range_check::range_check;
+use crate::error::{range_check, OxiError};
 
 pub type U7 = u8;
 pub type U14 = u16;
