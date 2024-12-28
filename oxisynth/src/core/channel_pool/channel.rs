@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::super::soundfont::{Preset, SoundFont};
 
-use crate::arena::TypedIndex;
+use crate::arena::Index;
 use crate::GeneratorType;
 use crate::Tuning;
 
@@ -48,7 +48,7 @@ impl Default for InterpolationMethod {
 pub struct Channel {
     id: usize,
 
-    sfontnum: Option<TypedIndex<SoundFont>>,
+    sfontnum: Option<Index<SoundFont>>,
 
     banknum: u32,
     prognum: u8,
@@ -171,11 +171,11 @@ impl Channel {
         self.id
     }
 
-    pub fn sfontnum(&self) -> Option<TypedIndex<SoundFont>> {
+    pub fn sfontnum(&self) -> Option<Index<SoundFont>> {
         self.sfontnum
     }
 
-    pub fn set_sfontnum(&mut self, sfontnum: Option<TypedIndex<SoundFont>>) {
+    pub fn set_sfontnum(&mut self, sfontnum: Option<Index<SoundFont>>) {
         self.sfontnum = sfontnum;
     }
 
@@ -283,7 +283,7 @@ impl Channel {
         self.nrpn_active = value;
     }
 
-    /// Retreive the value of a generator. This function returns the value
+    /// Retrieve the value of a generator. This function returns the value
     /// set by a previous call 'set_gen()' or by an NRPN message.
     ///
     /// Returns the value of the generator.

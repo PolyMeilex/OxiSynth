@@ -1,4 +1,4 @@
-use super::{SoundFont, TypedIndex};
+use crate::SoundFontId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum OxiError {
@@ -23,11 +23,11 @@ pub enum OxiError {
     #[error("Channel has no preset")]
     ChannelHasNoPreset,
     #[error(
-        "There is no preset with bank number {bank_id} and preset number {preset_id} in SoundFont {sfont_id}"
+        "There is no preset with bank number {bank_id} and preset number {preset_id} in SoundFont {sfont_id:?}"
     )]
     PresetNotFound {
         bank_id: u32,
         preset_id: u8,
-        sfont_id: TypedIndex<SoundFont>,
+        sfont_id: SoundFontId,
     },
 }
