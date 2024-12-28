@@ -21,6 +21,3 @@ pub type SoundFontId = TypedIndex<SoundFont>;
 
 pub use settings::*;
 pub use synth::*;
-
-#[macro_use]
-extern crate lazy_static;

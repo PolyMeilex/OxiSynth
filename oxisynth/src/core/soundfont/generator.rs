@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use super::super::Channel;
 
@@ -14,13 +14,11 @@ macro_rules! u8_to_enum {
             $($(#[$vmeta])* $vname $(= $val)?,)*
         }
 
-        impl std::convert::TryFrom<u8> for $name {
-            type Error = ();
-
-            fn try_from(v: u8) -> Result<Self, Self::Error> {
+        impl $name {
+            pub const fn const_try_from(v: u8) -> Option<Self> {
                 match v {
-                    $(x if x == $name::$vname as u8 => Ok($name::$vname),)*
-                    _ => Err(()),
+                    $(x if x == $name::$vname as u8 => Some($name::$vname),)*
+                    _ => None,
                 }
             }
         }
@@ -163,8 +161,16 @@ u8_to_enum!(
 );
 
 impl GeneratorType {
-    pub fn last() -> u8 {
+    pub const fn last() -> u8 {
         60
+    }
+}
+
+impl TryFrom<u8> for GeneratorType {
+    type Error = ();
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        Self::const_try_from(v).ok_or(())
     }
 }
 
@@ -172,13 +178,15 @@ impl TryFrom<soundfont::raw::GeneratorType> for GeneratorType {
     type Error = ();
 
     fn try_from(value: soundfont::raw::GeneratorType) -> Result<Self, Self::Error> {
-        (value as u8).try_into()
+        Self::const_try_from(value as u8).ok_or(())
     }
 }
 
 impl GeneratorType {
     pub fn iter() -> impl Iterator<Item = Self> {
-        (0..Self::last()).map(Self::try_from).map(Result::unwrap)
+        (0..Self::last())
+            .map(Self::const_try_from)
+            .map(Option::unwrap)
     }
 }
 
