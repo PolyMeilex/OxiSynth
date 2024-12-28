@@ -2,19 +2,16 @@ use std::{f64::consts::PI, sync::LazyLock};
 
 use crate::GeneratorType;
 
-use super::{EnvelopeStep, Voice};
-pub const FLUID_LOOP_UNTIL_RELEASE: LoopMode = 3;
-pub const FLUID_LOOP_DURING_RELEASE: LoopMode = 1;
+use super::{SampleMode, Voice};
 const INTERP_MAX: usize = 256;
 const SINC_INTERP_ORDER: usize = 7; /* 7th order constant */
-
-pub type LoopMode = u32;
 
 pub struct DspFloatGlobal {
     interp_coeff_linear: [[f32; 2]; 256],
     interp_coeff: [[f32; 4]; 256],
     sinc_table7: [[f32; 7]; 256],
 }
+
 impl DspFloatGlobal {
     /// Initializes interpolation tables
     fn new() -> Self {
@@ -127,20 +124,14 @@ impl Voice {
         let dsp_data = self.sample.data();
         let mut dsp_amp = self.amp;
 
-        /* Convert playback "speed" floating point value to phase index/fract */
+        // Convert playback "speed" floating point value to phase index/fract
         let dsp_phase_incr = phase_set_float(phase_incr);
 
-        /* voice is currently looping? */
-        let looping = (self.gen[GeneratorType::SampleMode].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < EnvelopeStep::Release) as i32;
+        // voice is currently looping?
+        let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
+            .is_looping(self.volenv_section);
 
-        let end_index = if looping != 0 {
-            self.loopend - 1
-        } else {
-            self.end
-        } as usize;
+        let end_index = if looping { self.loopend - 1 } else { self.end } as usize;
 
         let mut dsp_i: usize = 0;
         loop {
@@ -159,7 +150,7 @@ impl Voice {
                 dsp_i = dsp_i.wrapping_add(1)
             }
             /* break out if not looping (buffer may not be full) */
-            if looping == 0 {
+            if !looping {
                 break;
             }
             /* go back to loop start */
@@ -193,24 +184,22 @@ impl Voice {
         let dsp_data: &[i16] = self.sample.data();
         let mut dsp_amp: f32 = self.amp;
 
-        /* Convert playback "speed" floating point value to phase index/fract */
+        // Convert playback "speed" floating point value to phase index/fract
         let dsp_phase_incr = phase_set_float(phase_incr);
 
-        /* voice is currently looping? */
-        let looping = (self.gen[GeneratorType::SampleMode].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < EnvelopeStep::Release) as i32;
+        // voice is currently looping?
+        let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
+            .is_looping(self.volenv_section);
 
         /* last index before 2nd interpolation point must be specially handled */
-        let mut end_index = if looping != 0 {
+        let mut end_index = if looping {
             self.loopend - 1 - 1
         } else {
             self.end - 1
         } as usize;
 
         /* 2nd interpolation point to use at end of loop or sample */
-        let point = if looping != 0 {
+        let point = if looping {
             /* loop start */
             dsp_data[self.loopstart as usize]
         } else {
@@ -258,8 +247,9 @@ impl Voice {
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
-            /* break out if not looping (end of sample) */
-            if looping == 0 {
+
+            // break out if not looping (end of sample)
+            if !looping {
                 break;
             }
 
@@ -298,17 +288,15 @@ impl Voice {
         let end_point1: i16;
         let end_point2: i16;
 
-        /* Convert playback "speed" floating point value to phase index/fract */
+        // Convert playback "speed" floating point value to phase index/fract
         let dsp_phase_incr = phase_set_float(phase_incr);
 
-        /* voice is currently looping? */
-        let looping = (self.gen[GeneratorType::SampleMode].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < EnvelopeStep::Release) as i32;
+        // voice is currently looping?
+        let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
+            .is_looping(self.volenv_section);
 
-        /* last index before 4th interpolation point must be specially handled */
-        let mut end_index = if looping != 0 {
+        // last index before 4th interpolation point must be specially handled
+        let mut end_index = if looping {
             self.loopend - 1 - 2
         } else {
             self.end - 2
@@ -329,7 +317,7 @@ impl Voice {
         }
 
         /* get points off the end (loop start if looping, duplicate point if end) */
-        if looping != 0 {
+        if looping {
             end_point1 = dsp_data[self.loopstart as usize];
             end_point2 = dsp_data[self.loopstart as usize + 1];
         } else {
@@ -422,8 +410,8 @@ impl Voice {
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* break out if not looping (end of sample) */
-            if looping == 0 {
+            // break out if not looping (end of sample)
+            if !looping {
                 break;
             }
 
@@ -468,18 +456,13 @@ impl Voice {
          * the 4th sample point */
         let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
 
-        /* voice is currently looping? */
-        let looping = (self.gen[GeneratorType::SampleMode].val as i32
-            == FLUID_LOOP_DURING_RELEASE as i32
-            || self.gen[GeneratorType::SampleMode].val as i32 == FLUID_LOOP_UNTIL_RELEASE as i32
-                && self.volenv_section < EnvelopeStep::Release) as i32;
+        // voice is currently looping?
+        let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
+            .is_looping(self.volenv_section);
 
-        /* last index before 7th interpolation point must be specially handled */
-        let mut end_index = ((if looping != 0 {
-            self.loopend - 1
-        } else {
-            self.end
-        }) - 3) as usize;
+        // last index before 7th interpolation point must be specially handled
+        let end_index = if looping { self.loopend - 1 } else { self.end };
+        let mut end_index = (end_index - 3) as usize;
 
         let mut start_index: usize;
         let mut start_points: [i16; 3] = [0; 3];
@@ -500,8 +483,8 @@ impl Voice {
             start_points[2] = start_points[0]
         }
 
-        /* get the 3 points off the end (loop start if looping, duplicate point if end) */
-        if looping != 0 {
+        // get the 3 points off the end (loop start if looping, duplicate point if end)
+        if looping {
             end_points[0] = dsp_data[self.loopstart as usize];
             end_points[1] = dsp_data[(self.loopstart + 1) as usize];
             end_points[2] = dsp_data[(self.loopstart + 2) as usize];
@@ -676,8 +659,8 @@ impl Voice {
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* break out if not looping (end of sample) */
-            if looping == 0 {
+            // break out if not looping (end of sample)
+            if !looping {
                 break;
             }
 

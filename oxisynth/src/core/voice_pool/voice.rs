@@ -53,10 +53,53 @@ pub enum VoiceStatus {
     Off,
 }
 
-pub enum LoopMode {
+/// This enumerator indicates a value which gives a variety of Boolean flags describing
+/// the sample for the current instrument zone. The sampleModes should only appear in
+/// the IGEN sub-chunk, and should not appear in the global zone. The two LS bits of
+/// the value indicate the type of loop in the sample: 0 indicates a sound reproduced with
+/// no loop, 1 indicates a sound which loops continuously, 2 is unused but should be
+/// interpreted as indicating no loop, and 3 indicates a sound which loops for the
+/// duration of key depression then proceeds to play the remainder of the sample.
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum SampleMode {
     UnLooped = 0,
     DuringRelease = 1,
+    // _Unused = 2,
     UntilRelease = 3,
+}
+
+impl SampleMode {
+    pub fn from_val(v: f64) -> Self {
+        if v == Self::UnLooped.as_f64() {
+            Self::UnLooped
+        } else if v == Self::DuringRelease.as_f64() {
+            Self::DuringRelease
+        } else if v == Self::UntilRelease.as_f64() {
+            Self::UntilRelease
+        } else {
+            Self::UnLooped
+        }
+    }
+
+    pub fn as_f64(&self) -> f64 {
+        *self as u32 as f64
+    }
+
+    pub fn is_looping(&self, volenv_section: EnvelopeStep) -> bool {
+        if self.is_during_release() {
+            return true;
+        }
+
+        self.is_until_release() && volenv_section < EnvelopeStep::Release
+    }
+
+    pub fn is_during_release(&self) -> bool {
+        *self == Self::DuringRelease
+    }
+
+    pub fn is_until_release(&self) -> bool {
+        *self == Self::UntilRelease
+    }
 }
 
 pub struct VoiceDescriptor<'a> {
@@ -709,9 +752,8 @@ impl Voice {
             return;
         }
 
-        if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
-            || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
-        {
+        let sample_mode = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val);
+        if sample_mode.is_until_release() || sample_mode.is_during_release() {
             // Keep the loop start point within the sample data
             if self.loopstart < min_index_loop {
                 self.loopstart = min_index_loop
@@ -737,7 +779,7 @@ impl Voice {
 
             // Loop too short? Then don't loop.
             if self.loopend < self.loopstart + 2 {
-                self.gen[GeneratorType::SampleMode].val = LoopMode::UnLooped as i32 as f64
+                self.gen[GeneratorType::SampleMode].val = SampleMode::UnLooped.as_f64();
             }
 
             // The loop points may have changed. Obtain a new estimate for the loop volume.
@@ -764,11 +806,12 @@ impl Voice {
             .contains(SampleSanity::STARTUP)
         {
             if max_index_loop - min_index_loop < 2 {
-                if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
-                    || self.gen[GeneratorType::SampleMode].val as i32
-                        == LoopMode::DuringRelease as i32
-                {
-                    self.gen[GeneratorType::SampleMode].val = LoopMode::UnLooped as i32 as f64
+                let sample_mode = &mut self.gen[GeneratorType::SampleMode];
+
+                let mode = SampleMode::from_val(sample_mode.val);
+
+                if mode.is_until_release() || mode.is_during_release() {
+                    sample_mode.val = SampleMode::UnLooped.as_f64();
                 }
             }
 
@@ -779,9 +822,8 @@ impl Voice {
 
         // Is this voice run in loop mode, or does it run straight to the
         // end of the waveform data?
-        if self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::UntilRelease as i32
-            && self.volenv_section < EnvelopeStep::Release
-            || self.gen[GeneratorType::SampleMode].val as i32 == LoopMode::DuringRelease as i32
+        if SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
+            .is_looping(self.volenv_section)
         {
             // Yes, it will loop as soon as it reaches the loop point.  In
             // this case we must prevent, that the playback pointer (phase)
