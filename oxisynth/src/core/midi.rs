@@ -104,7 +104,7 @@ fn inner_noteon(
                 continue;
             };
 
-            if sample.sample_type.is_rom() {
+            if sample.sample_type().is_rom() {
                 continue;
             }
 

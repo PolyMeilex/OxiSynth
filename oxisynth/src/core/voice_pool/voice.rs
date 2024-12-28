@@ -149,6 +149,7 @@ pub struct Voice {
     modenv_to_pitch: f32,
     modenv_to_fc: f32,
 
+    // TODO: Unsign those?
     pub start: i32,
     pub end: i32,
     pub loopstart: i32,
@@ -680,13 +681,13 @@ impl Voice {
     /// Make sure, that sample start / end point and loop points are in
     /// proper order. When starting up, calculate the initial phase.
     pub fn check_sample_sanity(&mut self) {
-        let min_index_nonloop = self.sample.start as i32;
-        let max_index_nonloop = self.sample.end as i32;
+        let min_index_nonloop = self.sample.start() as i32;
+        let max_index_nonloop = self.sample.end() as i32;
 
         /* make sure we have enough samples surrounding the loop */
-        let min_index_loop = self.sample.start as i32;
+        let min_index_loop = self.sample.start() as i32;
         /* 'end' is last valid sample, loopend can be + 1 */
-        let max_index_loop = self.sample.end as i32 + 1;
+        let max_index_loop = self.sample.end() as i32 + 1;
 
         if self.check_sample_sanity_flag.is_empty() {
             return;
@@ -749,14 +750,15 @@ impl Voice {
 
             /* The loop points may have changed. Obtain a new estimate for the loop volume. */
             /* Is the voice loop within the sample loop? */
-            if self.loopstart >= self.sample.loop_start as i32
-                && self.loopend <= self.sample.loop_end as i32
+            if self.loopstart >= self.sample.loop_start() as i32
+                && self.loopend <= self.sample.loop_end() as i32
             {
                 /* Is there a valid peak amplitude available for the loop? */
-                if self.sample.amplitude_that_reaches_noise_floor_is_valid != 0 {
+                if let Some(amplitude_that_reaches_noise_floor) =
+                    self.sample.amplitude_that_reaches_noise_floor()
+                {
                     self.amplitude_that_reaches_noise_floor_loop =
-                        (self.sample.amplitude_that_reaches_noise_floor / self.synth_gain as f64)
-                            as f32
+                        (amplitude_that_reaches_noise_floor / self.synth_gain as f64) as f32
                 } else {
                     /* Worst case */
                     self.amplitude_that_reaches_noise_floor_loop =
@@ -1455,14 +1457,15 @@ impl Voice {
                 //FIXME: use flag instead of -1
                 if self.gen[GeneratorType::OverrideRootKey].val > -1.0 {
                     self.root_pitch = (self.gen[GeneratorType::OverrideRootKey].val * 100.0
-                        - self.sample.pitchadj as f64) as f32
+                        - self.sample.pitchadj() as f64)
+                        as f32
                 } else {
                     self.root_pitch =
-                        self.sample.origpitch as f32 * 100.0 - self.sample.pitchadj as f32
+                        self.sample.origpitch() as f32 * 100.0 - self.sample.pitchadj() as f32
                 }
                 self.root_pitch = ct2hz(self.root_pitch);
 
-                self.root_pitch *= self.output_rate / self.sample.sample_rate as f32
+                self.root_pitch *= self.output_rate / self.sample.sample_rate() as f32
             }
 
             GeneratorType::FilterFc => {
@@ -1704,42 +1707,38 @@ impl Voice {
              * move the loop start point forward => valid again.
              */
             GeneratorType::StartAddrOfs | GeneratorType::StartAddrCoarseOfs => {
-                self.start = self
-                    .sample
-                    .start
-                    .wrapping_add(gen_sum!(GeneratorType::StartAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32)
-                    as i32;
+                let mut start = self.sample.start();
+                start += gen_sum!(GeneratorType::StartAddrOfs) as u32;
+                start += 32768 * gen_sum!(GeneratorType::StartAddrCoarseOfs) as u32;
+
+                self.start = start as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndAddrOfs | GeneratorType::EndAddrCoarseOfs => {
-                self.end = self
-                    .sample
-                    .end
-                    .wrapping_add(gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32)
-                    as i32;
+                let mut end = self.sample.end();
+                end += gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
+                end += 32768 * gen_sum!(GeneratorType::EndAddrCoarseOfs) as u32;
+
+                self.end = end as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::StartLoopAddrOfs | GeneratorType::StartLoopAddrCoarseOfs => {
-                self.loopstart = self
-                    .sample
-                    .loop_start
-                    .wrapping_add(gen_sum!(GeneratorType::StartLoopAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32)
-                    as i32;
+                let mut loopstart = self.sample.loop_start();
+                loopstart += gen_sum!(GeneratorType::StartLoopAddrOfs) as u32;
+                loopstart += 32768 * gen_sum!(GeneratorType::StartLoopAddrCoarseOfs) as u32;
+
+                self.loopstart = loopstart as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
             GeneratorType::EndLoopAddrOfs | GeneratorType::EndLoopAddrCoarseOfs => {
-                self.loopend = self
-                    .sample
-                    .loop_end
-                    .wrapping_add(gen_sum!(GeneratorType::EndLoopAddrOfs) as u32)
-                    .wrapping_add(32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32)
-                    as i32;
+                let mut loopend = self.sample.loop_end();
+                loopend += gen_sum!(GeneratorType::EndLoopAddrOfs) as u32;
+                loopend += 32768 * gen_sum!(GeneratorType::EndLoopAddrCoarseOfs) as u32;
+
+                self.loopend = loopend as i32;
                 self.check_sample_sanity_flag = SampleSanity::CHECK;
             }
 
