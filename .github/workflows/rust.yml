@@ -15,7 +15,7 @@ jobs:
       - name: Install alsa
         shell: bash
         run: sudo apt install libasound2-dev
-      - run: cargo build
+      - run: cargo build --workspace
 
   build-sf3:
     name: Build
@@ -25,7 +25,7 @@ jobs:
       - name: Install alsa
         shell: bash
         run: sudo apt install libasound2-dev
-      - run: cargo build --features sf3
+      - run: cargo build --workspace --features sf3
 
   build-i16-out:
     name: Build
@@ -35,7 +35,7 @@ jobs:
       - name: Install alsa
         shell: bash
         run: sudo apt install libasound2-dev
-      - run: cargo build --features i16-out
+      - run: cargo build --workspace --features i16-out
 
   test:
     name: Test Suite
@@ -45,7 +45,7 @@ jobs:
       - name: Install alsa
         shell: bash
         run: sudo apt install libasound2-dev
-      - run: cargo test
+      - run: cargo test --workspace
 
   fmt:
     name: Rustfmt
@@ -54,9 +54,12 @@ jobs:
       - uses: actions/checkout@v2
       - run: cargo fmt --all -- --check
 
-  # clippy:
-  #   name: Clippy
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - run: cargo clippy -- -D warnings
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install alsa
+        shell: bash
+        run: sudo apt install libasound2-dev
+      - run: cargo clippy --workspace -- -D warnings
