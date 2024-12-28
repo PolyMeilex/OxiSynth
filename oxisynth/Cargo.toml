@@ -24,7 +24,6 @@ log.workspace = true
 bitflags = "2.4"
 byte-slice-cast = "1.0.0"
 byteorder = "1.4.3"
-lazy_static = "1.4.0"
 generational-arena = "0.2.8"
 
 # i16-out
