@@ -1,6 +1,13 @@
 [package]
 name = "oxisynth-reverb"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+
+authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
+description = "Reverb for soundfont synthesizer"
+keywords = ["audio", "reverb", "soundfont"]
+license = "LGPL-2.1"
+repository = "https://github.com/PolyMeilex/oxisynth"
+documentation = "https://docs.rs/oxisynth-reverb"
 
 [dependencies]

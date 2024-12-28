@@ -1,7 +1,14 @@
 [package]
 name = "oxisynth-chorus"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+
+authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
+description = "Chorus for soundfont synthesizer"
+keywords = ["audio", "chorus", "soundfont"]
+license = "LGPL-2.1"
+repository = "https://github.com/PolyMeilex/oxisynth"
+documentation = "https://docs.rs/oxisynth-chorus"
 
 [dependencies]
 log.workspace = true
