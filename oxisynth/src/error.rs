@@ -1,33 +1,68 @@
 use crate::SoundFontId;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum OxiError {
-    #[error("Key out of range (0-127)")]
     KeyOutOfRange,
-    #[error("Velocity out of range (0-127)")]
     VelocityOutOfRange,
-    #[error("Channel out of range")]
     ChannelOutOfRange,
-    #[error("Ctrl out of range (0-127)")]
     CtrlOutOfRange,
-    #[error("CC Value out of range (0-127)")]
     CCValueOutOfRange,
-    #[error("Program out of range")]
     ProgramOutOfRange,
-    #[error("Key pressure out of range (0-127)")]
     KeyPressureOutOfRange,
-    #[error("Channel pressure out of range (0-127)")]
     ChannelPressureOutOfRange,
-    #[error("PithBend out of range")]
     PithBendOutOfRange,
-    #[error("Channel has no preset")]
     ChannelHasNoPreset,
-    #[error(
-        "There is no preset with bank number {bank_id} and preset number {preset_id} in SoundFont {sfont_id:?}"
-    )]
     PresetNotFound {
         bank_id: u32,
         preset_id: u8,
         sfont_id: SoundFontId,
     },
+}
+
+impl std::error::Error for OxiError {}
+
+impl std::fmt::Display for OxiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            OxiError::KeyOutOfRange => {
+                write!(f, "Key out of range (0-127)")?;
+            }
+            OxiError::VelocityOutOfRange => {
+                write!(f, "Velocity out of range (0-127)")?;
+            }
+            OxiError::ChannelOutOfRange => {
+                write!(f, "Channel out of range")?;
+            }
+            OxiError::CtrlOutOfRange => {
+                write!(f, "Ctrl out of range (0-127)")?;
+            }
+            OxiError::CCValueOutOfRange => {
+                write!(f, "CC Value out of range (0-127)")?;
+            }
+            OxiError::ProgramOutOfRange => {
+                write!(f, "Program out of range")?;
+            }
+            OxiError::KeyPressureOutOfRange => {
+                write!(f, "Key pressure out of range (0-127)")?;
+            }
+            OxiError::ChannelPressureOutOfRange => {
+                write!(f, "Channel pressure out of range (0-127)")?;
+            }
+            OxiError::PithBendOutOfRange => {
+                write!(f, "PithBend out of range")?;
+            }
+            OxiError::ChannelHasNoPreset => {
+                write!(f, "Channel has no preset")?;
+            }
+            OxiError::PresetNotFound {
+                bank_id,
+                preset_id,
+                sfont_id,
+            } => {
+                write!(f,"There is no preset with bank number {bank_id} and preset number {preset_id} in SoundFont {sfont_id:?}")?;
+            }
+        };
+
+        Ok(())
+    }
 }

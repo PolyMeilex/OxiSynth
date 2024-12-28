@@ -28,7 +28,6 @@ getrandom = { version = "0.2", features = ["js"], optional = true }
 rand = { version = "0.8.3", optional = true }
 
 lewton = { version = "0.10.2", optional = true }
-thiserror = "2.0.9"
 
 [dev-dependencies]
 env_logger = "0.11"
