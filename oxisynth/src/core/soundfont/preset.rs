@@ -15,7 +15,7 @@ pub struct Preset {
 }
 
 impl Preset {
-    pub fn import(
+    pub(crate) fn import(
         sf2: &soundfont::SoundFont2,
         preset: &soundfont::Preset,
         samples: &[Sample],

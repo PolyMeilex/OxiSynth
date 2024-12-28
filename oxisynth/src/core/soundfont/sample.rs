@@ -5,7 +5,7 @@ use soundfont::raw::SampleLink;
 use super::SampleData;
 
 #[derive(Clone, Debug)]
-pub struct Sample {
+pub(crate) struct Sample {
     name: Arc<str>,
 
     start: u32,
@@ -46,8 +46,6 @@ impl Sample {
 
         #[cfg(feature = "sf3")]
         {
-            use byte_slice_cast::AsByteSlice;
-
             if sample.sample_type.is_vorbis() {
                 let start = sample.start as usize;
                 let end = sample.end as usize;

@@ -6,9 +6,10 @@ use std::{
 use soundfont::raw::SampleChunk;
 
 #[derive(Debug, Clone)]
-pub struct SampleData(Arc<[i16]>);
+pub(crate) struct SampleData(Arc<[i16]>);
 
 impl SampleData {
+    #[cfg_attr(not(feature = "sf3"), allow(dead_code))]
     pub fn new(data: Arc<[i16]>) -> Self {
         Self(data)
     }
@@ -31,6 +32,13 @@ impl SampleData {
         }
 
         Ok(Self(data.into()))
+    }
+
+    #[cfg_attr(not(feature = "sf3"), allow(dead_code))]
+    pub fn as_byte_slice(&self) -> &[u8] {
+        let slice: &[i16] = &self.0;
+        let len = std::mem::size_of_val(slice);
+        unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const u8, len) }
     }
 }
 
