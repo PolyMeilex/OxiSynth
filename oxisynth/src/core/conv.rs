@@ -1,56 +1,64 @@
-lazy_static! {
-    static ref CT2HZ_TAB: [f32; 1200] = {
-        let mut init = [0.0; 1200];
-        for i in 0..1200 {
-            init[i] = f64::powf(2.0f64, i as f64 / 1200.0) as f32;
-        }
-        init
-    };
-    static ref CB2AMP_TAB: [f32; 961] = {
-        let mut init = [0.0; 961];
-        for i in 0..961 {
-            init[i] = f64::powf(10.0f64, i as f64 / -200.0) as f32;
-        }
-        init
-    };
-    static ref ATTEN2AMP_TAB: [f32; 1441] = {
-        let mut init = [0.0; 1441];
-        for i in 0..1441 {
-            init[i] = f64::powf(10.0f64, i as f64 / -200.0) as f32;
-        }
-        init
-    };
-    static ref CONCAVE_TAB: [f32; 128] = {
-        let mut init = [0.0; 128];
-        init[0] = 0.0;
-        init[127] = 1.0;
-        let mut x: f64;
-        for i in 1..127 {
-            x = -20.0f64 / 96.0 * f64::ln((i * i) as f64 / (127.0 * 127.0)) / f64::ln(10.0);
-            init[127 - i] = x as f32;
-        }
-        init
-    };
-    static ref CONVEX_TAB: [f32; 128] = {
-        let mut init = [0.0; 128];
-        init[0] = 0.0;
-        init[127] = 1.0;
-        let mut x: f64;
-        for i in 1..127 {
-            x = -20.0 / 96.0 * f64::ln((i * i) as f64 / (127.0 * 127.0)) / f64::ln(10.0);
-            init[i] = (1.0 - x) as f32;
-        }
-        init
-    };
-    static ref PAN_TAB: [f32; 1002] = {
-        let mut init = [0.0; 1002];
-        let x = std::f64::consts::PI / 2.0 / (1002.0 - 1.0);
-        for i in 0..1002 {
-            init[i] = f64::sin(i as f64 * x) as f32;
-        }
-        init
-    };
-}
+use std::sync::LazyLock;
+
+static CT2HZ_TAB: LazyLock<[f32; 1200]> = LazyLock::new(|| {
+    std::array::from_fn(|i| {
+        let i = i as f64;
+
+        f64::powf(2.0, i / 1200.0) as f32
+    })
+});
+
+static CB2AMP_TAB: LazyLock<[f32; 961]> = LazyLock::new(|| {
+    std::array::from_fn(|i| {
+        let i = i as f64;
+
+        f64::powf(10.0, i / -200.0) as f32
+    })
+});
+
+static ATTEN2AMP_TAB: LazyLock<[f32; 1441]> = LazyLock::new(|| {
+    std::array::from_fn(|i| {
+        let i = i as f64;
+
+        f64::powf(10.0, i / -200.0) as f32
+    })
+});
+
+static CONCAVE_TAB: LazyLock<[f32; 128]> = LazyLock::new(|| {
+    let mut init = [0.0; 128];
+    init[0] = 0.0;
+    init[127] = 1.0;
+    let mut x: f64;
+    for i in 1..127 {
+        x = -20.0f64 / 96.0 * f64::ln((i * i) as f64 / (127.0 * 127.0)) / f64::ln(10.0);
+        init[127 - i] = x as f32;
+    }
+    init
+});
+
+static CONVEX_TAB: LazyLock<[f32; 128]> = LazyLock::new(|| {
+    let mut init = [0.0; 128];
+    init[0] = 0.0;
+    init[127] = 1.0;
+
+    #[allow(clippy::needless_range_loop)]
+    for i in 1..127 {
+        let x = -20.0 / 96.0 * f64::ln((i * i) as f64 / (127.0 * 127.0)) / f64::ln(10.0);
+        init[i] = (1.0 - x) as f32;
+    }
+
+    init
+});
+
+static PAN_TAB: LazyLock<[f32; 1002]> = LazyLock::new(|| {
+    const X: f64 = std::f64::consts::PI / 2.0 / (1002.0 - 1.0);
+
+    std::array::from_fn(|i| {
+        let i = i as f64;
+
+        f64::sin(i * X) as f32
+    })
+});
 
 pub fn ct2hz_real(cents: f32) -> f32 {
     if cents < 0.0 {
@@ -84,13 +92,8 @@ pub fn ct2hz_real(cents: f32) -> f32 {
     }
 }
 
-pub fn ct2hz(mut cents: f32) -> f32 {
-    if cents >= 13500.0 {
-        cents = 13500.0;
-    } else if cents < 1500.0 {
-        cents = 1500.0;
-    }
-    ct2hz_real(cents)
+pub fn ct2hz(cents: f32) -> f32 {
+    ct2hz_real(cents.clamp(1500.0, 13500.0))
 }
 
 pub fn cb2amp(cb: f32) -> f32 {
@@ -113,31 +116,21 @@ pub fn atten2amp(atten: f32) -> f32 {
     }
 }
 
-pub fn tc2sec_delay(mut tc: f32) -> f32 {
+pub fn tc2sec_delay(tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
-        if tc < -12000.0 {
-            tc = -12000.0;
-        }
-        if tc > 5000.0 {
-            tc = 5000.0;
-        }
-        f64::powf(2.0, tc as f64 / 1200.0) as f32
+        let tc = tc.clamp(-12000.0, 5000.0) as f64;
+        f64::powf(2.0, tc / 1200.0) as f32
     }
 }
 
-pub fn tc2sec_attack(mut tc: f32) -> f32 {
+pub fn tc2sec_attack(tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
-        if tc < -12000.0 {
-            tc = -12000.0;
-        }
-        if tc > 8000.0 {
-            tc = 8000.0;
-        }
-        f64::powf(2.0, tc as f64 / 1200.0) as f32
+        let tc = tc.clamp(-12000.0, 8000.0) as f64;
+        f64::powf(2.0, tc / 1200.0) as f32
     }
 }
 
@@ -145,17 +138,12 @@ pub fn tc2sec(tc: f64) -> f64 {
     f64::powf(2.0, tc / 1200.0)
 }
 
-pub fn tc2sec_release(mut tc: f32) -> f32 {
+pub fn tc2sec_release(tc: f32) -> f32 {
     if tc <= -32768.0 {
         0.0
     } else {
-        if tc < -12000.0 {
-            tc = -12000.0
-        }
-        if tc > 8000.0 {
-            tc = 8000.0
-        }
-        f64::powf(2.0, tc as f64 / 1200.0f64) as f32
+        let tc = tc.clamp(-12000.0, 8000.0) as f64;
+        f64::powf(2.0, tc / 1200.0f64) as f32
     }
 }
 
