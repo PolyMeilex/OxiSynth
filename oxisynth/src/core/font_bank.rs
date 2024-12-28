@@ -1,25 +1,22 @@
 use std::sync::Arc;
 
-use crate::arena::{TypedArena, TypedIndex};
+use crate::arena::{Arena, Index};
 use crate::core::{soundfont::Preset, SoundFont};
 
+#[derive(Default)]
 pub struct FontBank {
-    fonts: TypedArena<SoundFont>,
-    stack: Vec<TypedIndex<SoundFont>>,
+    fonts: Arena<SoundFont>,
+    stack: Vec<Index<SoundFont>>,
 
     pub bank_offsets: BankOffsets,
 }
 
 impl FontBank {
     pub fn new() -> Self {
-        Self {
-            fonts: TypedArena::new(),
-            stack: Vec::new(),
-            bank_offsets: BankOffsets::default(),
-        }
+        Self::default()
     }
 
-    pub fn add_font(&mut self, font: SoundFont) -> TypedIndex<SoundFont> {
+    pub fn add_font(&mut self, font: SoundFont) -> Index<SoundFont> {
         let id = self.fonts.insert(font);
 
         // Put SoundFont on top of the stack
@@ -28,7 +25,7 @@ impl FontBank {
         id
     }
 
-    pub fn remove_font(&mut self, id: TypedIndex<SoundFont>) -> Option<SoundFont> {
+    pub fn remove_font(&mut self, id: Index<SoundFont>) -> Option<SoundFont> {
         let sfont = self.fonts.remove(id);
         self.stack.retain(|i| i == &id);
         sfont
@@ -44,7 +41,7 @@ impl FontBank {
     /**
     Get a SoundFont. The SoundFont is specified by its ID.
      */
-    pub fn get_font(&self, id: TypedIndex<SoundFont>) -> Option<&SoundFont> {
+    pub fn get_font(&self, id: Index<SoundFont>) -> Option<&SoundFont> {
         self.fonts.get(id)
     }
 
@@ -69,7 +66,7 @@ impl FontBank {
 
     pub fn preset(
         &self,
-        sfont_id: TypedIndex<SoundFont>,
+        sfont_id: Index<SoundFont>,
         banknum: u32,
         prognum: u8,
     ) -> Option<Arc<Preset>> {
@@ -90,7 +87,7 @@ impl FontBank {
         &self,
         banknum: u32,
         prognum: u8,
-    ) -> Option<(TypedIndex<SoundFont>, Arc<Preset>)> {
+    ) -> Option<(Index<SoundFont>, Arc<Preset>)> {
         for id in self.stack.iter() {
             let sfont = self.get_font(*id);
             if let Some(sfont) = sfont {
@@ -112,7 +109,7 @@ impl FontBank {
 
 #[derive(Copy, Clone)]
 pub struct BankOffset {
-    pub sfont_id: TypedIndex<SoundFont>,
+    pub sfont_id: Index<SoundFont>,
     pub offset: u32,
 }
 
@@ -123,22 +120,22 @@ impl BankOffsets {
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    pub fn get(&self, sfont_id: TypedIndex<SoundFont>) -> Option<&BankOffset> {
+    pub fn get(&self, sfont_id: Index<SoundFont>) -> Option<&BankOffset> {
         self.0.iter().find(|x| x.sfont_id == sfont_id)
     }
 
     /**
     Get the offset of the bank numbers in a SoundFont.
      */
-    fn get_mut(&mut self, sfont_id: TypedIndex<SoundFont>) -> Option<&mut BankOffset> {
+    fn get_mut(&mut self, sfont_id: Index<SoundFont>) -> Option<&mut BankOffset> {
         self.0.iter_mut().find(|x| x.sfont_id == sfont_id)
     }
 
     /**
     Offset the bank numbers in a SoundFont.
-    Returns -1 if an error occured (out of memory or negative offset)
+    Returns -1 if an error occurred (out of memory or negative offset)
      */
-    pub fn set(&mut self, sfont_id: TypedIndex<SoundFont>, offset: u32) {
+    pub fn set(&mut self, sfont_id: Index<SoundFont>, offset: u32) {
         let bank_offset = self.get_mut(sfont_id);
 
         if let Some(bank_offset) = bank_offset {
@@ -149,7 +146,7 @@ impl BankOffsets {
         }
     }
 
-    pub fn remove(&mut self, sfont_id: TypedIndex<SoundFont>) {
+    pub fn remove(&mut self, sfont_id: Index<SoundFont>) {
         self.0.retain(|x| x.sfont_id != sfont_id);
     }
 }
