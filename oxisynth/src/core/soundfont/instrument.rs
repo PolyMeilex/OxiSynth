@@ -120,7 +120,7 @@ impl InstrumentZone {
             // Find Sample by name:
             let sample = samples
                 .iter()
-                .find(|sample| sample.name.as_ref() == name.as_str())
+                .find(|sample| sample.name() == name.as_str())
                 .cloned();
 
             if sample.is_none() {

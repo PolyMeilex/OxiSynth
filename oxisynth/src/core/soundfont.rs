@@ -49,7 +49,7 @@ impl SoundFont {
         let mut samples = Vec::new();
 
         for sfsample in sf2.sample_headers.iter() {
-            let sample = Sample::import(sfsample, sample_data.clone())?.optimize_sample();
+            let sample = Sample::import(sfsample, sample_data.clone())?;
             samples.push(sample);
         }
 

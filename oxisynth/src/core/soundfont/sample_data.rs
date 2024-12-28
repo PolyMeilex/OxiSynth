@@ -37,6 +37,7 @@ impl SampleData {
 impl std::ops::Deref for SampleData {
     type Target = [i16];
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }

@@ -6,19 +6,25 @@ use super::SampleData;
 
 #[derive(Clone, Debug)]
 pub struct Sample {
-    pub name: Arc<str>,
-    pub start: u32,
-    pub end: u32,
-    pub loop_start: u32,
-    pub loop_end: u32,
-    pub sample_rate: u32,
-    pub origpitch: u8,
-    pub pitchadj: i8,
-    pub sample_type: SampleLink,
-    pub valid: bool,
-    pub data: SampleData,
-    pub amplitude_that_reaches_noise_floor_is_valid: i32,
-    pub amplitude_that_reaches_noise_floor: f64,
+    name: Arc<str>,
+
+    start: u32,
+    end: u32,
+
+    loop_start: u32,
+    loop_end: u32,
+
+    origpitch: u8,
+    pitchadj: i8,
+
+    sample_rate: u32,
+    sample_type: SampleLink,
+    data: SampleData,
+
+    /// The amplitude, that will lower the level of the sample's loop to
+    /// the noise floor. Needed for note turnoff optimization, will be
+    /// filled out automatically
+    amplitude_that_reaches_noise_floor: Option<f64>,
 }
 
 impl Sample {
@@ -33,11 +39,9 @@ impl Sample {
             origpitch: sample.origpitch,
             pitchadj: sample.pitchadj,
             sample_type: sample.sample_type,
-            valid: true,
             data,
 
-            amplitude_that_reaches_noise_floor_is_valid: 0,
-            amplitude_that_reaches_noise_floor: 0.0,
+            amplitude_that_reaches_noise_floor: None,
         };
 
         #[cfg(feature = "sf3")]
@@ -83,7 +87,7 @@ impl Sample {
                     }
                 }
 
-                // Mark it as no longer compresed sample
+                // Mark it as no longer compressed sample
                 sample.sample_type = match sample.sample_type {
                     SampleLink::VorbisMonoSample => SampleLink::MonoSample,
                     SampleLink::VorbisRightSample => SampleLink::RightSample,
@@ -95,35 +99,34 @@ impl Sample {
         }
 
         if sample.end - sample.start < 8 {
-            sample.valid = false;
             log::warn!(
                 "Ignoring sample {:?}: too few sample data points",
                 sample.name
             );
-            Ok(sample)
         } else if sample.sample_type.is_rom() {
-            sample.valid = false;
             log::warn!("Ignoring sample: can't use ROM samples");
-            // TODO: It's not realy "Ok"
-            Ok(sample)
         } else {
-            Ok(sample)
+            // Optimize only valid samples
+            sample.optimize_sample();
         }
+
+        Ok(sample)
     }
 
     /// - Scan the loop
     /// - determine the peak level
     /// - Calculate, what factor will make the loop inaudible
     /// - Store in sample
-    pub fn optimize_sample(mut self) -> Self {
-        if !self.valid || self.sample_type.is_vorbis() {
-            return self;
+    fn optimize_sample(&mut self) {
+        if self.sample_type.is_vorbis() {
+            return;
         }
-        if self.amplitude_that_reaches_noise_floor_is_valid == 0 {
+
+        if self.amplitude_that_reaches_noise_floor.is_none() {
             let mut peak_max = 0;
             let mut peak_min = 0;
 
-            /* Scan the loop */
+            // Scan the loop
             for i in self.loop_start..self.loop_end {
                 let val = self.data[i as usize] as i32;
                 if val > peak_max {
@@ -133,32 +136,83 @@ impl Sample {
                 }
             }
 
-            /* Determine the peak level */
+            // Determine the peak level
             let peak = if peak_max > -peak_min {
                 peak_max
             } else {
                 -peak_min
             };
 
-            /* Avoid division by zero */
+            // Avoid division by zero
             let peak = if peak == 0 { 1 } else { peak };
 
-            /* Calculate what factor will make the loop inaudible
-             * For example: Take a peak of 3277 (10 % of 32768).  The
-             * normalized amplitude is 0.1 (10 % of 32768).  An amplitude
-             * factor of 0.0001 (as opposed to the default 0.00001) will
-             * drop this sample to the noise floor.
-             */
+            // Calculate what factor will make the loop inaudible
+            // For example: Take a peak of 3277 (10 % of 32768).  The
+            // normalized amplitude is 0.1 (10 % of 32768).  An amplitude
+            // factor of 0.0001 (as opposed to the default 0.00001) will
+            // drop this sample to the noise floor.
 
-            /* 16 bits => 96+4=100 dB dynamic range => 0.00001 */
+            // 16 bits => 96+4=100 dB dynamic range => 0.00001
             let normalized_amplitude_during_loop = peak as f32 / 32768.0;
             let result = 0.00003 / normalized_amplitude_during_loop as f64;
 
-            /* Store in sample */
-            self.amplitude_that_reaches_noise_floor = result;
-            self.amplitude_that_reaches_noise_floor_is_valid = 1;
+            // Store in sample
+            self.amplitude_that_reaches_noise_floor = Some(result);
         }
+    }
 
-        self
+    #[inline(always)]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[inline(always)]
+    pub fn start(&self) -> u32 {
+        self.start
+    }
+
+    #[inline(always)]
+    pub fn end(&self) -> u32 {
+        self.end
+    }
+
+    #[inline(always)]
+    pub fn amplitude_that_reaches_noise_floor(&self) -> Option<f64> {
+        self.amplitude_that_reaches_noise_floor
+    }
+
+    #[inline(always)]
+    pub fn loop_start(&self) -> u32 {
+        self.loop_start
+    }
+
+    #[inline(always)]
+    pub fn loop_end(&self) -> u32 {
+        self.loop_end
+    }
+
+    #[inline(always)]
+    pub fn origpitch(&self) -> u8 {
+        self.origpitch
+    }
+
+    #[inline(always)]
+    pub fn pitchadj(&self) -> i8 {
+        self.pitchadj
+    }
+
+    #[inline(always)]
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    #[inline(always)]
+    pub fn sample_type(&self) -> SampleLink {
+        self.sample_type
+    }
+
+    #[inline(always)]
+    pub fn data(&self) -> &[i16] {
+        &self.data
     }
 }
