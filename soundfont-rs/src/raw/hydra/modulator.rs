@@ -3,7 +3,6 @@ use crate::raw::GeneratorType;
 
 use super::super::utils::Reader;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
-use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone, Copy, PartialEq)]

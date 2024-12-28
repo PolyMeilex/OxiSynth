@@ -2,7 +2,7 @@
 name = "soundfont"
 version = "0.1.0"
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 description = "sf2 file parser"
 keywords = ["sf2","soundfont"]

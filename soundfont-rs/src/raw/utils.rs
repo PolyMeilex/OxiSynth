@@ -1,5 +1,4 @@
 use crate::error::Error;
-use std::convert::TryInto;
 
 pub(crate) struct Reader<'a> {
     data: &'a [u8],

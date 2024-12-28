@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 pub struct SynthDescriptor {
     pub reverb_active: bool,
     pub chorus_active: bool,

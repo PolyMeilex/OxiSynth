@@ -2,7 +2,6 @@ use super::super::utils::Reader;
 use crate::error::Error;
 use crate::riff::{Chunk, ChunkId, ScratchReader};
 use crate::SfEnum;
-use std::convert::TryFrom;
 use std::io::{Read, Seek};
 
 #[derive(Debug, Clone)]

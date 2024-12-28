@@ -23,8 +23,6 @@ use self::channel_pool::ChannelPool;
 use self::font_bank::FontBank;
 
 use crate::{Settings, SettingsError, SynthDescriptor};
-use std::convert::TryInto;
-
 #[derive(Clone)]
 struct FxBuf {
     pub reverb: [f32; 64],

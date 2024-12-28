@@ -1,5 +1,3 @@
-use std::convert::TryFrom as _;
-
 use crate::GeneratorType;
 
 use super::generator::GeneratorList;

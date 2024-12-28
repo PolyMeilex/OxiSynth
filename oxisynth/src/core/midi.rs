@@ -1,5 +1,3 @@
-use std::convert::{TryFrom, TryInto};
-
 use crate::core::channel_pool::Channel;
 use crate::core::font_bank::FontBank;
 use crate::core::soundfont::modulator::Mod;
@@ -428,7 +426,7 @@ pub(in super::super) fn cc(
                         );
                     }
                     // TODO: This is fishy, for some reason those are missing from FluidLite, but
-                    // are pressent in Fluidsynth
+                    // are present in Fluidsynth
                     // https://github.com/FluidSynth/fluidsynth/blob/fa5173cbaefed60121db057bad7be7686165f7cc/src/synth/fluid_synth.c#L1857
 
                     // RPN_TUNING_PROGRAM_CHANGE | RPN_TUNING_BANK_SELECT | RPN_MODULATION_DEPTH_RANGE

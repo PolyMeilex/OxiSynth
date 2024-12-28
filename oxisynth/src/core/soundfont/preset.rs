@@ -1,5 +1,3 @@
-use std::convert::TryFrom as _;
-
 use super::generator::{GeneratorList, GeneratorType};
 use super::modulator::Mod;
 use super::{instrument::Instrument, Sample};

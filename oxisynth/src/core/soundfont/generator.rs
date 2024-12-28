@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use super::super::Channel;
 
 macro_rules! u8_to_enum {
