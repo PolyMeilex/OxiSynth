@@ -70,24 +70,24 @@ impl IsSamples for &mut [f64] {
     }
 }
 
-/**
-Synthesizer plugin
- */
 impl Synth {
-    /**
-    Write sound samples to the sample data buffer
-     */
+    /// Write sound samples to the sample data buffer
+    #[inline(always)]
     pub fn write<S: IsSamples>(&mut self, samples: S) {
         samples.write_samples(self)
     }
 
+    #[inline(always)]
     pub fn read_next(&mut self) -> (f32, f32) {
         self.core.read_next()
     }
 
     #[inline(always)]
-    pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, cb: F) {
-        self.core.write(len, incr, cb)
+    pub fn write_cb<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
+        for i in 0..len {
+            let (left, right) = self.core.read_next();
+            cb(i * incr, left, right);
+        }
     }
 
     /// Write samples as 16-bit signed integers
@@ -109,54 +109,48 @@ impl Synth {
         rincr: usize,
         cb: impl FnMut((usize, i16), (usize, i16)),
     ) {
-        self.core.write_i16(len, loff, lincr, roff, rincr, cb);
+        crate::core::write::i16_write::write_i16(&mut self.core, len, loff, lincr, roff, rincr, cb);
     }
 
-    /**
-    Write samples as 32-bit floating-point numbers
-
-    # Safety
-
-    The `len` must corresponds to the lenghtes of buffers.
-     */
+    /// Write samples as 32-bit floating-point numbers
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn write_f32(
         &mut self,
         len: usize,
         left_out: &mut [f32],
-        loff: u32,
-        lincr: u32,
+        loff: usize,
+        lincr: usize,
         right_out: &mut [f32],
-        roff: u32,
-        rincr: u32,
+        roff: usize,
+        rincr: usize,
     ) {
-        self.core.write_f32(
-            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
-        )
+        for i in 0..len {
+            let next = self.core.read_next();
+
+            left_out[loff + i * lincr] = next.0;
+            right_out[roff + i * rincr] = next.1;
+        }
     }
 
-    /**
-    Write samples as 64-bit floating-point numbers
-
-    # Safety
-
-    The `len` must corresponds to the lenghtes of buffers.
-     */
+    /// Write samples as 64-bit floating-point numbers
     #[allow(clippy::too_many_arguments)]
-    #[inline]
+    #[inline(always)]
     pub fn write_f64(
         &mut self,
         len: usize,
         left_out: &mut [f64],
-        loff: u32,
-        lincr: u32,
+        loff: usize,
+        lincr: usize,
         right_out: &mut [f64],
-        roff: u32,
-        rincr: u32,
+        roff: usize,
+        rincr: usize,
     ) {
-        self.core.write_f64(
-            len as _, left_out, loff as _, lincr as _, right_out, roff as _, rincr as _,
-        )
+        for i in 0..len {
+            let next = self.core.read_next();
+
+            left_out[loff + i * lincr] = f64::from(next.0);
+            right_out[roff + i * rincr] = f64::from(next.1);
+        }
     }
 }

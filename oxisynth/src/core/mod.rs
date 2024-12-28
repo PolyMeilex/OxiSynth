@@ -54,7 +54,7 @@ pub struct Synth {
     pub settings: Settings,
 
     #[cfg(feature = "i16-out")]
-    dither_index: usize,
+    i16_output: write::i16_write::I16OutputState,
 }
 
 impl Default for Synth {
@@ -108,7 +108,7 @@ impl Synth {
             settings,
 
             #[cfg(feature = "i16-out")]
-            dither_index: 0,
+            i16_output: write::i16_write::I16OutputState::default(),
         };
 
         if synth.settings.drums_channel_active {

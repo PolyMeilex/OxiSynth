@@ -1,5 +1,8 @@
 use crate::core::Synth;
 
+#[cfg(feature = "i16-out")]
+pub(crate) mod i16_write;
+
 impl Synth {
     /// clean the audio buffers
     fn clear_buffers(&mut self) {
@@ -65,7 +68,7 @@ impl Synth {
             }
         }
 
-        self.ticks = self.ticks.wrapping_add(64);
+        self.ticks += 64;
     }
 
     #[inline]
@@ -79,129 +82,4 @@ impl Synth {
         self.cur += 1;
         out
     }
-
-    #[inline]
-    pub fn write<F: FnMut(usize, f32, f32)>(&mut self, len: usize, incr: usize, mut cb: F) {
-        for i in 0..len {
-            let next = self.read_next();
-
-            cb(i * incr, next.0, next.1);
-        }
-    }
-
-    #[inline]
-    pub fn write_f32(
-        &mut self,
-        len: usize,
-        left_out: &mut [f32],
-        loff: usize,
-        lincr: usize,
-        right_out: &mut [f32],
-        roff: usize,
-        rincr: usize,
-    ) {
-        for i in 0..len {
-            let next = self.read_next();
-
-            left_out[loff + i * lincr] = next.0;
-            right_out[roff + i * rincr] = next.1;
-        }
-    }
-
-    #[inline]
-    pub fn write_f64(
-        &mut self,
-        len: usize,
-        left_out: &mut [f64],
-        loff: usize,
-        lincr: usize,
-        right_out: &mut [f64],
-        roff: usize,
-        rincr: usize,
-    ) {
-        for i in 0..len {
-            let next = self.read_next();
-
-            left_out[loff + i * lincr] = f64::from(next.0);
-            right_out[roff + i * rincr] = f64::from(next.1);
-        }
-    }
-
-    #[cfg(feature = "i16-out")]
-    #[inline]
-    pub fn write_i16(
-        &mut self,
-        len: usize,
-        loff: usize,
-        lincr: usize,
-        roff: usize,
-        rincr: usize,
-        mut cb: impl FnMut((usize, i16), (usize, i16)),
-    ) {
-        let mut di = self.dither_index;
-
-        let mut cur = self.cur;
-        let mut i: usize = 0;
-        let mut j = loff;
-        let mut k = roff;
-
-        while i < len {
-            // fill up the buffers as needed
-            if cur == 64 {
-                self.one_block(false);
-                cur = 0;
-            }
-
-            // Converts stereo floating point sample data to signed 16 bit data with
-            // dithering.
-
-            let mut left_sample = f32::round(self.left_buf[0][cur] * 32766.0 + RAND_TABLE[0][di]);
-            let mut right_sample = f32::round(self.right_buf[0][cur] * 32766.0 + RAND_TABLE[1][di]);
-
-            di += 1;
-            if di >= 48000 {
-                di = 0;
-            }
-
-            // digital clipping
-            left_sample = left_sample.clamp(-32768.0, 32767.0);
-            right_sample = right_sample.clamp(-32768.0, 32767.0);
-
-            cb(
-                (j, left_sample as i16),
-                (k, right_sample as i16),
-                //
-            );
-
-            i += 1;
-            cur += 1;
-            j += lincr;
-            k += rincr
-        }
-
-        self.cur = cur;
-        // keep dither buffer continuous
-        self.dither_index = di;
-    }
 }
-
-#[cfg(feature = "i16-out")]
-use std::sync::LazyLock;
-
-#[cfg(feature = "i16-out")]
-static RAND_TABLE: LazyLock<[[f32; 48000]; 2]> = LazyLock::new(|| {
-    let mut rand: [[f32; 48000]; 2] = [[0.; 48000]; 2];
-
-    for c in 0..2 {
-        let mut dp = 0.0;
-        for i in 0..(48000 - 1) {
-            let r: i32 = rand::random();
-            let d = r as f32 / 2147483647.0 - 0.5;
-            rand[c][i] = d - dp;
-            dp = d;
-        }
-        rand[c][48000 - 1] = 0.0 - dp;
-    }
-
-    rand
-});
