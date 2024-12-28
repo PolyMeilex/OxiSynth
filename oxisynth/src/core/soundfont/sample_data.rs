@@ -23,12 +23,28 @@ impl SampleData {
             return Err(());
         }
 
-        use byteorder::{LittleEndian, ReadBytesExt};
-
         let mut data = vec![0i16; sample_size / 2];
-        if file.read_i16_into::<LittleEndian>(&mut data).is_err() {
-            log::error!("Failed to read sample data");
-            return Err(());
+
+        {
+            // [i16] -> [u8] conversion
+            let byte_slice = {
+                let slice: &mut [i16] = &mut data;
+                let len = std::mem::size_of_val(slice);
+                unsafe { std::slice::from_raw_parts_mut(slice.as_ptr() as *mut u8, len) }
+            };
+
+            if let Err(err) = file.read_exact(byte_slice) {
+                log::error!("Failed to read sample data: {err}");
+                return Err(());
+            }
+        }
+
+        // Sample is in LittleEndian so if we are on BigEndian flip the bits around?
+        // TODO: Not sure if this is working as expected, gotta test this in a VM
+        if cfg!(target_endian = "big") {
+            for n in data.iter_mut() {
+                *n = n.to_le();
+            }
         }
 
         Ok(Self(data.into()))

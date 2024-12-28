@@ -22,7 +22,6 @@ soundfont.workspace = true
 log.workspace = true
 
 bitflags = "2.4"
-byteorder = "1.4.3"
 
 # i16-out
 getrandom = { version = "0.2", features = ["js"], optional = true }
