@@ -1,9 +1,9 @@
-use crate::core::Synth;
+use crate::core::Core;
 
 #[cfg(feature = "i16-out")]
 pub(crate) mod i16_write;
 
-impl Synth {
+impl Core {
     /// clean the audio buffers
     fn clear_buffers(&mut self) {
         self.left_buf.iter_mut().for_each(|buff| buff.fill(0.0));

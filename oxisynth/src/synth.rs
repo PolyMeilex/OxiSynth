@@ -28,7 +28,7 @@ The API for sending MIDI events is probably what you expect:
  */
 #[derive(Default)]
 pub struct Synth {
-    core: crate::core::Synth,
+    core: crate::core::Core,
 }
 
 impl Synth {
@@ -39,7 +39,7 @@ impl Synth {
      */
     pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
         Ok(Synth {
-            core: crate::core::Synth::new(desc)?,
+            core: crate::core::Core::new(desc)?,
         })
     }
 
@@ -52,7 +52,7 @@ impl Synth {
     }
 
     pub fn send_event(&mut self, event: MidiEvent) -> Result<(), OxiError> {
-        self.core.send_event(event)
+        crate::core::midi::handle_event(&mut self.core, event)
     }
 
     pub fn font_bank(&self) -> &FontBank {

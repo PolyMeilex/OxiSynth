@@ -6,7 +6,105 @@ use crate::core::soundfont::{
     InstrumentZone, PresetZone,
 };
 use crate::core::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
-use crate::OxiError;
+use crate::{MidiEvent, OxiError};
+
+use super::Core;
+
+pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), OxiError> {
+    match event.check()? {
+        MidiEvent::NoteOn { channel, key, vel } => {
+            self::noteon(
+                synth.channels.get(channel as usize)?,
+                &mut synth.voices,
+                synth.ticks,
+                synth.min_note_length_ticks,
+                synth.settings.gain,
+                key,
+                vel,
+            )?;
+        }
+        MidiEvent::NoteOff { channel, key } => {
+            synth.voices.noteoff(
+                synth.channels.get(channel as usize)?,
+                synth.min_note_length_ticks,
+                key,
+            );
+        }
+        MidiEvent::ControlChange {
+            channel,
+            ctrl,
+            value,
+        } => {
+            self::cc(
+                synth.channels.get_mut(channel as usize)?,
+                &mut synth.voices,
+                synth.min_note_length_ticks,
+                synth.settings.drums_channel_active,
+                ctrl,
+                value,
+            );
+        }
+        MidiEvent::AllNotesOff { channel } => {
+            synth.voices.all_notes_off(
+                synth.channels.get_mut(channel as usize)?,
+                synth.min_note_length_ticks,
+            );
+        }
+        MidiEvent::AllSoundOff { channel } => {
+            synth.voices.all_sounds_off(channel as usize);
+        }
+        MidiEvent::PitchBend { channel, value } => {
+            let channel = synth.channels.get_mut(channel as usize)?;
+
+            const MOD_PITCHWHEEL: u8 = 14;
+            channel.set_pitch_bend(value);
+            synth.voices.modulate_voices(channel, false, MOD_PITCHWHEEL);
+        }
+        MidiEvent::ProgramChange {
+            channel,
+            program_id,
+        } => {
+            self::program_change(
+                synth.channels.get_mut(channel as usize)?,
+                &synth.font_bank,
+                program_id,
+                synth.settings.drums_channel_active,
+            );
+        }
+        MidiEvent::ChannelPressure { channel, value } => {
+            let channel = synth.channels.get_mut(channel as usize)?;
+
+            const MOD_CHANNELPRESSURE: u8 = 13;
+            channel.set_channel_pressure(value);
+            synth
+                .voices
+                .modulate_voices(channel, false, MOD_CHANNELPRESSURE);
+        }
+        MidiEvent::PolyphonicKeyPressure {
+            channel,
+            key,
+            value,
+        } => {
+            let channel = synth.channels.get_mut(channel as usize)?;
+            channel.set_key_pressure(key as usize, value as i8);
+            synth.voices.key_pressure(channel, key);
+        }
+        MidiEvent::SystemReset => {
+            synth.voices.system_reset();
+
+            let preset = synth.font_bank.find_preset(0, 0).map(|p| p.1);
+            for channel in synth.channels.iter_mut() {
+                channel.init(preset.clone());
+                channel.init_ctrl(0);
+            }
+
+            synth.chorus.reset();
+            synth.reverb.reset();
+        }
+    };
+
+    Ok(())
+}
 
 type MidiControlChange = u32;
 const RPN_MSB: MidiControlChange = 101;
@@ -35,7 +133,7 @@ pub(crate) fn set_gen(
 }
 
 /// Send a noteon message.
-pub(in super::super) fn noteon(
+fn noteon(
     channel: &Channel,
     voices: &mut VoicePool,
     start_time: usize,
@@ -307,7 +405,7 @@ fn inner_noteon(
 }
 
 /// Send a control change message.
-pub(in super::super) fn cc(
+fn cc(
     channel: &mut Channel,
     voices: &mut VoicePool,
     min_note_length_ticks: usize,

@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use crate::core::Synth;
+use crate::core::Core;
 
 static RAND_TABLE: LazyLock<[[f32; 48000]; 2]> = LazyLock::new(|| {
     let mut rand: [[f32; 48000]; 2] = [[0.0; 48000]; 2];
@@ -29,7 +29,7 @@ pub(crate) struct I16OutputState {
 
 #[inline]
 pub fn write_i16(
-    synth: &mut Synth,
+    synth: &mut Core,
     len: usize,
     loff: usize,
     lincr: usize,
