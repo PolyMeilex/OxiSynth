@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::error::OxiError;
 use crate::{Preset, Settings, Synth};
 
 use crate::core::InterpolationMethod;
@@ -13,14 +14,8 @@ impl Synth {
 
     /// Set the master gain
     pub fn set_gain(&mut self, gain: f32) {
-        self.core.settings.gain = if gain < 0.0 {
-            0.0
-        } else if gain > 10.0 {
-            10.0
-        } else {
-            gain
-        };
-
+        let gain = gain.clamp(0.0, 10.0);
+        self.core.settings.gain = gain;
         self.core.voices.set_gain(gain)
     }
 
@@ -30,15 +25,15 @@ impl Synth {
     }
 
     /// Set the polyphony limit
-    pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), ()> {
+    pub fn set_polyphony(&mut self, polyphony: u16) -> Result<(), OxiError> {
         if polyphony < 1 {
-            Err(())
-        } else {
-            self.core.settings.polyphony = polyphony;
-            self.core.voices.set_polyphony_limit(polyphony as usize);
-
-            Ok(())
+            return Err(OxiError::InvalidPolyphony);
         }
+
+        self.core.settings.polyphony = polyphony;
+        self.core.voices.set_polyphony_limit(polyphony as usize);
+
+        Ok(())
     }
 
     /// Get the polyphony limit (FluidSynth >= 1.0.6)

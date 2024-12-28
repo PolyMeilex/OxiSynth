@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use soundfont::raw::SampleLink;
 
+use crate::error::LoadError;
+
 use super::SampleData;
 
 #[derive(Clone, Debug)]
@@ -28,7 +30,10 @@ pub(crate) struct Sample {
 }
 
 impl Sample {
-    pub fn import(sample: &soundfont::raw::SampleHeader, data: SampleData) -> Result<Sample, ()> {
+    pub fn import(
+        sample: &soundfont::raw::SampleHeader,
+        data: SampleData,
+    ) -> Result<Sample, LoadError> {
         let mut sample = Sample {
             name: sample.name.clone().into(),
             start: sample.start,

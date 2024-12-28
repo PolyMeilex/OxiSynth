@@ -13,6 +13,53 @@ pub(crate) fn range_check<E, T: PartialOrd, C: std::ops::RangeBounds<T>>(
 }
 
 #[derive(Debug)]
+pub enum LoadError {
+    Parsing(soundfont::Error),
+    Version {
+        version: soundfont::raw::Version,
+        max: u16,
+    },
+    Io(std::io::Error),
+    SampleNotFound {
+        name: String,
+    },
+}
+
+impl From<soundfont::Error> for LoadError {
+    fn from(err: soundfont::Error) -> Self {
+        Self::Parsing(err)
+    }
+}
+
+impl From<std::io::Error> for LoadError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl std::error::Error for LoadError {}
+impl std::fmt::Display for LoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Parsing(error) => {
+                write!(f, "SoundFont parsing error: {error}")?;
+            }
+            Self::Version { version, max } => {
+                write!(f, "Unsupported version: {version:?}, max supported {max}")?;
+            }
+            Self::Io(error) => {
+                write!(f, "IO error while reading SoundFont: {error}")?;
+            }
+            Self::SampleNotFound { name } => {
+                write!(f, "Sample {name:?} not found")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub enum OxiError {
     KeyOutOfRange,
     VelocityOutOfRange,
@@ -29,6 +76,7 @@ pub enum OxiError {
         preset_id: u8,
         sfont_id: SoundFontId,
     },
+    InvalidPolyphony,
 }
 
 impl std::error::Error for OxiError {}
@@ -72,6 +120,9 @@ impl std::fmt::Display for OxiError {
                 sfont_id,
             } => {
                 write!(f,"There is no preset with bank number {bank_id} and preset number {preset_id} in SoundFont {sfont_id:?}")?;
+            }
+            OxiError::InvalidPolyphony => {
+                write!(f, "Only polyphony >= 1 is allowed")?;
             }
         };
 

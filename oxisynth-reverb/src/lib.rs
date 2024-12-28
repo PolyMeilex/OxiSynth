@@ -361,13 +361,7 @@ impl Reverb {
 
     /// Set the current reverb level
     fn set_level(&mut self, value: f32) {
-        let value = if value < 0.0 {
-            0.0
-        } else if value > 1.0 {
-            1.0
-        } else {
-            value
-        };
+        let value = value.clamp(0.0, 1.0);
         self.wet = value * 3.0;
     }
 

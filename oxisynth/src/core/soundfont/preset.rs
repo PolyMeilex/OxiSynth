@@ -1,3 +1,5 @@
+use crate::error::LoadError;
+
 use super::generator::{GeneratorList, GeneratorType};
 use super::modulator::Mod;
 use super::{instrument::Instrument, Sample};
@@ -17,7 +19,7 @@ impl Preset {
         sf2: &soundfont::SoundFont2,
         preset: &soundfont::Preset,
         samples: &[Sample],
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, LoadError> {
         let name = if !preset.header.name.is_empty() {
             preset.header.name.clone()
         } else {
@@ -86,7 +88,7 @@ impl PresetZone {
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
         samples: &[Sample],
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, LoadError> {
         let mut key_low = 0;
         let mut key_high = 128;
         let mut vel_low = 0;

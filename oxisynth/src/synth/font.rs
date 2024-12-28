@@ -35,21 +35,20 @@ impl Synth {
     }
 
     /// Removes a SoundFont from the stack and deallocates it.
-    pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Result<(), ()> {
+    pub fn remove_font(&mut self, id: SoundFontId, reset_presets: bool) -> Option<SoundFont> {
         let sfont = self.core.font_bank.remove_font(id);
 
-        if sfont.is_some() {
+        if let Some(font) = sfont {
             if reset_presets {
                 self.program_reset();
             } else {
                 self.update_presets();
             }
 
-            Ok(())
+            Some(font)
         } else {
             log::error!("No SoundFont with id = {:?}", id);
-
-            Err(())
+            None
         }
     }
 

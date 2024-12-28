@@ -10,6 +10,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::error::LoadError;
+
 pub(crate) use {
     instrument::InstrumentZone, preset::PresetZone, sample::Sample, sample_data::SampleData,
 };
@@ -21,25 +23,19 @@ pub struct SoundFont {
 }
 
 impl SoundFont {
-    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, ()> {
-        let sf2 = soundfont::SoundFont2::load(file);
-
-        let sf2 = match sf2 {
-            Ok(data) => data,
-            Err(err) => {
-                log::error!("{:#?}", err);
-                return Err(());
-            }
-        };
+    pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, LoadError> {
+        let sf2 = soundfont::SoundFont2::load(file)?;
 
         #[cfg(feature = "sf3")]
-        let ver = 3;
+        let max_ver = 3;
         #[cfg(not(feature = "sf3"))]
-        let ver = 2;
+        let max_ver = 2;
 
-        if sf2.info.version.major > ver {
-            log::error!("Unsupported version: {:?}", sf2.info.version);
-            return Err(());
+        if sf2.info.version.major > max_ver {
+            return Err(LoadError::Version {
+                version: sf2.info.version,
+                max: max_ver,
+            });
         }
 
         let sf2 = sf2.sort_presets();

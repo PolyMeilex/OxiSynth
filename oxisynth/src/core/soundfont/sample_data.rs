@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Seek, SeekFrom},
+    io::{self, Read, Seek, SeekFrom},
     sync::Arc,
 };
 
@@ -14,13 +14,13 @@ impl SampleData {
         Self(data)
     }
 
-    pub fn load<F: Read + Seek>(file: &mut F, smpl: &SampleChunk) -> Result<Self, ()> {
+    pub fn load<F: Read + Seek>(file: &mut F, smpl: &SampleChunk) -> io::Result<Self> {
         let sample_pos = smpl.offset;
         let sample_size = smpl.len as usize;
 
-        if file.seek(SeekFrom::Start(sample_pos)).is_err() {
-            log::error!("Failed to seek position in data file",);
-            return Err(());
+        if let Err(err) = file.seek(SeekFrom::Start(sample_pos)) {
+            log::error!("Failed to seek position in data file: {err}");
+            return Err(err);
         }
 
         let mut data = vec![0i16; sample_size / 2];
@@ -30,7 +30,7 @@ impl SampleData {
 
             if let Err(err) = file.read_exact(byte_slice) {
                 log::error!("Failed to read sample data: {err}");
-                return Err(());
+                return Err(err);
             }
         }
 

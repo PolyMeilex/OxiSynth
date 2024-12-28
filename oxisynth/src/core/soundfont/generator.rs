@@ -748,12 +748,6 @@ fn get_default_values() -> [Generator; 60] {
 
 pub(crate) fn gen_scale_nrpn(gen: i16, data: i32) -> f32 {
     let value = data as f32 - 8192.0;
-    let value = if value < -8192.0 {
-        -8192.0
-    } else if value > 8192.0 {
-        8192.0
-    } else {
-        value
-    };
+    let value = value.clamp(-8192.0, 8192.0);
     value * GEN_INFO[gen as usize].nrpn_scale as f32
 }

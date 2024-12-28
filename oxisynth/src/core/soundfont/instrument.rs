@@ -1,3 +1,4 @@
+use crate::error::LoadError;
 use crate::GeneratorType;
 
 use super::generator::GeneratorList;
@@ -18,7 +19,7 @@ impl Instrument {
         sf2: &soundfont::SoundFont2,
         inst: &soundfont::Instrument,
         samples: &[Sample],
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, LoadError> {
         let name = if !inst.header.name.is_empty() {
             inst.header.name.clone()
         } else {
@@ -73,7 +74,7 @@ impl InstrumentZone {
         sf2: &soundfont::SoundFont2,
         zone: &soundfont::Zone,
         samples: &[Sample],
-    ) -> Result<InstrumentZone, ()> {
+    ) -> Result<InstrumentZone, LoadError> {
         let mut key_low = 0;
         let mut key_high = 128;
         let mut vel_low = 0;
@@ -122,8 +123,8 @@ impl InstrumentZone {
                 .cloned();
 
             if sample.is_none() {
-                log::error!("Couldn't find sample name",);
-                return Err(());
+                log::error!("Couldn't find sample: {name:?}");
+                return Err(LoadError::SampleNotFound { name: name.clone() });
             }
 
             sample

@@ -182,7 +182,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         move |stamp, message, _| {
             if message.len() == 3 {
                 let note = message[1];
-                if note >= 21 && note <= 108 {
+                if (21..=108).contains(&note) {
                     if message[0] == 128 || message[2] == 0 {
                         println!("NoteOff {}", message[1]);
                         synth_conn.note_off(0, message[1]);
