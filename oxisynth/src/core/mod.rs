@@ -1,22 +1,22 @@
 pub(crate) mod midi;
 pub(crate) mod write;
 
-pub(crate) mod channel_pool;
-pub(crate) use channel_pool::Channel;
+mod channel_pool;
+use channel_pool::Channel;
 mod settings;
-pub(crate) mod voice_pool;
+mod voice_pool;
 
 mod conv;
 pub use channel_pool::InterpolationMethod;
 pub(crate) use settings::Settings;
 
-pub mod font_bank;
+mod font_bank;
 
 use oxisynth_chorus::Chorus;
 use oxisynth_reverb::Reverb;
 
-pub mod soundfont;
-use soundfont::SoundFont;
+mod soundfont;
+pub use soundfont::{generator::GeneratorType, Preset, SoundFont};
 
 use voice_pool::VoicePool;
 use write::OutputBuffer;

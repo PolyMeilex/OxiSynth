@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{core::soundfont::SoundFont, GeneratorType, OxiError, Preset, SoundFontId, Synth};
+use crate::{GeneratorType, OxiError, Preset, SoundFont, SoundFontId, Synth};
 
 /// SoundFont management
 impl Synth {
