@@ -135,18 +135,18 @@ impl Voice {
         let mut dsp_i: usize = 0;
         loop {
             // round to nearest point
-            let mut dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
+            let mut dsp_phase_index = ((dsp_phase + 0x80000000) >> 32) as usize;
 
             // interpolate sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 dsp_buf[dsp_i] = dsp_amp * dsp_data[dsp_phase_index] as f32;
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 // round to nearest point
-                dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
+                dsp_phase_index = ((dsp_phase + 0x80000000) >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
             // break out if not looping (buffer may not be full)
             if !looping {
@@ -217,12 +217,12 @@ impl Voice {
 
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32);
+                        + coeffs[1] * dsp_data[dsp_phase_index + 1] as f32);
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if buffer filled
@@ -230,7 +230,7 @@ impl Voice {
                 break;
             }
             // we're now interpolating the last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -240,11 +240,11 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32 + coeffs[1] * point as f32);
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 // increment amplitude
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if not looping (end of sample)
@@ -335,14 +335,14 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * start_point as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
+                        + coeffs[2] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[3] * dsp_data[dsp_phase_index + 2] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // interpolate the sequence of sample points
@@ -353,14 +353,14 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
+                        + coeffs[2] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[3] * dsp_data[dsp_phase_index + 2] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if buffer filled
@@ -369,7 +369,7 @@ impl Voice {
             }
 
             // we're now interpolating the 2nd to last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within 2nd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -379,17 +379,17 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[3] * end_point1 as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
             // we're now interpolating the last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within the last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -403,10 +403,10 @@ impl Voice {
                         + coeffs[3] * end_point2 as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if not looping (end of sample)
@@ -450,10 +450,9 @@ impl Voice {
         // Convert playback "speed" floating point value to phase index/fract
         let dsp_phase_incr = phase_set_float(phase_incr);
 
-        let dsp_phase = self.phase;
         // add 1/2 sample to dsp_phase since 7th order interpolation is centered on
         // the 4th sample point
-        let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
+        let mut dsp_phase = self.phase + 0x80000000;
 
         // voice is currently looping?
         let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
@@ -507,17 +506,17 @@ impl Voice {
                         + coeffs[1] * start_points[1] as f32
                         + coeffs[2] * start_points[0] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
-                        + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
+                        + coeffs[6] * dsp_data[dsp_phase_index + 3] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
-            start_index = start_index.wrapping_add(1);
+            start_index += 1;
 
             // interpolate 2nd to first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
@@ -528,18 +527,18 @@ impl Voice {
                         + coeffs[1] * start_points[0] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
-                        + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
+                        + coeffs[6] * dsp_data[dsp_phase_index + 3] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
-            start_index = start_index.wrapping_add(1);
+            start_index += 1;
 
             // interpolate 3rd to first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
@@ -550,15 +549,15 @@ impl Voice {
                         + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
-                        + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
+                        + coeffs[6] * dsp_data[dsp_phase_index + 3] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // set back to original start index
@@ -573,15 +572,15 @@ impl Voice {
                         + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
-                        + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
+                        + coeffs[6] * dsp_data[dsp_phase_index + 3] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if buffer filled
@@ -590,7 +589,7 @@ impl Voice {
             }
 
             // we're now interpolating the 3rd to last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within 3rd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -601,19 +600,19 @@ impl Voice {
                         + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
-                        + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
+                        + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
                         + coeffs[6] * end_points[0] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // we're now interpolating the 2nd to last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within 2nd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -624,19 +623,19 @@ impl Voice {
                         + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
-                        + coeffs[4] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
+                        + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * end_points[0] as f32
                         + coeffs[6] * end_points[1] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // we're now interpolating the last point
-            end_index = end_index.wrapping_add(1);
+            end_index += 1;
 
             // interpolate within last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
@@ -652,10 +651,10 @@ impl Voice {
                         + coeffs[6] * end_points[2] as f32);
 
                 // increment phase and amplitude
-                dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
+                dsp_phase += dsp_phase_incr;
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
-                dsp_i = dsp_i.wrapping_add(1)
+                dsp_i += 1;
             }
 
             // break out if not looping (end of sample)
