@@ -6,7 +6,7 @@ use envelope::{Envelope, EnvelopePortion};
 
 use super::super::{
     channel_pool::{Channel, InterpolationMethod},
-    FxBuf,
+    write::FxBuf,
 };
 
 use super::super::soundfont::{

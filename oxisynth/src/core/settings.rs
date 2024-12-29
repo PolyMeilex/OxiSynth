@@ -33,6 +33,8 @@ pub(crate) struct Settings {
     /// Min: 0
     /// Max: 65535
     pub min_note_length: u16,
+
+    pub min_note_length_ticks: usize,
 }
 
 struct Range<T> {
@@ -70,6 +72,18 @@ static SAMPLE_RATE_RANGE: Range<f32> = Range {
     max: 96000.0,
 };
 
+impl Settings {
+    fn cals_min_note_length_ticks(&mut self) {
+        self.min_note_length_ticks =
+            (self.min_note_length as f32 * self.sample_rate / 1000.0) as usize;
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
+        self.sample_rate = sample_rate;
+        self.cals_min_note_length_ticks();
+    }
+}
+
 impl TryFrom<SynthDescriptor> for Settings {
     type Error = SettingsError;
 
@@ -104,7 +118,7 @@ impl TryFrom<SynthDescriptor> for Settings {
         // Guarded by type system
         let min_note_length = desc.min_note_length;
 
-        Ok(Self {
+        let mut settings = Self {
             reverb_active: desc.reverb_active,
             chorus_active: desc.chorus_active,
             drums_channel_active: desc.drums_channel_active,
@@ -116,6 +130,11 @@ impl TryFrom<SynthDescriptor> for Settings {
             audio_groups,
             sample_rate,
             min_note_length,
-        })
+
+            min_note_length_ticks: 0,
+        };
+        settings.cals_min_note_length_ticks();
+
+        Ok(settings)
     }
 }

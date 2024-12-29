@@ -37,9 +37,9 @@ pub fn write_i16(
     rincr: usize,
     mut cb: impl FnMut((usize, i16), (usize, i16)),
 ) {
-    let mut di = synth.i16_output.dither_index;
+    let mut di = synth.output.i16_output.dither_index;
 
-    let mut cur = synth.cur;
+    let mut cur = synth.output.cur;
     let mut i = 0;
     let mut j = loff;
     let mut k = roff;
@@ -54,8 +54,10 @@ pub fn write_i16(
         // Converts stereo floating point sample data to signed 16 bit data with
         // dithering.
 
-        let mut left_sample = f32::round(synth.left_buf[0][cur] * 32766.0 + RAND_TABLE[0][di]);
-        let mut right_sample = f32::round(synth.right_buf[0][cur] * 32766.0 + RAND_TABLE[1][di]);
+        let mut left_sample =
+            f32::round(synth.output.left_buf[0][cur] * 32766.0 + RAND_TABLE[0][di]);
+        let mut right_sample =
+            f32::round(synth.output.right_buf[0][cur] * 32766.0 + RAND_TABLE[1][di]);
 
         di += 1;
         if di >= 48000 {
@@ -78,8 +80,8 @@ pub fn write_i16(
         k += rincr
     }
 
-    synth.cur = cur;
+    synth.output.cur = cur;
 
     // keep dither buffer continuous
-    synth.i16_output.dither_index = di;
+    synth.output.i16_output.dither_index = di;
 }

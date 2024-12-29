@@ -4,7 +4,7 @@ pub(crate) use voice::{EnvelopeStep, Voice, VoiceAddMode, VoiceDescriptor};
 
 use super::channel_pool::Channel;
 use super::soundfont::generator::GeneratorType;
-use super::FxBuf;
+use super::write::FxBuf;
 
 #[derive(Copy, Clone)]
 struct VoiceId(pub(crate) usize);

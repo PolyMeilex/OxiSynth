@@ -17,7 +17,7 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
                 synth.channels.get(channel as usize)?,
                 &mut synth.voices,
                 synth.ticks,
-                synth.min_note_length_ticks,
+                synth.settings.min_note_length_ticks,
                 synth.settings.gain,
                 key,
                 vel,
@@ -26,7 +26,7 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
         MidiEvent::NoteOff { channel, key } => {
             synth.voices.noteoff(
                 synth.channels.get(channel as usize)?,
-                synth.min_note_length_ticks,
+                synth.settings.min_note_length_ticks,
                 key,
             );
         }
@@ -38,7 +38,7 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
             self::cc(
                 synth.channels.get_mut(channel as usize)?,
                 &mut synth.voices,
-                synth.min_note_length_ticks,
+                synth.settings.min_note_length_ticks,
                 synth.settings.drums_channel_active,
                 ctrl,
                 value,
@@ -47,7 +47,7 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
         MidiEvent::AllNotesOff { channel } => {
             synth.voices.all_notes_off(
                 synth.channels.get_mut(channel as usize)?,
-                synth.min_note_length_ticks,
+                synth.settings.min_note_length_ticks,
             );
         }
         MidiEvent::AllSoundOff { channel } => {

@@ -110,7 +110,7 @@ impl Synth {
         rincr: usize,
         cb: impl FnMut((usize, i16), (usize, i16)),
     ) {
-        crate::core::write::i16_write::write_i16(&mut self.core, len, loff, lincr, roff, rincr, cb);
+        crate::core::write::write_i16(&mut self.core, len, loff, lincr, roff, rincr, cb);
     }
 
     /// Write samples as 32-bit floating-point numbers
