@@ -138,10 +138,10 @@ impl PresetZone {
             .mod_list
             .iter()
             .map(|mod_src| {
-                /* Store the new modulator in the zone The order of modulators
-                 * will make a difference, at least in an instrument context: The
-                 * second modulator overwrites the first one, if they only differ
-                 * in amount. */
+                // Store the new modulator in the zone The order of modulators
+                // will make a difference, at least in an instrument context: The
+                // second modulator overwrites the first one, if they only differ
+                // in amount.
                 Mod::from(mod_src)
             })
             .collect();

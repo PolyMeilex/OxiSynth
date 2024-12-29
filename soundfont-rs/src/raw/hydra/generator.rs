@@ -130,12 +130,12 @@ impl SfEnum<GeneratorType, u16> {
 pub enum GeneratorType {
     /// Sample start address offset (0-32767)
     StartAddrsOffset = 0,
-    ///< Sample end address offset (-32767-0)
+    /// < Sample end address offset (-32767-0)
     EndAddrsOffset = 1,
 
-    ///< Sample loop start address offset (-32767-32767)
+    /// < Sample loop start address offset (-32767-32767)
     StartloopAddrsOffset = 2,
-    ///< Sample loop end address offset (-32767-32767)
+    /// < Sample loop end address offset (-32767-32767)
     EndloopAddrsOffset = 3,
     /// Sample start address coarse offset (X 32768)
     StartAddrsCoarseOffset = 4,

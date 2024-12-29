@@ -1,12 +1,11 @@
 const MIN_SPEED_HZ: f32 = 0.29;
 
-/* Length of one delay line in samples:
- * Set through MAX_SAMPLES_LN2.
- * For example:
- * MAX_SAMPLES_LN2=12
- * => MAX_SAMPLES=pow(2,12)=4096
- * => MAX_SAMPLES_ANDMASK=4095
- */
+// Length of one delay line in samples:
+// Set through MAX_SAMPLES_LN2.
+// For example:
+// MAX_SAMPLES_LN2=12
+// => MAX_SAMPLES=pow(2,12)=4096
+// => MAX_SAMPLES_ANDMASK=4095
 const MAX_SAMPLES_LN2: usize = 12;
 const MAX_SAMPLES: usize = 1 << (MAX_SAMPLES_LN2 - 1);
 const MAX_SAMPLES_ANDMASK: usize = MAX_SAMPLES - 1;

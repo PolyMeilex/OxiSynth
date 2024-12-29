@@ -4,7 +4,7 @@ use crate::GeneratorType;
 
 use super::{SampleMode, Voice};
 const INTERP_MAX: usize = 256;
-const SINC_INTERP_ORDER: usize = 7; /* 7th order constant */
+const SINC_INTERP_ORDER: usize = 7; // 7th order constant
 
 pub struct DspFloatGlobal {
     interp_coeff_linear: [[f32; 2]; 256],
@@ -78,13 +78,12 @@ fn phase_fract(dsp_phase: usize) -> usize {
     dsp_phase & 0xffffffff
 }
 
-/* Purpose:
- * Takes the fractional part of the argument phase and
- * calculates the corresponding position in the interpolation table.
- * The fractional position of the playing pointer is calculated with a quite high
- * resolution (32 bits). It would be unpractical to keep a set of interpolation
- * coefficients for each possible fractional part...
- */
+// Purpose:
+// Takes the fractional part of the argument phase and
+// calculates the corresponding position in the interpolation table.
+// The fractional position of the playing pointer is calculated with a quite high
+// resolution (32 bits). It would be unpractical to keep a set of interpolation
+// coefficients for each possible fractional part...
 #[inline(always)]
 fn phase_fract_to_tablerow(dsp_phase: usize) -> usize {
     const INTERP_BITS_MASK: usize = 0xff000000;
@@ -135,31 +134,31 @@ impl Voice {
 
         let mut dsp_i: usize = 0;
         loop {
-            /* round to nearest point */
+            // round to nearest point
             let mut dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
 
-            /* interpolate sequence of sample points */
+            // interpolate sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 dsp_buf[dsp_i] = dsp_amp * dsp_data[dsp_phase_index] as f32;
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
-                /* round to nearest point */
+                // round to nearest point
                 dsp_phase_index = (dsp_phase.wrapping_add(0x80000000) >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
-            /* break out if not looping (buffer may not be full) */
+            // break out if not looping (buffer may not be full)
             if !looping {
                 break;
             }
-            /* go back to loop start */
+            // go back to loop start
             if dsp_phase_index > end_index {
                 dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 self.has_looped = true;
             }
 
-            /* break out if filled buffer */
+            // break out if filled buffer
             if dsp_i >= 64 {
                 break;
             }
@@ -191,19 +190,19 @@ impl Voice {
         let looping = SampleMode::from_val(self.gen[GeneratorType::SampleMode].val)
             .is_looping(self.volenv_section);
 
-        /* last index before 2nd interpolation point must be specially handled */
+        // last index before 2nd interpolation point must be specially handled
         let mut end_index = if looping {
             self.loopend - 1 - 1
         } else {
             self.end - 1
         } as usize;
 
-        /* 2nd interpolation point to use at end of loop or sample */
+        // 2nd interpolation point to use at end of loop or sample
         let point = if looping {
-            /* loop start */
+            // loop start
             dsp_data[self.loopstart as usize]
         } else {
-            /* duplicate end for samples no longer looping */
+            // duplicate end for samples no longer looping
             dsp_data[self.end as usize]
         };
 
@@ -211,7 +210,7 @@ impl Voice {
         loop {
             let mut dsp_phase_index = (dsp_phase >> 32) as usize;
 
-            /* interpolate the sequence of sample points */
+            // interpolate the sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff_linear[id];
@@ -219,31 +218,31 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32);
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* break out if buffer filled */
+            // break out if buffer filled
             if dsp_i >= 64 {
                 break;
             }
-            /* we're now interpolating the last point */
+            // we're now interpolating the last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within last point */
+            // interpolate within last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff_linear[id];
 
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * dsp_data[dsp_phase_index] as f32 + coeffs[1] * point as f32);
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
-                /* increment amplitude */
+                // increment amplitude
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
@@ -253,18 +252,18 @@ impl Voice {
                 break;
             }
 
-            /* go back to loop start (if past */
+            // go back to loop start (if past
             if dsp_phase_index > end_index {
                 dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 self.has_looped = true;
             }
 
-            /* break out if filled buffer */
+            // break out if filled buffer
             if dsp_i >= 64 {
                 break;
             }
 
-            /* set end back to second to last sample point */
+            // set end back to second to last sample point
             end_index = end_index.wrapping_sub(1)
         }
         self.phase = dsp_phase;
@@ -306,17 +305,17 @@ impl Voice {
         let mut start_point: i16;
 
         if self.has_looped {
-            /* set start_index and start point if looped or not */
+            // set start_index and start point if looped or not
             start_index = self.loopstart as usize;
-            /* last point in loop (wrap around) */
+            // last point in loop (wrap around)
             start_point = dsp_data[(self.loopend - 1) as usize];
         } else {
             start_index = self.start as usize;
-            /* just duplicate the point */
+            // just duplicate the point
             start_point = dsp_data[self.start as usize];
         }
 
-        /* get points off the end (loop start if looping, duplicate point if end) */
+        // get points off the end (loop start if looping, duplicate point if end)
         if looping {
             end_point1 = dsp_data[self.loopstart as usize];
             end_point2 = dsp_data[self.loopstart as usize + 1];
@@ -328,7 +327,7 @@ impl Voice {
         let mut dsp_i: usize = 0;
         loop {
             let mut dsp_phase_index = (dsp_phase >> 32) as usize;
-            /* interpolate first sample point (start or loop start) if needed */
+            // interpolate first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
@@ -339,14 +338,14 @@ impl Voice {
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* interpolate the sequence of sample points */
+            // interpolate the sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
@@ -357,22 +356,22 @@ impl Voice {
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* break out if buffer filled */
+            // break out if buffer filled
             if dsp_i >= 64 {
                 break;
             }
 
-            /* we're now interpolating the 2nd to last point */
+            // we're now interpolating the 2nd to last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within 2nd to last point */
+            // interpolate within 2nd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
@@ -383,16 +382,16 @@ impl Voice {
                         + coeffs[2] * dsp_data[dsp_phase_index.wrapping_add(1)] as f32
                         + coeffs[3] * end_point1 as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
-            /* we're now interpolating the last point */
+            // we're now interpolating the last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within the last point */
+            // interpolate within the last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
@@ -403,7 +402,7 @@ impl Voice {
                         + coeffs[2] * end_point1 as f32
                         + coeffs[3] * end_point2 as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
@@ -415,7 +414,7 @@ impl Voice {
                 break;
             }
 
-            /* go back to loop start */
+            // go back to loop start
             if dsp_phase_index > end_index {
                 dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
                 if !self.has_looped {
@@ -425,12 +424,12 @@ impl Voice {
                 }
             }
 
-            /* break out if filled buffer */
+            // break out if filled buffer
             if dsp_i >= 64 {
                 break;
             }
 
-            /* set end back to third to last sample point */
+            // set end back to third to last sample point
             end_index = end_index.wrapping_sub(2)
         }
         self.phase = dsp_phase;
@@ -448,12 +447,12 @@ impl Voice {
         let dsp_data: &[i16] = self.sample.data();
         let mut dsp_amp: f32 = self.amp;
 
-        /* Convert playback "speed" floating point value to phase index/fract */
+        // Convert playback "speed" floating point value to phase index/fract
         let dsp_phase_incr = phase_set_float(phase_incr);
 
         let dsp_phase = self.phase;
-        /* add 1/2 sample to dsp_phase since 7th order interpolation is centered on
-         * the 4th sample point */
+        // add 1/2 sample to dsp_phase since 7th order interpolation is centered on
+        // the 4th sample point
         let mut dsp_phase = dsp_phase.wrapping_add(0x80000000);
 
         // voice is currently looping?
@@ -469,7 +468,7 @@ impl Voice {
         let mut end_points: [i16; 3] = [0; 3];
 
         if self.has_looped {
-            /* set start_index and start point if looped or not */
+            // set start_index and start point if looped or not
 
             start_index = self.loopstart as usize;
             start_points[0] = dsp_data[(self.loopend - 1) as usize];
@@ -477,7 +476,7 @@ impl Voice {
             start_points[2] = dsp_data[(self.loopend - 3) as usize];
         } else {
             start_index = self.start as usize;
-            /* just duplicate the start point */
+            // just duplicate the start point
             start_points[0] = dsp_data[self.start as usize];
             start_points[1] = start_points[0];
             start_points[2] = start_points[0]
@@ -499,7 +498,7 @@ impl Voice {
         loop {
             dsp_phase_index = (dsp_phase >> 32) as usize;
 
-            /* interpolate first sample point (start or loop start) if needed */
+            // interpolate first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -512,7 +511,7 @@ impl Voice {
                         + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
@@ -520,7 +519,7 @@ impl Voice {
             }
             start_index = start_index.wrapping_add(1);
 
-            /* interpolate 2nd to first sample point (start or loop start) if needed */
+            // interpolate 2nd to first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -533,7 +532,7 @@ impl Voice {
                         + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
@@ -542,7 +541,7 @@ impl Voice {
 
             start_index = start_index.wrapping_add(1);
 
-            /* interpolate 3rd to first sample point (start or loop start) if needed */
+            // interpolate 3rd to first sample point (start or loop start) if needed
             while dsp_phase_index == start_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -555,17 +554,17 @@ impl Voice {
                         + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* set back to original start index */
+            // set back to original start index
             start_index = start_index.wrapping_sub(2);
 
-            /* interpolate the sequence of sample points */
+            // interpolate the sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -578,22 +577,22 @@ impl Voice {
                         + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
                         + coeffs[6] * dsp_data[dsp_phase_index.wrapping_add(3)] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* break out if buffer filled */
+            // break out if buffer filled
             if dsp_i >= 64 {
                 break;
             }
 
-            /* we're now interpolating the 3rd to last point */
+            // we're now interpolating the 3rd to last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within 3rd to last point */
+            // interpolate within 3rd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -606,17 +605,17 @@ impl Voice {
                         + coeffs[5] * dsp_data[dsp_phase_index.wrapping_add(2)] as f32
                         + coeffs[6] * end_points[0] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* we're now interpolating the 2nd to last point */
+            // we're now interpolating the 2nd to last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within 2nd to last point */
+            // interpolate within 2nd to last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -629,17 +628,17 @@ impl Voice {
                         + coeffs[5] * end_points[0] as f32
                         + coeffs[6] * end_points[1] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
                 dsp_i = dsp_i.wrapping_add(1)
             }
 
-            /* we're now interpolating the last point */
+            // we're now interpolating the last point
             end_index = end_index.wrapping_add(1);
 
-            /* interpolate within last point */
+            // interpolate within last point
             while dsp_phase_index <= end_index && dsp_i < 64 {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
@@ -652,7 +651,7 @@ impl Voice {
                         + coeffs[5] * end_points[1] as f32
                         + coeffs[6] * end_points[2] as f32);
 
-                /* increment phase and amplitude */
+                // increment phase and amplitude
                 dsp_phase = dsp_phase.wrapping_add(dsp_phase_incr);
                 dsp_phase_index = (dsp_phase >> 32) as usize;
                 dsp_amp += dsp_amp_incr;
@@ -664,7 +663,7 @@ impl Voice {
                 break;
             }
 
-            /* go back to loop start */
+            // go back to loop start
             if dsp_phase_index > end_index {
                 dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
 
@@ -677,17 +676,17 @@ impl Voice {
                 }
             }
 
-            /* break out if filled buffer */
+            // break out if filled buffer
             if dsp_i >= 64 {
                 break;
             }
 
-            /* set end back to 4th to last sample point */
+            // set end back to 4th to last sample point
             end_index = end_index.wrapping_sub(3)
         }
 
-        /* sub 1/2 sample from dsp_phase since 7th order interpolation is centered on
-         * the 4th sample point (correct back to real value) */
+        // sub 1/2 sample from dsp_phase since 7th order interpolation is centered on
+        // the 4th sample point (correct back to real value)
         let dsp_phase = dsp_phase.wrapping_sub(0x80000000);
 
         self.phase = dsp_phase;

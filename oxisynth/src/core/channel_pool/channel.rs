@@ -8,7 +8,7 @@ use crate::midi_event::ControlFunction;
 use crate::GeneratorType;
 use crate::Tuning;
 
-/* Flags to choose the interpolation method */
+// Flags to choose the interpolation method
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InterpolationMethod {
     /// No interpolation: Fastest, but questionable audio quality

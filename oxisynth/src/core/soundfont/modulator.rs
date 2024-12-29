@@ -25,20 +25,19 @@ impl Mod {
         let dest = mod_src.dest; // index of controlled generator
 
         if let SourceType::Unknown(_) = mod_src.src.ty {
-            /* This shouldn't happen - unknown type!
-             * Deactivate the modulator by setting the amount to 0. */
+            // This shouldn't happen - unknown type!
+            // Deactivate the modulator by setting the amount to 0.
             amount = 0.0;
         }
 
         if let SourceType::Unknown(_) = mod_src.amt_src.ty {
-            /* This shouldn't happen - unknown type!
-             * Deactivate the modulator by setting the amount to 0. */
+            // This shouldn't happen - unknown type!
+            // Deactivate the modulator by setting the amount to 0.
             amount = 0.0;
         }
 
-        /* SF2.01 only uses the 'linear' transform (0).
-         * Deactivate the modulator by setting the amount to 0 in any other case.
-         */
+        // SF2.01 only uses the 'linear' transform (0).
+        // Deactivate the modulator by setting the amount to 0 in any other case.
         if mod_src.transform as u8 != ModulatorTransform::Linear as u8 {
             amount = 0.0;
         }
@@ -46,7 +45,7 @@ impl Mod {
         Self {
             src: mod_src.src,
             amount,
-            dest: GeneratorType::const_try_from(dest as u8).unwrap(), // index of controlled generator
+            dest: GeneratorType::const_try_from(dest as u8).unwrap(), /* index of controlled generator */
             src2: mod_src.amt_src,
         }
     }
@@ -75,27 +74,26 @@ impl Mod {
     }
 
     pub fn get_value(&self, chan: &Channel, voice: &Voice) -> f32 {
-        /* 'special treatment' for default controller
-         *
-         *  Reference: SF2.01 section 8.4.2
-         *
-         * The GM default controller 'vel-to-filter cut off' is not clearly
-         * defined: If implemented according to the specs, the filter
-         * frequency jumps between vel=63 and vel=64.  To maintain
-         * compatibility with existing sound fonts, the implementation is
-         * 'hardcoded', it is impossible to implement using only one
-         * modulator otherwise.
-         *
-         * I assume here, that the 'intention' of the paragraph is one
-         * octave (1200 cents) filter frequency shift between vel=127 and
-         * vel=64.  'amount' is (-2400), at least as long as the controller
-         * is set to default.
-         *
-         * Further, the 'appearance' of the modulator (source enumerator,
-         * destination enumerator, flags etc) is different from that
-         * described in section 8.4.2, but it matches the definition used in
-         * several SF2.1 sound fonts (where it is used only to turn it off).
-         * */
+        // 'special treatment' for default controller
+        //
+        //  Reference: SF2.01 section 8.4.2
+        //
+        // The GM default controller 'vel-to-filter cut off' is not clearly
+        // defined: If implemented according to the specs, the filter
+        // frequency jumps between vel=63 and vel=64.  To maintain
+        // compatibility with existing sound fonts, the implementation is
+        // 'hardcoded', it is impossible to implement using only one
+        // modulator otherwise.
+        //
+        // I assume here, that the 'intention' of the paragraph is one
+        // octave (1200 cents) filter frequency shift between vel=127 and
+        // vel=64.  'amount' is (-2400), at least as long as the controller
+        // is set to default.
+        //
+        // Further, the 'appearance' of the modulator (source enumerator,
+        // destination enumerator, flags etc) is different from that
+        // described in section 8.4.2, but it matches the definition used in
+        // several SF2.1 sound fonts (where it is used only to turn it off).
         if self.src.controller_palette == ControllerPalette::General(GeneralPalette::NoteOnVelocity)
             && self.src.is_unipolar()
             && self.src.is_negative()
@@ -111,7 +109,7 @@ impl Mod {
         }
 
         let mut range1: f32 = 127.0f32;
-        /* get the initial value of the first source */
+        // get the initial value of the first source
         let mut v1 = if self.src.index > 0 {
             use GeneralPalette::*;
             let v1 = match self.src.controller_palette {
@@ -226,13 +224,13 @@ impl Mod {
             return 0.0;
         };
 
-        /* no need to go further */
+        // no need to go further
         if v1 == 0.0 {
             return 0.0;
         }
 
         let range2: f32 = 127.0f32;
-        /* get the second input source */
+        // get the second input source
         let v2 = if self.src2.index > 0 {
             use GeneralPalette::*;
             let v2 = match self.src2.controller_palette {
@@ -258,7 +256,7 @@ impl Mod {
             use SourcePolarity::*;
             use SourceType::*;
 
-            /* transform the second input value */
+            // transform the second input value
 
             match (self.src2.ty, self.src2.polarity, self.src2.direction) {
                 // 0

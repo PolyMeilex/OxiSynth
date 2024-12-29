@@ -442,13 +442,13 @@ fn cc(
 
             channel.set_bank_msb(value & 0x7f);
 
-            /* I fixed the handling of a MIDI bank select controller 0,
-            e.g., bank select MSB (or "coarse" bank select according to
-            my spec).  Prior to this fix a channel's bank number was only
-            changed upon reception of MIDI bank select controller 32,
-            e.g, bank select LSB (or "fine" bank-select according to my
-            spec). [KLE]
-            FIXME: is this correct? [PH] */
+            // I fixed the handling of a MIDI bank select controller 0,
+            // e.g., bank select MSB (or "coarse" bank select according to
+            // my spec).  Prior to this fix a channel's bank number was only
+            // changed upon reception of MIDI bank select controller 32,
+            // e.g, bank select LSB (or "fine" bank-select according to my
+            // spec). [KLE]
+            // FIXME: is this correct? [PH]
             channel.set_banknum((value & 0x7f) as u32);
         }
 
@@ -458,9 +458,9 @@ fn cc(
                 return;
             }
 
-            /* FIXME: according to the Downloadable Sounds II specification,
-            bit 31 should be set when we receive the message on channel
-            10 (drum channel) */
+            // FIXME: according to the Downloadable Sounds II specification,
+            // bit 31 should be set when we receive the message on channel
+            // 10 (drum channel)
             channel
                 .set_banknum((value as u32 & 0x7f).wrapping_add((channel.bank_msb() as u32) << 7));
         }
@@ -500,7 +500,7 @@ fn cc(
                     channel.set_nrpn_select(0); // Reset to 0
                 }
             }
-            /* RPN is active: MSB = 0? */
+            // RPN is active: MSB = 0?
             else if channel.cc(RPN_MSB as usize) == 0 {
                 match channel.cc(RPN_LSB as usize) {
                     // RPN_PITCH_BEND_RANGE

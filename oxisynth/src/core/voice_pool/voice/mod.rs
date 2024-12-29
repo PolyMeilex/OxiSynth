@@ -368,7 +368,6 @@ impl Voice {
     /// mode == FLUID_VOICE_DEFAULT: This is a default modulator, there can be no identical modulator.
     ///                             Don't check.
     pub fn add_mod(&mut self, mod_0: &Mod, mode: VoiceAddMode) {
-        //
         // Some soundfonts come with a huge number of non-standard
         // controllers, because they have been designed for one particular
         // sound card.  Discard them, maybe print a warning.
@@ -481,7 +480,7 @@ impl Voice {
 
     pub(super) fn noteoff(&mut self, channel: &Channel, min_note_length_ticks: usize) {
         if min_note_length_ticks > self.ticks {
-            /* Delay noteoff */
+            // Delay noteoff
             self.noteoff_ticks = min_note_length_ticks;
             return;
         }

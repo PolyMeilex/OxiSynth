@@ -32,11 +32,11 @@ u8_to_enum!(
     pub enum GeneratorType {
         /// Sample start address offset (0-32767)
         StartAddrOfs = 0,
-        ///< Sample end address offset (-32767-0)
+        /// < Sample end address offset (-32767-0)
         EndAddrOfs = 1,
-        ///< Sample loop start address offset (-32767-32767)
+        /// < Sample loop start address offset (-32767-32767)
         StartLoopAddrOfs = 2,
-        ///< Sample loop end address offset (-32767-32767)
+        /// < Sample loop end address offset (-32767-32767)
         EndLoopAddrOfs = 3,
         /// Sample start address coarse offset (X 32768)
         StartAddrCoarseOfs = 4,
