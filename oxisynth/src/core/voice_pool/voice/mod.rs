@@ -518,42 +518,21 @@ impl Voice {
     }
 
     pub(super) fn modulate(&mut self, channel: &Channel, ctrl: ModulateCtrl) {
-        let (is_cc, ctrl) = match ctrl {
-            ModulateCtrl::CC(control_function) => (true, control_function as u8),
-            ModulateCtrl::SF(v) => (
-                false,
-                // TODO: Move to soundfont crate
-                match v {
-                    GeneralPalette::NoController => 0,
-                    GeneralPalette::NoteOnVelocity => 2,
-                    GeneralPalette::NoteOnKeyNumber => 3,
-                    GeneralPalette::PolyPressure => 10,
-                    GeneralPalette::ChannelPressure => 13,
-                    GeneralPalette::PitchWheel => 14,
-                    GeneralPalette::PitchWheelSensitivity => 16,
-                    GeneralPalette::Link => 127,
-                    GeneralPalette::Unknown(v) => v,
-                },
-            ),
+        let ctrl = match ctrl {
+            ModulateCtrl::CC(control_function) => ControllerPalette::Midi(control_function as u8),
+            ModulateCtrl::SF(v) => ControllerPalette::General(v),
         };
 
         #[inline(always)]
-        fn mod_has_source(m: &Mod, is_cc: bool, ctrl: u8) -> bool {
-            let a1 = (m.src.index == ctrl) && m.src.is_cc() && is_cc;
-            let a2 = (m.src.index == ctrl) && !m.src.is_cc() && !is_cc;
-            let a3 = a1 || a2;
-
-            let b1 = (m.src2.index == ctrl) && m.src2.is_cc() && is_cc;
-            let b2 = (m.src2.index == ctrl) && !m.src2.is_cc() && !is_cc;
-            let b3 = b1 || b2;
-
-            a3 || b3
+        fn mod_has_source(m: &Mod, ctrl: ControllerPalette) -> bool {
+            m.src.controller_palette == ctrl || m.src2.controller_palette == ctrl
         }
 
         let mut i = 0;
         while i < self.mod_count {
             let mod_0 = &mut self.mod_0[i];
-            if mod_has_source(mod_0, is_cc, ctrl) {
+
+            if mod_has_source(mod_0, ctrl) {
                 let gen = mod_0.get_dest();
                 let mut modval = 0.0;
 
