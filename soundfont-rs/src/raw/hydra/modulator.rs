@@ -174,13 +174,12 @@ impl ModulatorSource {
 
     #[inline]
     pub fn is_cc(&self) -> bool {
-        std::mem::discriminant(&self.controller_palette)
-            == std::mem::discriminant(&ControllerPalette::Midi(0))
+        matches!(self.controller_palette, ControllerPalette::Midi(_))
     }
+
     #[inline]
     pub fn is_gc(&self) -> bool {
-        std::mem::discriminant(&self.controller_palette)
-            == std::mem::discriminant(&ControllerPalette::General(GeneralPalette::NoController))
+        matches!(self.controller_palette, ControllerPalette::General(_))
     }
 }
 
