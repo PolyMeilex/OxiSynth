@@ -1,9 +1,28 @@
 use crate::{RangeError, SettingsError, SynthDescriptor};
 
+// Flags to choose the interpolation method
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InterpolationMethod {
+    /// No interpolation: Fastest, but questionable audio quality
+    None = 0,
+    /// Straight-line interpolation: A bit slower, reasonable audio quality
+    Linear = 1,
+    /// Fourth-order interpolation: Requires 50% of the whole DSP processing time, good quality (default)
+    #[default]
+    FourthOrder = 4,
+    /// Seventh-order interpolation
+    SeventhOrder = 7,
+}
+
 pub(crate) struct Settings {
     pub reverb_active: bool,
     pub chorus_active: bool,
     pub drums_channel_active: bool,
+
+    /// Interpolation method/quality
+    //
+    /// Def: FourthOrder
+    pub interpolation: InterpolationMethod,
 
     /// Def: 256
     /// Min: 1
@@ -122,6 +141,7 @@ impl TryFrom<SynthDescriptor> for Settings {
             reverb_active: desc.reverb_active,
             chorus_active: desc.chorus_active,
             drums_channel_active: desc.drums_channel_active,
+            interpolation: desc.interpolation,
 
             polyphony,
             midi_channels,

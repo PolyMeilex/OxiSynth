@@ -1,14 +1,23 @@
 mod channel;
-pub use channel::{Channel, InterpolationMethod};
+pub(crate) use channel::Channel;
 
 use crate::OxiError;
+
+use super::InterpolationMethod;
 
 pub struct ChannelPool(Vec<Channel>);
 
 impl ChannelPool {
-    pub fn new(len: usize) -> Self {
-        let channels = (0..len).map(Channel::new).collect();
-        Self(channels)
+    pub fn new(len: usize, interpolation: InterpolationMethod) -> Self {
+        Self(
+            (0..len)
+                .map(|id| {
+                    let mut ch = Channel::new(id);
+                    ch.set_interp_method(interpolation);
+                    ch
+                })
+                .collect(),
+        )
     }
 
     pub fn get(&self, id: usize) -> Result<&Channel, OxiError> {

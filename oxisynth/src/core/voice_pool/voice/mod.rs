@@ -5,24 +5,21 @@ pub use envelope::EnvelopeStep;
 use envelope::{Envelope, EnvelopePortion};
 
 use crate::{
-    core::{BUFSIZE, BUFSIZE_F32},
+    core::{
+        channel_pool::Channel,
+        conv::{
+            act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
+            tc2sec_release,
+        },
+        soundfont::{
+            generator::{Generator, GeneratorList, GeneratorType},
+            modulator::Mod,
+            Sample,
+        },
+        write::FxBuf,
+        InterpolationMethod, BUFSIZE, BUFSIZE_F32,
+    },
     midi_event::ControlFunction,
-};
-
-use super::super::{
-    channel_pool::{Channel, InterpolationMethod},
-    write::FxBuf,
-};
-
-use super::super::soundfont::{
-    generator::{Generator, GeneratorList, GeneratorType},
-    modulator::Mod,
-    Sample,
-};
-
-use super::super::conv::{
-    act2hz, atten2amp, cb2amp, ct2hz, ct2hz_real, pan, tc2sec, tc2sec_attack, tc2sec_delay,
-    tc2sec_release,
 };
 
 use soundfont::raw::{ControllerPalette, GeneralPalette};

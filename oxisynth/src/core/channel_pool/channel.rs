@@ -4,23 +4,10 @@ use std::sync::Arc;
 use super::super::soundfont::{Preset, SoundFont};
 
 use crate::arena::Index;
+use crate::core::InterpolationMethod;
 use crate::midi_event::ControlFunction;
 use crate::GeneratorType;
 use crate::Tuning;
-
-// Flags to choose the interpolation method
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InterpolationMethod {
-    /// No interpolation: Fastest, but questionable audio quality
-    None = 0,
-    /// Straight-line interpolation: A bit slower, reasonable audio quality
-    Linear = 1,
-    /// Fourth-order interpolation: Requires 50% of the whole DSP processing time, good quality (default)
-    #[default]
-    FourthOrder = 4,
-    /// Seventh-order interpolation
-    SeventhOrder = 7,
-}
 
 #[derive(Clone)]
 struct CcList([u8; 128]);
@@ -106,7 +93,7 @@ impl Channel {
             cc: CcList([0; 128]),
             bank_msb: 0,
 
-            interp_method: Default::default(),
+            interp_method: InterpolationMethod::default(),
             tuning: None,
 
             nrpn_select: 0,

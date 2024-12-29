@@ -17,7 +17,7 @@ mod midi_event;
 mod unsafe_stuff;
 
 pub use api::Tuning;
-pub use core::{GeneratorType, Preset, SoundFont};
+pub use core::{GeneratorType, InterpolationMethod, Preset, SoundFont};
 pub use error::{OxiError, RangeError, SettingsError};
 pub use midi_event::MidiEvent;
 
@@ -34,6 +34,8 @@ pub struct SynthDescriptor {
     pub reverb_active: bool,
     pub chorus_active: bool,
     pub drums_channel_active: bool,
+    // Interpolation method/quality
+    pub interpolation: InterpolationMethod,
 
     /// Def: 256
     /// Min: 1
@@ -71,6 +73,7 @@ impl Default for SynthDescriptor {
             reverb_active: true,
             chorus_active: true,
             drums_channel_active: true,
+            interpolation: InterpolationMethod::default(),
 
             polyphony: 256,
             midi_channels: 16,

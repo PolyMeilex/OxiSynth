@@ -7,7 +7,7 @@ mod settings;
 mod voice_pool;
 
 mod conv;
-pub use channel_pool::InterpolationMethod;
+pub use settings::InterpolationMethod;
 pub(crate) use settings::Settings;
 
 mod font_bank;
@@ -65,7 +65,7 @@ impl Core {
 
             font_bank: FontBank::new(),
 
-            channels: ChannelPool::new(settings.midi_channels as usize),
+            channels: ChannelPool::new(settings.midi_channels as usize, settings.interpolation),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
 
             output: OutputBuffer::new(nbuf as usize),
