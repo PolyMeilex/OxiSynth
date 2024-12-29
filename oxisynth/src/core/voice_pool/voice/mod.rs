@@ -4,6 +4,8 @@ mod envelope;
 pub use envelope::EnvelopeStep;
 use envelope::{Envelope, EnvelopePortion};
 
+use crate::core::{BUFSIZE, BUFSIZE_F32};
+
 use super::super::{
     channel_pool::{Channel, InterpolationMethod},
     write::FxBuf,
@@ -205,7 +207,7 @@ pub(crate) struct Voice {
 
     phase: Phase,
 
-    filter_coeff_incr_count: i32,
+    filter_coeff_incr_count: usize,
 
     a1: f32,
     a2: f32,
@@ -574,7 +576,7 @@ impl Voice {
         self.status = VoiceStatus::Off;
     }
 
-    pub(super) fn get_channel_id(&self) -> usize {
+    pub(crate) fn channel_id(&self) -> usize {
         self.channel_id
     }
 
@@ -857,7 +859,7 @@ impl Voice {
         self.amp_chorus = self.chorus_send * gain / 32768.0;
     }
 
-    pub(super) fn write(
+    pub(crate) fn write(
         &mut self,
         channel: &Channel,
         min_note_length_ticks: usize,
@@ -1026,7 +1028,7 @@ impl Voice {
 
         if let Some(target_amp) = target_amplitude {
             // Volume increment to go from voice->amp to target_amp in FLUID_BUFSIZE steps
-            let amp_incr = (target_amp - self.amp) / 64.0;
+            let amp_incr = (target_amp - self.amp) / BUFSIZE_F32;
             // no volume and not changing? - No need to process
             if !(self.amp == 0.0 && amp_incr == 0.0) {
                 // Calculate the number of samples, that the DSP loop advances
@@ -1128,13 +1130,13 @@ impl Voice {
                         // buffer will sacrifice some performance, though.  Note: If
                         // the filter is still too 'grainy', then increase this number
                         // at will.
-                        self.a1_incr = (a1_temp - self.a1) / 64.0;
-                        self.a2_incr = (a2_temp - self.a2) / 64.0;
-                        self.b02_incr = (b02_temp - self.b02) / 64.0;
-                        self.b1_incr = (b1_temp - self.b1) / 64.0;
+                        self.a1_incr = (a1_temp - self.a1) / BUFSIZE_F32;
+                        self.a2_incr = (a2_temp - self.a2) / BUFSIZE_F32;
+                        self.b02_incr = (b02_temp - self.b02) / BUFSIZE_F32;
+                        self.b1_incr = (b1_temp - self.b1) / BUFSIZE_F32;
 
                         // Have to add the increments filter_coeff_incr_count times.
-                        self.filter_coeff_incr_count = 64;
+                        self.filter_coeff_incr_count = BUFSIZE;
                     }
                     self.last_fres = fres
                 }
@@ -1165,13 +1167,13 @@ impl Voice {
                     );
                 }
                 // turn off voice if short count (sample ended and not looping)
-                if count < 64 {
+                if count < BUFSIZE {
                     self.off();
                 }
             }
         }
 
-        self.ticks += self.ticks.wrapping_add(64);
+        self.ticks += BUFSIZE;
     }
 
     /// Purpose:
@@ -1366,7 +1368,7 @@ impl Voice {
         }
         let seconds = tc2sec(timecents);
         // buffers
-        ((self.output_rate as f64 * seconds / 64.0) + 0.5) as i32
+        ((self.output_rate as f64 * seconds / BUFSIZE as f64) + 0.5) as i32
     }
 
     /// The value of a generator (gen) has changed.  (The different
@@ -1549,7 +1551,7 @@ impl Voice {
                 let val = gen_sum!(GeneratorType::ModLfoFreq);
 
                 let val = val.clamp(-16000.0, 4500.0);
-                self.modlfo_incr = 4.0 * 64.0 * act2hz(val) / self.output_rate;
+                self.modlfo_incr = 4.0 * BUFSIZE_F32 * act2hz(val) / self.output_rate;
             }
 
             GeneratorType::VibLfoFreq => {
@@ -1560,7 +1562,7 @@ impl Voice {
                 let freq = gen_sum!(GeneratorType::VibLfoFreq);
 
                 let freq = freq.clamp(-16000.0, 4500.0);
-                self.viblfo_incr = 4.0 * 64.0 * act2hz(freq) / self.output_rate;
+                self.viblfo_incr = 4.0 * BUFSIZE_F32 * act2hz(freq) / self.output_rate;
             }
 
             GeneratorType::VibLfoDelay => {
@@ -1672,7 +1674,7 @@ impl Voice {
 
                 let val = val.clamp(-12000.0, 5000.0);
 
-                let count = (self.output_rate * tc2sec_delay(val) / 64.0) as u32;
+                let count = (self.output_rate * tc2sec_delay(val) / BUFSIZE_F32) as u32;
 
                 self.volenv_data[EnvelopeStep::Delay] = EnvelopePortion {
                     count,
@@ -1689,7 +1691,7 @@ impl Voice {
                 let val = val.clamp(-12000.0, 8000.0);
 
                 let count =
-                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / BUFSIZE_F32) as u32);
 
                 self.volenv_data[EnvelopeStep::Attack] = EnvelopePortion {
                     count,
@@ -1743,8 +1745,8 @@ impl Voice {
 
                 let val = val.clamp(-7200.0, 8000.0);
 
-                let count =
-                    1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                let count = 1u32
+                    .wrapping_add((self.output_rate * tc2sec_release(val) / BUFSIZE_F32) as u32);
 
                 self.volenv_data[EnvelopeStep::Release] = EnvelopePortion {
                     count,
@@ -1761,7 +1763,7 @@ impl Voice {
                 let val = val.clamp(-12000.0, 5000.0);
 
                 self.modenv_data[EnvelopeStep::Delay] = EnvelopePortion {
-                    count: (self.output_rate * tc2sec_delay(val) / 64.0) as u32,
+                    count: (self.output_rate * tc2sec_delay(val) / BUFSIZE_F32) as u32,
                     coeff: 0.0,
                     incr: 0.0,
                     min: -1.0,
@@ -1775,7 +1777,7 @@ impl Voice {
                 let val = val.clamp(-12000.0, 8000.0);
 
                 let count =
-                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / 64.0) as u32);
+                    1u32.wrapping_add((self.output_rate * tc2sec_attack(val) / BUFSIZE_F32) as u32);
 
                 self.modenv_data[EnvelopeStep::Attack] = EnvelopePortion {
                     count,
@@ -1828,8 +1830,8 @@ impl Voice {
 
                 let val = val.clamp(-12000.0, 8000.0);
 
-                let count =
-                    1u32.wrapping_add((self.output_rate * tc2sec_release(val) / 64.0) as u32);
+                let count = 1u32
+                    .wrapping_add((self.output_rate * tc2sec_release(val) / BUFSIZE_F32) as u32);
 
                 self.modenv_data[EnvelopeStep::Release] = EnvelopePortion {
                     count,
@@ -1889,7 +1891,7 @@ impl Voice {
         self.status == VoiceStatus::On && self.volenv_section < EnvelopeStep::Release
     }
 
-    pub(super) fn is_playing(&self) -> bool {
+    pub(crate) fn is_playing(&self) -> bool {
         matches!(self.status, VoiceStatus::On | VoiceStatus::Sustained)
     }
 

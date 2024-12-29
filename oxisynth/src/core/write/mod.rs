@@ -5,8 +5,10 @@ mod i16_write;
 #[cfg(feature = "i16-out")]
 pub use i16_write::write_i16;
 
+use super::BUFSIZE;
+
 #[derive(Clone)]
-pub(super) struct FxBuf {
+pub(crate) struct FxBuf {
     pub reverb: [f32; 64],
     pub chorus: [f32; 64],
 }
@@ -63,28 +65,51 @@ impl Core {
         self.output.fx_right_buf.chorus.fill(0.0);
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn write_voices(&mut self) {
+        for voice in self.voices.iter_mut().filter(|v| v.is_playing()) {
+            // The output associated with a MIDI channel is wrapped around
+            // using the number of audio groups as modulo divider.  This is
+            // typically the number of output channels on the 'sound card',
+            // as long as the LADSPA Fx unit is not used. In case of LADSPA
+            // unit, think of it as subgroups on a mixer.
+            //
+            // For example: Assume that the number of groups is set to 2.
+            // Then MIDI channel 1, 3, 5, 7 etc. go to output 1, channels 2,
+            // 4, 6, 8 etc to output 2.  Or assume 3 groups: Then MIDI
+            // channels 1, 4, 7, 10 etc go to output 1; 2, 5, 8, 11 etc to
+            // output 2, 3, 6, 9, 12 etc to output 3.
+            let mut auchan = voice.channel_id();
+            auchan %= self.settings.audio_groups as usize;
+
+            voice.write(
+                &self.channels[voice.channel_id()],
+                self.settings.min_note_length_ticks,
+                (
+                    &mut self.output.left_buf[auchan],
+                    &mut self.output.right_buf[auchan],
+                ),
+                &mut self.output.fx_left_buf,
+                self.settings.reverb_active,
+                self.settings.chorus_active,
+            );
+        }
+    }
+
     fn one_block(&mut self, do_not_mix_fx_to_out: bool) {
         self.clear_buffers();
 
-        /* Set up the reverb / chorus buffers only, when the effect is
-         * enabled on synth level.  Nonexisting buffers are detected in the
-         * DSP loop. Not sending the reverb / chorus signal saves some time
-         * in that case. */
+        // Set up the reverb / chorus buffers only, when the effect is
+        // enabled on synth level.  Nonexisting buffers are detected in the
+        // DSP loop. Not sending the reverb / chorus signal saves some time
+        // in that case.
 
-        /* call all playing synthesis processes */
-        self.voices.write_voices(
-            &self.channels,
-            self.settings.min_note_length_ticks,
-            self.settings.audio_groups,
-            (&mut self.output.left_buf, &mut self.output.right_buf),
-            &mut self.output.fx_left_buf,
-            self.settings.reverb_active,
-            self.settings.chorus_active,
-        );
+        // call all playing synthesis processes
+        self.write_voices();
 
-        /* if multi channel output, don't mix the output of the chorus and
-        reverb in the final output. The effects outputs are send
-        separately. */
+        // if multi channel output, don't mix the output of the chorus and
+        // reverb in the final output. The effects outputs are send
+        // separately.
         if do_not_mix_fx_to_out {
             // send to reverb
             if self.settings.reverb_active {
@@ -121,7 +146,7 @@ impl Core {
             }
         }
 
-        self.ticks += 64;
+        self.ticks += BUFSIZE;
     }
 
     #[inline]

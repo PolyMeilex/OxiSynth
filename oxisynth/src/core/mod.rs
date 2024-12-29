@@ -26,6 +26,9 @@ use self::font_bank::FontBank;
 
 use crate::{SettingsError, SynthDescriptor};
 
+const BUFSIZE: usize = 64;
+const BUFSIZE_F32: f32 = BUFSIZE as f32;
+
 pub(crate) struct Core {
     ticks: usize,
     pub font_bank: FontBank,
