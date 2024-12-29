@@ -1,29 +1,12 @@
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use super::super::soundfont::{Preset, SoundFont};
 
 use crate::arena::Index;
+use crate::midi_event::ControlFunction;
 use crate::GeneratorType;
 use crate::Tuning;
-
-type MidiControlChange = usize;
-const ALL_SOUND_OFF: MidiControlChange = 120;
-const RPN_MSB: MidiControlChange = 101;
-const RPN_LSB: MidiControlChange = 100;
-const NRPN_MSB: MidiControlChange = 99;
-const NRPN_LSB: MidiControlChange = 98;
-const EFFECTS_DEPTH5: MidiControlChange = 95;
-const EFFECTS_DEPTH1: MidiControlChange = 91;
-const SOUND_CTRL10: MidiControlChange = 79;
-const SOUND_CTRL1: MidiControlChange = 70;
-const EXPRESSION_LSB: MidiControlChange = 43;
-const PAN_LSB: MidiControlChange = 42;
-const VOLUME_LSB: MidiControlChange = 39;
-const BANK_SELECT_LSB: MidiControlChange = 32;
-const EXPRESSION_MSB: MidiControlChange = 11;
-const PAN_MSB: MidiControlChange = 10;
-const VOLUME_MSB: MidiControlChange = 7;
-const BANK_SELECT_MSB: MidiControlChange = 0;
 
 /* Flags to choose the interpolation method */
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,6 +20,41 @@ pub enum InterpolationMethod {
     FourthOrder = 4,
     /// Seventh-order interpolation
     SeventhOrder = 7,
+}
+
+#[derive(Clone)]
+struct CcList([u8; 128]);
+
+impl std::ops::Index<ControlFunction> for CcList {
+    type Output = u8;
+
+    fn index(&self, index: ControlFunction) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl std::ops::IndexMut<ControlFunction> for CcList {
+    fn index_mut(&mut self, index: ControlFunction) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
+impl std::ops::Index<RangeInclusive<ControlFunction>> for CcList {
+    type Output = [u8];
+
+    fn index(&self, index: RangeInclusive<ControlFunction>) -> &Self::Output {
+        let start = *index.start() as usize;
+        let end = *index.end() as usize;
+        &self.0[start..=end]
+    }
+}
+
+impl std::ops::IndexMut<RangeInclusive<ControlFunction>> for CcList {
+    fn index_mut(&mut self, index: RangeInclusive<ControlFunction>) -> &mut Self::Output {
+        let start = *index.start() as usize;
+        let end = *index.end() as usize;
+        &mut self.0[start..=end]
+    }
 }
 
 #[derive(Clone)]
@@ -56,7 +74,7 @@ pub struct Channel {
     pitch_bend: u16,
     pitch_wheel_sensitivity: u8,
 
-    cc: [u8; 128],
+    cc: CcList,
     bank_msb: u8,
 
     interp_method: InterpolationMethod,
@@ -85,7 +103,7 @@ impl Channel {
             pitch_bend: 0,
             pitch_wheel_sensitivity: 0,
 
-            cc: [0; 128],
+            cc: CcList([0; 128]),
             bank_msb: 0,
 
             interp_method: Default::default(),
@@ -97,7 +115,7 @@ impl Channel {
             gen: [0f32; 60],
             gen_abs: [0; 60],
         };
-        chan.init_ctrl(0);
+        chan.init_ctrl(false);
         chan
     }
 
@@ -113,50 +131,55 @@ impl Channel {
         self.nrpn_active = 0;
     }
 
-    pub fn init_ctrl(&mut self, is_all_ctrl_off: i32) {
+    pub fn init_ctrl(&mut self, is_all_ctrl_off: bool) {
         self.channel_pressure = 0;
         self.pitch_bend = 0x2000;
 
         self.gen.fill(0.0);
         self.gen_abs.fill(0);
 
-        if is_all_ctrl_off != 0 {
-            for i in 0..ALL_SOUND_OFF {
-                match i {
-                    EFFECTS_DEPTH1..=EFFECTS_DEPTH5
-                    | SOUND_CTRL1..=SOUND_CTRL10
-                    | BANK_SELECT_MSB
-                    | BANK_SELECT_LSB
-                    | VOLUME_MSB
-                    | VOLUME_LSB
-                    | PAN_MSB
-                    | PAN_LSB => continue,
-                    _ => {}
-                }
-
+        if is_all_ctrl_off {
+            for i in ControlFunction::iter_range(ControlFunction::MIN..ControlFunction::AllSoundOff)
+                .filter(|i| !i.is_effects_n_depth())
+                .filter(|i| !i.is_sound_controller_n())
+                .filter(|i| {
+                    !matches!(
+                        i,
+                        ControlFunction::BankSelect | ControlFunction::BankSelectLsb
+                    )
+                })
+                .filter(|i| {
+                    !matches!(
+                        i,
+                        ControlFunction::ChannelVolume | ControlFunction::ChannelVolumeLsb
+                    )
+                })
+                .filter(|i| !matches!(i, ControlFunction::Pan | ControlFunction::PanLsb))
+            {
                 self.cc[i] = 0;
             }
         } else {
-            self.cc.fill(0);
+            self.cc.0.fill(0);
         }
 
         self.key_pressure.fill(0);
 
-        self.cc[RPN_LSB] = 127;
-        self.cc[RPN_MSB] = 127;
-        self.cc[NRPN_LSB] = 127;
-        self.cc[NRPN_MSB] = 127;
-        self.cc[EXPRESSION_MSB] = 127;
-        self.cc[EXPRESSION_LSB] = 127;
+        self.cc[ControlFunction::RegisteredParameterNumberLsb] = 127;
+        self.cc[ControlFunction::RegisteredParameterNumberMsb] = 127;
+        self.cc[ControlFunction::NonRegisteredParameterNumberLsb] = 127;
+        self.cc[ControlFunction::NonRegisteredParameterNumberMsb] = 127;
+        self.cc[ControlFunction::ExpressionController] = 127;
+        self.cc[ControlFunction::ExpressionControllerLsb] = 127;
 
-        if is_all_ctrl_off == 0 {
+        if !is_all_ctrl_off {
             self.pitch_wheel_sensitivity = 2;
 
-            self.cc[SOUND_CTRL1..=SOUND_CTRL10].fill(64);
-            self.cc[VOLUME_MSB] = 100;
-            self.cc[VOLUME_LSB] = 0;
-            self.cc[PAN_MSB] = 64;
-            self.cc[PAN_LSB] = 0;
+            self.cc[ControlFunction::SoundController1..=ControlFunction::SoundController10]
+                .fill(64);
+            self.cc[ControlFunction::ChannelVolume] = 100;
+            self.cc[ControlFunction::ChannelVolumeLsb] = 0;
+            self.cc[ControlFunction::Pan] = 64;
+            self.cc[ControlFunction::PanLsb] = 0;
         };
     }
 }
@@ -231,11 +254,11 @@ impl Channel {
     }
 
     pub fn cc(&self, id: usize) -> u8 {
-        self.cc.get(id).copied().unwrap_or(0)
+        self.cc.0.get(id).copied().unwrap_or(0)
     }
 
     pub fn cc_mut(&mut self, id: usize) -> &mut u8 {
-        &mut self.cc[id]
+        &mut self.cc.0[id]
     }
 
     pub fn bank_msb(&self) -> u8 {

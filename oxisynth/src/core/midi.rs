@@ -95,7 +95,7 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
             let preset = synth.font_bank.find_preset(0, 0).map(|p| p.1);
             for channel in synth.channels.iter_mut() {
                 channel.init(preset.clone());
-                channel.init_ctrl(0);
+                channel.init_ctrl(false);
             }
 
             synth.chorus.reset();
@@ -471,7 +471,7 @@ fn cc(
 
         // ALL_CTRL_OFF
         121 => {
-            channel.init_ctrl(1);
+            channel.init_ctrl(true);
             voices.modulate_voices_all(channel);
         }
 
