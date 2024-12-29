@@ -1,6 +1,7 @@
 mod voice;
 
-pub(crate) use voice::{EnvelopeStep, Voice, VoiceAddMode, VoiceDescriptor};
+use soundfont::raw::GeneralPalette;
+pub(crate) use voice::{EnvelopeStep, ModulateCtrl, Voice, VoiceAddMode, VoiceDescriptor};
 
 use super::channel_pool::Channel;
 use super::soundfont::generator::GeneratorType;
@@ -111,15 +112,13 @@ impl VoicePool {
     }
 
     pub fn key_pressure(&mut self, channel: &Channel, key: u8) {
-        const MOD_KEYPRESSURE: u8 = 10;
-
         for voice in self
             .voices
             .iter_mut()
             .filter(|v| v.channel_id() == channel.id())
             .filter(|v| v.key() == key)
         {
-            voice.modulate(channel, false, MOD_KEYPRESSURE);
+            voice.modulate(channel, ModulateCtrl::SF(GeneralPalette::PolyPressure));
         }
     }
 
@@ -134,13 +133,13 @@ impl VoicePool {
         }
     }
 
-    pub fn modulate_voices(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
+    pub fn modulate_voices(&mut self, channel: &Channel, ctrl: ModulateCtrl) {
         for voice in self
             .voices
             .iter_mut()
             .filter(|v| v.channel_id() == channel.id())
         {
-            voice.modulate(channel, is_cc, ctrl);
+            voice.modulate(channel, ctrl);
         }
     }
 

@@ -4,7 +4,10 @@ mod envelope;
 pub use envelope::EnvelopeStep;
 use envelope::{Envelope, EnvelopePortion};
 
-use crate::core::{BUFSIZE, BUFSIZE_F32};
+use crate::{
+    core::{BUFSIZE, BUFSIZE_F32},
+    midi_event::ControlFunction,
+};
 
 use super::super::{
     channel_pool::{Channel, InterpolationMethod},
@@ -102,6 +105,12 @@ impl SampleMode {
     pub fn is_until_release(&self) -> bool {
         *self == Self::UntilRelease
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum ModulateCtrl {
+    CC(ControlFunction),
+    SF(GeneralPalette),
 }
 
 pub struct VoiceDescriptor<'a> {
@@ -508,7 +517,26 @@ impl Voice {
         }
     }
 
-    pub(super) fn modulate(&mut self, channel: &Channel, is_cc: bool, ctrl: u8) {
+    pub(super) fn modulate(&mut self, channel: &Channel, ctrl: ModulateCtrl) {
+        let (is_cc, ctrl) = match ctrl {
+            ModulateCtrl::CC(control_function) => (true, control_function as u8),
+            ModulateCtrl::SF(v) => (
+                false,
+                // TODO: Move to soundfont crate
+                match v {
+                    GeneralPalette::NoController => 0,
+                    GeneralPalette::NoteOnVelocity => 2,
+                    GeneralPalette::NoteOnKeyNumber => 3,
+                    GeneralPalette::PolyPressure => 10,
+                    GeneralPalette::ChannelPressure => 13,
+                    GeneralPalette::PitchWheel => 14,
+                    GeneralPalette::PitchWheelSensitivity => 16,
+                    GeneralPalette::Link => 127,
+                    GeneralPalette::Unknown(v) => v,
+                },
+            ),
+        };
+
         #[inline(always)]
         fn mod_has_source(m: &Mod, is_cc: bool, ctrl: u8) -> bool {
             let a1 = (m.src.index == ctrl) && m.src.is_cc() && is_cc;

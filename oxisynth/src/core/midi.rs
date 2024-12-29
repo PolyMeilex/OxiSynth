@@ -1,3 +1,5 @@
+use soundfont::raw::GeneralPalette;
+
 use crate::core::channel_pool::Channel;
 use crate::core::font_bank::FontBank;
 use crate::core::soundfont::modulator::Mod;
@@ -5,7 +7,8 @@ use crate::core::soundfont::{
     generator::{gen_scale_nrpn, GeneratorType},
     InstrumentZone, PresetZone,
 };
-use crate::core::voice_pool::{Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
+use crate::core::voice_pool::{ModulateCtrl, Voice, VoiceAddMode, VoiceDescriptor, VoicePool};
+use crate::midi_event::ControlFunction;
 use crate::{MidiEvent, OxiError};
 
 use super::Core;
@@ -56,9 +59,10 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
         MidiEvent::PitchBend { channel, value } => {
             let channel = synth.channels.get_mut(channel as usize)?;
 
-            const MOD_PITCHWHEEL: u8 = 14;
             channel.set_pitch_bend(value);
-            synth.voices.modulate_voices(channel, false, MOD_PITCHWHEEL);
+            synth
+                .voices
+                .modulate_voices(channel, ModulateCtrl::SF(GeneralPalette::PitchWheel));
         }
         MidiEvent::ProgramChange {
             channel,
@@ -74,11 +78,10 @@ pub(crate) fn handle_event(synth: &mut Core, event: MidiEvent) -> Result<(), Oxi
         MidiEvent::ChannelPressure { channel, value } => {
             let channel = synth.channels.get_mut(channel as usize)?;
 
-            const MOD_CHANNELPRESSURE: u8 = 13;
             channel.set_channel_pressure(value);
             synth
                 .voices
-                .modulate_voices(channel, false, MOD_CHANNELPRESSURE);
+                .modulate_voices(channel, ModulateCtrl::SF(GeneralPalette::ChannelPressure));
         }
         MidiEvent::PolyphonicKeyPressure {
             channel,
@@ -413,11 +416,16 @@ fn cc(
     num: u8,
     value: u8,
 ) {
+    let Some(num) = ControlFunction::const_try_from(num) else {
+        return;
+    };
+
     *channel.cc_mut(num as usize) = value;
 
+    use ControlFunction::*;
     match num {
-        // SUSTAIN_SWITCH
-        64 => {
+        // Sustain
+        DamperPedal => {
             if value < 64 {
                 // sustain off
                 voices.damp_voices(channel, min_note_length_ticks)
@@ -426,8 +434,7 @@ fn cc(
             }
         }
 
-        // BANK_SELECT_MSB
-        0 => {
+        BankSelect => {
             if channel.id() == 9 && drums_channel_active {
                 // ignored
                 return;
@@ -445,8 +452,7 @@ fn cc(
             channel.set_banknum((value & 0x7f) as u32);
         }
 
-        // BANK_SELECT_LSB
-        32 => {
+        BankSelectLsb => {
             if channel.id() == 9 && drums_channel_active {
                 // ignored
                 return;
@@ -459,24 +465,20 @@ fn cc(
                 .set_banknum((value as u32 & 0x7f).wrapping_add((channel.bank_msb() as u32) << 7));
         }
 
-        // ALL_NOTES_OFF
-        123 => {
+        AllNotesOff => {
             voices.all_notes_off(channel, min_note_length_ticks);
         }
 
-        // ALL_SOUND_OFF
-        120 => {
+        AllSoundOff => {
             voices.all_notes_off(channel, min_note_length_ticks);
         }
 
-        // ALL_CTRL_OFF
-        121 => {
+        ResetAllControllers => {
             channel.init_ctrl(true);
             voices.modulate_voices_all(channel);
         }
 
-        // DATA_ENTRY_MSB
-        6 => {
+        DataEntryMsb => {
             let data: i32 = ((value as i32) << 7) + channel.cc(DATA_ENTRY_LSB as usize) as i32;
 
             if channel.nrpn_active() != 0 {
@@ -534,15 +536,13 @@ fn cc(
             }
         }
 
-        // NRPN_MSB
-        99 => {
+        NonRegisteredParameterNumberMsb => {
             *channel.cc_mut(NRPN_LSB as usize) = 0;
             channel.set_nrpn_select(0);
             channel.set_nrpn_active(1);
         }
 
-        // NRPN_LSB
-        98 => {
+        NonRegisteredParameterNumberLsb => {
             // SontFont 2.01 NRPN Message (Sect. 9.6, p. 74)
             if channel.cc(NRPN_MSB as usize) == 120 {
                 if value == 100 {
@@ -558,17 +558,18 @@ fn cc(
             channel.set_nrpn_active(1);
         }
 
-        // RPN_MSB | RPN_LSB
-        101 | 100 => channel.set_nrpn_active(0),
-        _ => voices.modulate_voices(channel, true, num),
+        RegisteredParameterNumberMsb | RegisteredParameterNumberLsb => channel.set_nrpn_active(0),
+        _ => voices.modulate_voices(channel, ModulateCtrl::CC(num)),
     }
 }
 
 /// Set the pitch wheel sensitivity.
 pub(crate) fn pitch_wheel_sens(channel: &mut Channel, voices: &mut VoicePool, val: u8) {
-    const MOD_PITCHWHEELSENS: u8 = 16;
     channel.set_pitch_wheel_sensitivity(val);
-    voices.modulate_voices(channel, false, MOD_PITCHWHEELSENS);
+    voices.modulate_voices(
+        channel,
+        ModulateCtrl::SF(GeneralPalette::PitchWheelSensitivity),
+    );
 }
 
 /// Send a program change message.
