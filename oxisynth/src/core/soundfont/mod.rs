@@ -22,7 +22,20 @@ pub struct SoundFont {
     presets: Vec<Arc<Preset>>,
 }
 
+// SondFont::load() might be slow due to IO or SF3 vorbis decompression,
+// so we want to allow the font to be loaded on a different thread.
+//
+// Technically we could also do `load_asnyc()` variant, but IMO that's redundant.
+const _: fn() = {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<SoundFont>
+};
+
 impl SoundFont {
+    /// Load SoundFont™ file, once loaded it can be added to the synth with [crate::Synth::add_font()].
+    ///
+    /// This operation might be quite slow due to blocking IO operations and potential SF3 vorbis decompression,
+    /// so you might consider loading on a secondary thread. [SoundFont] is both [Send] and [Sync].
     pub fn load<F: Read + Seek>(file: &mut F) -> Result<Self, LoadError> {
         let sf2 = soundfont::SoundFont2::load(file)?;
 
