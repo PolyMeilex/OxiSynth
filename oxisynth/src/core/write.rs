@@ -31,35 +31,37 @@ impl Core {
             self.settings.audio_groups,
             (&mut self.left_buf, &mut self.right_buf),
             &mut self.fx_left_buf,
-            self.reverb.active(),
-            self.chorus.active(),
+            self.settings.reverb_active,
+            self.settings.chorus_active,
         );
 
         /* if multi channel output, don't mix the output of the chorus and
         reverb in the final output. The effects outputs are send
         separately. */
         if do_not_mix_fx_to_out {
-            /* send to reverb */
-            if self.reverb.active() {
+            // send to reverb
+            if self.settings.reverb_active {
                 self.reverb
                     .process_replace(&mut self.fx_left_buf.reverb, &mut self.fx_right_buf.reverb);
             }
-            /* send to chorus */
-            if self.chorus.active() {
+
+            // send to chorus
+            if self.settings.chorus_active {
                 self.chorus
                     .process_replace(&mut self.fx_left_buf.chorus, &mut self.fx_right_buf.chorus);
             }
         } else {
-            /* send to reverb */
-            if self.reverb.active() {
+            // send to reverb
+            if self.settings.reverb_active {
                 self.reverb.process_mix(
                     &mut self.fx_left_buf.reverb,
                     &mut self.left_buf[0],
                     &mut self.right_buf[0],
                 );
             }
-            /* send to chorus */
-            if self.chorus.active() {
+
+            // send to chorus
+            if self.settings.chorus_active {
                 self.chorus.process_mix(
                     &mut self.fx_left_buf.chorus,
                     &mut self.left_buf[0],

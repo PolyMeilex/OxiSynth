@@ -19,8 +19,6 @@ const INTERPOLATION_SAMPLES: usize = 5;
 
 #[derive(Clone)]
 pub struct Chorus {
-    active: bool,
-
     type_0: ChorusMode,
     new_type: ChorusMode,
     depth_ms: f32,
@@ -41,10 +39,8 @@ pub struct Chorus {
 }
 
 impl Chorus {
-    pub fn new(sample_rate: f32, active: bool) -> Self {
+    pub fn new(sample_rate: f32) -> Self {
         let mut chorus = Self {
-            active,
-
             type_0: ChorusMode::Sine,
             new_type: ChorusMode::Sine,
             depth_ms: 0f32,
@@ -88,7 +84,7 @@ impl Chorus {
 
     fn init(&mut self) {
         self.chorusbuf.fill(0.0);
-        self.set_chorus(&Default::default());
+        self.set_params(&Default::default());
         self.update();
     }
 
@@ -263,7 +259,9 @@ pub enum ChorusMode {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChorusParams {
+    /// Chorus nr
     pub nr: u32,
+    /// Chorus level
     pub level: f32,
     /// Speed in Hz
     pub speed: f32,
@@ -286,23 +284,13 @@ impl Default for ChorusParams {
 }
 
 impl Chorus {
-    /// Turn on/off the built-in chorus unit
-    pub fn set_active(&mut self, on: bool) {
-        self.active = on;
-    }
-
-    /// Check if Chorus is on/off
-    pub fn active(&self) -> bool {
-        self.active
-    }
-
     /// Set the current chorus nr
     fn set_nr(&mut self, nr: u32) {
         self.new_number_blocks = nr;
     }
 
     /// Query the current chorus nr
-    pub fn nr(&self) -> u32 {
+    fn nr(&self) -> u32 {
         self.number_blocks
     }
 
@@ -312,7 +300,7 @@ impl Chorus {
     }
 
     /// Query the current chorus level
-    pub fn level(&self) -> f32 {
+    fn level(&self) -> f32 {
         self.level
     }
 
@@ -322,7 +310,7 @@ impl Chorus {
     }
 
     /// Query the current chorus speed (Hz)
-    pub fn speed_hz(&self) -> f32 {
+    fn speed_hz(&self) -> f32 {
         self.speed_hz
     }
 
@@ -332,7 +320,7 @@ impl Chorus {
     }
 
     /// Query the current chorus depth (mS)
-    pub fn depth_ms(&self) -> f32 {
+    fn depth_ms(&self) -> f32 {
         self.depth_ms
     }
 
@@ -342,46 +330,26 @@ impl Chorus {
     }
 
     /// Query the current chorus mode
-    pub fn mode(&self) -> ChorusMode {
+    fn mode(&self) -> ChorusMode {
         self.type_0
     }
 }
 
 impl Chorus {
-    // Set up the chorus. It should be turned on with Chorus::set_active().
-    // If faulty parameters are given, all new settings are discarded.
-    // Keep in mind, that the needed CPU time is proportional to `nr`.
-    pub fn set_chorus(&mut self, params: &ChorusParams) {
-        self.set_chorus_params(
-            params.nr,
-            params.level,
-            params.speed,
-            params.depth,
-            params.mode,
-        );
-    }
-
     /// Set up the chorus. It should be turned on with Chorus::set_active().
     /// If faulty parameters are given, all new settings are discarded.
     /// Keep in mind, that the needed CPU time is proportional to `nr`.
-    pub fn set_chorus_params(
-        &mut self,
-        nr: u32,
-        level: f32,
-        speed: f32,
-        depth_ms: f32,
-        type_0: ChorusMode,
-    ) {
-        self.set_nr(nr);
-        self.set_level(level);
-        self.set_speed_hz(speed);
-        self.set_depth_ms(depth_ms);
-        self.set_mode(type_0);
+    pub fn set_params(&mut self, params: &ChorusParams) {
+        self.set_nr(params.nr);
+        self.set_level(params.level);
+        self.set_speed_hz(params.speed);
+        self.set_depth_ms(params.depth);
+        self.set_mode(params.mode);
         self.update();
     }
 
     /// Query the current chorus params
-    pub fn get_chorus(&self) -> ChorusParams {
+    pub fn params(&self) -> ChorusParams {
         ChorusParams {
             nr: self.nr(),
             level: self.level(),

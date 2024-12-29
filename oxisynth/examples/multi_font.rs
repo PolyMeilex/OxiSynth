@@ -22,8 +22,8 @@ fn synth_sf2() -> Result<(), OxiError> {
     let font = SoundFont::load(&mut file).unwrap();
     let boom = synth.add_font(font, true);
 
-    synth.program_select(0, sin, 0, 0).unwrap();
-    synth.program_select(1, boom, 0, 0).unwrap();
+    synth.select_program(0, sin, 0, 0).unwrap();
+    synth.select_program(1, boom, 0, 0).unwrap();
 
     let mut samples = [0f32; 44100 / 8];
 

@@ -60,6 +60,68 @@ impl std::fmt::Display for LoadError {
 }
 
 #[derive(Debug)]
+pub enum RangeError<T> {
+    ToBig { got: T, max: T },
+    ToSmall { got: T, min: T },
+}
+
+impl<T: std::fmt::Debug> std::error::Error for RangeError<T> {}
+impl<T: std::fmt::Debug> std::fmt::Display for RangeError<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            RangeError::ToBig { got, max } => {
+                write!(f, "{got:?} to high, max expected: {max:?}")?;
+            }
+            RangeError::ToSmall { got, min } => {
+                write!(f, "{got:?} to low, min expected: {min:?}")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum SettingsError {
+    PolyphonyRange(RangeError<u16>),
+    GainRange(RangeError<f32>),
+    AudioChannelRange(RangeError<u8>),
+    AudioGroupsRange(RangeError<u8>),
+    SammpleRateRange(RangeError<f32>),
+
+    /// Requested number of MIDI channels is not a multiple of 16. Increase the number of channels to the next multiple.
+    MidiChannelsIsNotMultipleOf16,
+}
+
+impl std::error::Error for SettingsError {}
+impl std::fmt::Display for SettingsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            SettingsError::PolyphonyRange(range_error) => {
+                write!(f, "Polyphony {range_error}")?;
+            }
+            SettingsError::GainRange(range_error) => {
+                write!(f, "Gain {range_error}")?;
+            }
+            SettingsError::AudioChannelRange(range_error) => {
+                write!(f, "AudioChannel {range_error}")?;
+            }
+            SettingsError::AudioGroupsRange(range_error) => {
+                write!(f, "AudioGroups {range_error}")?;
+            }
+            SettingsError::SammpleRateRange(range_error) => {
+                write!(f, "SammpleRate {range_error}")?;
+            }
+            SettingsError::MidiChannelsIsNotMultipleOf16 => {
+                write!(f, "MidiChannels is not a multiple of 16")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub enum OxiError {
     KeyOutOfRange,
     VelocityOutOfRange,

@@ -3,15 +3,17 @@ pub(crate) mod write;
 
 pub(crate) mod channel_pool;
 pub(crate) use channel_pool::Channel;
+mod settings;
 pub(crate) mod voice_pool;
 
 mod conv;
 pub use channel_pool::InterpolationMethod;
+pub(crate) use settings::Settings;
 
 pub mod font_bank;
 
-use crate::chorus::Chorus;
-use crate::reverb::Reverb;
+use oxisynth_chorus::Chorus;
+use oxisynth_reverb::Reverb;
 
 pub mod soundfont;
 use soundfont::SoundFont;
@@ -21,7 +23,8 @@ use voice_pool::VoicePool;
 use self::channel_pool::ChannelPool;
 use self::font_bank::FontBank;
 
-use crate::{Settings, SettingsError, SynthDescriptor};
+use crate::{SettingsError, SynthDescriptor};
+
 #[derive(Clone)]
 struct FxBuf {
     pub reverb: [f32; 64],
@@ -62,9 +65,6 @@ impl Default for Core {
 
 impl Core {
     pub fn new(desc: SynthDescriptor) -> Result<Self, SettingsError> {
-        let chorus_active = desc.chorus_active;
-        let reverb_active = desc.reverb_active;
-
         let settings: Settings = desc.try_into()?;
 
         let min_note_length_ticks =
@@ -95,8 +95,8 @@ impl Core {
                 chorus: [0.0; 64],
             },
 
-            reverb: Reverb::new(reverb_active),
-            chorus: Chorus::new(settings.sample_rate, chorus_active),
+            reverb: Reverb::new(),
+            chorus: Chorus::new(settings.sample_rate),
 
             cur: 64,
             min_note_length_ticks,

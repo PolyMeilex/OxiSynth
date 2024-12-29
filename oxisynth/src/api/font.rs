@@ -1,10 +1,8 @@
-use crate::core::soundfont::SoundFont;
-use crate::SoundFontId;
-use crate::Synth;
+use std::sync::Arc;
 
-/**
-SoundFont management
- */
+use crate::{core::soundfont::SoundFont, GeneratorType, OxiError, Preset, SoundFontId, Synth};
+
+/// SoundFont management
 impl Synth {
     /// Loads a SoundFont. The newly
     /// loaded SoundFont will be put on top of the SoundFont
@@ -15,7 +13,7 @@ impl Synth {
         let id = self.core.font_bank.add_font(font);
 
         if reset_presets {
-            self.program_reset();
+            self.reset_program();
         }
 
         id
@@ -40,7 +38,7 @@ impl Synth {
 
         if let Some(font) = sfont {
             if reset_presets {
-                self.program_reset();
+                self.reset_program();
             } else {
                 self.update_presets();
             }
@@ -52,8 +50,21 @@ impl Synth {
         }
     }
 
+    /// Select a sfont.
+    pub fn select_sound_font(
+        &mut self,
+        channel: u8,
+        sfont_id: SoundFontId,
+    ) -> Result<(), OxiError> {
+        self.core
+            .channels
+            .get_mut(channel as usize)?
+            .set_sfontnum(Some(sfont_id));
+        Ok(())
+    }
+
     /// Count the number of loaded SoundFonts.
-    pub fn count_fonts(&self) -> usize {
+    pub fn sound_font_count(&self) -> usize {
         self.core.font_bank.count()
     }
 
@@ -61,17 +72,16 @@ impl Synth {
     /// stack. The top of the stack has index zero.
     ///
     /// - `num` The number of the SoundFont (0 <= num < sfcount)
-    pub fn nth_sfont(&self, num: usize) -> Option<&SoundFont> {
-        self.core.font_bank.get_nth_font(num)
+    pub fn nth_sound_font(&self, num: usize) -> Option<&SoundFont> {
+        self.core.font_bank.nth_font(num)
     }
 
     /// Get a SoundFont. The SoundFont is specified by its ID.
-    pub fn sfont(&self, id: SoundFontId) -> Option<&SoundFont> {
-        self.core.font_bank.get_font(id)
+    pub fn sound_font(&self, id: SoundFontId) -> Option<&SoundFont> {
+        self.core.font_bank.font(id)
     }
 
     /// Offset the bank numbers in a SoundFont.
-    /// Returns -1 if an error occured (out of memory or negative offset)
     pub fn set_bank_offset(&mut self, sfont_id: SoundFontId, offset: u32) {
         self.core.font_bank.bank_offsets.set(sfont_id, offset)
     }
@@ -84,6 +94,47 @@ impl Synth {
             .get(sfont_id)
             .map(|o| o.offset)
     }
+
+    pub fn channel_preset(&self, channel: u8) -> Option<Arc<Preset>> {
+        if let Ok(channel) = self.core.channels.get(channel as usize) {
+            channel.preset().cloned()
+        } else {
+            log::warn!("Channel out of range");
+            None
+        }
+    }
+}
+
+/// SoundFont generator interface
+impl Synth {
+    /// Change the value of a generator. This function allows to control
+    /// all synthesis parameters in real-time. The changes are additive,
+    /// i.e. they add up to the existing parameter value. This function is
+    /// similar to sending an NRPN message to the synthesizer. The
+    /// function accepts a float as the value of the parameter. The
+    /// parameter numbers and ranges are described in the SoundFont 2.01
+    /// specification, paragraph 8.1.3, page 48.
+    pub fn set_gen(
+        &mut self,
+        chan: usize,
+        param: GeneratorType,
+        value: f32,
+    ) -> Result<(), OxiError> {
+        let channel = self.core.channels.get_mut(chan)?;
+
+        crate::core::midi::set_gen(channel, &mut self.core.voices, param, value);
+
+        Ok(())
+    }
+
+    /// Retrieve the value of a generator. This function returns the value
+    /// set by a previous call 'set_gen()' or by an NRPN message.
+    ///
+    /// Returns the value of the generator.
+    pub fn gen(&self, chan: u8, param: GeneratorType) -> Result<f32, OxiError> {
+        let channel = self.core.channels.get(chan as usize)?;
+        Ok(channel.gen(param))
+    }
 }
 
 #[cfg(test)]
@@ -93,7 +144,7 @@ mod test {
     #[test]
     fn font_and_preset() {
         let mut synth = Synth::new(SynthDescriptor::default()).unwrap();
-        assert_eq!(synth.count_fonts(), 0);
+        assert_eq!(synth.sound_font_count(), 0);
 
         // Load first font
         let sin = {
@@ -102,9 +153,9 @@ mod test {
 
             let id = synth.add_font(font, true);
 
-            assert_eq!(synth.count_fonts(), 1);
+            assert_eq!(synth.sound_font_count(), 1);
 
-            let font = synth.sfont(id).unwrap();
+            let font = synth.sound_font(id).unwrap();
 
             let preset = font.preset(0, 0).unwrap();
 
@@ -121,9 +172,9 @@ mod test {
 
             let id = synth.add_font(font, true);
 
-            assert_eq!(synth.count_fonts(), 2);
+            assert_eq!(synth.sound_font_count(), 2);
 
-            let font = synth.sfont(id).unwrap();
+            let font = synth.sound_font(id).unwrap();
             let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Boomwhacker");
@@ -139,7 +190,7 @@ mod test {
 
         // Check Sin ID
         {
-            let font = synth.sfont(sin).unwrap();
+            let font = synth.sound_font(sin).unwrap();
             let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Sine Wave");
@@ -148,7 +199,7 @@ mod test {
         }
         // Check Boomwhacker ID
         {
-            let font = synth.sfont(boom).unwrap();
+            let font = synth.sound_font(boom).unwrap();
             let preset = font.preset(0, 0).unwrap();
 
             assert_eq!(preset.name(), "Boomwhacker");

@@ -70,6 +70,7 @@ impl IsSamples for &mut [f64] {
     }
 }
 
+/// Write synth output to a buffer
 impl Synth {
     /// Write sound samples to the sample data buffer
     #[inline(always)]

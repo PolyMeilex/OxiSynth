@@ -1,11 +1,13 @@
-pub struct SynthDescriptor {
+use crate::{RangeError, SettingsError, SynthDescriptor};
+
+pub(crate) struct Settings {
     pub reverb_active: bool,
     pub chorus_active: bool,
     pub drums_channel_active: bool,
 
     /// Def: 256
-    /// Min: 16
-    /// Max: 4096
+    /// Min: 1
+    /// Max: 65535
     pub polyphony: u16,
     /// Def: 16
     /// Min: 16
@@ -17,14 +19,14 @@ pub struct SynthDescriptor {
     pub gain: f32,
     /// Def: 1
     /// Min: 1
-    /// Max: 256
+    /// Max: 128
     pub audio_channels: u8,
     /// Def: 1
     /// Min: 1
-    /// Max: 256
+    /// Max: 128
     pub audio_groups: u8,
     /// Def: 44100.0
-    /// Min: 22050.0
+    /// Min: 8000.0
     /// Max: 96000.0
     pub sample_rate: f32,
     /// Def: 10
@@ -33,79 +35,9 @@ pub struct SynthDescriptor {
     pub min_note_length: u16,
 }
 
-impl Default for SynthDescriptor {
-    fn default() -> Self {
-        Self {
-            reverb_active: true,
-            chorus_active: true,
-            drums_channel_active: true,
-
-            polyphony: 256,
-            midi_channels: 16,
-            gain: 0.2,
-            audio_channels: 1,
-            audio_groups: 1,
-            sample_rate: 44100.0,
-            min_note_length: 10,
-        }
-    }
-}
-
-pub struct Settings {
-    pub(crate) drums_channel_active: bool,
-
-    /// Def: 256
-    /// Min: 1
-    /// Max: 65535
-    pub(crate) polyphony: u16,
-    /// Def: 16
-    /// Min: 16
-    /// Max: 256
-    pub(crate) midi_channels: u8,
-    /// Def: 0.2
-    /// Min: 0.0
-    /// Max: 10.0
-    pub(crate) gain: f32,
-    /// Def: 1
-    /// Min: 1
-    /// Max: 128
-    pub(crate) audio_channels: u8,
-    /// Def: 1
-    /// Min: 1
-    /// Max: 128
-    pub(crate) audio_groups: u8,
-    /// Def: 44100.0
-    /// Min: 8000.0
-    /// Max: 96000.0
-    pub(crate) sample_rate: f32,
-    /// Def: 10
-    /// Min: 0
-    /// Max: 65535
-    pub(crate) min_note_length: u16,
-}
-
-impl Settings {
-    /// Returns the number of audio channels that the synthesizer uses internally
-    pub fn audio_channels_len(&self) -> u8 {
-        self.audio_channels
-    }
-
-    /// Returns the number of audio groups that the synthesizer uses internally.
-    /// This is usually identical to audio_channels.
-    pub fn audio_groups_len(&self) -> u8 {
-        self.audio_groups
-    }
-}
-
 struct Range<T> {
     min: T,
     max: T,
-}
-
-#[derive(Debug)]
-pub enum RangeError<T> {
-    ToBig { got: T, max: T },
-    ToSmall { got: T, min: T },
 }
 
 impl<T: PartialOrd + Copy> Range<T> {
@@ -127,7 +59,6 @@ impl<T: PartialOrd + Copy> Range<T> {
 }
 
 static POLYPHONY_RANGE: Range<u16> = Range { min: 1, max: 65535 };
-// static MIDI_CHANNELS_RANGE: Range<u8> = Range { min: 16, max: 255 };
 static GAIN_RANGE: Range<f32> = Range {
     min: 0.0,
     max: 10.0,
@@ -138,19 +69,6 @@ static SAMPLE_RATE_RANGE: Range<f32> = Range {
     min: 8000.0,
     max: 96000.0,
 };
-// static MIN_NOTE_LENGTH_RANGE: Range<u16> = Range { min: 0, max: 65535 };
-
-#[derive(Debug)]
-pub enum SettingsError {
-    PolyphonyRange(RangeError<u16>),
-    GainRange(RangeError<f32>),
-    AudioChannelRange(RangeError<u8>),
-    AudioGroupsRange(RangeError<u8>),
-    SammpleRateRange(RangeError<f32>),
-
-    /// Requested number of MIDI channels is not a multiple of 16. Increase the number of channels to the next multiple.
-    MidiChannelsIsNotMultipleOf16,
-}
 
 impl TryFrom<SynthDescriptor> for Settings {
     type Error = SettingsError;
@@ -187,6 +105,8 @@ impl TryFrom<SynthDescriptor> for Settings {
         let min_note_length = desc.min_note_length;
 
         Ok(Self {
+            reverb_active: desc.reverb_active,
+            chorus_active: desc.chorus_active,
             drums_channel_active: desc.drums_channel_active,
 
             polyphony,

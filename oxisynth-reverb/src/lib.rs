@@ -105,8 +105,6 @@ struct LRPair<T> {
 
 #[derive(Clone)]
 pub struct Reverb {
-    active: bool,
-
     roomsize: f32,
     damp: f32,
     wet: f32,
@@ -118,11 +116,15 @@ pub struct Reverb {
     allpass: [LRPair<AllPass>; 4],
 }
 
-impl Reverb {
-    pub fn new(active: bool) -> Self {
-        let mut rev = Self {
-            active,
+impl Default for Reverb {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+impl Reverb {
+    pub fn new() -> Self {
+        let mut rev = Self {
             roomsize: 0.5 * 0.28 + 0.7,
             damp: 0.2 * 1.0,
             wet: 1.0 * 3.0,
@@ -183,7 +185,7 @@ impl Reverb {
                 },
             ],
         };
-        rev.set_reverb(&Default::default());
+        rev.set_params(&Default::default());
         rev
     }
 
@@ -311,9 +313,13 @@ impl Reverb {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ReverbParams {
+    /// Reverb room size
     pub roomsize: f32,
+    /// Reverb dumping
     pub damp: f32,
+    /// Reverb width
     pub width: f32,
+    /// Reverb level
     pub level: f32,
 }
 
@@ -329,23 +335,13 @@ impl Default for ReverbParams {
 }
 
 impl Reverb {
-    /// Turn on/off the built-in Reverb unit
-    pub fn set_active(&mut self, on: bool) {
-        self.active = on;
-    }
-
-    /// Check if Reverb is on/off
-    pub fn active(&self) -> bool {
-        self.active
-    }
-
     /// Set the current reverb room size
     fn set_room_size(&mut self, value: f32) {
         self.roomsize = value * 0.28 + 0.7;
     }
 
     /// Query the current reverb room size
-    pub fn room_size(&self) -> f32 {
+    fn room_size(&self) -> f32 {
         (self.roomsize - 0.7) / 0.28
     }
 
@@ -355,7 +351,7 @@ impl Reverb {
     }
 
     /// Query the current reverb dumping
-    pub fn damp(&self) -> f32 {
+    fn damp(&self) -> f32 {
         self.damp / 1.0
     }
 
@@ -366,7 +362,7 @@ impl Reverb {
     }
 
     /// Query the current reverb level
-    pub fn level(&self) -> f32 {
+    fn level(&self) -> f32 {
         self.wet / 3.0
     }
 
@@ -376,28 +372,23 @@ impl Reverb {
     }
 
     /// Query the current reverb width
-    pub fn width(&self) -> f32 {
+    fn width(&self) -> f32 {
         self.width
     }
 }
 
 impl Reverb {
     /// Set the parameters for the built-in reverb unit
-    pub fn set_reverb(&mut self, params: &ReverbParams) {
-        self.set_reverb_params(params.roomsize, params.damp, params.width, params.level);
-    }
-
-    /// Set the parameters for the built-in reverb unit
-    pub fn set_reverb_params(&mut self, roomsize: f32, damping: f32, width: f32, level: f32) {
-        self.set_room_size(roomsize);
-        self.set_damp(damping);
-        self.set_width(width);
-        self.set_level(level);
+    pub fn set_params(&mut self, params: &ReverbParams) {
+        self.set_room_size(params.roomsize);
+        self.set_damp(params.damp);
+        self.set_width(params.width);
+        self.set_level(params.level);
         self.update();
     }
 
     /// Query the current reverb params
-    pub fn reverb(&self) -> ReverbParams {
+    pub fn params(&self) -> ReverbParams {
         ReverbParams {
             roomsize: self.room_size(),
             damp: self.damp(),

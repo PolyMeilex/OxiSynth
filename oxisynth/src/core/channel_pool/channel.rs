@@ -26,22 +26,17 @@ const VOLUME_MSB: MidiControlChange = 7;
 const BANK_SELECT_MSB: MidiControlChange = 0;
 
 /* Flags to choose the interpolation method */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InterpolationMethod {
     /// No interpolation: Fastest, but questionable audio quality
     None = 0,
     /// Straight-line interpolation: A bit slower, reasonable audio quality
     Linear = 1,
     /// Fourth-order interpolation: Requires 50% of the whole DSP processing time, good quality (default)
+    #[default]
     FourthOrder = 4,
     /// Seventh-order interpolation
     SeventhOrder = 7,
-}
-
-impl Default for InterpolationMethod {
-    fn default() -> Self {
-        Self::FourthOrder
-    }
 }
 
 #[derive(Clone)]
