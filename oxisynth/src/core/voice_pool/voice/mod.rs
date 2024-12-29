@@ -48,8 +48,6 @@ pub enum VoiceAddMode {
     Default = 2,
 }
 
-const FLUID_OK: i32 = 0;
-
 #[derive(PartialEq, Clone)]
 enum VoiceStatus {
     Clean,
@@ -550,26 +548,21 @@ impl Voice {
         }
     }
 
-    pub(super) fn modulate_all(&mut self, channel: &Channel) -> i32 {
-        let mut i = 0;
-        while i < self.mod_count {
-            let mod_0 = &mut self.mod_0[i];
-            let gen = mod_0.get_dest();
-            let mut modval = 0.0f32;
+    pub(super) fn modulate_all(&mut self, channel: &Channel) {
+        for i in 0..self.mod_count {
+            let gen = self.mod_0[i].get_dest();
 
-            let mut k = 0;
-            while k < self.mod_count {
-                if self.mod_0[k].dest == gen {
-                    modval += self.mod_0[k].get_value(channel, self)
-                }
-                k += 1
-            }
+            let modval: f32 = self
+                .mod_0
+                .iter()
+                .take(self.mod_count)
+                .filter(|k| k.dest == gen)
+                .map(|k| k.get_value(channel, self))
+                .sum();
+
             self.gen[gen].mod_0 = modval as f64;
             self.update_param(gen);
-            i += 1
         }
-
-        FLUID_OK
     }
 
     /// Turns off a voice, meaning that it is not processed
