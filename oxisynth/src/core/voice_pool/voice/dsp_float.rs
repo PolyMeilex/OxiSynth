@@ -154,7 +154,7 @@ impl Voice {
             }
             // go back to loop start
             if dsp_phase_index > end_index {
-                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
+                dsp_phase -= ((self.loopend - self.loopstart) as u64) << 32;
                 self.has_looped = true;
             }
 
@@ -254,7 +254,7 @@ impl Voice {
 
             // go back to loop start (if past
             if dsp_phase_index > end_index {
-                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
+                dsp_phase -= ((self.loopend - self.loopstart) as u64) << 32;
                 self.has_looped = true;
             }
 
@@ -264,7 +264,7 @@ impl Voice {
             }
 
             // set end back to second to last sample point
-            end_index = end_index.wrapping_sub(1)
+            end_index -= 1;
         }
         self.phase = dsp_phase;
         self.amp = dsp_amp;
@@ -351,7 +351,7 @@ impl Voice {
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
 
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index + 2] as f32);
@@ -377,7 +377,7 @@ impl Voice {
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
 
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
                         + coeffs[2] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[3] * end_point1 as f32);
@@ -397,7 +397,7 @@ impl Voice {
                 let coeffs = &DSP_FLOAT_GLOBAL.interp_coeff[id];
 
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[1] * dsp_data[dsp_phase_index] as f32
                         + coeffs[2] * end_point1 as f32
                         + coeffs[3] * end_point2 as f32);
@@ -416,7 +416,7 @@ impl Voice {
 
             // go back to loop start
             if dsp_phase_index > end_index {
-                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
+                dsp_phase -= ((self.loopend - self.loopstart) as u64) << 32;
                 if !self.has_looped {
                     self.has_looped = true;
                     start_index = self.loopstart as usize;
@@ -430,7 +430,7 @@ impl Voice {
             }
 
             // set end back to third to last sample point
-            end_index = end_index.wrapping_sub(2)
+            end_index -= 2;
         }
         self.phase = dsp_phase;
         self.amp = dsp_amp;
@@ -525,7 +525,7 @@ impl Voice {
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * start_points[1] as f32
                         + coeffs[1] * start_points[0] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
@@ -546,8 +546,8 @@ impl Voice {
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
                 dsp_buf[dsp_i] = dsp_amp
                     * (coeffs[0] * start_points[0] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                        + coeffs[1] * dsp_data[dsp_phase_index - 2] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
@@ -561,16 +561,16 @@ impl Voice {
             }
 
             // set back to original start index
-            start_index = start_index.wrapping_sub(2);
+            start_index -= 2;
 
             // interpolate the sequence of sample points
             while dsp_i < 64 && dsp_phase_index <= end_index {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(3)] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 3] as f32
+                        + coeffs[1] * dsp_data[dsp_phase_index - 2] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
@@ -596,9 +596,9 @@ impl Voice {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(3)] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 3] as f32
+                        + coeffs[1] * dsp_data[dsp_phase_index - 2] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * dsp_data[dsp_phase_index + 2] as f32
@@ -619,9 +619,9 @@ impl Voice {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(3)] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 3] as f32
+                        + coeffs[1] * dsp_data[dsp_phase_index - 2] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * dsp_data[dsp_phase_index + 1] as f32
                         + coeffs[5] * end_points[0] as f32
@@ -642,9 +642,9 @@ impl Voice {
                 let id = phase_fract_to_tablerow(dsp_phase as usize);
                 let coeffs = &DSP_FLOAT_GLOBAL.sinc_table7[id];
                 dsp_buf[dsp_i] = dsp_amp
-                    * (coeffs[0] * dsp_data[dsp_phase_index.wrapping_sub(3)] as f32
-                        + coeffs[1] * dsp_data[dsp_phase_index.wrapping_sub(2)] as f32
-                        + coeffs[2] * dsp_data[dsp_phase_index.wrapping_sub(1)] as f32
+                    * (coeffs[0] * dsp_data[dsp_phase_index - 3] as f32
+                        + coeffs[1] * dsp_data[dsp_phase_index - 2] as f32
+                        + coeffs[2] * dsp_data[dsp_phase_index - 1] as f32
                         + coeffs[3] * dsp_data[dsp_phase_index] as f32
                         + coeffs[4] * end_points[0] as f32
                         + coeffs[5] * end_points[1] as f32
@@ -664,7 +664,7 @@ impl Voice {
 
             // go back to loop start
             if dsp_phase_index > end_index {
-                dsp_phase = dsp_phase.wrapping_sub(((self.loopend - self.loopstart) as u64) << 32);
+                dsp_phase -= ((self.loopend - self.loopstart) as u64) << 32;
 
                 if !self.has_looped {
                     self.has_looped = true;
@@ -681,12 +681,12 @@ impl Voice {
             }
 
             // set end back to 4th to last sample point
-            end_index = end_index.wrapping_sub(3)
+            end_index -= 3;
         }
 
         // sub 1/2 sample from dsp_phase since 7th order interpolation is centered on
         // the 4th sample point (correct back to real value)
-        let dsp_phase = dsp_phase.wrapping_sub(0x80000000);
+        let dsp_phase = dsp_phase - 0x80000000;
 
         self.phase = dsp_phase;
         self.amp = dsp_amp;
