@@ -70,14 +70,14 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(id: usize, preset: Option<Arc<Preset>>) -> Self {
+    pub fn new(id: usize) -> Self {
         let mut chan = Self {
             id,
             sfontnum: None,
             banknum: 0,
             prognum: 0,
 
-            preset,
+            preset: None,
 
             key_pressure: [0; 128],
             channel_pressure: 0,

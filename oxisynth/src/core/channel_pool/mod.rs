@@ -1,18 +1,13 @@
-use std::sync::Arc;
-
 mod channel;
 pub use channel::{Channel, InterpolationMethod};
 
-use crate::core::soundfont::Preset;
 use crate::OxiError;
 
 pub struct ChannelPool(Vec<Channel>);
 
 impl ChannelPool {
-    pub fn new(len: usize, preset: Option<Arc<Preset>>) -> Self {
-        let channels = (0..len)
-            .map(|id| Channel::new(id, preset.clone()))
-            .collect();
+    pub fn new(len: usize) -> Self {
+        let channels = (0..len).map(Channel::new).collect();
         Self(channels)
     }
 

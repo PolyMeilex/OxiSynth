@@ -62,7 +62,7 @@ impl Core {
 
             font_bank: FontBank::new(),
 
-            channels: ChannelPool::new(settings.midi_channels as usize, None),
+            channels: ChannelPool::new(settings.midi_channels as usize),
             voices: VoicePool::new(settings.polyphony as usize, settings.sample_rate),
 
             output: OutputBuffer::new(nbuf as usize),
