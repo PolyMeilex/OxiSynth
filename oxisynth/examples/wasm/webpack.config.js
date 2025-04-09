@@ -1,8 +1,6 @@
 const path = require("path");
-const CopyPlugin = require("copy-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const { experiments } = require("webpack");
 
 const dist = path.resolve(__dirname, "dist");
 
