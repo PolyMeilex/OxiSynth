@@ -57,24 +57,6 @@ pub fn beep() -> Handle {
     )
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
-where
-    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
-{
-    for frame in output.chunks_mut(channels) {
-        let (l, r) = next_sample();
-
-        let channels = [
-            T::from_sample::<f32>(l),
-            T::from_sample::<f32>(r)
-        ];
-
-        for (id, sample) in frame.iter_mut().enumerate() {
-            *sample = channels[id % 2];
-        }
-    }
-}
-
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig, rx: Receiver<MidiEvent>) -> Stream
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
@@ -125,4 +107,22 @@ where
         .unwrap();
     stream.play().unwrap();
     stream
+}
+
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
+where
+    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
+{
+    for frame in output.chunks_mut(channels) {
+        let (l, r) = next_sample();
+
+        let channels = [
+            T::from_sample::<f32>(l),
+            T::from_sample::<f32>(r)
+        ];
+
+        for (id, sample) in frame.iter_mut().enumerate() {
+            *sample = channels[id % 2];
+        }
+    }
 }
