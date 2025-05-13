@@ -51,6 +51,7 @@ pub fn beep() -> Handle {
             cpal::SampleFormat::F32 => run::<f32>(&device, &config.into(), rx),
             cpal::SampleFormat::I16 => run::<i16>(&device, &config.into(), rx),
             cpal::SampleFormat::U16 => run::<u16>(&device, &config.into(), rx),
+            _ => panic!("unsupported sample format"),
         },
         tx,
     )
@@ -58,7 +59,7 @@ pub fn beep() -> Handle {
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig, rx: Receiver<MidiEvent>) -> Stream
 where
-    T: cpal::Sample,
+    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
     let sample_rate = config.sample_rate.0 as f32;
     let channels = config.channels as usize;
@@ -74,7 +75,7 @@ where
 
         // Load from memory
         use std::io::Cursor;
-        let mut file = Cursor::new(include_bytes!("../../../testdata/Boomwhacker.sf2"));
+        let mut file = Cursor::new(include_bytes!("../../../../testdata/Boomwhacker.sf2"));
         let font = oxisynth::SoundFont::load(&mut file).unwrap();
 
         synth.add_font(font, true);
@@ -101,6 +102,7 @@ where
             config,
             move |data: &mut [T], _| write_data(data, channels, &mut next_value),
             err_fn,
+            None,
         )
         .unwrap();
     stream.play().unwrap();
@@ -109,15 +111,15 @@ where
 
 fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f32, f32))
 where
-    T: cpal::Sample,
+    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
     for frame in output.chunks_mut(channels) {
         let (l, r) = next_sample();
 
-        let l: T = cpal::Sample::from::<f32>(&l);
-        let r: T = cpal::Sample::from::<f32>(&r);
-
-        let channels = [l, r];
+        let channels = [
+            T::from_sample::<f32>(l),
+            T::from_sample::<f32>(r)
+        ];
 
         for (id, sample) in frame.iter_mut().enumerate() {
             *sample = channels[id % 2];
