@@ -1195,7 +1195,7 @@ impl Voice {
     /// - dsp_i: Index through the output buffer
     /// - dsp_phase_fractional: The fractional part of dsp_phase
     /// - dsp_coeff: A table of four coefficients, depending on the fractional phase.
-    ///              Used to interpolate between samples.
+    ///   Used to interpolate between samples.
     /// - dsp_process_buffer: Holds the processed signal between stages
     /// - dsp_centernode: delay line for the IIR filter
     /// - dsp_hist1: same
