@@ -1,6 +1,6 @@
 [package]
 name = "oxisynth"
-version = "0.0.5"
+version = "0.1.0"
 edition = "2021"
 
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
@@ -24,8 +24,8 @@ log.workspace = true
 bitflags = "2.4"
 
 # i16-out
-getrandom = { version = "0.2", features = ["js"], optional = true }
-rand = { version = "0.8.3", optional = true }
+getrandom = { version = "0.3", optional = true }
+rand = { version = "0.9.1", optional = true }
 
 lewton = { version = "0.10.2", optional = true }
 

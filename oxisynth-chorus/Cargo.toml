@@ -1,6 +1,6 @@
 [package]
 name = "oxisynth-chorus"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 
 authors = ["Poly <marynczak.bartlomiej@gmail.com>"]
