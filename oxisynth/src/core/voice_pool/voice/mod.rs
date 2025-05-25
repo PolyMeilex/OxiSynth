@@ -295,7 +295,7 @@ impl Voice {
 
             amp: 0.0,
             modenv_count: 0,
-            modenv_section: EnvelopeStep::Decay,
+            modenv_section: EnvelopeStep::Delay,
             modenv_val: 0.0,
 
             modlfo_val: 0.0,
